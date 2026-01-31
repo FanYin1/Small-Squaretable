@@ -8,12 +8,18 @@ import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { config } from '@/core/config';
 import { errorHandler } from './middleware/error-handler';
+import { tenantMiddleware } from './middleware/tenant';
 
-const app = new Hono();
+type Variables = {
+  tenantId?: string;
+};
+
+const app = new Hono<{ Variables: Variables }>();
 
 // 中间件
 app.use('*', logger());
 app.use('*', cors());
+app.use('*', tenantMiddleware());
 
 // 健康检查
 app.get('/health', (c) => {
@@ -28,6 +34,7 @@ app.get('/health', (c) => {
 app.get('/api/v1', (c) => {
   return c.json({
     message: 'Small Squaretable API v1',
+    tenantId: c.get('tenantId'),
     endpoints: {
       health: '/health',
       docs: '/api/v1/docs',
@@ -52,3 +59,5 @@ serve({
   port,
   hostname: config.host,
 });
+
+export { app };
