@@ -74,15 +74,63 @@ pnpm type-check       # 类型检查
 pnpm db:studio        # 打开数据库管理界面
 ```
 
+## 数据库设置
+
+### 本地开发
+
+1. 启动 PostgreSQL:
+```bash
+docker run -d \
+  --name sillytavern-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=sillytavern_saas \
+  -p 5432:5432 \
+  postgres:15
+```
+
+2. 启动 Redis:
+```bash
+docker run -d \
+  --name sillytavern-redis \
+  -p 6379:6379 \
+  redis:7
+```
+
+3. 运行数据库迁移:
+```bash
+pnpm db:migrate
+```
+
+### 测试
+
+运行所有测试:
+```bash
+pnpm test
+```
+
+运行测试覆盖率:
+```bash
+pnpm test:coverage
+```
+
+**注意**: 数据库集成测试需要 PostgreSQL 运行。如果数据库未启动，这些测试会失败，但不影响其他测试。
+
 ## 开发阶段
 
 当前处于 **Phase 1: 基础设施层**
 
 - [x] 项目初始化
-- [ ] 技术栈配置
-- [ ] 数据库 Schema 设计
-- [ ] 迁移策略实现
-- [ ] 部署架构配置
+- [x] 技术栈配置 (Hono, Drizzle, Redis)
+- [x] 数据库 Schema 设计 (tenants, users, characters, chats)
+- [x] 多租户中间件
+- [x] 错误处理中间件
+- [x] Repository 模式实现
+- [ ] 认证系统 (Phase 2)
+- [ ] API 路由实现 (Phase 2)
+
+## 架构文档
+
+- [基础设施架构](docs/architecture/infrastructure.md) - 完整的技术架构说明
 
 ## 参考资源
 

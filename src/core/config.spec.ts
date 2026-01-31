@@ -34,6 +34,8 @@ describe('Config Module', () => {
   });
 
   it('should use default values when not provided', async () => {
+    // Clear NODE_ENV to test default behavior
+    delete process.env.NODE_ENV;
     process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
     process.env.REDIS_URL = 'redis://localhost:6379';
     process.env.JWT_SECRET = 'test-secret-key-at-least-32-chars-long';
