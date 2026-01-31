@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config();
 
+// Set NODE_ENV to test to prevent server from starting during tests
+process.env.NODE_ENV = 'test';
+
 export default defineConfig({
   test: {
     globals: true,

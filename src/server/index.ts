@@ -50,14 +50,16 @@ app.notFound((c) => {
 // 错误处理
 app.onError(errorHandler);
 
-// 启动服务器
-const port = config.port;
-console.log(`🚀 Server starting on http://${config.host}:${port}`);
+// 启动服务器（仅在非测试环境）
+if (process.env.NODE_ENV !== 'test') {
+  const port = config.port;
+  console.log(`🚀 Server starting on http://${config.host}:${port}`);
 
-serve({
-  fetch: app.fetch,
-  port,
-  hostname: config.host,
-});
+  serve({
+    fetch: app.fetch,
+    port,
+    hostname: config.host,
+  });
+}
 
 export { app };
