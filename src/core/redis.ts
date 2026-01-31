@@ -32,3 +32,22 @@ export async function closeRedis() {
     redisClient = null;
   }
 }
+
+// Export a promise-based redis client for convenience
+export const redis = {
+  async get(key: string): Promise<string | null> {
+    const client = await getRedisClient();
+    return await client.get(key);
+  },
+  async set(key: string, value: string, options?: { EX?: number }): Promise<string | null> {
+    const client = await getRedisClient();
+    if (options?.EX) {
+      return await client.set(key, value, { EX: options.EX });
+    }
+    return await client.set(key, value);
+  },
+  async del(key: string): Promise<number> {
+    const client = await getRedisClient();
+    return await client.del(key);
+  },
+};
