@@ -1,68 +1,114 @@
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { ElMessage } from 'element-plus';
+import { Edit } from '@element-plus/icons-vue';
+import { useUserStore } from '@client/stores';
+import { userApi } from '@client/services';
+import ProfileForm from '@client/components/profile/ProfileForm.vue';
+import AvatarUpload from '@client/components/profile/AvatarUpload.vue';
+
+const userStore = useUserStore();
+const editMode = ref(false);
+
+onMounted(async () => {
+  if (!userStore.user) {
+    await userStore.fetchProfile();
+  }
+});
+
+const avatarUrl = computed(() =>
+  userStore.user?.avatar ||
+  `https://api.dicebear.com/7.x/avataaars/svg?seed=${userStore.user?.id}`
+);
+
+function handleEdit() {
+  editMode.value = true;
+}
+
+function handleCancel() {
+  editMode.value = false;
+}
+
+async function handleSave(data: { name: string }) {
+  try {
+    if (!userStore.user) return;
+    await userApi.updateUser(userStore.user.id, { name: data.name });
+    userStore.user.name = data.name;
+    ElMessage.success('保存成功');
+    editMode.value = false;
+  } catch (error) {
+    ElMessage.error('保存失败');
+  }
+}
 </script>
 
 <template>
-  <div class="placeholder-page">
-    <el-card class="placeholder-card">
-      <div class="placeholder-content">
-        <h1>个人中心</h1>
-        <p class="placeholder-text">Task 8 实现</p>
+  <div class="profile-container">
+    <el-card class="profile-card">
+      <template #header>
+        <div class="card-header">
+          <h2>个人中心</h2>
+          <el-button v-if="!editMode" :icon="Edit" @click="handleEdit">
+            编辑
+          </el-button>
+        </div>
+      </template>
+
+      <div v-if="userStore.user" class="profile-content">
+        <div class="avatar-section">
+          <AvatarUpload :avatar-url="avatarUrl" :disabled="!editMode" />
+        </div>
+
         <el-divider />
-        <p class="info-text">此页面将在 Task 8 中实现完整的个人中心功能</p>
+
+        <ProfileForm
+          :user="userStore.user"
+          :edit-mode="editMode"
+          @save="handleSave"
+          @cancel="handleCancel"
+        />
       </div>
+
+      <div v-else v-loading="userStore.loading" class="loading-container" />
     </el-card>
   </div>
 </template>
 
 <style scoped>
-.placeholder-page {
+.profile-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.profile-card {
+  box-shadow: var(--el-box-shadow-light);
+}
+
+.card-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  min-height: 400px;
 }
 
-.placeholder-card {
-  max-width: 500px;
-  width: 100%;
-}
-
-.placeholder-content {
-  text-align: center;
-  padding: 40px 20px;
-}
-
-.placeholder-content h1 {
-  font-size: 32px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 16px 0;
-}
-
-.placeholder-text {
-  font-size: 18px;
-  color: #909399;
+.card-header h2 {
   margin: 0;
+  font-size: 20px;
+  font-weight: 600;
 }
 
-.info-text {
-  font-size: 14px;
-  color: #606266;
-  margin: 16px 0 0 0;
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-/* Dark theme support preparation */
-@media (prefers-color-scheme: dark) {
-  .placeholder-content h1 {
-    color: var(--el-text-color-primary);
-  }
+.avatar-section {
+  display: flex;
+  justify-content: center;
+}
 
-  .placeholder-text {
-    color: var(--el-text-color-secondary);
-  }
-
-  .info-text {
-    color: var(--el-text-color-regular);
-  }
+.loading-container {
+  min-height: 400px;
 }
 </style>
