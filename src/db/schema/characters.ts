@@ -45,6 +45,14 @@ export const characters = pgTable('characters', {
   ratingAvg: decimal('rating_avg', { precision: 3, scale: 2 }),
   ratingCount: integer('rating_count').default(0).notNull(),
 
+  // 五维度评分平均值
+  ratingQualityAvg: decimal('rating_quality_avg', { precision: 3, scale: 2 }),
+  ratingCreativityAvg: decimal('rating_creativity_avg', { precision: 3, scale: 2 }),
+  ratingInteractivityAvg: decimal('rating_interactivity_avg', { precision: 3, scale: 2 }),
+  ratingAccuracyAvg: decimal('rating_accuracy_avg', { precision: 3, scale: 2 }),
+  ratingEntertainmentAvg: decimal('rating_entertainment_avg', { precision: 3, scale: 2 }),
+  ratingOverallAvg: decimal('rating_overall_avg', { precision: 3, scale: 2 }),
+
   // 时间戳
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

@@ -10,6 +10,9 @@ import { config } from '@/core/config';
 import { errorHandler } from './middleware/error-handler';
 import { tenantMiddleware } from './middleware/tenant';
 import { authRoutes } from './routes/auth';
+import { userRoutes } from './routes/users';
+import { characterRoutes } from './routes/characters';
+import { chatRoutes } from './routes/chats';
 
 type Variables = {
   tenantId?: string;
@@ -33,6 +36,9 @@ app.get('/health', (c) => {
 
 // API 路由
 app.route('/api/v1/auth', authRoutes);
+app.route('/api/v1/users', userRoutes);
+app.route('/api/v1/characters', characterRoutes);
+app.route('/api/v1/chats', chatRoutes);
 
 app.get('/api/v1', (c) => {
   return c.json({
@@ -41,6 +47,9 @@ app.get('/api/v1', (c) => {
     endpoints: {
       health: '/health',
       auth: '/api/v1/auth',
+      users: '/api/v1/users',
+      characters: '/api/v1/characters',
+      chats: '/api/v1/chats',
       docs: '/api/v1/docs',
     },
   });

@@ -8,3 +8,4 @@ export * from './tenants';
 export * from './users';
 export * from './characters';
 export * from './chats';
+export * from './ratings';

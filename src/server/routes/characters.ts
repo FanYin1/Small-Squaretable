@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { characterService } from '../services/character.service';
 import { searchService } from '../services/search.service';
+import { ratingService } from '../services/rating.service';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import {
   createCharacterSchema,
@@ -15,8 +16,10 @@ import {
 } from '../../types/character';
 import { searchCharactersSchema } from '../../types/search';
 import { paginationSchema } from '../../types/api';
+import { ratingInputSchema } from '../../types/rating';
 import type { ApiResponse, PaginatedResponse } from '../../types/api';
 import type { Character } from '../../db/schema/characters';
+import type { RatingResponseDto } from '../../types/rating';
 
 export const characterRoutes = new Hono();
 
@@ -59,6 +62,77 @@ characterRoutes.get(
       },
       200
     );
+  }
+);
+
+// 浏览市场（公开角色）- 必须在 /:id 之前
+characterRoutes.get(
+  '/marketplace',
+  optionalAuthMiddleware(),
+  zValidator('query', paginationSchema),
+  async (c) => {
+    const pagination = c.req.valid('query');
+    const result = await characterService.getPublicCharacters(pagination);
+
+    return c.json<ApiResponse<PaginatedResponse<Character>>>(
+      {
+        success: true,
+        data: result,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
+
+// 搜索角色 - 必须在 /:id 之前
+characterRoutes.get(
+  '/search',
+  optionalAuthMiddleware(),
+  zValidator('query', searchCharactersSchema),
+  async (c) => {
+    try {
+      const query = c.req.valid('query');
+      const user = c.get('user');
+
+      // 解析标签（逗号分隔）
+      const tags = query.tags ? query.tags.split(',').map((t) => t.trim()) : undefined;
+
+      // 执行搜索
+      const result = await searchService.searchCharacters({
+        query: query.q,
+        sort: query.sort,
+        filter: query.filter,
+        category: query.category,
+        tags,
+        isNsfw: query.isNsfw,
+        userId: user?.id,
+        page: query.page,
+        limit: query.limit,
+      });
+
+      return c.json<ApiResponse>(
+        {
+          success: true,
+          data: result,
+          meta: { timestamp: new Date().toISOString() },
+        },
+        200
+      );
+    } catch (error) {
+      console.error('Search error:', error);
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: {
+            code: 'SEARCH_ERROR',
+            message: 'Failed to search characters',
+          },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        500
+      );
+    }
   }
 );
 
@@ -147,77 +221,6 @@ characterRoutes.post('/:id/unpublish', authMiddleware(), async (c) => {
   );
 });
 
-// 浏览市场（公开角色）
-characterRoutes.get(
-  '/marketplace',
-  optionalAuthMiddleware(),
-  zValidator('query', paginationSchema),
-  async (c) => {
-    const pagination = c.req.valid('query');
-    const result = await characterService.getPublicCharacters(pagination);
-
-    return c.json<ApiResponse<PaginatedResponse<Character>>>(
-      {
-        success: true,
-        data: result,
-        meta: { timestamp: new Date().toISOString() },
-      },
-      200
-    );
-  }
-);
-
-// 搜索角色
-characterRoutes.get(
-  '/search',
-  optionalAuthMiddleware(),
-  zValidator('query', searchCharactersSchema),
-  async (c) => {
-    try {
-      const query = c.req.valid('query');
-      const user = c.get('user');
-
-      // 解析标签（逗号分隔）
-      const tags = query.tags ? query.tags.split(',').map((t) => t.trim()) : undefined;
-
-      // 执行搜索
-      const result = await searchService.searchCharacters({
-        query: query.q,
-        sort: query.sort,
-        filter: query.filter,
-        category: query.category,
-        tags,
-        isNsfw: query.isNsfw,
-        userId: user?.id,
-        page: query.page,
-        limit: query.limit,
-      });
-
-      return c.json<ApiResponse>(
-        {
-          success: true,
-          data: result,
-          meta: { timestamp: new Date().toISOString() },
-        },
-        200
-      );
-    } catch (error) {
-      console.error('Search error:', error);
-      return c.json<ApiResponse>(
-        {
-          success: false,
-          error: {
-            code: 'SEARCH_ERROR',
-            message: 'Failed to search characters',
-          },
-          meta: { timestamp: new Date().toISOString() },
-        },
-        500
-      );
-    }
-  }
-);
-
 // Fork 公开角色
 characterRoutes.post('/:id/fork', authMiddleware(), async (c) => {
   const user = c.get('user');
@@ -233,3 +236,83 @@ characterRoutes.post('/:id/fork', authMiddleware(), async (c) => {
     201
   );
 });
+
+// 提交评分
+characterRoutes.post(
+  '/:id/ratings',
+  authMiddleware(),
+  zValidator('json', ratingInputSchema),
+  async (c) => {
+    const user = c.get('user');
+    const characterId = c.req.param('id');
+    const input = c.req.valid('json');
+
+    await ratingService.submitRating(characterId, user.id, input);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: { message: 'Rating submitted successfully' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      201
+    );
+  }
+);
+
+// 获取评分详情
+characterRoutes.get('/:id/ratings', optionalAuthMiddleware(), async (c) => {
+  const characterId = c.req.param('id');
+  const user = c.get('user');
+  const ratings = await ratingService.getRatings(characterId, user?.id);
+
+  return c.json<ApiResponse<RatingResponseDto>>(
+    {
+      success: true,
+      data: ratings,
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200
+  );
+});
+
+// 更新评分
+characterRoutes.put(
+  '/:id/ratings',
+  authMiddleware(),
+  zValidator('json', ratingInputSchema),
+  async (c) => {
+    const user = c.get('user');
+    const characterId = c.req.param('id');
+    const input = c.req.valid('json');
+
+    await ratingService.updateRating(characterId, user.id, input);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: { message: 'Rating updated successfully' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
+
+// 删除评分
+characterRoutes.delete('/:id/ratings', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const characterId = c.req.param('id');
+
+  await ratingService.deleteRating(characterId, user.id);
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: { message: 'Rating deleted successfully' },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200
+  );
+});
+

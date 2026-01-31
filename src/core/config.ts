@@ -4,6 +4,7 @@
  * 从环境变量加载配置，提供类型安全的配置访问
  */
 
+import 'dotenv/config';
 import { z } from 'zod';
 
 const configSchema = z.object({
