@@ -15,7 +15,7 @@ interface TenantMiddlewareOptions {
 
 export function tenantMiddleware(options: TenantMiddlewareOptions = {}) {
   const {
-    publicPaths = ['/health', '/api/v1/auth/login', '/api/v1/auth/register'],
+    publicPaths = ['/health', '/api/v1/auth'],
     headerName = 'X-Tenant-ID',
   } = options;
 
