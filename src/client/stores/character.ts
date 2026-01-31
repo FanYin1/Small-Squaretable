@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Character } from '@client/types';
+import { characterApi } from '@client/services';
 
 export const useCharacterStore = defineStore('character', () => {
   // State
@@ -37,8 +38,11 @@ export const useCharacterStore = defineStore('character', () => {
     loading.value = true;
     error.value = null;
     try {
-      console.log('Fetch characters called (API integration in Task 4)');
-      // TODO: Task 4 - API integration
+      const response = await characterApi.getCharacters({
+        search: searchQuery.value || undefined,
+        tags: selectedTags.value.length > 0 ? selectedTags.value : undefined,
+      });
+      characters.value = response.characters;
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch characters';
       throw e;
@@ -51,8 +55,8 @@ export const useCharacterStore = defineStore('character', () => {
     loading.value = true;
     error.value = null;
     try {
-      console.log('Fetch character called (API integration in Task 4):', id);
-      // TODO: Task 4 - API integration
+      const response = await characterApi.getCharacter(id);
+      currentCharacter.value = response.character;
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch character';
       throw e;

@@ -1,68 +1,118 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { Search } from '@element-plus/icons-vue';
+import { useCharacterStore } from '@client/stores';
+import CharacterCard from '@client/components/character/CharacterCard.vue';
+import CharacterDetail from '@client/components/character/CharacterDetail.vue';
+
+const characterStore = useCharacterStore();
+const searchInput = ref('');
+const selectedCharacterId = ref<string | null>(null);
+const detailVisible = ref(false);
+
+onMounted(async () => {
+  await characterStore.fetchCharacters();
+});
+
+async function handleSearch() {
+  await characterStore.searchCharacters(searchInput.value);
+}
+
+function handleCardClick(characterId: string) {
+  selectedCharacterId.value = characterId;
+  characterStore.fetchCharacter(characterId);
+  detailVisible.value = true;
+}
+
+function handleCloseDetail() {
+  detailVisible.value = false;
+  selectedCharacterId.value = null;
+}
 </script>
 
 <template>
-  <div class="placeholder-page">
-    <el-card class="placeholder-card">
-      <div class="placeholder-content">
-        <h1>角色市场</h1>
-        <p class="placeholder-text">Task 6 实现</p>
-        <el-divider />
-        <p class="info-text">此页面将在 Task 6 中实现完整的角色市场功能</p>
-      </div>
-    </el-card>
+  <div class="market-container">
+    <div class="market-header">
+      <h1>角色市场</h1>
+      <p>探索并选择你喜欢的 AI 角色</p>
+    </div>
+
+    <div class="search-bar">
+      <el-input
+        v-model="searchInput"
+        placeholder="搜索角色名称或描述..."
+        :prefix-icon="Search"
+        size="large"
+        clearable
+        @keyup.enter="handleSearch"
+        @clear="handleSearch"
+      >
+        <template #append>
+          <el-button :icon="Search" @click="handleSearch">搜索</el-button>
+        </template>
+      </el-input>
+    </div>
+
+    <div v-loading="characterStore.loading" class="characters-grid">
+      <CharacterCard
+        v-for="character in characterStore.filteredCharacters"
+        :key="character.id"
+        :character="character"
+        @click="handleCardClick(character.id)"
+      />
+
+      <el-empty
+        v-if="!characterStore.loading && characterStore.filteredCharacters.length === 0"
+        description="暂无角色"
+      />
+    </div>
+
+    <CharacterDetail
+      v-if="selectedCharacterId"
+      :visible="detailVisible"
+      :character-id="selectedCharacterId"
+      @close="handleCloseDetail"
+    />
   </div>
 </template>
 
 <style scoped>
-.placeholder-page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
+.market-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
 }
 
-.placeholder-card {
-  max-width: 500px;
-  width: 100%;
-}
-
-.placeholder-content {
+.market-header {
   text-align: center;
-  padding: 40px 20px;
+  margin-bottom: 32px;
 }
 
-.placeholder-content h1 {
+.market-header h1 {
   font-size: 32px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0 0 16px 0;
+  font-weight: 700;
+  margin: 0 0 8px 0;
 }
 
-.placeholder-text {
-  font-size: 18px;
-  color: #909399;
+.market-header p {
+  color: var(--el-text-color-secondary);
   margin: 0;
 }
 
-.info-text {
-  font-size: 14px;
-  color: #606266;
-  margin: 16px 0 0 0;
+.search-bar {
+  margin-bottom: 24px;
 }
 
-/* Dark theme support preparation */
-@media (prefers-color-scheme: dark) {
-  .placeholder-content h1 {
-    color: var(--el-text-color-primary);
-  }
+.characters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  min-height: 400px;
+}
 
-  .placeholder-text {
-    color: var(--el-text-color-secondary);
-  }
-
-  .info-text {
-    color: var(--el-text-color-regular);
+@media (max-width: 768px) {
+  .characters-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
