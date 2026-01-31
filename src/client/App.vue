@@ -1,9 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import MainLayout from './components/layout/MainLayout.vue';
+import LoadingOverlay from './components/ui/LoadingOverlay.vue';
+import { useLoading } from './composables';
+
+const { visible, startLoading, stopLoading } = useLoading();
+
+// Compute the visible state from the reactive object
+const isLoading = computed(() => visible.value.visible);
+const loadingText = computed(() => visible.value.text);
 </script>
 
 <template>
   <MainLayout />
+  <LoadingOverlay :visible="isLoading" :text="loadingText" />
 </template>
 
 <style>
