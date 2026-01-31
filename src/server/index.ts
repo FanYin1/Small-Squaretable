@@ -9,6 +9,7 @@ import { cors } from 'hono/cors';
 import { config } from '@/core/config';
 import { errorHandler } from './middleware/error-handler';
 import { tenantMiddleware } from './middleware/tenant';
+import { authRoutes } from './routes/auth';
 
 type Variables = {
   tenantId?: string;
@@ -31,12 +32,15 @@ app.get('/health', (c) => {
 });
 
 // API 路由
+app.route('/api/v1/auth', authRoutes);
+
 app.get('/api/v1', (c) => {
   return c.json({
     message: 'Small Squaretable API v1',
     tenantId: c.get('tenantId'),
     endpoints: {
       health: '/health',
+      auth: '/api/v1/auth',
       docs: '/api/v1/docs',
     },
   });
