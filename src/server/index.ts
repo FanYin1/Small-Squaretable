@@ -7,6 +7,7 @@ import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { config } from '@/core/config';
+import { errorHandler } from './middleware/error-handler';
 
 const app = new Hono();
 
@@ -40,16 +41,7 @@ app.notFound((c) => {
 });
 
 // 错误处理
-app.onError((err, c) => {
-  console.error('Server error:', err);
-  return c.json(
-    {
-      error: 'Internal Server Error',
-      message: config.nodeEnv === 'development' ? err.message : undefined,
-    },
-    500
-  );
-});
+app.onError(errorHandler);
 
 // 启动服务器
 const port = config.port;
