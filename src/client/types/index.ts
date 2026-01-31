@@ -36,3 +36,28 @@ export interface Character {
   isPublic: boolean;
   createdAt: string;
 }
+
+export type PlanType = 'free' | 'pro' | 'team';
+export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing';
+
+export interface Subscription {
+  id?: string;
+  tenantId?: string;
+  plan: PlanType;
+  status: SubscriptionStatus;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  stripePriceId?: string;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  cancelAtPeriodEnd?: boolean;
+}
+
+export interface SubscriptionConfig {
+  publishableKey: string;
+  prices: {
+    proMonthly: string;
+    proYearly: string;
+    teamMonthly: string;
+  };
+}

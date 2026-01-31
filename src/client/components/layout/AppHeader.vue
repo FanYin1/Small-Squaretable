@@ -77,11 +77,12 @@ const toggleMobileMenu = () => {
       <!-- User Menu -->
       <div class="user-menu">
         <template v-if="isAuthenticated">
-          <el-dropdown @command="(command: string) => command === 'profile' ? handleProfile() : handleLogout()">
+          <el-dropdown @command="(command: string) => command === 'profile' ? handleProfile() : command === 'subscription' ? router.push('/subscription') : handleLogout()">
             <el-button circle :icon="User" />
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                <el-dropdown-item command="subscription">订阅管理</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -128,6 +129,9 @@ const toggleMobileMenu = () => {
         <el-menu-item v-if="isAuthenticated" @click="handleProfile(); isMobileMenuOpen = false">
           <el-icon><User /></el-icon>
           <span>个人中心</span>
+        </el-menu-item>
+        <el-menu-item v-if="isAuthenticated" @click="router.push('/subscription'); isMobileMenuOpen = false">
+          订阅管理
         </el-menu-item>
         <el-menu-item v-if="isAuthenticated" @click="handleLogout(); isMobileMenuOpen = false">
           退出登录

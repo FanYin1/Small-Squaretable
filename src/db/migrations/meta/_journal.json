@@ -15,6 +15,13 @@
       "when": 1769900000000,
       "tag": "0001_add_search_vector",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769876303858,
+      "tag": "0002_clumsy_switch",
+      "breakpoints": true
     }
   ]
 }

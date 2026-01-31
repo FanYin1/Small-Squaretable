@@ -9,3 +9,4 @@ export * from './auth.api';
 export * from './user.api';
 export * from './character.api';
 export * from './chat.api';
+export * from './subscription.api';

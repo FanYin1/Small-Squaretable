@@ -13,6 +13,7 @@ import { authRoutes } from './routes/auth';
 import { userRoutes } from './routes/users';
 import { characterRoutes } from './routes/characters';
 import { chatRoutes } from './routes/chats';
+import { subscriptionRoutes } from './routes/subscriptions';
 
 type Variables = {
   tenantId?: string;
@@ -39,6 +40,7 @@ app.route('/api/v1/auth', authRoutes);
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
 app.route('/api/v1/chats', chatRoutes);
+app.route('/api/v1/subscriptions', subscriptionRoutes);
 
 app.get('/api/v1', (c) => {
   return c.json({
@@ -50,6 +52,7 @@ app.get('/api/v1', (c) => {
       users: '/api/v1/users',
       characters: '/api/v1/characters',
       chats: '/api/v1/chats',
+      subscriptions: '/api/v1/subscriptions',
       docs: '/api/v1/docs',
     },
   });

@@ -12,6 +12,8 @@ export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
   plan: tenantPlanEnum('plan').default('free').notNull(),
+  subscriptionId: uuid('subscription_id'),
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
   settings: jsonb('settings').default({}).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

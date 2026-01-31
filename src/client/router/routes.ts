@@ -64,4 +64,13 @@ export const routes: RouteRecordRaw[] = [
       guestOnly: false,
     },
   },
+  {
+    path: '/subscription',
+    name: 'Subscription',
+    component: () => import('../pages/Subscription.vue'),
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
 ];

@@ -9,6 +9,16 @@
 **项目代号**: Small Squaretable
 **设计文档**: [2026-01-29-sillytavern-saas-transformation.md](../docs/plans/2026-01-29-sillytavern-saas-transformation.md)
 
+## 功能特性
+
+- **多租户架构**: 完整的租户隔离和数据安全
+- **订阅系统**: 基于 Stripe 的三层订阅计划 (Free/Pro/Team)
+- **使用量跟踪**: 实时跟踪和配额管理
+- **认证系统**: JWT 认证和会话管理
+- **数据库**: PostgreSQL + Drizzle ORM
+- **缓存**: Redis 高性能缓存
+- **API**: RESTful API with Hono framework
+
 ## 技术栈
 
 - **后端**: Hono (Node.js)
@@ -50,6 +60,7 @@ pnpm install
 
 # 配置环境变量
 cp .env.example .env
+# 编辑 .env 文件，配置数据库、Redis 和 Stripe
 
 # 生成数据库迁移
 pnpm db:generate
@@ -60,6 +71,27 @@ pnpm db:migrate
 # 启动开发服务器
 pnpm dev
 ```
+
+### 环境变量配置
+
+必需的环境变量：
+
+**数据库和缓存:**
+- `DATABASE_URL`: PostgreSQL 连接字符串
+- `REDIS_URL`: Redis 连接字符串
+
+**认证:**
+- `JWT_SECRET`: JWT 签名密钥
+
+**Stripe 订阅系统:**
+- `STRIPE_SECRET_KEY`: Stripe 密钥 (从 [Stripe Dashboard](https://dashboard.stripe.com/apikeys) 获取)
+- `STRIPE_PUBLISHABLE_KEY`: Stripe 公钥
+- `STRIPE_WEBHOOK_SECRET`: Webhook 签名密钥
+- `STRIPE_PRICE_PRO_MONTHLY`: Pro 月付价格 ID
+- `STRIPE_PRICE_PRO_YEARLY`: Pro 年付价格 ID
+- `STRIPE_PRICE_TEAM_MONTHLY`: Team 月付价格 ID
+
+详细配置说明请参考 [Stripe 部署指南](docs/deployment/stripe-setup.md)。
 
 ### 开发命令
 
@@ -128,9 +160,14 @@ pnpm test:coverage
 - [ ] 认证系统 (Phase 2)
 - [ ] API 路由实现 (Phase 2)
 
-## 架构文档
+## 文档
 
+### 架构文档
 - [基础设施架构](docs/architecture/infrastructure.md) - 完整的技术架构说明
+
+### 功能指南
+- [订阅系统使用指南](docs/subscription-guide.md) - 订阅系统的完整使用说明
+- [Stripe 部署指南](docs/deployment/stripe-setup.md) - Stripe 配置和部署步骤
 
 ## 参考资源
 
