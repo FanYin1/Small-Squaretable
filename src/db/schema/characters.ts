@@ -4,9 +4,16 @@
  * 存储 AI 角色卡数据，支持公开分享和市场功能
  */
 
-import { pgTable, uuid, varchar, timestamp, jsonb, boolean, integer, decimal, text } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, boolean, integer, decimal, text, customType } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 import { users } from './users';
+
+// 定义 tsvector 自定义类型
+const tsvector = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return 'tsvector';
+  },
+});
 
 export const characters = pgTable('characters', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -41,6 +48,9 @@ export const characters = pgTable('characters', {
   // 时间戳
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+
+  // 全文搜索向量
+  searchVector: tsvector('search_vector'),
 });
 
 export type Character = typeof characters.$inferSelect;
