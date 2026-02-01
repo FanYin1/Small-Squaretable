@@ -4,7 +4,7 @@
  * 提供全文搜索功能，支持关键词搜索、过滤和排序
  */
 
-import { sql, and, or, eq, desc, asc } from 'drizzle-orm';
+import { sql, and, or, eq, desc } from 'drizzle-orm';
 import { db } from '@/db';
 import { characters } from '@/db/schema/characters';
 import type { SearchOptions, SearchResult, SearchResultItem } from '@/types/search';
@@ -17,7 +17,7 @@ export class SearchService {
    * @returns 搜索结果
    */
   async searchCharacters(options: SearchOptions): Promise<SearchResult> {
-    const { query, sort, filter, category, tags, isNsfw, tenantId, userId, page, limit } = options;
+    const { query, sort, filter, category, tags, isNsfw, userId, page, limit } = options;
     const offset = (page - 1) * limit;
 
     // 构建搜索查询 - 使用 plainto_tsquery 进行安全的文本搜索

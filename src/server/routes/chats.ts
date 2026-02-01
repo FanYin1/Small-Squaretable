@@ -15,7 +15,7 @@ import {
 } from '../../types/chat';
 import { paginationSchema } from '../../types/api';
 import type { ApiResponse, PaginatedResponse } from '../../types/api';
-import type { Chat, Message } from '../../db/schema/chats';
+import type { Chat } from '../../db/schema/chats';
 
 export const chatRoutes = new Hono();
 

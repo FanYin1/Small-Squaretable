@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UserService } from './user.service';
 import { userRepository } from '../../db/repositories/user.repository';
-import { NotFoundError, ForbiddenError, ValidationError } from '../../core/errors';
+import { NotFoundError, ValidationError } from '../../core/errors';
 import bcrypt from 'bcrypt';
 
 vi.mock('../../db/repositories/user.repository');

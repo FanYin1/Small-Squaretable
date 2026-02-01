@@ -4,7 +4,7 @@
  * 使用 TDD 方法：RED -> GREEN -> REFACTOR
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { searchService } from './search.service';
 import { db } from '@/db';
 import { characters } from '@/db/schema/characters';

@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ChatService } from './chat.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
-import { NotFoundError, ForbiddenError } from '../../core/errors';
+import { NotFoundError } from '../../core/errors';
 
 vi.mock('../../db/repositories/chat.repository');
 vi.mock('../../db/repositories/message.repository');

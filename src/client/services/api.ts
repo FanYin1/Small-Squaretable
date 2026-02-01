@@ -7,7 +7,7 @@
 /**
  * API 响应类型
  */
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
   message?: string;
@@ -35,7 +35,7 @@ const API_BASE_URL = '/api'; // Vite 会代理到 http://localhost:3000/api
 /**
  * 创建 fetch 包装器
  */
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -78,7 +78,7 @@ export async function apiRequest<T = any>(
 
     if (!response.ok) {
       // 尝试解析错误响应
-      let errorData: any = {};
+      let errorData: Record<string, unknown> = {};
       if (isJson) {
         errorData = await response.json();
       }
@@ -115,23 +115,23 @@ export async function apiRequest<T = any>(
  * HTTP 方法快捷方式
  */
 export const api = {
-  get: <T = any>(endpoint: string, options?: RequestInit) =>
+  get: <T = unknown>(endpoint: string, options?: RequestInit) =>
     apiRequest<T>(endpoint, { ...options, method: 'GET' }),
 
-  post: <T = any>(endpoint: string, data?: any, options?: RequestInit) =>
+  post: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit) =>
     apiRequest<T>(endpoint, {
       ...options,
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  patch: <T = any>(endpoint: string, data?: any, options?: RequestInit) =>
+  patch: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit) =>
     apiRequest<T>(endpoint, {
       ...options,
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
     }),
 
-  delete: <T = any>(endpoint: string, options?: RequestInit) =>
+  delete: <T = unknown>(endpoint: string, options?: RequestInit) =>
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
 };

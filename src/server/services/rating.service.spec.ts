@@ -2,7 +2,7 @@
  * RatingService 单元测试
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { db } from '../../db/index';
 import { ratings } from '../../db/schema/ratings';
 import { characters } from '../../db/schema/characters';

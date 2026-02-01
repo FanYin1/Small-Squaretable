@@ -1,6 +1,5 @@
 import Stripe from 'stripe';
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
-import { userRepository } from '../../db/repositories/user.repository';
 import { NotFoundError, ValidationError } from '../../core/errors';
 import type { Subscription } from '../../db/schema/subscriptions';
 

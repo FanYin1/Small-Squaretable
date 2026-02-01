@@ -1,4 +1,4 @@
-import { eq, and, sql, sum } from 'drizzle-orm';
+import { eq, and, sum } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { usage, type Usage, type NewUsage } from '../schema/usage';
@@ -11,7 +11,7 @@ export class UsageRepository extends BaseRepository {
     tenantId: string,
     resourceType: 'llm_tokens' | 'messages' | 'images' | 'api_calls',
     amount: number,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<Usage> {
     const period = new Date().toISOString().slice(0, 7); // YYYY-MM
 

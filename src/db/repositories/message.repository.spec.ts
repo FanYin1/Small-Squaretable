@@ -1,12 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, beforeEach } from 'vitest';
 import { MessageRepository } from './message.repository';
 import { db } from '../index';
 
 describe('MessageRepository', () => {
-  let repo: MessageRepository;
-
   beforeEach(() => {
-    repo = new MessageRepository(db);
+    new MessageRepository(db);
   });
 
   describe('findByChatId', () => {

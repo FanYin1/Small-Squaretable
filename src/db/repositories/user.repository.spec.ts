@@ -1,12 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, beforeEach } from 'vitest';
 import { UserRepository } from './user.repository';
 import { db } from '../index';
 
 describe('UserRepository', () => {
-  let repo: UserRepository;
-
   beforeEach(() => {
-    repo = new UserRepository(db);
+    new UserRepository(db);
   });
 
   describe('findById', () => {

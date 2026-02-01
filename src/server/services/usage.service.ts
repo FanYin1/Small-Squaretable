@@ -32,7 +32,7 @@ export class UsageService {
     tenantId: string,
     resourceType: ResourceType,
     amount: number,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<Usage> {
     // 记录到数据库
     const record = await usageRepository.record(tenantId, resourceType, amount, metadata);

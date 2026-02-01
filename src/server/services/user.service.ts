@@ -7,7 +7,7 @@
 import bcrypt from 'bcrypt';
 import { userRepository } from '../../db/repositories/user.repository';
 import { NotFoundError, ValidationError } from '../../core/errors';
-import type { UpdateUserInput, UpdatePasswordInput } from '../../types/user';
+import type { UpdateUserInput } from '../../types/user';
 
 const SALT_ROUNDS = 12;
 

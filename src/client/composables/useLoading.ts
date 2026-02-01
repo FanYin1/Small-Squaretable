@@ -13,9 +13,6 @@ const loadingState = ref<LoadingState>({
 let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 export function useLoading() {
-  const visible = readonly(ref(() => loadingState.value.visible));
-  const text = readonly(ref(() => loadingState.value.text));
-
   /**
    * Start loading with optional text and timeout
    * @param loadingText - Text to display while loading

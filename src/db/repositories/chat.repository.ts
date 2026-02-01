@@ -19,7 +19,7 @@ export class ChatRepository extends BaseRepository {
   }
 
   async findByUserId(userId: string, pagination?: PaginationParams): Promise<Chat[]> {
-    let query = this.db.select().from(chats).where(eq(chats.userId, userId)).orderBy(desc(chats.updatedAt)) as any;
+    let query: ReturnType<typeof this.db.select> = this.db.select().from(chats).where(eq(chats.userId, userId)).orderBy(desc(chats.updatedAt));
 
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;

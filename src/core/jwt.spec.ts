@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { generateAccessToken, generateRefreshToken, verifyAccessToken, verifyRefreshToken } from './jwt';
 
 describe('JWT Module', () => {

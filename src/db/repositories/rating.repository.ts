@@ -4,7 +4,7 @@
  * 处理评分数据的 CRUD 操作和聚合计算
  */
 
-import { eq, and, avg, count, sql } from 'drizzle-orm';
+import { eq, and, count, sql } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { ratings, type Rating, type NewRating } from '../schema/ratings';

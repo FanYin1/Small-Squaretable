@@ -11,6 +11,7 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '.
 import { redis } from '../../core/redis';
 import { UnauthorizedError, ValidationError } from '../../core/errors';
 import type { RegisterInput, LoginInput, AuthTokens, AuthUser } from '../../types/auth';
+import type { User } from '../../db/schema/users';
 
 const SALT_ROUNDS = 12;
 const REFRESH_TOKEN_PREFIX = 'refresh_token:';
@@ -113,7 +114,7 @@ export class AuthService {
     );
   }
 
-  private toAuthUser(user: any): AuthUser {
+  private toAuthUser(user: User): AuthUser {
     return {
       id: user.id,
       tenantId: user.tenantId,

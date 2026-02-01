@@ -9,7 +9,6 @@ import type { Context } from 'hono';
 import { featureService, type FeatureName } from '../services/feature.service';
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
 import type { ResourceType } from '../services/usage.service';
-import { ForbiddenError } from '../../core/errors';
 
 /**
  * 要求特定功能权限的中间件
