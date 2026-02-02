@@ -1,36 +1,34 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Edit, Delete, Upload, Download, Share, ArrowLeft, Check, Close } from '@element-plus/icons-vue';
+import { Plus, Edit, Delete, Upload, Download, Share, Search } from '@element-plus/icons-vue';
+import { useUserStore } from '@client/stores';
 import { api } from '@client/services/api';
 import { useFeatureGate } from '@client/composables/useFeatureGate';
+import LeftSidebar from '@client/components/layout/LeftSidebar.vue';
+import CharacterCard from '@client/components/character/CharacterCard.vue';
+import EmptyState from '@client/components/market/EmptyState.vue';
 import CharacterPublishForm from '@client/components/character/CharacterPublishForm.vue';
 import { downloadCharacterJson, readCharacterJson } from '@client/utils/sillytavern';
 import type { Character } from '@client/types';
 
+const userStore = useUserStore();
 const { hasFeature } = useFeatureGate();
 
 // State
 const characters = ref<Character[]>([]);
 const loading = ref(false);
 const activeTab = ref<'private' | 'published'>('private');
-
-// Two-column layout state
-const selectedCharacter = ref<Character | null>(null);
-const showMobileDetail = ref(false);
-const editMode = ref(false);
-const editForm = ref({
-  name: '',
-  description: '',
-  tags: [] as string[],
-  category: '',
-  isNsfw: false
-});
+const searchQuery = ref('');
+const showUserMenu = ref(false);
 
 // Dialogs
 const publishDialogVisible = ref(false);
+const selectedCharacterForPublish = ref<Character | null>(null);
 
 // Computed
+const isLoggedIn = computed(() => !!userStore.user);
+
 const privateCharacters = computed(() => {
   return characters.value.filter(c => !c.isPublic);
 });
@@ -40,7 +38,18 @@ const publishedCharacters = computed(() => {
 });
 
 const displayCharacters = computed(() => {
-  return activeTab.value === 'private' ? privateCharacters.value : publishedCharacters.value;
+  const list = activeTab.value === 'private' ? privateCharacters.value : publishedCharacters.value;
+
+  if (!searchQuery.value.trim()) {
+    return list;
+  }
+
+  const query = searchQuery.value.toLowerCase();
+  return list.filter(c =>
+    c.name.toLowerCase().includes(query) ||
+    c.description?.toLowerCase().includes(query) ||
+    c.tags?.some(tag => tag.toLowerCase().includes(query))
+  );
 });
 
 onMounted(async () => {
@@ -60,8 +69,26 @@ async function fetchCharacters() {
   }
 }
 
+function handleSearch() {
+  // Search is reactive through computed property
+}
+
+function handleClearFilters() {
+  searchQuery.value = '';
+}
+
+function handleBrowseAll() {
+  searchQuery.value = '';
+  activeTab.value = 'private';
+}
+
+function handleCreateNew() {
+  // Navigate to character creation page or open dialog
+  ElMessage.info('创建角色功能开发中');
+}
+
 function handlePublish(character: Character) {
-  selectedCharacter.value = character;
+  selectedCharacterForPublish.value = character;
   publishDialogVisible.value = true;
 }
 
@@ -139,364 +166,183 @@ async function handleImport() {
 }
 
 function handlePublishSuccess() {
+  publishDialogVisible.value = false;
+  selectedCharacterForPublish.value = null;
   fetchCharacters();
 }
 
-function handleEdit(character: Character) {
-  selectedCharacter.value = character;
-  editMode.value = true;
-  editForm.value = {
-    name: character.name,
-    description: character.description || '',
-    tags: character.tags || [],
-    category: character.category || '',
-    isNsfw: character.isNsfw || false
-  };
-  showMobileDetail.value = true;
+function handleCardClick(characterId: string) {
+  // TODO: Open character detail modal or navigate to detail page
+  console.log('Character clicked:', characterId);
 }
 
-function handleSelectCharacter(character: Character) {
-  selectedCharacter.value = character;
-  editMode.value = false;
-  showMobileDetail.value = true;
-}
-
-function handleBackToList() {
-  showMobileDetail.value = false;
-  selectedCharacter.value = null;
-  editMode.value = false;
-}
-
-function handleCreateNew() {
-  selectedCharacter.value = null;
-  editMode.value = true;
-  editForm.value = {
-    name: '',
-    description: '',
-    tags: [],
-    category: '',
-    isNsfw: false
-  };
-  showMobileDetail.value = true;
-}
-
-async function handleSaveEdit() {
-  if (!editForm.value.name.trim()) {
-    ElMessage.error('角色名称不能为空');
-    return;
-  }
-
-  try {
-    if (selectedCharacter.value) {
-      // Update existing character
-      await api.put(`/characters/${selectedCharacter.value.id}`, editForm.value);
-      ElMessage.success('角色已更新');
-    } else {
-      // Create new character
-      await api.post('/characters', editForm.value);
-      ElMessage.success('角色已创建');
-    }
-
-    await fetchCharacters();
-    editMode.value = false;
-    selectedCharacter.value = null;
-    showMobileDetail.value = false;
-  } catch (error: any) {
-    ElMessage.error(error.message || '保存失败');
-  }
-}
-
-function handleCancelEdit() {
-  editMode.value = false;
-  if (!selectedCharacter.value) {
-    showMobileDetail.value = false;
-  }
+function handleLogout() {
+  userStore.logout();
+  showUserMenu.value = false;
 }
 </script>
 
 <template>
-  <div class="my-characters-container">
-    <!-- Header -->
-    <div class="page-header">
-      <h1>我的角色</h1>
-      <div class="header-actions">
-        <el-button :icon="Upload" @click="handleImport">
-          导入角色
-        </el-button>
-        <el-button type="success" :icon="Plus" @click="handleCreateNew">
-          创建角色
-        </el-button>
-      </div>
-    </div>
+  <div class="my-characters-page">
+    <!-- 左侧导航栏 -->
+    <LeftSidebar />
 
-    <!-- Two-column layout -->
-    <div class="two-column-layout">
-      <!-- Left column: Character list -->
-      <div
-        class="left-column"
-        :class="{ 'mobile-hidden': showMobileDetail }"
-      >
-        <div class="column-header">
-          <el-tabs v-model="activeTab" class="character-tabs">
-            <el-tab-pane label="私有角色" name="private">
-              <template #label>
-                <span>私有角色 ({{ privateCharacters.length }})</span>
-              </template>
-            </el-tab-pane>
-            <el-tab-pane label="已发布" name="published">
-              <template #label>
-                <span>已发布 ({{ publishedCharacters.length }})</span>
-              </template>
-            </el-tab-pane>
-          </el-tabs>
-        </div>
+    <!-- 主内容区 -->
+    <div class="main-content">
+      <!-- 顶部栏 -->
+      <header class="top-bar">
+        <h1 class="page-title">我的角色</h1>
 
-        <div v-loading="loading" class="character-list-scroll">
-          <el-empty
-            v-if="!loading && displayCharacters.length === 0"
-            :description="activeTab === 'private' ? '暂无私有角色' : '暂无已发布角色'"
-            class="empty-state"
+        <!-- 搜索框 -->
+        <div class="search-combo">
+          <el-input
+            v-model="searchQuery"
+            placeholder="搜索角色名称、描述或标签..."
+            :prefix-icon="Search"
+            clearable
+            @keyup.enter="handleSearch"
           />
+          <el-button type="primary" :icon="Plus" @click="handleCreateNew">
+            创建角色
+          </el-button>
+        </div>
 
-          <div v-else class="character-list">
-            <div
-              v-for="character in displayCharacters"
-              :key="character.id"
-              class="character-list-item glass-card"
-              :class="{ 'selected': selectedCharacter?.id === character.id }"
-              @click="handleSelectCharacter(character)"
-            >
+        <!-- 用户菜单 -->
+        <div class="user-menu-wrapper">
+          <el-dropdown v-if="isLoggedIn" trigger="click" @command="handleLogout">
+            <div class="user-avatar-btn">
               <el-avatar
-                :size="48"
-                :src="character.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${character.id}`"
-                class="character-avatar"
-              />
-              <div class="character-info">
-                <h3 class="character-name">{{ character.name }}</h3>
-                <p class="character-desc">{{ character.description || '暂无描述' }}</p>
-                <div v-if="character.tags && character.tags.length" class="character-tags">
-                  <el-tag
-                    v-for="tag in character.tags.slice(0, 2)"
-                    :key="tag"
-                    size="small"
-                    type="info"
-                  >
-                    {{ tag }}
-                  </el-tag>
-                </div>
-              </div>
+                :size="40"
+                :src="userStore.user?.avatar"
+              >
+                {{ userStore.user?.name?.[0] }}
+              </el-avatar>
             </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item disabled>
+                  <div class="user-info">
+                    <div class="user-name">{{ userStore.user?.name }}</div>
+                    <div class="user-email">{{ userStore.user?.email }}</div>
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click="$router.push('/profile')">
+                  个人中心
+                </el-dropdown-item>
+                <el-dropdown-item @click="$router.push('/market')">
+                  角色市场
+                </el-dropdown-item>
+                <el-dropdown-item @click="$router.push('/subscription')">
+                  订阅管理
+                </el-dropdown-item>
+                <el-dropdown-item @click="$router.push('/profile')">
+                  设置
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
+          <div v-else class="auth-buttons">
+            <el-button @click="$router.push('/login')">登录</el-button>
+            <el-button type="primary" @click="$router.push('/register')">注册</el-button>
           </div>
+        </div>
+      </header>
+
+      <!-- 标签栏 -->
+      <div class="tabs-section">
+        <el-tabs v-model="activeTab" class="character-tabs">
+          <el-tab-pane name="private">
+            <template #label>
+              <span class="tab-label">
+                私有角色
+                <span class="tab-count">{{ privateCharacters.length }}</span>
+              </span>
+            </template>
+          </el-tab-pane>
+          <el-tab-pane name="published">
+            <template #label>
+              <span class="tab-label">
+                已发布
+                <span class="tab-count">{{ publishedCharacters.length }}</span>
+              </span>
+            </template>
+          </el-tab-pane>
+        </el-tabs>
+
+        <div class="tabs-actions">
+          <el-button :icon="Upload" @click="handleImport">
+            导入角色
+          </el-button>
         </div>
       </div>
 
-      <!-- Right column: Character detail/edit -->
-      <div
-        class="right-column"
-        :class="{ 'mobile-visible': showMobileDetail }"
-      >
-        <!-- Mobile back button -->
-        <div class="mobile-back-button" @click="handleBackToList">
-          <el-button :icon="ArrowLeft" circle />
+      <!-- 角色网格 -->
+      <div v-loading="loading" class="characters-section">
+        <div v-if="!loading && displayCharacters.length === 0">
+          <EmptyState
+            @clear-filters="handleClearFilters"
+            @browse-all="handleBrowseAll"
+          />
         </div>
 
-        <!-- Empty state -->
-        <div v-if="!selectedCharacter && !editMode" class="empty-detail glass-card">
-          <div class="empty-content">
-            <svg class="empty-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="2" opacity="0.2"/>
-              <path d="M32 16v32M16 32h32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <h3>选择一个角色</h3>
-            <p>从左侧列表选择角色查看详情，或创建新角色</p>
-          </div>
-        </div>
-
-        <!-- View mode -->
-        <div v-else-if="selectedCharacter && !editMode" class="character-detail glass-card">
-          <div class="detail-header">
-            <el-avatar
-              :size="80"
-              :src="selectedCharacter.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedCharacter.id}`"
+        <div v-else class="characters-grid">
+          <div
+            v-for="character in displayCharacters"
+            :key="character.id"
+            class="character-card-wrapper"
+          >
+            <CharacterCard
+              :character="character"
+              @click="handleCardClick(character.id)"
             />
-            <div class="detail-header-info">
-              <h2>{{ selectedCharacter.name }}</h2>
-              <div class="detail-meta">
-                <el-tag v-if="selectedCharacter.isPublic" type="success" size="small">已发布</el-tag>
-                <el-tag v-else type="info" size="small">私有</el-tag>
-                <el-tag v-if="selectedCharacter.isNsfw" type="warning" size="small">NSFW</el-tag>
-              </div>
-            </div>
-          </div>
 
-          <div class="detail-content">
-            <div class="detail-section">
-              <h4>描述</h4>
-              <p>{{ selectedCharacter.description || '暂无描述' }}</p>
-            </div>
+            <!-- 操作按钮覆盖层 -->
+            <div class="card-actions-overlay">
+              <el-button
+                size="small"
+                :icon="Edit"
+                circle
+                @click.stop="handleCardClick(character.id)"
+              />
 
-            <div v-if="selectedCharacter.tags && selectedCharacter.tags.length" class="detail-section">
-              <h4>标签</h4>
-              <div class="tags-list">
-                <el-tag
-                  v-for="tag in selectedCharacter.tags"
-                  :key="tag"
-                  type="info"
-                >
-                  {{ tag }}
-                </el-tag>
-              </div>
-            </div>
+              <el-button
+                v-if="!character.isPublic"
+                size="small"
+                type="success"
+                :icon="Share"
+                circle
+                :disabled="!hasFeature('character_share')"
+                @click.stop="handlePublish(character)"
+              />
 
-            <div v-if="selectedCharacter.category" class="detail-section">
-              <h4>分类</h4>
-              <p>{{ selectedCharacter.category }}</p>
-            </div>
+              <el-button
+                v-else
+                size="small"
+                type="warning"
+                :icon="Download"
+                circle
+                @click.stop="handleUnpublish(character)"
+              />
 
-            <div v-if="selectedCharacter.isPublic" class="detail-section">
-              <h4>统计</h4>
-              <div class="stats-grid">
-                <div class="stat-item">
-                  <span class="stat-label">评分</span>
-                  <span class="stat-value">{{ selectedCharacter.rating || 0 }}</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">评价数</span>
-                  <span class="stat-value">{{ selectedCharacter.ratingCount || 0 }}</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">下载量</span>
-                  <span class="stat-value">{{ selectedCharacter.downloadCount || 0 }}</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">浏览量</span>
-                  <span class="stat-value">{{ selectedCharacter.viewCount || 0 }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+              <el-button
+                size="small"
+                :icon="Download"
+                circle
+                @click.stop="handleExport(character)"
+              />
 
-          <div class="detail-actions">
-            <el-button
-              type="primary"
-              :icon="Edit"
-              @click="handleEdit(selectedCharacter)"
-            >
-              编辑
-            </el-button>
-
-            <el-button
-              v-if="!selectedCharacter.isPublic"
-              type="primary"
-              :icon="Share"
-              :disabled="!hasFeature('character_share')"
-              @click="handlePublish(selectedCharacter)"
-            >
-              发布到市场
-            </el-button>
-
-            <el-button
-              v-else
-              type="warning"
-              @click="handleUnpublish(selectedCharacter)"
-            >
-              从市场下架
-            </el-button>
-
-            <el-button
-              :icon="Download"
-              @click="handleExport(selectedCharacter)"
-            >
-              导出
-            </el-button>
-
-            <el-button
-              type="danger"
-              :icon="Delete"
-              @click="handleDelete(selectedCharacter)"
-            >
-              删除
-            </el-button>
-          </div>
-        </div>
-
-        <!-- Edit mode -->
-        <div v-else class="character-edit glass-card">
-          <div class="edit-header">
-            <h2>{{ selectedCharacter ? '编辑角色' : '创建角色' }}</h2>
-          </div>
-
-          <div class="edit-form">
-            <div class="form-item">
-              <label>角色名称 *</label>
-              <el-input
-                v-model="editForm.name"
-                placeholder="请输入角色名称"
-                maxlength="50"
-                show-word-limit
+              <el-button
+                size="small"
+                type="danger"
+                :icon="Delete"
+                circle
+                @click.stop="handleDelete(character)"
               />
             </div>
-
-            <div class="form-item">
-              <label>角色描述</label>
-              <el-input
-                v-model="editForm.description"
-                type="textarea"
-                :rows="4"
-                placeholder="请输入角色描述"
-                maxlength="500"
-                show-word-limit
-              />
-            </div>
-
-            <div class="form-item">
-              <label>分类</label>
-              <el-input
-                v-model="editForm.category"
-                placeholder="例如：助手、娱乐、教育等"
-              />
-            </div>
-
-            <div class="form-item">
-              <label>标签</label>
-              <el-select
-                v-model="editForm.tags"
-                multiple
-                filterable
-                allow-create
-                placeholder="添加标签（按回车创建）"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="tag in editForm.tags"
-                  :key="tag"
-                  :label="tag"
-                  :value="tag"
-                />
-              </el-select>
-            </div>
-
-            <div class="form-item">
-              <el-checkbox v-model="editForm.isNsfw">
-                标记为 NSFW（成人内容）
-              </el-checkbox>
-            </div>
-          </div>
-
-          <div class="edit-actions">
-            <el-button
-              type="success"
-              :icon="Check"
-              @click="handleSaveEdit"
-            >
-              保存
-            </el-button>
-            <el-button
-              :icon="Close"
-              @click="handleCancelEdit"
-            >
-              取消
-            </el-button>
           </div>
         </div>
       </div>
@@ -504,9 +350,9 @@ function handleCancelEdit() {
 
     <!-- Publish Dialog -->
     <CharacterPublishForm
-      v-if="selectedCharacter && publishDialogVisible"
+      v-if="selectedCharacterForPublish && publishDialogVisible"
       :visible="publishDialogVisible"
-      :character="selectedCharacter"
+      :character="selectedCharacterForPublish"
       @close="publishDialogVisible = false"
       @success="handlePublishSuccess"
     />
@@ -514,481 +360,353 @@ function handleCancelEdit() {
 </template>
 
 <style scoped>
-.my-characters-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px;
-  min-height: calc(100vh - 120px);
-}
-
-/* Header */
-.page-header {
+.my-characters-page {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  min-height: 100vh;
+  background: #F9FAFB;
 }
 
-.page-header h1 {
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-/* Two-column layout */
-.two-column-layout {
-  display: grid;
-  grid-template-columns: 35% 65%;
-  gap: 24px;
-  height: calc(100vh - 200px);
-  min-height: 600px;
-}
-
-/* Left column - Character list */
-.left-column {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.column-header {
-  margin-bottom: 16px;
-}
-
-.character-tabs {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.character-list-scroll {
+/* 主内容区 */
+.main-content {
   flex: 1;
-  overflow-y: auto;
-  padding-right: 8px;
-}
-
-.character-list {
+  margin-left: 64px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  min-height: 100vh;
 }
 
-/* Glassmorphism card */
-.glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+/* 顶部栏 */
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 32px;
+  background: white;
+  border-bottom: 1px solid #E5E7EB;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.dark .glass-card {
-  background: rgba(30, 30, 30, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  white-space: nowrap;
 }
 
-/* Character list item */
-.character-list-item {
+/* 搜索框组合 */
+.search-combo {
+  flex: 1;
   display: flex;
   gap: 12px;
-  padding: 16px;
-  cursor: pointer;
-  position: relative;
+  max-width: 600px;
 }
 
-.character-list-item:hover {
-  transform: translateY(-2px);
-  border-color: rgba(102, 126, 234, 0.5);
-  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
+.search-combo :deep(.el-input) {
+  flex: 1;
 }
 
-.character-list-item.selected {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
-  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.3);
+.search-combo :deep(.el-input__wrapper) {
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
 }
 
-.character-list-item.selected::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px 0 0 16px;
+.search-combo :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
 }
 
-.character-avatar {
+.search-combo :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-combo :deep(.el-button) {
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 500;
+  background: #3B82F6;
+  border-color: #3B82F6;
+  transition: all 0.2s ease;
+}
+
+.search-combo :deep(.el-button:hover) {
+  background: #2563EB;
+  border-color: #2563EB;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.search-combo :deep(.el-button:active) {
+  background: #1D4ED8;
+  border-color: #1D4ED8;
+  transform: translateY(0);
+}
+
+/* 用户菜单 */
+.user-menu-wrapper {
+  margin-left: auto;
   flex-shrink: 0;
 }
 
-.character-info {
-  flex: 1;
-  min-width: 0;
+.user-avatar-btn {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
 }
 
-.character-name {
-  font-size: 16px;
+.user-avatar-btn:hover {
+  opacity: 0.8;
+}
+
+.user-info {
+  padding: 8px 0;
+}
+
+.user-name {
+  font-size: 14px;
   font-weight: 600;
-  margin: 0 0 4px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-color-primary);
+  color: #111827;
+  margin-bottom: 4px;
 }
 
-.character-desc {
-  font-size: 13px;
-  color: var(--text-color-secondary);
-  margin: 0 0 8px 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.4;
+.user-email {
+  font-size: 12px;
+  color: #9CA3AF;
 }
 
-.character-tags {
+.auth-buttons {
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  gap: 12px;
 }
 
-/* Right column - Detail/Edit */
-.right-column {
+/* 标签栏 */
+.tabs-section {
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: white;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.character-tabs {
+  flex: 1;
+}
+
+.character-tabs :deep(.el-tabs__header) {
+  margin: 0;
+}
+
+.character-tabs :deep(.el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+.character-tabs :deep(.el-tabs__active-bar) {
+  background: #3B82F6;
+  height: 3px;
+}
+
+.character-tabs :deep(.el-tabs__item) {
+  font-size: 15px;
+  font-weight: 500;
+  color: #6B7280;
+  padding: 0 20px;
+  height: 44px;
+  line-height: 44px;
+}
+
+.character-tabs :deep(.el-tabs__item:hover) {
+  color: #3B82F6;
+}
+
+.character-tabs :deep(.el-tabs__item.is-active) {
+  color: #3B82F6;
+  font-weight: 600;
+}
+
+.tab-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: #EFF6FF;
+  color: #3B82F6;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.character-tabs :deep(.el-tabs__item.is-active) .tab-count {
+  background: #3B82F6;
+  color: white;
+}
+
+.tabs-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.tabs-actions :deep(.el-button) {
+  border-radius: 8px;
+}
+
+/* 角色区域 */
+.characters-section {
+  flex: 1;
+  padding: 24px 32px 32px;
+  min-height: 400px;
+}
+
+.characters-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+/* 角色卡片包装器 */
+.character-card-wrapper {
   position: relative;
 }
 
-.mobile-back-button {
-  display: none;
+.character-card-wrapper:hover .card-actions-overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 操作按钮覆盖层 */
+.card-actions-overlay {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 10;
-}
-
-/* Empty state */
-.empty-state {
-  padding: 60px 20px;
-}
-
-.empty-detail {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  padding: 60px;
-}
-
-.empty-content {
-  text-align: center;
-  max-width: 400px;
-}
-
-.empty-icon {
-  width: 120px;
-  height: 120px;
-  margin: 0 auto 24px;
-  color: var(--text-color-secondary);
-  opacity: 0.3;
-}
-
-.empty-content h3 {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  color: var(--text-color-primary);
-}
-
-.empty-content p {
-  font-size: 14px;
-  color: var(--text-color-secondary);
-  margin: 0;
-}
-
-/* Character detail view */
-.character-detail {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 32px;
-  overflow-y: auto;
-}
-
-.detail-header {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.dark .detail-header {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-}
-
-.detail-header-info {
-  flex: 1;
-}
-
-.detail-header-info h2 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0 0 12px 0;
-  color: var(--text-color-primary);
-}
-
-.detail-meta {
-  display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-}
-
-.detail-content {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.detail-section {
-  margin-bottom: 24px;
-}
-
-.detail-section h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-color-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
-}
-
-.detail-section p {
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--text-color-regular);
-  margin: 0;
-}
-
-.tags-list {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border-radius: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
   padding: 16px;
-  background: rgba(102, 126, 234, 0.05);
-  border-radius: 12px;
-  border: 1px solid rgba(102, 126, 234, 0.1);
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--text-color-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #667eea;
-}
-
-.detail-actions {
-  display: flex;
-  gap: 12px;
   flex-wrap: wrap;
-  padding-top: 24px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  margin-top: 24px;
 }
 
-.dark .detail-actions {
-  border-top-color: rgba(255, 255, 255, 0.1);
+.card-actions-overlay :deep(.el-button) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Character edit form */
-.character-edit {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 32px;
-  overflow-y: auto;
+.card-actions-overlay :deep(.el-button.is-circle) {
+  width: 36px;
+  height: 36px;
 }
 
-.edit-header {
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+/* 平板端适配 (3列) */
+@media (max-width: 1279px) and (min-width: 768px) {
+  .characters-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
 }
 
-.dark .edit-header {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-}
-
-.edit-header h2 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-  color: var(--text-color-primary);
-}
-
-.edit-form {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.form-item {
-  margin-bottom: 24px;
-}
-
-.form-item label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-color-regular);
-  margin-bottom: 8px;
-}
-
-.edit-actions {
-  display: flex;
-  gap: 12px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  margin-top: 24px;
-}
-
-.dark .edit-actions {
-  border-top-color: rgba(255, 255, 255, 0.1);
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .my-characters-container {
-    padding: 16px;
+/* 移动端适配 (1列) */
+@media (max-width: 767px) {
+  .main-content {
+    margin-left: 0;
   }
 
-  .page-header {
+  .top-bar {
     flex-direction: column;
     align-items: stretch;
     gap: 16px;
-    margin-bottom: 16px;
+    padding: 16px;
   }
 
-  .page-header h1 {
-    font-size: 24px;
+  .page-title {
+    font-size: 20px;
   }
 
-  .header-actions {
-    justify-content: stretch;
+  .search-combo {
+    max-width: none;
+    flex-direction: column;
   }
 
-  .header-actions .el-button {
+  .search-combo :deep(.el-button) {
+    width: 100%;
+  }
+
+  .user-menu-wrapper {
+    margin-left: 0;
+  }
+
+  .auth-buttons {
+    width: 100%;
+  }
+
+  .auth-buttons .el-button {
     flex: 1;
   }
 
-  /* Mobile: Stack columns */
-  .two-column-layout {
-    grid-template-columns: 1fr;
-    height: auto;
-    min-height: calc(100vh - 180px);
-  }
-
-  .left-column {
-    display: block;
-  }
-
-  .left-column.mobile-hidden {
-    display: none;
-  }
-
-  .right-column {
-    display: none;
-  }
-
-  .right-column.mobile-visible {
-    display: flex;
-  }
-
-  .mobile-back-button {
-    display: block;
-  }
-
-  .character-detail,
-  .character-edit {
-    padding: 60px 20px 20px;
-  }
-
-  .detail-header {
+  .tabs-section {
     flex-direction: column;
-    align-items: center;
-    text-align: center;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
   }
 
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .detail-actions,
-  .edit-actions {
-    flex-direction: column;
-  }
-
-  .detail-actions .el-button,
-  .edit-actions .el-button {
+  .tabs-actions {
     width: 100%;
   }
+
+  .tabs-actions .el-button {
+    flex: 1;
+  }
+
+  .characters-section {
+    padding: 16px;
+  }
+
+  .characters-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .card-actions-overlay {
+    opacity: 1;
+    pointer-events: auto;
+    position: static;
+    background: white;
+    border-top: 1px solid #E5E7EB;
+    border-radius: 0 0 16px 16px;
+    margin-top: -16px;
+    padding: 12px;
+  }
 }
 
-/* Scrollbar styling */
-.character-list-scroll::-webkit-scrollbar,
-.detail-content::-webkit-scrollbar,
-.edit-form::-webkit-scrollbar {
-  width: 6px;
-}
+/* 小平板端适配 */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .top-bar {
+    padding: 16px 24px;
+  }
 
-.character-list-scroll::-webkit-scrollbar-track,
-.detail-content::-webkit-scrollbar-track,
-.edit-form::-webkit-scrollbar-track {
-  background: transparent;
-}
+  .tabs-section {
+    padding: 12px 24px;
+  }
 
-.character-list-scroll::-webkit-scrollbar-thumb,
-.detail-content::-webkit-scrollbar-thumb,
-.edit-form::-webkit-scrollbar-thumb {
-  background: rgba(102, 126, 234, 0.3);
-  border-radius: 3px;
-}
-
-.character-list-scroll::-webkit-scrollbar-thumb:hover,
-.detail-content::-webkit-scrollbar-thumb:hover,
-.edit-form::-webkit-scrollbar-thumb:hover {
-  background: rgba(102, 126, 234, 0.5);
+  .characters-section {
+    padding: 20px 24px 24px;
+  }
 }
 </style>

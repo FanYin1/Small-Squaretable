@@ -5,6 +5,7 @@ import { User, Lock, Bell, Shield } from '@element-plus/icons-vue';
 import { useUserStore } from '@client/stores';
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { userApi } from '@client/services';
+import LeftSidebar from '@client/components/layout/LeftSidebar.vue';
 import ProfileForm from '@client/components/profile/ProfileForm.vue';
 import AvatarUpload from '@client/components/profile/AvatarUpload.vue';
 
@@ -47,7 +48,7 @@ const membershipColor = computed(() => {
   const plan = subscriptionStore.currentPlan;
   const colors: Record<string, string> = {
     free: '#909399',
-    pro: '#409EFF',
+    pro: '#3B82F6',
     team: '#F56C6C',
   };
   return colors[plan] || '#909399';
@@ -75,158 +76,189 @@ async function handleSave(data: { name: string }) {
 </script>
 
 <template>
-  <div class="profile-container">
-    <div class="profile-header">
-      <h1>个人中心</h1>
-      <p>管理您的账户信息和偏好设置</p>
-    </div>
+  <div class="profile-page">
+    <!-- 左侧导航栏 -->
+    <LeftSidebar />
 
-    <div v-if="userStore.user" class="profile-layout">
-      <!-- Left Sidebar -->
-      <aside class="profile-sidebar">
-        <!-- User Info Card -->
-        <div class="user-info-card glass-card">
-          <div class="avatar-wrapper">
-            <AvatarUpload :avatar-url="avatarUrl" :disabled="!editMode" />
-          </div>
+    <!-- 主内容区 -->
+    <div class="main-content">
+      <!-- 顶部栏 -->
+      <header class="top-bar">
+        <h1 class="page-title">个人中心</h1>
+        <p class="page-subtitle">管理您的账户信息和偏好设置</p>
+      </header>
 
-          <div class="user-details">
-            <h3 class="user-name">{{ userStore.user.name }}</h3>
-            <p class="user-email">{{ userStore.user.email }}</p>
-            <div class="membership-badge" :style="{ borderColor: membershipColor }">
-              <Shield :style="{ color: membershipColor }" />
-              <span :style="{ color: membershipColor }">{{ membershipLevel }}</span>
+      <!-- 主体内容 -->
+      <div v-if="userStore.user" class="profile-body">
+        <!-- 左侧卡片区 -->
+        <aside class="profile-sidebar">
+          <!-- 用户信息卡片 -->
+          <div class="user-info-card">
+            <div class="avatar-wrapper">
+              <AvatarUpload :avatar-url="avatarUrl" :disabled="!editMode" />
+            </div>
+
+            <div class="user-details">
+              <h3 class="user-name">{{ userStore.user.name }}</h3>
+              <p class="user-email">{{ userStore.user.email }}</p>
+              <div class="membership-badge" :style="{ borderColor: membershipColor }">
+                <Shield :style="{ color: membershipColor }" />
+                <span :style="{ color: membershipColor }">{{ membershipLevel }}</span>
+              </div>
+            </div>
+
+            <div class="user-stats">
+              <div class="stat-item">
+                <span class="stat-label">注册时间</span>
+                <span class="stat-value">{{ new Date(userStore.user.createdAt).toLocaleDateString('zh-CN') }}</span>
+              </div>
             </div>
           </div>
 
-          <div class="user-stats">
-            <div class="stat-item">
-              <span class="stat-label">注册时间</span>
-              <span class="stat-value">{{ new Date(userStore.user.createdAt).toLocaleDateString('zh-CN') }}</span>
+          <!-- 导航菜单 -->
+          <nav class="profile-nav">
+            <button
+              v-for="item in menuItems"
+              :key="item.key"
+              :class="['nav-item', { active: activeSection === item.key }]"
+              @click="activeSection = item.key"
+            >
+              <el-icon><component :is="item.icon" /></el-icon>
+              <span>{{ item.label }}</span>
+            </button>
+          </nav>
+        </aside>
+
+        <!-- 右侧主内容区 -->
+        <main class="profile-main">
+          <!-- 基本信息 -->
+          <div v-if="activeSection === 'basic'" class="content-section">
+            <div class="section-header">
+              <h2>基本信息</h2>
+              <el-button v-if="!editMode" type="primary" @click="handleEdit">
+                编辑资料
+              </el-button>
+            </div>
+
+            <div class="form-container">
+              <ProfileForm
+                :user="userStore.user"
+                :edit-mode="editMode"
+                @save="handleSave"
+                @cancel="handleCancel"
+              />
             </div>
           </div>
-        </div>
 
-        <!-- Navigation Menu -->
-        <nav class="profile-nav glass-card">
-          <button
-            v-for="item in menuItems"
-            :key="item.key"
-            :class="['nav-item', { active: activeSection === item.key }]"
-            @click="activeSection = item.key"
-          >
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.label }}</span>
-          </button>
-        </nav>
-      </aside>
-
-      <!-- Main Content -->
-      <main class="profile-main">
-        <div v-if="activeSection === 'basic'" class="content-section">
-          <div class="section-header">
-            <h2>基本信息</h2>
-            <el-button v-if="!editMode" type="primary" @click="handleEdit">
-              编辑资料
-            </el-button>
+          <!-- 安全设置 -->
+          <div v-else-if="activeSection === 'security'" class="content-section">
+            <div class="section-header">
+              <h2>安全设置</h2>
+            </div>
+            <div class="placeholder-content">
+              <el-icon :size="48" color="#909399"><Lock /></el-icon>
+              <p>密码修改和安全设置功能即将推出</p>
+            </div>
           </div>
 
-          <div class="form-container">
-            <ProfileForm
-              :user="userStore.user"
-              :edit-mode="editMode"
-              @save="handleSave"
-              @cancel="handleCancel"
-            />
+          <!-- 通知偏好 -->
+          <div v-else-if="activeSection === 'notifications'" class="content-section">
+            <div class="section-header">
+              <h2>通知偏好</h2>
+            </div>
+            <div class="placeholder-content">
+              <el-icon :size="48" color="#909399"><Bell /></el-icon>
+              <p>通知设置功能即将推出</p>
+            </div>
           </div>
-        </div>
+        </main>
+      </div>
 
-        <div v-else-if="activeSection === 'security'" class="content-section">
-          <div class="section-header">
-            <h2>安全设置</h2>
-          </div>
-          <div class="placeholder-content">
-            <el-icon :size="48" color="#909399"><Lock /></el-icon>
-            <p>密码修改和安全设置功能即将推出</p>
-          </div>
-        </div>
-
-        <div v-else-if="activeSection === 'notifications'" class="content-section">
-          <div class="section-header">
-            <h2>通知偏好</h2>
-          </div>
-          <div class="placeholder-content">
-            <el-icon :size="48" color="#909399"><Bell /></el-icon>
-            <p>通知设置功能即将推出</p>
-          </div>
-        </div>
-      </main>
+      <!-- 加载状态 -->
+      <div v-else v-loading="userStore.loading" class="loading-container" />
     </div>
-
-    <div v-else v-loading="userStore.loading" class="loading-container" />
   </div>
 </template>
 
 <style scoped>
-.profile-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 32px 24px;
+.profile-page {
+  display: flex;
+  min-height: 100vh;
+  background: #F9FAFB;
 }
 
-.profile-header {
-  margin-bottom: 32px;
+/* 主内容区 */
+.main-content {
+  flex: 1;
+  margin-left: 64px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
-.profile-header h1 {
-  font-size: 32px;
+/* 顶部栏 */
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 24px 32px;
+  background: white;
+  border-bottom: 1px solid #E5E7EB;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.page-title {
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 8px;
-  color: var(--el-text-color-primary);
+  color: #111827;
+  margin: 0 0 8px 0;
 }
 
-.profile-header p {
-  font-size: 16px;
-  color: var(--el-text-color-secondary);
+.page-subtitle {
+  font-size: 14px;
+  color: #6B7280;
   margin: 0;
 }
 
-.profile-layout {
+/* 主体内容 */
+.profile-body {
+  flex: 1;
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 24px;
-  align-items: start;
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-/* Left Sidebar */
+/* 左侧卡片区 */
 .profile-sidebar {
   display: flex;
   flex-direction: column;
   gap: 20px;
   position: sticky;
-  top: 24px;
+  top: 120px;
+  height: fit-content;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-}
-
-.glass-card:hover {
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-}
-
+/* 用户信息卡片 */
 .user-info-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  transition: all 0.3s ease;
+  border: 1px solid #E5E7EB;
+}
+
+.user-info-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #D1D5DB;
 }
 
 .avatar-wrapper {
@@ -239,15 +271,15 @@ async function handleSave(data: { name: string }) {
 }
 
 .user-name {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  color: var(--el-text-color-primary);
+  color: #111827;
 }
 
 .user-email {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  color: #6B7280;
   margin: 0 0 12px 0;
   word-break: break-all;
 }
@@ -259,15 +291,15 @@ async function handleSave(data: { name: string }) {
   padding: 6px 16px;
   border: 2px solid;
   border-radius: 20px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(59, 130, 246, 0.05);
 }
 
 .user-stats {
   width: 100%;
   padding-top: 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid #E5E7EB;
 }
 
 .stat-item {
@@ -278,22 +310,26 @@ async function handleSave(data: { name: string }) {
 }
 
 .stat-label {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  color: #6B7280;
 }
 
 .stat-value {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: #111827;
 }
 
-/* Navigation Menu */
+/* 导航菜单 */
 .profile-nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 12px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #E5E7EB;
 }
 
 .nav-item {
@@ -304,34 +340,36 @@ async function handleSave(data: { name: string }) {
   border: none;
   background: transparent;
   border-radius: 8px;
-  font-size: 15px;
-  color: var(--el-text-color-regular);
+  font-size: 14px;
+  color: #4B5563;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
 }
 
 .nav-item:hover {
-  background: rgba(64, 158, 255, 0.1);
-  color: var(--el-color-primary);
+  background: #F3F4F6;
+  color: #3B82F6;
 }
 
 .nav-item.active {
-  background: var(--el-color-primary);
+  background: #3B82F6;
   color: white;
   font-weight: 500;
 }
 
 .nav-item .el-icon {
   font-size: 18px;
+  flex-shrink: 0;
 }
 
-/* Main Content */
+/* 主内容区 */
 .profile-main {
   background: white;
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 32px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #E5E7EB;
   min-height: 600px;
 }
 
@@ -356,14 +394,14 @@ async function handleSave(data: { name: string }) {
   align-items: center;
   margin-bottom: 32px;
   padding-bottom: 16px;
-  border-bottom: 2px solid var(--el-border-color-lighter);
+  border-bottom: 2px solid #E5E7EB;
 }
 
 .section-header h2 {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   margin: 0;
-  color: var(--el-text-color-primary);
+  color: #111827;
 }
 
 .form-container {
@@ -381,79 +419,122 @@ async function handleSave(data: { name: string }) {
 
 .placeholder-content p {
   margin-top: 16px;
-  font-size: 16px;
-  color: var(--el-text-color-secondary);
+  font-size: 15px;
+  color: #6B7280;
 }
 
 .loading-container {
-  min-height: 600px;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 600px;
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .profile-container {
-    padding: 20px 16px;
-  }
-
-  .profile-header h1 {
-    font-size: 24px;
-  }
-
-  .profile-header p {
-    font-size: 14px;
-  }
-
-  .profile-layout {
-    grid-template-columns: 1fr;
+/* 平板端适配 (768-1023px) */
+@media (max-width: 1023px) {
+  .profile-body {
+    grid-template-columns: 280px 1fr;
     gap: 20px;
+    padding: 24px;
   }
 
   .profile-sidebar {
-    position: static;
+    top: 100px;
   }
 
   .user-info-card {
     padding: 20px;
   }
 
+  .profile-main {
+    padding: 24px;
+  }
+
+  .section-header h2 {
+    font-size: 18px;
+  }
+}
+
+/* 移动端适配 (≤767px) */
+@media (max-width: 767px) {
+  .main-content {
+    margin-left: 0;
+  }
+
+  .top-bar {
+    padding: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+  }
+
+  .profile-body {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .profile-sidebar {
+    position: static;
+    top: auto;
+  }
+
+  .user-info-card {
+    padding: 16px;
+  }
+
   .profile-nav {
     flex-direction: row;
     overflow-x: auto;
     padding: 8px;
+    gap: 0;
   }
 
   .nav-item {
     flex-shrink: 0;
-    padding: 10px 14px;
-    font-size: 14px;
+    padding: 10px 12px;
+    font-size: 12px;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .nav-item span {
-    display: none;
+    font-size: 10px;
   }
 
   .profile-main {
-    padding: 20px;
+    padding: 16px;
+    min-height: auto;
   }
 
   .section-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+    margin-bottom: 24px;
   }
 
   .section-header h2 {
-    font-size: 20px;
+    font-size: 16px;
   }
-}
 
-/* Tablet */
-@media (max-width: 1024px) and (min-width: 769px) {
-  .profile-layout {
-    grid-template-columns: 280px 1fr;
+  .form-container {
+    max-width: 100%;
+  }
+
+  .placeholder-content {
+    padding: 60px 16px;
+  }
+
+  .placeholder-content p {
+    font-size: 14px;
   }
 }
 </style>

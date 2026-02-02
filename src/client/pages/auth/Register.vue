@@ -280,21 +280,44 @@ const goToLogin = () => {
 </template>
 
 <style scoped>
+/* Color Scheme */
+:root {
+  --primary-50: #EFF6FF;
+  --primary-500: #3B82F6;
+  --primary-600: #2563EB;
+  --primary-700: #1D4ED8;
+  --gray-50: #F9FAFB;
+  --gray-100: #F3F4F6;
+  --gray-200: #E5E7EB;
+  --gray-400: #9CA3AF;
+  --gray-600: #4B5563;
+  --gray-900: #111827;
+  --success-500: #10B981;
+  --success-600: #059669;
+  --error-500: #EF4444;
+}
+
 .register-page {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - 60px);
+  min-height: 100vh;
   padding: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: var(--gray-50);
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
 }
 
 .register-card {
   max-width: 480px;
   width: 100%;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
-  animation: slideIn 0.3s ease-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: white;
+  border: 1px solid var(--gray-200);
+  overflow: hidden;
 }
 
 @keyframes slideIn {
@@ -310,28 +333,32 @@ const goToLogin = () => {
 
 .card-header {
   text-align: center;
+  padding: 32px 24px 24px;
 }
 
 .card-header h1 {
   font-size: 28px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+  font-weight: 700;
+  color: var(--gray-900);
   margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
 }
 
 .subtitle {
   font-size: 14px;
-  color: var(--el-text-color-secondary);
+  color: var(--gray-400);
   margin: 0;
+  font-weight: 500;
 }
 
 .password-toggle {
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 0.2s ease;
+  color: var(--gray-400);
 }
 
 .password-toggle:hover {
-  color: var(--el-color-primary);
+  color: var(--primary-500);
 }
 
 .password-strength {
@@ -340,7 +367,7 @@ const goToLogin = () => {
 
 .strength-bar {
   height: 4px;
-  background-color: var(--el-border-color-light);
+  background-color: var(--gray-200);
   border-radius: 2px;
   overflow: hidden;
   margin-bottom: 4px;
@@ -359,13 +386,13 @@ const goToLogin = () => {
 }
 
 .terms-link {
-  color: var(--el-color-primary);
+  color: var(--primary-500);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color 0.2s ease;
 }
 
 .terms-link:hover {
-  color: var(--el-color-primary-light-3);
+  color: var(--primary-600);
   text-decoration: underline;
 }
 
@@ -373,26 +400,46 @@ const goToLogin = () => {
   width: 100%;
   height: 44px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   margin-top: 8px;
+  background-color: var(--primary-500);
+  border: none;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.register-button:hover {
+  background-color: var(--primary-600);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+}
+
+.register-button:active {
+  background-color: var(--primary-700);
+  transform: translateY(0);
 }
 
 .login-link {
   text-align: center;
   font-size: 14px;
-  color: var(--el-text-color-regular);
+  color: var(--gray-600);
   margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--gray-200);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
   .register-page {
     padding: 16px;
-    min-height: calc(100vh - 50px);
   }
 
   .register-card {
     max-width: 100%;
+  }
+
+  .card-header {
+    padding: 28px 20px 20px;
   }
 
   .card-header h1 {
@@ -404,37 +451,111 @@ const goToLogin = () => {
   }
 }
 
+@media (max-width: 480px) {
+  .register-page {
+    padding: 12px;
+  }
+
+  .card-header {
+    padding: 24px 16px 16px;
+  }
+
+  .card-header h1 {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+  }
+
+  .register-button {
+    height: 40px;
+    font-size: 15px;
+  }
+}
+
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   .register-page {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background-color: #111827;
+    background-image:
+      radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
   }
 
   .register-card {
-    background-color: var(--el-bg-color);
+    background-color: #1F2937;
+    border-color: #374151;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .card-header h1 {
+    color: #F9FAFB;
+  }
+
+  .subtitle {
+    color: #9CA3AF;
+  }
+
+  .login-link {
+    color: #D1D5DB;
+    border-top-color: #374151;
   }
 }
 
 /* Form Item Spacing */
 :deep(.el-form-item) {
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 
 :deep(.el-form-item:last-of-type) {
   margin-bottom: 0;
 }
 
-/* Input Focus Effects */
+/* Input styling */
 :deep(.el-input__wrapper) {
-  transition: all 0.2s;
+  border-radius: 8px;
+  border: 1px solid var(--gray-200);
+  background-color: white;
+  transition: all 0.2s ease;
 }
 
 :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px var(--el-input-hover-border-color) inset;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+:deep(.el-input__inner) {
+  color: var(--gray-900);
+}
+
+:deep(.el-input__inner::placeholder) {
+  color: var(--gray-400);
+}
+
+/* Dark mode input */
+@media (prefers-color-scheme: dark) {
+  :deep(.el-input__wrapper) {
+    background-color: #374151;
+    border-color: #4B5563;
+  }
+
+  :deep(.el-input__wrapper:hover) {
+    border-color: var(--primary-500);
+  }
+
+  :deep(.el-input__inner) {
+    color: #F9FAFB;
+  }
+
+  :deep(.el-input__inner::placeholder) {
+    color: #9CA3AF;
+  }
 }
 
 /* Checkbox Styling */
@@ -446,5 +567,39 @@ const goToLogin = () => {
 :deep(.el-checkbox__label) {
   white-space: normal;
   line-height: 1.5;
+  color: var(--gray-600);
+  font-size: 14px;
+}
+
+:deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
+  background-color: var(--primary-500);
+  border-color: var(--primary-500);
+}
+
+/* Link styling */
+:deep(.el-link) {
+  color: var(--primary-500);
+  transition: color 0.2s ease;
+}
+
+:deep(.el-link:hover) {
+  color: var(--primary-600);
+}
+
+/* Form wrapper padding */
+:deep(.el-form) {
+  padding: 0 24px 32px;
+}
+
+@media (max-width: 768px) {
+  :deep(.el-form) {
+    padding: 0 20px 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  :deep(.el-form) {
+    padding: 0 16px 24px;
+  }
 }
 </style>

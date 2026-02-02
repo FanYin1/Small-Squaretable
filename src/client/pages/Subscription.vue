@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Check, CreditCard, Calendar, TrendCharts } from '@element-plus/icons-vue';
+import { Check, CreditCard, Calendar, TrendCharts, User } from '@element-plus/icons-vue';
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { useUsageStore } from '@client/stores/usage';
+import { useUserStore } from '@client/stores';
+import LeftSidebar from '@client/components/layout/LeftSidebar.vue';
 import UsageDashboard from '@client/components/subscription/UsageDashboard.vue';
 
 const route = useRoute();
+const router = useRouter();
 const subscriptionStore = useSubscriptionStore();
 const usageStore = useUsageStore();
+const userStore = useUserStore();
 const billingCycle = ref<'monthly' | 'yearly'>('monthly');
+const showUserMenu = ref(false);
 
 const plans = computed(() => [
   {
@@ -129,6 +134,8 @@ const usageStats = computed(() => [
   },
 ]);
 
+const isLoggedIn = computed(() => !!userStore.user);
+
 onMounted(async () => {
   await Promise.all([
     subscriptionStore.fetchStatus(),
@@ -169,292 +176,412 @@ function formatNumber(num: number): string {
   }
   return num.toString();
 }
+
+function handleLogout() {
+  userStore.logout();
+  showUserMenu.value = false;
+}
 </script>
 
 <template>
-  <div class="subscription-container">
-    <div class="subscription-header">
-      <h1>订阅管理</h1>
-      <p>选择适合您的方案，解锁更多功能</p>
-    </div>
+  <div class="subscription-page">
+    <!-- 左侧导航栏 -->
+    <LeftSidebar />
 
-    <div class="subscription-layout">
-      <!-- Left Sidebar -->
-      <aside class="subscription-sidebar">
-        <!-- Current Subscription Card -->
-        <div v-if="subscriptionStore.subscription" class="current-subscription glass-card">
-          <div class="subscription-badge" :class="subscriptionStore.currentPlan">
-            <span class="badge-text">{{ currentPlanName }}</span>
+    <!-- 主内容区 -->
+    <div class="main-content">
+      <!-- 顶部栏 -->
+      <header class="top-bar">
+        <h1 class="page-title">订阅管理</h1>
+
+        <!-- 用户菜单 -->
+        <div class="user-menu-wrapper">
+          <el-dropdown v-if="isLoggedIn" trigger="click" @command="handleLogout">
+            <div class="user-avatar-btn">
+              <el-avatar
+                :size="40"
+                :src="userStore.user?.avatar"
+              >
+                {{ userStore.user?.name?.[0] }}
+              </el-avatar>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item disabled>
+                  <div class="user-info">
+                    <div class="user-name">{{ userStore.user?.name }}</div>
+                    <div class="user-email">{{ userStore.user?.email }}</div>
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click="$router.push('/profile')">
+                  个人中心
+                </el-dropdown-item>
+                <el-dropdown-item @click="$router.push('/my-characters')">
+                  我的角色
+                </el-dropdown-item>
+                <el-dropdown-item @click="$router.push('/subscription')">
+                  订阅管理
+                </el-dropdown-item>
+                <el-dropdown-item @click="$router.push('/profile')">
+                  设置
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
+          <div v-else class="auth-buttons">
+            <el-button @click="$router.push('/login')">登录</el-button>
+            <el-button type="primary" @click="$router.push('/register')">注册</el-button>
+          </div>
+        </div>
+      </header>
+
+      <!-- 内容区域 -->
+      <div class="content-wrapper">
+        <!-- 当前订阅状态卡片 -->
+        <section class="current-status-section">
+          <div class="section-header">
+            <h2>当前订阅</h2>
+            <p>管理您的订阅计划和使用情况</p>
           </div>
 
-          <div class="subscription-status">
-            <el-tag :type="statusType" size="large">{{ statusText }}</el-tag>
-          </div>
+          <div class="status-cards">
+            <!-- 订阅信息卡片 -->
+            <div v-if="subscriptionStore.subscription" class="status-card subscription-card">
+              <div class="card-badge" :class="subscriptionStore.currentPlan">
+                {{ currentPlanName }}
+              </div>
 
-          <div v-if="expiryDate" class="subscription-info">
-            <div class="info-item">
-              <el-icon><Calendar /></el-icon>
-              <div class="info-content">
-                <span class="info-label">到期时间</span>
-                <span class="info-value">{{ expiryDate }}</span>
+              <div class="card-content">
+                <div class="status-row">
+                  <span class="label">状态</span>
+                  <el-tag :type="statusType" size="large">{{ statusText }}</el-tag>
+                </div>
+
+                <div v-if="expiryDate" class="status-row">
+                  <span class="label">
+                    <el-icon><Calendar /></el-icon>
+                    到期时间
+                  </span>
+                  <span class="value">{{ expiryDate }}</span>
+                </div>
+
+                <div v-if="subscriptionStore.subscription.cancelAtPeriodEnd" class="cancel-warning">
+                  <el-alert type="warning" :closable="false" show-icon>
+                    订阅将在周期结束后取消
+                  </el-alert>
+                </div>
+
+                <el-button
+                  v-if="subscriptionStore.isPro"
+                  type="primary"
+                  :icon="CreditCard"
+                  @click="handleManage"
+                  :loading="subscriptionStore.loading"
+                  class="manage-btn"
+                >
+                  管理订阅
+                </el-button>
               </div>
             </div>
-          </div>
 
-          <div v-if="subscriptionStore.subscription.cancelAtPeriodEnd" class="cancel-warning">
-            <el-alert type="warning" :closable="false" show-icon>
-              订阅将在周期结束后取消
-            </el-alert>
-          </div>
+            <!-- 使用量统计卡片 -->
+            <div class="status-card usage-card">
+              <div class="card-header">
+                <el-icon class="header-icon"><TrendCharts /></el-icon>
+                <span class="header-title">使用统计</span>
+              </div>
 
-          <el-button
-            v-if="subscriptionStore.isPro"
-            type="primary"
-            :icon="CreditCard"
-            @click="handleManage"
-            :loading="subscriptionStore.loading"
-            class="manage-btn"
-          >
-            管理订阅
-          </el-button>
-        </div>
-
-        <!-- Usage Statistics Card -->
-        <div class="usage-stats glass-card">
-          <div class="stats-header">
-            <el-icon><TrendCharts /></el-icon>
-            <span>使用统计</span>
-          </div>
-
-          <div class="stats-list">
-            <div v-for="stat in usageStats" :key="stat.label" class="stat-item">
-              <span class="stat-icon">{{ stat.icon }}</span>
-              <div class="stat-content">
-                <span class="stat-label">{{ stat.label }}</span>
-                <div class="stat-progress">
-                  <div class="stat-bar">
-                    <div
-                      class="stat-fill"
-                      :style="{ width: `${Math.min((stat.value / stat.total) * 100, 100)}%` }"
-                    />
+              <div class="card-content">
+                <div class="usage-list">
+                  <div v-for="stat in usageStats" :key="stat.label" class="usage-item">
+                    <div class="usage-header">
+                      <span class="usage-icon">{{ stat.icon }}</span>
+                      <span class="usage-label">{{ stat.label }}</span>
+                    </div>
+                    <div class="usage-progress">
+                      <div class="progress-bar">
+                        <div
+                          class="progress-fill"
+                          :style="{ width: `${Math.min((stat.value / stat.total) * 100, 100)}%` }"
+                        />
+                      </div>
+                      <span class="usage-text">{{ formatNumber(stat.value) }} / {{ formatNumber(stat.total) }}</span>
+                    </div>
                   </div>
-                  <span class="stat-text">{{ formatNumber(stat.value) }} / {{ formatNumber(stat.total) }}</span>
                 </div>
               </div>
             </div>
           </div>
+        </section>
 
-          <div class="quota-remaining">
-            <span class="remaining-label">配额剩余</span>
-            <el-progress
-              :percentage="usageStore.messagesQuota ? Math.round((usageStore.messagesQuota.remaining / usageStore.messagesQuota.limit) * 100) : 0"
-              :color="['#f56c6c', '#e6a23c', '#67c23a']"
-              :stroke-width="8"
+        <!-- 订阅计划选择 -->
+        <section class="plans-section">
+          <div class="section-header">
+            <h2>选择订阅计划</h2>
+            <p>升级到更高级别的方案，解锁更多功能</p>
+          </div>
+
+          <!-- 计费周期切换 -->
+          <div class="billing-toggle">
+            <span :class="{ active: billingCycle === 'monthly' }">月付</span>
+            <el-switch
+              v-model="billingCycle"
+              active-value="yearly"
+              inactive-value="monthly"
+              size="large"
             />
+            <span :class="{ active: billingCycle === 'yearly' }">
+              年付
+              <el-tag type="success" size="small" style="margin-left: 8px;">省 17%</el-tag>
+            </span>
           </div>
-        </div>
-      </aside>
 
-      <!-- Main Content -->
-      <main class="subscription-main">
-        <!-- Billing Cycle Toggle -->
-        <div class="billing-cycle-toggle">
-          <span :class="{ active: billingCycle === 'monthly' }">月付</span>
-          <el-switch
-            v-model="billingCycle"
-            active-value="yearly"
-            inactive-value="monthly"
-            size="large"
-          />
-          <span :class="{ active: billingCycle === 'yearly' }">
-            年付
-            <el-tag type="success" size="small" style="margin-left: 8px;">省 17%</el-tag>
-          </span>
-        </div>
-
-        <!-- Plans Grid -->
-        <div class="plans-grid">
-          <div
-            v-for="plan in plans"
-            :key="plan.id"
-            :class="['plan-card', { popular: plan.popular, current: subscriptionStore.currentPlan === plan.id }]"
-          >
-            <div v-if="plan.popular" class="popular-badge">最受欢迎</div>
-
-            <div class="plan-header">
-              <h3>{{ plan.name }}</h3>
-              <div class="price">
-                <span class="amount">{{ billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice }}</span>
-                <span class="period">{{ billingCycle === 'monthly' ? '/月' : '/年' }}</span>
-              </div>
-              <div v-if="billingCycle === 'yearly' && plan.savings" class="savings">
-                {{ plan.savings }}
-              </div>
-            </div>
-
-            <ul class="features">
-              <li v-for="feature in plan.features" :key="feature">
-                <el-icon class="check-icon"><Check /></el-icon>
-                <span>{{ feature }}</span>
-              </li>
-            </ul>
-
-            <el-button
-              v-if="plan.priceId && subscriptionStore.currentPlan !== plan.id"
-              type="primary"
-              :class="{ 'popular-btn': plan.popular }"
-              @click="handleSubscribe(plan.priceId)"
-              :loading="subscriptionStore.loading"
-              class="subscribe-btn"
+          <!-- 计划卡片网格 -->
+          <div class="plans-grid">
+            <div
+              v-for="plan in plans"
+              :key="plan.id"
+              :class="['plan-card', { popular: plan.popular, current: subscriptionStore.currentPlan === plan.id }]"
             >
-              {{ subscriptionStore.currentPlan === 'free' ? '立即订阅' : '升级方案' }}
-            </el-button>
-            <el-button v-else-if="subscriptionStore.currentPlan === plan.id" disabled class="subscribe-btn">
-              当前方案
-            </el-button>
-            <el-button v-else disabled class="subscribe-btn">
-              免费使用
-            </el-button>
-          </div>
-        </div>
+              <div v-if="plan.popular" class="popular-badge">最受欢迎</div>
 
-        <!-- Usage Dashboard -->
-        <div class="usage-dashboard-section">
+              <div class="plan-header">
+                <h3>{{ plan.name }}</h3>
+                <div class="price">
+                  <span class="amount">{{ billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice }}</span>
+                  <span class="period">{{ billingCycle === 'monthly' ? '/月' : '/年' }}</span>
+                </div>
+                <div v-if="billingCycle === 'yearly' && plan.savings" class="savings">
+                  {{ plan.savings }}
+                </div>
+              </div>
+
+              <ul class="features">
+                <li v-for="feature in plan.features" :key="feature">
+                  <el-icon class="check-icon"><Check /></el-icon>
+                  <span>{{ feature }}</span>
+                </li>
+              </ul>
+
+              <el-button
+                v-if="plan.priceId && subscriptionStore.currentPlan !== plan.id"
+                type="primary"
+                :class="{ 'popular-btn': plan.popular }"
+                @click="handleSubscribe(plan.priceId)"
+                :loading="subscriptionStore.loading"
+                class="subscribe-btn"
+              >
+                {{ subscriptionStore.currentPlan === 'free' ? '立即订阅' : '升级方案' }}
+              </el-button>
+              <el-button v-else-if="subscriptionStore.currentPlan === plan.id" disabled class="subscribe-btn">
+                当前方案
+              </el-button>
+              <el-button v-else disabled class="subscribe-btn">
+                免费使用
+              </el-button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 详细使用量仪表盘 -->
+        <section class="dashboard-section">
           <UsageDashboard />
-        </div>
-      </main>
+        </section>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.subscription-container {
+.subscription-page {
+  display: flex;
+  min-height: 100vh;
+  background: #F9FAFB;
+}
+
+/* 主内容区 */
+.main-content {
+  flex: 1;
+  margin-left: 64px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* 顶部栏 */
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 32px;
+  background: white;
+  border-bottom: 1px solid #E5E7EB;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.user-menu-wrapper {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.user-avatar-btn {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.user-avatar-btn:hover {
+  opacity: 0.8;
+}
+
+.user-info {
+  padding: 8px 0;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.user-email {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+/* 内容包装器 */
+.content-wrapper {
+  flex: 1;
+  padding: 32px;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 32px 24px;
+  width: 100%;
 }
 
-.subscription-header {
-  margin-bottom: 32px;
+/* 区块标题 */
+.section-header {
+  margin-bottom: 24px;
 }
 
-.subscription-header h1 {
-  font-size: 32px;
+.section-header h2 {
+  font-size: 20px;
   font-weight: 700;
-  margin-bottom: 8px;
-  color: var(--el-text-color-primary);
+  color: #111827;
+  margin: 0 0 8px 0;
 }
 
-.subscription-header p {
-  font-size: 16px;
-  color: var(--el-text-color-secondary);
+.section-header p {
+  font-size: 14px;
+  color: #6B7280;
   margin: 0;
 }
 
-.subscription-layout {
+/* 当前状态区域 */
+.current-status-section {
+  margin-bottom: 48px;
+}
+
+.status-cards {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
-  align-items: start;
 }
 
-/* Left Sidebar */
-.subscription-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  position: sticky;
-  top: 24px;
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+.status-card {
+  background: white;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
 }
 
-.glass-card:hover {
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
+.status-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
 }
 
-/* Current Subscription Card */
-.current-subscription {
+/* 订阅卡片 */
+.subscription-card {
+  position: relative;
+}
+
+.card-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 20px;
+}
+
+.card-badge.free {
+  background: linear-gradient(135deg, #6B7280, #9CA3AF);
+  color: white;
+}
+
+.card-badge.pro {
+  background: linear-gradient(135deg, #3B82F6, #60A5FA);
+  color: white;
+}
+
+.card-badge.team {
+  background: linear-gradient(135deg, #10B981, #34D399);
+  color: white;
+}
+
+.card-content {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.subscription-badge {
-  text-align: center;
-  padding: 12px 20px;
-  border-radius: 12px;
-  font-size: 18px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.subscription-badge.free {
-  background: linear-gradient(135deg, #909399, #b1b3b8);
-  color: white;
-}
-
-.subscription-badge.pro {
-  background: linear-gradient(135deg, #409EFF, #66b1ff);
-  color: white;
-}
-
-.subscription-badge.team {
-  background: linear-gradient(135deg, #F56C6C, #f89898);
-  color: white;
-}
-
-.subscription-status {
-  display: flex;
-  justify-content: center;
-}
-
-.subscription-info {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.info-item {
+.status-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #F3F4F6;
 }
 
-.info-item .el-icon {
-  font-size: 20px;
-  color: var(--el-color-primary);
+.status-row:last-of-type {
+  border-bottom: none;
 }
 
-.info-content {
-  flex: 1;
+.status-row .label {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6B7280;
 }
 
-.info-label {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.info-value {
+.status-row .value {
   font-size: 14px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: #111827;
 }
 
 .cancel-warning {
@@ -464,162 +591,152 @@ function formatNumber(num: number): string {
 .manage-btn {
   width: 100%;
   margin-top: 8px;
+  background: #3B82F6;
+  border-color: #3B82F6;
 }
 
-/* Usage Statistics Card */
-.usage-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.manage-btn:hover {
+  background: #2563EB;
+  border-color: #2563EB;
 }
 
-.stats-header {
+/* 使用量卡片 */
+.usage-card .card-header {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #F3F4F6;
+}
+
+.header-icon {
+  font-size: 20px;
+  color: #3B82F6;
+}
+
+.header-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
-  padding-bottom: 12px;
-  border-bottom: 2px solid rgba(0, 0, 0, 0.06);
+  color: #111827;
 }
 
-.stats-header .el-icon {
-  font-size: 20px;
-  color: var(--el-color-primary);
-}
-
-.stats-list {
+.usage-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
-.stat-item {
+.usage-item {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.stat-icon {
-  font-size: 24px;
-  line-height: 1;
+.usage-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.stat-content {
+.usage-icon {
+  font-size: 20px;
+}
+
+.usage-label {
   flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.usage-progress {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.stat-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--el-text-color-regular);
-}
-
-.stat-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stat-bar {
-  height: 6px;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 3px;
+.progress-bar {
+  height: 8px;
+  background: #E5E7EB;
+  border-radius: 4px;
   overflow: hidden;
 }
 
-.stat-fill {
+.progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  border-radius: 3px;
+  background: linear-gradient(90deg, #3B82F6, #10B981);
+  border-radius: 4px;
   transition: width 0.3s ease;
 }
 
-.stat-text {
+.usage-text {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
-  font-family: monospace;
+  color: #6B7280;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
-.quota-remaining {
-  padding-top: 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+/* 订阅计划区域 */
+.plans-section {
+  margin-bottom: 48px;
 }
 
-.remaining-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--el-text-color-regular);
-  margin-bottom: 8px;
-}
-
-/* Main Content */
-.subscription-main {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.billing-cycle-toggle {
+.billing-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  margin-bottom: 32px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.billing-cycle-toggle span {
-  font-size: 16px;
+.billing-toggle span {
+  font-size: 15px;
   font-weight: 500;
-  color: var(--el-text-color-secondary);
-  transition: all 0.3s;
+  color: #6B7280;
+  transition: all 0.2s;
 }
 
-.billing-cycle-toggle span.active {
-  color: var(--el-color-primary);
+.billing-toggle span.active {
+  color: #3B82F6;
   font-weight: 600;
 }
 
-/* Plans Grid */
+/* 计划卡片网格 */
 .plans-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 24px;
 }
 
 .plan-card {
   position: relative;
   background: white;
-  border: 2px solid transparent;
+  border: 2px solid #E5E7EB;
   border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  padding: 32px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .plan-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .plan-card.popular {
-  border-color: var(--el-color-primary);
-  background: linear-gradient(135deg, rgba(64, 158, 255, 0.02), rgba(64, 158, 255, 0.05));
+  border-color: #3B82F6;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.03), rgba(59, 130, 246, 0.08));
 }
 
 .plan-card.current {
-  background: var(--el-fill-color-light);
-  border-color: var(--el-color-success);
+  border-color: #10B981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.03), rgba(16, 185, 129, 0.08));
 }
 
 .popular-badge {
@@ -627,28 +744,28 @@ function formatNumber(num: number): string {
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-light-3));
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
   color: white;
   padding: 6px 20px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 .plan-header {
   text-align: center;
-  padding-bottom: 20px;
-  border-bottom: 2px solid var(--el-border-color-lighter);
-  margin-bottom: 20px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid #F3F4F6;
+  margin-bottom: 24px;
 }
 
 .plan-header h3 {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  margin-bottom: 16px;
-  color: var(--el-text-color-primary);
+  margin: 0 0 16px 0;
+  color: #111827;
 }
 
 .price {
@@ -656,25 +773,21 @@ function formatNumber(num: number): string {
 }
 
 .price .amount {
-  font-size: 40px;
+  font-size: 36px;
   font-weight: 800;
-  color: var(--el-text-color-primary);
-  background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-light-3));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #3B82F6;
 }
 
 .price .period {
-  font-size: 16px;
-  color: var(--el-text-color-secondary);
+  font-size: 14px;
+  color: #6B7280;
   font-weight: 500;
 }
 
 .savings {
   margin-top: 8px;
   font-size: 13px;
-  color: var(--el-color-success);
+  color: #10B981;
   font-weight: 600;
 }
 
@@ -682,6 +795,7 @@ function formatNumber(num: number): string {
   list-style: none;
   padding: 0;
   margin: 0 0 24px 0;
+  flex: 1;
 }
 
 .features li {
@@ -689,12 +803,12 @@ function formatNumber(num: number): string {
   align-items: center;
   gap: 10px;
   padding: 10px 0;
-  color: var(--el-text-color-regular);
+  color: #374151;
   font-size: 14px;
 }
 
 .features li .check-icon {
-  color: var(--el-color-success);
+  color: #10B981;
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -702,78 +816,113 @@ function formatNumber(num: number): string {
 .subscribe-btn {
   width: 100%;
   height: 44px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   border-radius: 10px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+  background: #3B82F6;
+  border-color: #3B82F6;
+  color: white;
+}
+
+.subscribe-btn:hover {
+  background: #2563EB;
+  border-color: #2563EB;
+  transform: translateY(-1px);
 }
 
 .popular-btn {
-  background: linear-gradient(135deg, var(--el-color-primary), var(--el-color-primary-light-3));
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
   border: none;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .popular-btn:hover {
-  transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
 }
 
-.usage-dashboard-section {
-  margin-top: 16px;
+/* 仪表盘区域 */
+.dashboard-section {
+  margin-bottom: 32px;
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .subscription-container {
+/* 平板端适配 */
+@media (max-width: 1023px) {
+  .status-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .plans-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  .main-content {
+    margin-left: 0;
+  }
+
+  .top-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .user-menu-wrapper {
+    margin-left: 0;
+  }
+
+  .auth-buttons {
+    width: 100%;
+  }
+
+  .auth-buttons .el-button {
+    flex: 1;
+  }
+
+  .content-wrapper {
     padding: 20px 16px;
   }
 
-  .subscription-header h1 {
-    font-size: 24px;
+  .section-header h2 {
+    font-size: 18px;
   }
 
-  .subscription-header p {
-    font-size: 14px;
+  .section-header p {
+    font-size: 13px;
   }
 
-  .subscription-layout {
+  .status-cards {
     grid-template-columns: 1fr;
-    gap: 20px;
+    gap: 16px;
   }
 
-  .subscription-sidebar {
-    position: static;
-  }
-
-  .glass-card {
+  .status-card {
     padding: 20px;
   }
 
   .plans-grid {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
 
   .plan-card {
-    padding: 24px;
+    padding: 24px 20px;
   }
 
   .price .amount {
     font-size: 32px;
   }
 
-  .billing-cycle-toggle {
+  .billing-toggle {
     padding: 16px;
-  }
-}
-
-/* Tablet */
-@media (max-width: 1024px) and (min-width: 769px) {
-  .subscription-layout {
-    grid-template-columns: 280px 1fr;
-  }
-
-  .plans-grid {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   }
 }
 </style>
