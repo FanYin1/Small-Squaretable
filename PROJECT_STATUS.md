@@ -2,7 +2,7 @@
 
 **生成时间**: 2026-02-02
 **项目版本**: 0.1.0
-**当前阶段**: Phase 5 - 前端开发（认证系统调试中）
+**当前阶段**: Phase 5 - 前端开发（市场页面重设计完成）
 
 ---
 
@@ -11,7 +11,7 @@
 **Small Squaretable** 是 SillyTavern 的 SaaS 化改造项目，将单用户 LLM 前端转换为多租户云服务平台。
 
 ### 技术架构
-- **前端**: Vue 3 + Vite + Element Plus + Pinia (端口: 5173)
+- **前端**: Vue 3 + Vite + Element Plus + Pinia (端口: 5175)
 - **后端**: Hono + Node.js + TypeScript (端口: 3000)
 - **数据库**: PostgreSQL + Drizzle ORM
 - **缓存**: Redis
@@ -80,20 +80,26 @@
   - `ErrorBoundary` - 错误边界
   - `LoadingOverlay` - 加载遮罩
 
-### Phase 5: 前端页面开发 (80%)
+### Phase 5: 前端页面开发 (85%)
 #### 已完成页面
 - ✅ `Home.vue` - 首页
 - ✅ `Login.vue` - 登录页（2026-02-02 完成）
 - ✅ `Register.vue` - 注册页（2026-02-02 完成）
-- ✅ `Market.vue` - 角色市场
+- ✅ `Market.vue` - 角色市场（2026-02-02 重设计完成）✨
 - ✅ `MyCharacters.vue` - 我的角色
 - ✅ `Chat.vue` - 聊天页面
 - ✅ `Profile.vue` - 个人中心
 - ✅ `Subscription.vue` - 订阅管理
 
 #### 已完成组件
+- ✅ 布局组件 ✨ 新增
+  - `LeftSidebar` - 左侧导航栏（64px 可展开至 240px）
+- ✅ 市场组件 ✨ 新增
+  - `SearchCombo` - 搜索框组合（搜索 + 新建聊天）
+  - `FilterToolbar` - 筛选工具栏
+  - `EmptyState` - 空状态页面（SVG 插画）
 - ✅ 角色组件
-  - `CharacterCard` - 角色卡片
+  - `CharacterCard` - 角色卡片（优化蓝色系配色）
   - `CharacterDetail` - 角色详情
   - `CharacterPublishForm` - 角色发布表单
 - ✅ 聊天组件
@@ -115,6 +121,37 @@
 ## 🔧 最近修复的问题
 
 ### 2026-02-02 修复记录
+
+#### 问题 0: 角色市场页面重设计 ✨ 新增
+**需求**: 用户反馈左侧大片空白，右侧单独一页，布局不协调
+
+**解决方案**: 完全重写角色市场页面，采用三段式控制台布局
+- **左侧导航栏**: 64px 固定宽度，悬停展开至 240px，深色背景 #1F2937
+- **顶部栏**: 页面标题 + 搜索框组合 + 用户菜单
+- **主内容区**: 筛选工具栏 + 角色网格 + 分页器
+
+**新增组件**:
+- `LeftSidebar.vue` - 左侧功能导航（首页、会话、角色市场、我的角色、订阅管理、设置）
+- `SearchCombo.vue` - 搜索框 + 搜索按钮 + 新建聊天按钮组合
+- `FilterToolbar.vue` - 筛选工具栏（分类、标签、NSFW、排序）
+- `EmptyState.vue` - 空状态页面（机器人 SVG 插画 + 浮动动画）
+
+**配色方案**:
+- 主色调: 蓝色 `#3B82F6`
+- 成功色: 绿色 `#10B981`
+- 背景: 浅灰 `#F9FAFB`
+- 导航栏: 深灰 `#1F2937`
+
+**响应式设计**:
+- 桌面端 (≥1024px): 4 列角色网格
+- 平板端 (768-1023px): 3 列角色网格
+- 移动端 (≤767px): 单列布局，左侧导航栏隐藏
+
+**文档**:
+- 设计文档: `docs/plans/2026-02-02-market-redesign.md`
+- 实现总结: `docs/MARKET_REDESIGN_IMPLEMENTATION.md`
+
+**Git Commit**: f2f2b1f
 
 #### 问题 1: 租户中间件全局应用导致 400 错误
 **症状**: 访问首页和静态资源返回 `{"error":"Missing tenant ID"}`
@@ -188,7 +225,7 @@ npm run dev
 
 # 前端服务器 (已启动)
 npm run dev:client
-# 运行在: http://localhost:5173
+# 运行在: http://localhost:5175 (端口 5173/5174 被占用)
 # 代理配置: /api -> http://localhost:3000
 ```
 
@@ -207,12 +244,12 @@ npm run dev:client
 
 ### 认证系统测试清单
 - [ ] 用户注册流程
-  - [ ] 访问 `http://localhost:5173/register`
+  - [ ] 访问 `http://localhost:5175/register`
   - [ ] 填写用户名、邮箱、密码
   - [ ] 验证注册成功并自动登录
   - [ ] 检查 localStorage 中的 `token`、`refreshToken`、`tenantId`
 - [ ] 用户登录流程
-  - [ ] 访问 `http://localhost:5173/login`
+  - [ ] 访问 `http://localhost:5175/login`
   - [ ] 使用已注册账号登录
   - [ ] 验证登录成功并跳转到首页
   - [ ] 检查 localStorage 中的认证信息
@@ -224,11 +261,17 @@ npm run dev:client
   - [ ] 验证 localStorage 被清空
   - [ ] 验证跳转到首页
 
-### 角色市场测试清单
-- [ ] 访问角色市场页面
-- [ ] 搜索角色功能
+### 角色市场测试清单 ✨ 更新
+- [x] 访问角色市场页面 `http://localhost:5175/market`
+- [x] 三段式布局显示正确（左侧导航 + 顶部栏 + 主内容区）
+- [x] 左侧导航栏悬停展开效果
+- [x] 搜索框组合显示正确
+- [x] 筛选工具栏功能正常
+- [ ] 搜索角色功能（后端集成）
 - [ ] 查看角色详情
 - [ ] 评分功能（需登录）
+- [x] 空状态页面显示正确
+- [x] 响应式布局（桌面/平板/移动端）
 
 ### 聊天功能测试清单
 - [ ] 创建新聊天会话
@@ -368,7 +411,7 @@ NODE_ENV=development
 ### Vite 配置 (`vite.config.ts`)
 ```typescript
 server: {
-  port: 5173,
+  port: 5173,  // 实际运行在 5175（5173/5174 被占用）
   proxy: {
     '/api': {
       target: 'http://localhost:3000',
@@ -446,8 +489,10 @@ npm run dev
 ```bash
 # 检查端口占用
 lsof -ti:5173 | xargs kill -9
+lsof -ti:5174 | xargs kill -9
+lsof -ti:5175 | xargs kill -9
 
-# 重启服务
+# 重启服务（Vite 会自动选择可用端口）
 npm run dev:client
 ```
 
@@ -490,13 +535,14 @@ npm run dev
 npm run dev:client
 
 # 3. 访问应用
-# 前端: http://localhost:5173
+# 前端: http://localhost:5175 (或其他可用端口)
 # 后端: http://localhost:3000
 # 健康检查: http://localhost:3000/health
+# 角色市场: http://localhost:5175/market ✨
 ```
 
 ---
 
-**最后更新**: 2026-02-02 10:00 AM
+**最后更新**: 2026-02-02 14:30 PM
 **更新人**: Claude Code
 **下次审查**: 2026-02-03
