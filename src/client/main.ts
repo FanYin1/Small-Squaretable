@@ -5,6 +5,7 @@ import 'element-plus/dist/index.css';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import App from './App.vue';
 import router from './router';
+import { useUserStore } from './stores/user';
 
 // 导入全局样式
 import './styles/variables.css';
@@ -27,5 +28,13 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 // Register Router
 app.use(router);
+
+// 初始化用户认证状态（从 localStorage 恢复）
+const userStore = useUserStore();
+userStore.initialize().then(() => {
+  console.log('User authentication initialized');
+}).catch((error) => {
+  console.error('Failed to initialize user authentication:', error);
+});
 
 app.mount('#app');

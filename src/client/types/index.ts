@@ -31,10 +31,16 @@ export interface Character {
   description?: string;
   avatar?: string;
   tags?: string[];
+  category?: string;
   rating?: number;
   ratingCount?: number;
+  downloadCount?: number;
+  viewCount?: number;
   isPublic: boolean;
+  isNsfw?: boolean;
+  cardData?: Record<string, any>;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type PlanType = 'free' | 'pro' | 'team';

@@ -1,7 +1,8 @@
-/* 页面切换动画 */
+/* ========== 页面切换动画 ========== */
 .page-enter-active,
 .page-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
+  transition: opacity var(--transition-slow) var(--ease-out),
+              transform var(--transition-slow) var(--ease-out);
 }
 
 .page-enter-from {
@@ -14,10 +15,10 @@
   transform: translateY(-10px);
 }
 
-/* 淡入淡出 */
+/* ========== 淡入淡出动画 ========== */
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s;
+  transition: opacity var(--transition-duration) var(--ease-out);
 }
 
 .fade-enter-from,
@@ -25,10 +26,11 @@
   opacity: 0;
 }
 
-/* 滑动 */
+/* ========== 滑动动画 ========== */
 .slide-enter-active,
 .slide-leave-active {
-  transition: transform 0.3s, opacity 0.3s;
+  transition: transform var(--transition-duration) var(--ease-out),
+              opacity var(--transition-duration) var(--ease-out);
 }
 
 .slide-enter-from {
@@ -41,10 +43,10 @@
   opacity: 0;
 }
 
-/* 列表动画 */
+/* ========== 列表动画 ========== */
 .list-enter-active,
 .list-leave-active {
-  transition: all 0.3s;
+  transition: all var(--transition-duration) var(--ease-out);
 }
 
 .list-enter-from,
@@ -54,5 +56,153 @@
 }
 
 .list-move {
-  transition: transform 0.3s;
+  transition: transform var(--transition-duration) var(--ease-out);
+}
+
+/* ========== 缩放动画 ========== */
+.scale-enter-active,
+.scale-leave-active {
+  transition: all var(--transition-duration) var(--ease-out);
+}
+
+.scale-enter-from,
+.scale-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* ========== 从上方滑入 ========== */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all var(--transition-duration) var(--ease-out);
+}
+
+.slide-down-enter-from {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* ========== 从下方滑入 ========== */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all var(--transition-duration) var(--ease-out);
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* ========== 旋转动画 ========== */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ========== 脉冲动画 ========== */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ========== 闪烁动画 ========== */
+@keyframes blink {
+  0%,
+  49%,
+  100% {
+    opacity: 1;
+  }
+  50%,
+  99% {
+    opacity: 0;
+  }
+}
+
+.blink {
+  animation: blink 1s step-start infinite;
+}
+
+/* ========== 弹跳动画 ========== */
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.bounce {
+  animation: bounce 1s ease-in-out infinite;
+}
+
+/* ========== 滑动背景动画 ========== */
+@keyframes slideBackground {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+.slide-background {
+  animation: slideBackground 3s linear infinite;
+}
+
+/* ========== 渐变色动画 ========== */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-shift {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* ========== 尊重用户的动画偏好 ========== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

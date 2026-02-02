@@ -25,6 +25,12 @@ vi.mock('../../db/repositories/user.repository', () => ({
   },
 }));
 
+vi.mock('../../db/repositories/subscription.repository', () => ({
+  subscriptionRepository: {
+    findByTenantId: vi.fn(),
+  },
+}));
+
 describe('Character Routes', () => {
   let app: Hono;
 
@@ -370,6 +376,7 @@ describe('Character Routes', () => {
     it('should publish character', async () => {
       const { verifyAccessToken } = await import('../../core/jwt');
       const { userRepository } = await import('../../db/repositories/user.repository');
+      const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
 
       const mockPublishedCharacter = {
         id: 'char-123',
@@ -390,6 +397,18 @@ describe('Character Routes', () => {
         email: 'test@example.com',
         isActive: true,
       } as any);
+      vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+        id: 'sub-123',
+        tenantId: 'tenant-123',
+        plan: 'pro',
+        status: 'active',
+        stripeCustomerId: 'cus_123',
+        stripeSubscriptionId: 'sub_123',
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
       vi.mocked(characterService.publish).mockResolvedValue(mockPublishedCharacter as any);
 
       const res = await app.request('/api/v1/characters/char-123/publish', {
@@ -409,6 +428,7 @@ describe('Character Routes', () => {
     it('should unpublish character', async () => {
       const { verifyAccessToken } = await import('../../core/jwt');
       const { userRepository } = await import('../../db/repositories/user.repository');
+      const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
 
       const mockUnpublishedCharacter = {
         id: 'char-123',
@@ -429,6 +449,18 @@ describe('Character Routes', () => {
         email: 'test@example.com',
         isActive: true,
       } as any);
+      vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+        id: 'sub-123',
+        tenantId: 'tenant-123',
+        plan: 'pro',
+        status: 'active',
+        stripeCustomerId: 'cus_123',
+        stripeSubscriptionId: 'sub_123',
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
       vi.mocked(characterService.unpublish).mockResolvedValue(mockUnpublishedCharacter as any);
 
       const res = await app.request('/api/v1/characters/char-123/unpublish', {
@@ -441,6 +473,197 @@ describe('Character Routes', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
+    });
+  });
+
+  describe('Feature Gate Tests', () => {
+    describe('POST /api/v1/characters/:id/publish - Feature Gate', () => {
+      it('should reject free users without character_share feature', async () => {
+        const { verifyAccessToken } = await import('../../core/jwt');
+        const { userRepository } = await import('../../db/repositories/user.repository');
+        const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
+
+        vi.mocked(verifyAccessToken).mockResolvedValue({
+          userId: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+        });
+        vi.mocked(userRepository.findById).mockResolvedValue({
+          id: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+          isActive: true,
+        } as any);
+        vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+          id: 'sub-123',
+          tenantId: 'tenant-123',
+          plan: 'free',
+          status: 'active',
+          stripeCustomerId: null,
+          stripeSubscriptionId: null,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const res = await app.request('/api/v1/characters/char-123/publish', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer token',
+          },
+        });
+
+        expect(res.status).toBe(403);
+        const data = await res.json();
+        expect(data.error).toBe('Upgrade required');
+        expect(data.feature).toBe('character_share');
+        expect(data.currentPlan).toBe('free');
+      });
+
+      it('should allow pro users to publish characters', async () => {
+        const { verifyAccessToken } = await import('../../core/jwt');
+        const { userRepository } = await import('../../db/repositories/user.repository');
+        const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
+
+        const mockPublishedCharacter = {
+          id: 'char-123',
+          name: 'Test Character',
+          isPublic: true,
+          tenantId: 'tenant-123',
+          creatorId: 'user-123',
+        };
+
+        vi.mocked(verifyAccessToken).mockResolvedValue({
+          userId: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+        });
+        vi.mocked(userRepository.findById).mockResolvedValue({
+          id: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+          isActive: true,
+        } as any);
+        vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+          id: 'sub-123',
+          tenantId: 'tenant-123',
+          plan: 'pro',
+          status: 'active',
+          stripeCustomerId: 'cus_123',
+          stripeSubscriptionId: 'sub_123',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        vi.mocked(characterService.publish).mockResolvedValue(mockPublishedCharacter as any);
+
+        const res = await app.request('/api/v1/characters/char-123/publish', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer token',
+          },
+        });
+
+        expect(res.status).toBe(200);
+        const data = await res.json();
+        expect(data.success).toBe(true);
+      });
+
+      it('should allow team users to publish characters', async () => {
+        const { verifyAccessToken } = await import('../../core/jwt');
+        const { userRepository } = await import('../../db/repositories/user.repository');
+        const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
+
+        const mockPublishedCharacter = {
+          id: 'char-123',
+          name: 'Test Character',
+          isPublic: true,
+          tenantId: 'tenant-123',
+          creatorId: 'user-123',
+        };
+
+        vi.mocked(verifyAccessToken).mockResolvedValue({
+          userId: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+        });
+        vi.mocked(userRepository.findById).mockResolvedValue({
+          id: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+          isActive: true,
+        } as any);
+        vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+          id: 'sub-123',
+          tenantId: 'tenant-123',
+          plan: 'team',
+          status: 'active',
+          stripeCustomerId: 'cus_123',
+          stripeSubscriptionId: 'sub_123',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        vi.mocked(characterService.publish).mockResolvedValue(mockPublishedCharacter as any);
+
+        const res = await app.request('/api/v1/characters/char-123/publish', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer token',
+          },
+        });
+
+        expect(res.status).toBe(200);
+        const data = await res.json();
+        expect(data.success).toBe(true);
+      });
+    });
+
+    describe('POST /api/v1/characters/:id/unpublish - Feature Gate', () => {
+      it('should reject free users without character_share feature', async () => {
+        const { verifyAccessToken } = await import('../../core/jwt');
+        const { userRepository } = await import('../../db/repositories/user.repository');
+        const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
+
+        vi.mocked(verifyAccessToken).mockResolvedValue({
+          userId: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+        });
+        vi.mocked(userRepository.findById).mockResolvedValue({
+          id: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+          isActive: true,
+        } as any);
+        vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+          id: 'sub-123',
+          tenantId: 'tenant-123',
+          plan: 'free',
+          status: 'active',
+          stripeCustomerId: null,
+          stripeSubscriptionId: null,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        const res = await app.request('/api/v1/characters/char-123/unpublish', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer token',
+          },
+        });
+
+        expect(res.status).toBe(403);
+        const data = await res.json();
+        expect(data.error).toBe('Upgrade required');
+        expect(data.feature).toBe('character_share');
+      });
     });
   });
 

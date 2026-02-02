@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import vue from '@vitejs/plugin-vue';
 import path from 'path';
 import dotenv from 'dotenv';
 
@@ -9,9 +10,11 @@ dotenv.config();
 process.env.NODE_ENV = 'test';
 
 export default defineConfig({
+  plugins: [vue()],
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
+    setupFiles: ['./src/client/test-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -29,6 +32,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@core': path.resolve(__dirname, './src/core'),
       '@server': path.resolve(__dirname, './src/server'),
+      '@client': path.resolve(__dirname, './src/client'),
       '@db': path.resolve(__dirname, './src/db'),
       '@types': path.resolve(__dirname, './src/types'),
     },

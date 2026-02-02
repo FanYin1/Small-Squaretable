@@ -20,6 +20,10 @@ export const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/login',
+    redirect: '/auth/login',
+  },
+  {
     path: '/auth/register',
     name: 'Register',
     component: () => import('../pages/auth/Register.vue'),
@@ -27,6 +31,10 @@ export const routes: RouteRecordRaw[] = [
       requiresAuth: false,
       guestOnly: true,
     },
+  },
+  {
+    path: '/register',
+    redirect: '/auth/register',
   },
   {
     path: '/chat',
@@ -52,6 +60,15 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('../pages/Market.vue'),
     meta: {
       requiresAuth: false,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/my-characters',
+    name: 'MyCharacters',
+    component: () => import('../pages/MyCharacters.vue'),
+    meta: {
+      requiresAuth: true,
       guestOnly: false,
     },
   },

@@ -11,7 +11,7 @@ export interface MessagePagination {
 
 export class MessageRepository extends BaseRepository {
   async findByChatId(chatId: string, pagination?: MessagePagination): Promise<Message[]> {
-    let query: ReturnType<typeof this.db.select> = this.db.select().from(messages).where(eq(messages.chatId, chatId));
+    let query: any = this.db.select().from(messages).where(eq(messages.chatId, chatId));
 
     if (pagination) {
       if (pagination.before) {

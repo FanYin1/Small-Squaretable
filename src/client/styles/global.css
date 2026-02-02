@@ -1,4 +1,7 @@
-/* 重置样式 */
+/* ========== Google Fonts 导入 ========== */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+/* ========== 重置样式 ========== */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -8,10 +11,8 @@
 html,
 body {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-    'Noto Color Emoji';
-  font-size: 14px;
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
   line-height: 1.5;
   color: var(--text-color-primary);
   background-color: var(--bg-color-page);
@@ -76,4 +77,312 @@ h6 {
 input:focus,
 textarea:focus {
   outline: none;
+}
+
+/* ========== 按钮样式 ========== */
+button {
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  transition: all var(--transition-duration) var(--ease-out);
+}
+
+button:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 主按钮 */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.btn-primary:hover {
+  opacity: 0.8;
+  box-shadow: var(--box-shadow-md);
+}
+
+/* CTA按钮 */
+.btn-cta {
+  background-color: var(--color-cta);
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.btn-cta:hover {
+  opacity: 0.8;
+  box-shadow: var(--box-shadow-md);
+}
+
+/* ========== 卡片样式 ========== */
+.card {
+  background-color: var(--bg-color);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--box-shadow-md);
+  border: 1px solid var(--border-color-light);
+  transition: all var(--transition-duration) var(--ease-out);
+}
+
+.card:hover {
+  box-shadow: var(--box-shadow-lg);
+}
+
+/* 玻璃态卡片 */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--backdrop-blur);
+  border: var(--glass-border);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  transition: all var(--transition-duration) var(--ease-out);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: var(--box-shadow-md);
+}
+
+/* ========== 输入框样式 ========== */
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='number'],
+textarea,
+select {
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--bg-color);
+  color: var(--text-color-primary);
+  transition: all var(--transition-duration) var(--ease-out);
+}
+
+input[type='text']:focus,
+input[type='email']:focus,
+input[type='password']:focus,
+input[type='number']:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+/* ========== 标题样式 ========== */
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-lg);
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-color-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+h3 {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-color-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+h4 {
+  font-size: var(--font-size-h4);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-color-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+h5 {
+  font-size: var(--font-size-h5);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-color-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+h6 {
+  font-size: var(--font-size-h6);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-color-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ========== 段落和文本 ========== */
+p {
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  color: var(--text-color-regular);
+  margin-bottom: var(--spacing-md);
+}
+
+.text-small {
+  font-size: var(--font-size-body-sm);
+  color: var(--text-color-secondary);
+}
+
+.text-caption {
+  font-size: var(--font-size-caption);
+  color: var(--text-color-secondary);
+}
+
+.text-muted {
+  color: var(--text-color-secondary);
+}
+
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.text-warning {
+  color: var(--color-warning);
+}
+
+.text-danger {
+  color: var(--color-danger);
+}
+
+/* ========== 列表样式 ========== */
+ul,
+ol {
+  margin-left: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+li {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* ========== 代码样式 ========== */
+code {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  background-color: var(--bg-color);
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  color: var(--color-danger);
+}
+
+pre {
+  background-color: var(--bg-color);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  overflow-x: auto;
+  margin-bottom: var(--spacing-md);
+}
+
+pre code {
+  background-color: transparent;
+  color: var(--text-color-primary);
+  padding: 0;
+}
+
+/* ========== 表格样式 ========== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--spacing-lg);
+}
+
+th {
+  background-color: var(--bg-color);
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-color-primary);
+}
+
+td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+tr:hover {
+  background-color: var(--bg-color-page);
+}
+
+/* ========== 分隔线 ========== */
+hr {
+  border: none;
+  border-top: 1px solid var(--border-color-light);
+  margin: var(--spacing-lg) 0;
+}
+
+/* ========== 响应式工具类 ========== */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+}
+
+.grid {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 768px) {
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========== 间距工具类 ========== */
+.mt-xs { margin-top: var(--spacing-xs); }
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+.mt-xl { margin-top: var(--spacing-xl); }
+
+.mb-xs { margin-bottom: var(--spacing-xs); }
+.mb-sm { margin-bottom: var(--spacing-sm); }
+.mb-md { margin-bottom: var(--spacing-md); }
+.mb-lg { margin-bottom: var(--spacing-lg); }
+.mb-xl { margin-bottom: var(--spacing-xl); }
+
+.p-xs { padding: var(--spacing-xs); }
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.p-lg { padding: var(--spacing-lg); }
+.p-xl { padding: var(--spacing-xl); }
+
+/* ========== 无障碍 - 尊重用户的动画偏好 ========== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

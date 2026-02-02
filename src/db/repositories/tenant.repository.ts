@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
+import { db } from '../index';
 import { tenants, type Tenant, type NewTenant } from '../schema';
 
 export class TenantRepository extends BaseRepository {
@@ -37,3 +38,5 @@ export class TenantRepository extends BaseRepository {
     return result.length > 0;
   }
 }
+
+export const tenantRepository = new TenantRepository(db);

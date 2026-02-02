@@ -1,57 +1,101 @@
 :root {
-  /* 颜色 */
-  --color-primary: #409eff;
+  /* ========== 品牌颜色 ========== */
+  /* 主色调 - 紫色系 */
+  --color-primary: #7C3AED;
+  --color-secondary: #A78BFA;
+  --color-cta: #22C55E;
+  --color-text: #4C1D95;
+  --color-bg: #FAF5FF;
+
+  /* 扩展颜色 */
   --color-success: #67c23a;
   --color-warning: #e6a23c;
   --color-danger: #f56c6c;
   --color-info: #909399;
 
-  /* 背景色 */
+  /* ========== 背景色 ========== */
   --bg-color: #ffffff;
   --bg-color-page: #f5f7fa;
   --bg-color-overlay: rgba(0, 0, 0, 0.5);
 
-  /* 文字颜色 */
+  /* ========== 文字颜色 ========== */
   --text-color-primary: #303133;
   --text-color-regular: #606266;
   --text-color-secondary: #909399;
   --text-color-placeholder: #c0c4cc;
 
-  /* 边框颜色 */
+  /* ========== 边框颜色 ========== */
   --border-color: #dcdfe6;
   --border-color-light: #e4e7ed;
   --border-color-lighter: #ebeef5;
 
-  /* 间距 */
+  /* ========== 间距系统 (8px基础单位) ========== */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
 
-  /* 圆角 */
+  /* ========== 圆角 ========== */
   --border-radius-sm: 4px;
   --border-radius-md: 8px;
   --border-radius-lg: 16px;
 
-  /* 阴影 */
+  /* ========== 阴影 ========== */
   --box-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
   --box-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
   --box-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
+
+  /* ========== 玻璃态效果 (Glassmorphism) ========== */
+  --backdrop-blur: blur(16px);
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.2);
+
+  /* ========== 字体 ========== */
+  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-size-h1: 32px;
+  --font-size-h2: 28px;
+  --font-size-h3: 24px;
+  --font-size-h4: 20px;
+  --font-size-h5: 16px;
+  --font-size-h6: 14px;
+  --font-size-body-lg: 16px;
+  --font-size-body: 14px;
+  --font-size-body-sm: 12px;
+  --font-size-caption: 12px;
+
+  /* ========== 动画和过渡 ========== */
+  --transition-fast: 150ms;
+  --transition-duration: 200ms;
+  --transition-slow: 300ms;
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ========== 响应式断点 ========== */
+  --breakpoint-mobile: 640px;
+  --breakpoint-tablet: 1024px;
 }
 
-/* 暗色主题 */
+/* ========== 暗色主题 ========== */
 .dark {
+  /* 背景色 */
   --bg-color: #1d1e1f;
   --bg-color-page: #141414;
   --bg-color-overlay: rgba(0, 0, 0, 0.7);
 
+  /* 文字颜色 */
   --text-color-primary: #e5eaf3;
   --text-color-regular: #cfd3dc;
   --text-color-secondary: #a3a6ad;
   --text-color-placeholder: #6c6e72;
 
+  /* 边框颜色 */
   --border-color: #414243;
   --border-color-light: #363637;
   --border-color-lighter: #2b2b2c;
+
+  /* 玻璃态效果 - 暗色模式调整 */
+  --glass-bg: rgba(0, 0, 0, 0.2);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
 }

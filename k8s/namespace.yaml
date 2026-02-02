@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: small-squaretable
+  labels:
+    app: small-squaretable
+    environment: production

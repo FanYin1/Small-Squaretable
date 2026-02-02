@@ -10,6 +10,7 @@ import { characterService } from '../services/character.service';
 import { searchService } from '../services/search.service';
 import { ratingService } from '../services/rating.service';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { requireFeature } from '../middleware/feature-gate';
 import {
   createCharacterSchema,
   updateCharacterSchema,
@@ -190,36 +191,46 @@ characterRoutes.delete('/:id', authMiddleware(), async (c) => {
 });
 
 // 发布角色到市场
-characterRoutes.post('/:id/publish', authMiddleware(), async (c) => {
-  const user = c.get('user');
-  const characterId = c.req.param('id');
-  const character = await characterService.publish(characterId, user.id, user.tenantId);
+characterRoutes.post(
+  '/:id/publish',
+  authMiddleware(),
+  requireFeature('character_share'),
+  async (c) => {
+    const user = c.get('user');
+    const characterId = c.req.param('id');
+    const character = await characterService.publish(characterId, user.id, user.tenantId);
 
-  return c.json<ApiResponse>(
-    {
-      success: true,
-      data: character,
-      meta: { timestamp: new Date().toISOString() },
-    },
-    200
-  );
-});
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: character,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
 
 // 从市场下架角色
-characterRoutes.post('/:id/unpublish', authMiddleware(), async (c) => {
-  const user = c.get('user');
-  const characterId = c.req.param('id');
-  const character = await characterService.unpublish(characterId, user.id, user.tenantId);
+characterRoutes.post(
+  '/:id/unpublish',
+  authMiddleware(),
+  requireFeature('character_share'),
+  async (c) => {
+    const user = c.get('user');
+    const characterId = c.req.param('id');
+    const character = await characterService.unpublish(characterId, user.id, user.tenantId);
 
-  return c.json<ApiResponse>(
-    {
-      success: true,
-      data: character,
-      meta: { timestamp: new Date().toISOString() },
-    },
-    200
-  );
-});
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: character,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
 
 // Fork 公开角色
 characterRoutes.post('/:id/fork', authMiddleware(), async (c) => {

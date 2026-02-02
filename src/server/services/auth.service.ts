@@ -5,8 +5,9 @@
  */
 
 import bcrypt from 'bcrypt';
-import { nanoid } from 'nanoid';
+import { randomUUID } from 'crypto';
 import { userRepository } from '../../db/repositories/user.repository';
+import { tenantRepository } from '../../db/repositories/tenant.repository';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../core/jwt';
 import { redis } from '../../core/redis';
 import { UnauthorizedError, ValidationError } from '../../core/errors';
@@ -25,12 +26,17 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
-    const tenantId = nanoid();
+
+    // Create tenant first
+    const tenant = await tenantRepository.create({
+      name: input.displayName ?? input.email.split('@')[0],
+      plan: 'free',
+    });
 
     const user = await userRepository.create({
       email: input.email,
       passwordHash,
-      tenantId,
+      tenantId: tenant.id,
       displayName: input.displayName ?? null,
     });
 

@@ -25,6 +25,18 @@ vi.mock('../../db/repositories/user.repository', () => ({
   },
 }));
 
+vi.mock('../../db/repositories/subscription.repository', () => ({
+  subscriptionRepository: {
+    findByTenantId: vi.fn(),
+  },
+}));
+
+vi.mock('../services/usage.service', () => ({
+  usageService: {
+    checkQuota: vi.fn(),
+  },
+}));
+
 describe('Chat Routes', () => {
   let app: Hono;
 
@@ -357,6 +369,8 @@ describe('Chat Routes', () => {
     it('should add message to chat', async () => {
       const { verifyAccessToken } = await import('../../core/jwt');
       const { userRepository } = await import('../../db/repositories/user.repository');
+      const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
+      const { usageService } = await import('../services/usage.service');
 
       const messageData = {
         role: 'user',
@@ -383,6 +397,24 @@ describe('Chat Routes', () => {
         email: 'test@example.com',
         isActive: true,
       } as any);
+      vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+        id: 'sub-123',
+        tenantId: 'tenant-123',
+        plan: 'free',
+        status: 'active',
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      vi.mocked(usageService.checkQuota).mockResolvedValue({
+        allowed: true,
+        currentUsage: 50,
+        limit: 100,
+        remaining: 50,
+      });
       vi.mocked(chatService.addMessage).mockResolvedValue(mockMessage as any);
 
       const res = await app.request('/api/v1/chats/chat-123/messages', {
@@ -402,6 +434,8 @@ describe('Chat Routes', () => {
     it('should return 400 for invalid message', async () => {
       const { verifyAccessToken } = await import('../../core/jwt');
       const { userRepository } = await import('../../db/repositories/user.repository');
+      const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
+      const { usageService } = await import('../services/usage.service');
 
       vi.mocked(verifyAccessToken).mockResolvedValue({
         userId: 'user-123',
@@ -414,6 +448,24 @@ describe('Chat Routes', () => {
         email: 'test@example.com',
         isActive: true,
       } as any);
+      vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+        id: 'sub-123',
+        tenantId: 'tenant-123',
+        plan: 'free',
+        status: 'active',
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      vi.mocked(usageService.checkQuota).mockResolvedValue({
+        allowed: true,
+        currentUsage: 50,
+        limit: 100,
+        remaining: 50,
+      });
 
       const res = await app.request('/api/v1/chats/chat-123/messages', {
         method: 'POST',
@@ -475,6 +527,197 @@ describe('Chat Routes', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
+    });
+  });
+
+  describe('Feature Gate Tests', () => {
+    describe('POST /api/v1/chats/:id/messages - Quota Check', () => {
+      it('should reject users who exceeded message quota', async () => {
+        const { verifyAccessToken } = await import('../../core/jwt');
+        const { userRepository } = await import('../../db/repositories/user.repository');
+        const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
+        const { usageService } = await import('../services/usage.service');
+
+        vi.mocked(verifyAccessToken).mockResolvedValue({
+          userId: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+        });
+        vi.mocked(userRepository.findById).mockResolvedValue({
+          id: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+          isActive: true,
+        } as any);
+        vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+          id: 'sub-123',
+          tenantId: 'tenant-123',
+          plan: 'free',
+          status: 'active',
+          stripeCustomerId: null,
+          stripeSubscriptionId: null,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        vi.mocked(usageService.checkQuota).mockResolvedValue({
+          allowed: false,
+          currentUsage: 100,
+          limit: 100,
+          remaining: 0,
+        });
+
+        const res = await app.request('/api/v1/chats/chat-123/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer token',
+          },
+          body: JSON.stringify({
+            role: 'user',
+            content: 'Hello',
+            attachments: [],
+          }),
+        });
+
+        expect(res.status).toBe(403);
+        const data = await res.json();
+        expect(data.error).toBe('Quota exceeded');
+        expect(data.resourceType).toBe('messages');
+        expect(data.currentUsage).toBe(100);
+        expect(data.limit).toBe(100);
+      });
+
+      it('should allow users with available quota to send messages', async () => {
+        const { verifyAccessToken } = await import('../../core/jwt');
+        const { userRepository } = await import('../../db/repositories/user.repository');
+        const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
+        const { usageService } = await import('../services/usage.service');
+
+        const messageData = {
+          role: 'user',
+          content: 'Hello',
+          attachments: [],
+        };
+
+        const mockMessage = {
+          id: 1,
+          chatId: 'chat-123',
+          ...messageData,
+          extra: null,
+          sentAt: new Date(),
+        };
+
+        vi.mocked(verifyAccessToken).mockResolvedValue({
+          userId: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+        });
+        vi.mocked(userRepository.findById).mockResolvedValue({
+          id: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+          isActive: true,
+        } as any);
+        vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+          id: 'sub-123',
+          tenantId: 'tenant-123',
+          plan: 'free',
+          status: 'active',
+          stripeCustomerId: null,
+          stripeSubscriptionId: null,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        vi.mocked(usageService.checkQuota).mockResolvedValue({
+          allowed: true,
+          currentUsage: 50,
+          limit: 100,
+          remaining: 50,
+        });
+        vi.mocked(chatService.addMessage).mockResolvedValue(mockMessage as any);
+
+        const res = await app.request('/api/v1/chats/chat-123/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer token',
+          },
+          body: JSON.stringify(messageData),
+        });
+
+        expect(res.status).toBe(201);
+        const data = await res.json();
+        expect(data.success).toBe(true);
+      });
+
+      it('should allow pro users with higher quota to send messages', async () => {
+        const { verifyAccessToken } = await import('../../core/jwt');
+        const { userRepository } = await import('../../db/repositories/user.repository');
+        const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
+        const { usageService } = await import('../services/usage.service');
+
+        const messageData = {
+          role: 'user',
+          content: 'Hello from Pro user',
+          attachments: [],
+        };
+
+        const mockMessage = {
+          id: 1,
+          chatId: 'chat-123',
+          ...messageData,
+          extra: null,
+          sentAt: new Date(),
+        };
+
+        vi.mocked(verifyAccessToken).mockResolvedValue({
+          userId: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+        });
+        vi.mocked(userRepository.findById).mockResolvedValue({
+          id: 'user-123',
+          tenantId: 'tenant-123',
+          email: 'test@example.com',
+          isActive: true,
+        } as any);
+        vi.spyOn(subscriptionRepository, 'findByTenantId').mockResolvedValue({
+          id: 'sub-123',
+          tenantId: 'tenant-123',
+          plan: 'pro',
+          status: 'active',
+          stripeCustomerId: 'cus_123',
+          stripeSubscriptionId: 'sub_123',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        vi.mocked(usageService.checkQuota).mockResolvedValue({
+          allowed: true,
+          currentUsage: 5000,
+          limit: 10000,
+          remaining: 5000,
+        });
+        vi.mocked(chatService.addMessage).mockResolvedValue(mockMessage as any);
+
+        const res = await app.request('/api/v1/chats/chat-123/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer token',
+          },
+          body: JSON.stringify(messageData),
+        });
+
+        expect(res.status).toBe(201);
+        const data = await res.json();
+        expect(data.success).toBe(true);
+      });
     });
   });
 });

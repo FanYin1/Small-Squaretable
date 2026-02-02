@@ -10,3 +10,4 @@ export * from './user.api';
 export * from './character.api';
 export * from './chat.api';
 export * from './subscription.api';
+export * from './usage.api';

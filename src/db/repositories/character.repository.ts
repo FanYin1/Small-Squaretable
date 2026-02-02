@@ -20,7 +20,7 @@ export class CharacterRepository extends BaseRepository {
   }
 
   async findByTenantId(tenantId: string, pagination?: PaginationParams): Promise<Character[]> {
-    let query: ReturnType<typeof this.db.select> = this.db.select().from(characters).where(eq(characters.tenantId, tenantId));
+    let query: any = this.db.select().from(characters).where(eq(characters.tenantId, tenantId));
 
     if (pagination?.sortBy) {
       if (pagination.sortBy === 'downloadCount') {
@@ -51,7 +51,7 @@ export class CharacterRepository extends BaseRepository {
   }
 
   async findPublic(pagination?: PaginationParams): Promise<Character[]> {
-    let query: ReturnType<typeof this.db.select> = this.db.select().from(characters).where(eq(characters.isPublic, true)).orderBy(desc(characters.downloadCount));
+    let query: any = this.db.select().from(characters).where(eq(characters.isPublic, true)).orderBy(desc(characters.downloadCount));
 
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;

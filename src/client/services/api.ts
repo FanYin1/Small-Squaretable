@@ -5,12 +5,19 @@
  */
 
 /**
- * API 响应类型
+ * API 响应类型（后端标准格式）
  */
 export interface ApiResponse<T = unknown> {
+  success: boolean;
   data?: T;
-  error?: string;
-  message?: string;
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+  meta?: {
+    timestamp: string;
+  };
 }
 
 /**
@@ -20,7 +27,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public code: string,
-    message: string
+    message: string,
+    public details?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -28,9 +36,72 @@ export class ApiError extends Error {
 }
 
 /**
+ * 请求拦截器类型
+ */
+type RequestInterceptor = (config: RequestInit, url: string) => RequestInit | Promise<RequestInit>;
+
+/**
+ * 响应拦截器类型
+ */
+type ResponseInterceptor = (response: Response) => Response | Promise<Response>;
+
+/**
+ * 错误拦截器类型
+ */
+type ErrorInterceptor = (error: ApiError) => void | Promise<void>;
+
+/**
+ * 拦截器管理
+ */
+class InterceptorManager {
+  private requestInterceptors: RequestInterceptor[] = [];
+  private responseInterceptors: ResponseInterceptor[] = [];
+  private errorInterceptors: ErrorInterceptor[] = [];
+
+  addRequestInterceptor(interceptor: RequestInterceptor): void {
+    this.requestInterceptors.push(interceptor);
+  }
+
+  addResponseInterceptor(interceptor: ResponseInterceptor): void {
+    this.responseInterceptors.push(interceptor);
+  }
+
+  addErrorInterceptor(interceptor: ErrorInterceptor): void {
+    this.errorInterceptors.push(interceptor);
+  }
+
+  async applyRequestInterceptors(config: RequestInit, url: string): Promise<RequestInit> {
+    let modifiedConfig = config;
+    for (const interceptor of this.requestInterceptors) {
+      modifiedConfig = await interceptor(modifiedConfig, url);
+    }
+    return modifiedConfig;
+  }
+
+  async applyResponseInterceptors(response: Response): Promise<Response> {
+    let modifiedResponse = response;
+    for (const interceptor of this.responseInterceptors) {
+      modifiedResponse = await interceptor(modifiedResponse);
+    }
+    return modifiedResponse;
+  }
+
+  async applyErrorInterceptors(error: ApiError): Promise<void> {
+    for (const interceptor of this.errorInterceptors) {
+      await interceptor(error);
+    }
+  }
+}
+
+/**
  * 基础配置
  */
-const API_BASE_URL = '/api'; // Vite 会代理到 http://localhost:3000/api
+const API_BASE_URL = '/api/v1'; // Vite 会代理到 http://localhost:3000/api/v1
+
+/**
+ * 拦截器实例
+ */
+const interceptors = new InterceptorManager();
 
 /**
  * 创建 fetch 包装器
@@ -41,8 +112,9 @@ export async function apiRequest<T = unknown>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
-  // 获取 token
+  // 获取 token 和 tenantId
   const token = localStorage.getItem('token');
+  const tenantId = localStorage.getItem('tenantId');
 
   // 默认 headers
   const headers: Record<string, string> = {
@@ -62,15 +134,23 @@ export async function apiRequest<T = unknown>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // 添加 X-Tenant-ID header (如果需要)
-  // TODO: 从 user store 获取 tenantId
-  // headers['X-Tenant-ID'] = tenantId;
+  // 添加 X-Tenant-ID header
+  if (tenantId) {
+    headers['X-Tenant-ID'] = tenantId;
+  }
+
+  // 应用请求拦截器
+  let requestConfig: RequestInit = {
+    ...options,
+    headers,
+  };
+  requestConfig = await interceptors.applyRequestInterceptors(requestConfig, url);
 
   try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    let response = await fetch(url, requestConfig);
+
+    // 应用响应拦截器
+    response = await interceptors.applyResponseInterceptors(response);
 
     // 处理非 JSON 响应
     const contentType = response.headers.get('content-type');
@@ -78,22 +158,29 @@ export async function apiRequest<T = unknown>(
 
     if (!response.ok) {
       // 尝试解析错误响应
-      let errorData: Record<string, unknown> = {};
+      let errorData: ApiResponse = { success: false };
       if (isJson) {
         errorData = await response.json();
       }
 
-      throw new ApiError(
+      const error = new ApiError(
         response.status,
-        errorData.code || 'UNKNOWN_ERROR',
-        errorData.message || errorData.error || response.statusText
+        errorData.error?.code || 'UNKNOWN_ERROR',
+        errorData.error?.message || response.statusText,
+        errorData.error?.details
       );
+
+      // 应用错误拦截器
+      await interceptors.applyErrorInterceptors(error);
+
+      throw error;
     }
 
     // 解析成功响应
     if (isJson) {
-      const data = await response.json();
-      return data;
+      const apiResponse: ApiResponse<T> = await response.json();
+      // 返回 data 字段，保持向后兼容
+      return apiResponse.data as T;
     }
 
     return {} as T;
@@ -103,11 +190,13 @@ export async function apiRequest<T = unknown>(
     }
 
     // 网络错误
-    throw new ApiError(
+    const networkError = new ApiError(
       0,
       'NETWORK_ERROR',
       error instanceof Error ? error.message : 'Network request failed'
     );
+    await interceptors.applyErrorInterceptors(networkError);
+    throw networkError;
   }
 }
 
@@ -132,6 +221,48 @@ export const api = {
       body: data ? JSON.stringify(data) : undefined,
     }),
 
+  put: <T = unknown>(endpoint: string, data?: unknown, options?: RequestInit) =>
+    apiRequest<T>(endpoint, {
+      ...options,
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+
   delete: <T = unknown>(endpoint: string, options?: RequestInit) =>
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
+
+  /**
+   * 添加请求拦截器
+   */
+  addRequestInterceptor: (interceptor: RequestInterceptor) => {
+    interceptors.addRequestInterceptor(interceptor);
+  },
+
+  /**
+   * 添加响应拦截器
+   */
+  addResponseInterceptor: (interceptor: ResponseInterceptor) => {
+    interceptors.addResponseInterceptor(interceptor);
+  },
+
+  /**
+   * 添加错误拦截器
+   */
+  addErrorInterceptor: (interceptor: ErrorInterceptor) => {
+    interceptors.addErrorInterceptor(interceptor);
+  },
 };
+
+/**
+ * 默认错误拦截器：处理 401 未授权错误
+ */
+api.addErrorInterceptor(async (error: ApiError) => {
+  if (error.status === 401) {
+    // 清除本地存储的认证信息
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+
+    // 可以在这里触发全局事件或重定向到登录页
+    console.warn('Unauthorized access, please login again');
+  }
+});

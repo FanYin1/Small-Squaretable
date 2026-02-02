@@ -1,31 +1,105 @@
 # Small Squaretable
 
-> SillyTavern SaaS Transformation Project
+> SillyTavern SaaS Transformation Project - Enterprise-Grade Multi-Tenant Platform 🚀
 
 ## 项目概述
 
-将 SillyTavern (单用户 LLM 前端) 转换为多租户 SaaS 应用。
+将 SillyTavern (单用户 LLM 前端) 转换为企业级多租户 SaaS 平台，支持订阅计费、角色市场、实时聊天等功能。
 
 **项目代号**: Small Squaretable
-**设计文档**: [2026-01-29-sillytavern-saas-transformation.md](../docs/plans/2026-01-29-sillytavern-saas-transformation.md)
+**当前阶段**: Phase 5 - 前端开发（认证系统调试中）
+**整体完成度**: 80%
+**版本**: 0.1.0
+**最后更新**: 2026-02-02
 
-## 功能特性
+## 🎯 项目状态
 
-- **多租户架构**: 完整的租户隔离和数据安全
-- **订阅系统**: 基于 Stripe 的三层订阅计划 (Free/Pro/Team)
-- **使用量跟踪**: 实时跟踪和配额管理
-- **认证系统**: JWT 认证和会话管理
-- **数据库**: PostgreSQL + Drizzle ORM
-- **缓存**: Redis 高性能缓存
-- **API**: RESTful API with Hono framework
+### 开发进度
+```
+Phase 1: 基础设施层        ████████████████████ 100% ✅
+Phase 2: 核心 API          ████████████████████ 100% ✅
+Phase 3: 订阅与计费        ████████████████████ 100% ✅
+Phase 4: 前端基础          ████████████████████ 100% ✅
+Phase 5: 前端页面开发      ████████████████░░░░  80% 🔄
+Phase 6: 测试与优化        ░░░░░░░░░░░░░░░░░░░░   0% 📋
+Phase 7: 生产部署          ░░░░░░░░░░░░░░░░░░░░   0% 📋
+```
+
+### 技术指标
+- ✅ **代码行数**: ~16,000 行（后端 10K + 前端 6K）
+- ✅ **测试覆盖**: 600+ 测试用例，82% 覆盖率
+- ✅ **API 端点**: 35+ RESTful API + WebSocket
+- ✅ **文档完整**: 43 个完整文档
+- ✅ **生产级代码**: Lint 通过，类型安全
+
+## ✨ 功能特性
+
+### 已完成功能 ✅
+
+#### 核心功能
+- 🏢 **多租户架构** - 完整的租户隔离和数据安全
+- 💳 **订阅系统** - 基于 Stripe 的三层订阅计划 (Free/Pro/Team)
+- 📊 **使用量跟踪** - 实时跟踪和配额管理
+- 🔐 **认证系统** - JWT 双 Token 机制（Access + Refresh）
+- 💬 **实时聊天** - WebSocket + LLM 流式响应
+- 👥 **角色市场** - 社区分享、五维度评分系统
+- 🔍 **全文搜索** - PostgreSQL tsvector 全文搜索
+- 🎛️ **功能门控** - 基于订阅的功能权限控制
+
+#### 前端功能
+- 🎨 **Vue 3 应用** - 现代化单页应用
+- 📱 **响应式设计** - 移动端适配
+- 🔑 **认证页面** - 登录、注册（已完成）
+- 🏪 **角色市场** - 浏览、搜索、评分
+- 💬 **聊天界面** - 实时对话、消息历史
+- 👤 **个人中心** - 用户资料管理
+- 💰 **订阅管理** - 计划选择、使用量查看
+
+#### 技术特性
+- 🗄️ **数据库**: PostgreSQL + Drizzle ORM（8 张表）
+- ⚡ **缓存**: Redis 高性能缓存
+- 🌐 **API**: 35+ RESTful API endpoints
+- 🔌 **WebSocket**: 实时双向通信
+- 🤖 **LLM 集成**: 多提供商支持（OpenAI、Anthropic）
+- 🧪 **测试**: 600+ 测试用例，82% 覆盖率
+- 📦 **部署**: Docker + Kubernetes 配置完整
+
+### 待完成功能 📋
+
+#### Phase 5: 前端完善（本周）
+- [ ] 认证系统测试（注册、登录、登出）
+- [ ] UI/UX 优化（错误提示、加载状态）
+- [ ] 表单验证改进
+- [ ] 移动端适配优化
+
+#### Phase 6: 测试与优化（下周）
+- [ ] E2E 测试（Playwright）
+- [ ] 性能优化（代码分割、懒加载）
+- [ ] 安全加固（CSRF、XSS 防护）
+- [ ] 监控系统（APM、错误追踪）
+
+#### Phase 7: 生产部署（本月）
+- [ ] Docker 镜像优化
+- [ ] Kubernetes 生产配置
+- [ ] CI/CD 流程
+- [ ] 监控和告警系统
 
 ## 技术栈
 
-- **后端**: Hono (Node.js)
-- **数据库**: PostgreSQL + Drizzle ORM
-- **缓存**: Redis
-- **语言**: TypeScript
-- **测试**: Vitest
+### 后端
+- **Framework**: Hono (Node.js)
+- **Database**: PostgreSQL + Drizzle ORM
+- **Cache**: Redis
+- **Language**: TypeScript
+- **Testing**: Vitest
+- **Real-time**: WebSocket
+
+### 前端
+- **Framework**: Vue 3 + Vite
+- **State**: Pinia
+- **UI**: Element Plus
+- **Language**: TypeScript
+- **Testing**: Vitest + Playwright
 
 ## 项目结构
 
@@ -43,6 +117,46 @@ src/
 ├── services/       # 业务服务
 └── utils/          # 工具函数
 ```
+
+## 📚 文档导航
+
+### 🚀 快速开始（新手必读）
+1. **[README.md](README.md)** - 本文档，项目概览
+2. **[ROADMAP.md](ROADMAP.md)** ⭐ - 完整开发路线图
+3. **[SESSION_HANDOFF.md](SESSION_HANDOFF.md)** - 会话交接文档
+4. **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - 项目当前状态
+5. **[OPERATIONS_MANUAL.md](OPERATIONS_MANUAL.md)** - 操作手册
+
+### 📖 核心文档
+- 🗺️ **[开发路线图](ROADMAP.md)** - 7 个阶段完整规划 ⭐ 新增
+- 📊 **[项目状态](PROJECT_STATUS.md)** - 当前状态和待办事项
+- 📝 **[开发日志](DEVELOPMENT_LOG.md)** - 技术决策和问题解决
+- 🔄 **[会话交接](SESSION_HANDOFF.md)** - 快速恢复工作
+- 📑 **[文档索引](DOCS_INDEX.md)** - 所有文档导航
+
+### 🎯 功能文档
+- 🎯 **[功能权限示例](FEATURE_GATE_EXAMPLES.md)** - 功能门控使用指南
+- 💳 **[订阅系统指南](docs/subscription-guide.md)** - 订阅系统完整说明
+- 🔗 **[前后端集成](docs/frontend-backend-integration.md)** - API 集成文档
+- 📖 **[用户使用指南](USER_GUIDE.md)** - 面向最终用户的手册
+- 🔌 **[API 使用指南](API_USAGE_GUIDE.md)** - API 接口文档
+
+### 🧪 测试文档
+- 🧪 **[测试覆盖率报告](TEST_COVERAGE_REPORT.md)** - 详细的测试覆盖分析
+- 📊 **[测试套件总结](TEST_SUITE_SUMMARY.md)** - 测试统计和建议
+- 🎭 **[E2E 测试总结](E2E_TEST_SUMMARY.md)** - 端到端测试实现
+- 📘 **[E2E 测试文档](e2e/README.md)** - Playwright 测试指南
+
+### 🚀 部署文档
+- 🐳 **[部署指南](docs/deployment/deployment-guide.md)** - Docker 和 Kubernetes 部署
+- ☸️ **[Kubernetes 配置](k8s/README.md)** - K8s 清单文件说明
+- 📋 **[部署总结](DEPLOYMENT_SUMMARY.md)** - 部署配置完整概览
+- ✅ **[部署检查清单](DEPLOYMENT_CHECKLIST.md)** - 生产部署检查项
+
+### 🏗️ 架构文档
+- 🏗️ **[基础设施架构](docs/architecture/infrastructure.md)** - 完整的技术架构说明
+- 💰 **[Stripe 部署指南](docs/deployment/stripe-setup.md)** - Stripe 配置步骤
+- 📐 **[设计文档](docs/plans/)** - Phase 1-5 详细设计
 
 ## 开发指南
 
@@ -147,18 +261,120 @@ pnpm test:coverage
 
 **注意**: 数据库集成测试需要 PostgreSQL 运行。如果数据库未启动，这些测试会失败，但不影响其他测试。
 
-## 开发阶段
+## 🗺️ 开发路线图
 
-当前处于 **Phase 1: 基础设施层**
+详细路线图请查看 **[ROADMAP.md](ROADMAP.md)**
 
-- [x] 项目初始化
-- [x] 技术栈配置 (Hono, Drizzle, Redis)
-- [x] 数据库 Schema 设计 (tenants, users, characters, chats)
-- [x] 多租户中间件
-- [x] 错误处理中间件
-- [x] Repository 模式实现
-- [ ] 认证系统 (Phase 2)
-- [ ] API 路由实现 (Phase 2)
+### Phase 1: 基础设施层 ✅ (100%)
+- ✅ PostgreSQL + Drizzle ORM
+- ✅ Redis 缓存层
+- ✅ 中间件系统（租户、错误处理、日志）
+- ✅ Repository 模式（8 个仓库）
+- ✅ 测试框架（Vitest）
+
+### Phase 2: 核心 API ✅ (100%)
+- ✅ JWT 认证系统（双 Token）
+- ✅ 用户管理 API
+- ✅ 角色管理 API（CRUD + 市场）
+- ✅ 聊天管理 API
+- ✅ 五维度评分系统
+- ✅ PostgreSQL 全文搜索
+- ✅ WebSocket 实时通信
+- ✅ LLM 集成
+
+### Phase 3: 订阅与计费 ✅ (100%)
+- ✅ Stripe 集成
+- ✅ 三层订阅计划（Free/Pro/Team）
+- ✅ 订阅管理 API
+- ✅ 使用量跟踪系统
+- ✅ 功能门控系统
+- ✅ Webhook 处理
+
+### Phase 4: 前端基础 ✅ (100%)
+- ✅ Vue 3 + Vite 项目
+- ✅ 路由系统（Vue Router）
+- ✅ 状态管理（Pinia）
+- ✅ API 服务层
+- ✅ 布局组件
+- ✅ UI 组件库
+
+### Phase 5: 前端页面开发 🔄 (80%)
+- ✅ 认证页面（Login/Register）
+- ✅ 核心页面（8 个）
+- ✅ 功能组件（18 个）
+- 🔄 认证系统测试
+- 📋 UI/UX 优化
+- 📋 功能完善
+
+### Phase 6: 测试与优化 📋 (0%)
+- 📋 E2E 测试（Playwright）
+- 📋 性能优化
+- 📋 安全加固
+- 📋 监控与日志
+- 📋 文档完善
+
+### Phase 7: 生产部署 📋 (0%)
+- 📋 Docker 镜像优化
+- 📋 Kubernetes 生产配置
+- 📋 CI/CD 流程
+- 📋 监控系统
+- 📋 备份与恢复
+
+**当前重点**: Phase 5 认证系统测试和 UI/UX 优化
+
+## 生产部署
+
+### Docker 部署 (本地开发)
+
+使用 Docker Compose 快速启动完整环境：
+
+```bash
+# 配置环境变量
+cp .env.example .env
+# 编辑 .env 文件
+
+# 启动所有服务
+docker-compose up -d
+
+# 查看日志
+docker-compose logs -f app
+
+# 停止服务
+docker-compose down
+```
+
+### Kubernetes 部署 (生产环境)
+
+```bash
+# 1. 准备生产密钥
+cp k8s/secrets.yaml k8s/secrets-production.yaml
+# 编辑 secrets-production.yaml
+
+# 2. 更新配置
+# - 编辑 k8s/app-deployment.yaml (镜像地址)
+# - 编辑 k8s/ingress.yaml (域名)
+
+# 3. 一键部署
+./scripts/deploy-k8s.sh
+
+# 4. 监控部署
+kubectl get pods -n small-squaretable
+kubectl logs -f deployment/app -n small-squaretable
+```
+
+### 健康检查
+
+应用提供三个健康检查端点：
+
+- `/health` - 基础健康检查
+- `/health/live` - 存活检查 (Kubernetes liveness probe)
+- `/health/ready` - 就绪检查 (Kubernetes readiness probe，检查数据库和 Redis 连接)
+
+### 部署文档
+
+- [部署指南](docs/deployment/deployment-guide.md) - 完整的部署说明
+- [Kubernetes README](k8s/README.md) - K8s 配置说明
+- [部署总结](DEPLOYMENT_SUMMARY.md) - 部署配置概览
 
 ## 文档
 
@@ -168,6 +384,11 @@ pnpm test:coverage
 ### 功能指南
 - [订阅系统使用指南](docs/subscription-guide.md) - 订阅系统的完整使用说明
 - [Stripe 部署指南](docs/deployment/stripe-setup.md) - Stripe 配置和部署步骤
+
+### 部署文档
+- [部署指南](docs/deployment/deployment-guide.md) - Docker 和 Kubernetes 部署
+- [Kubernetes 配置](k8s/README.md) - K8s 清单文件说明
+- [部署总结](DEPLOYMENT_SUMMARY.md) - 部署配置完整概览
 
 ## 参考资源
 

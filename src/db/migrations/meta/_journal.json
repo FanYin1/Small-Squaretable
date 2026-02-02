@@ -19,8 +19,8 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1769876303858,
-      "tag": "0002_clumsy_switch",
+      "when": 1769900100000,
+      "tag": "0002_add_ratings",
       "breakpoints": true
     }
   ]

@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { chatService } from '../services/chat.service';
 import { authMiddleware } from '../middleware/auth';
+import { requireQuota } from '../middleware/feature-gate';
 import {
   createChatSchema,
   updateChatSchema,
@@ -119,6 +120,7 @@ chatRoutes.delete('/:id', authMiddleware(), async (c) => {
 chatRoutes.post(
   '/:id/messages',
   authMiddleware(),
+  requireQuota('messages'),
   zValidator('json', createMessageSchema),
   async (c) => {
     const chatId = c.req.param('id');

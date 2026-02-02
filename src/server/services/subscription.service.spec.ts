@@ -2,7 +2,7 @@
  * Subscription Service Tests
  */
 
-import { describe, it, expect, beforeEach, vi, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
 import { NotFoundError, ValidationError } from '../../core/errors';
 import type Stripe from 'stripe';
@@ -11,13 +11,23 @@ import type Stripe from 'stripe';
 vi.mock('../../db/repositories/subscription.repository');
 vi.mock('../../db/repositories/user.repository');
 
-// Create mock functions that will be used in tests
-let mockStripeInstance: any;
+// Create mock Stripe instance - must be defined before vi.mock
+const mockCustomersCreate = vi.fn();
+const mockCheckoutSessionsCreate = vi.fn();
+const mockBillingPortalSessionsCreate = vi.fn();
+const mockSubscriptionsRetrieve = vi.fn();
+const mockWebhooksConstructEvent = vi.fn();
 
-// Mock Stripe
+// Mock Stripe constructor
 vi.mock('stripe', () => {
   return {
-    default: vi.fn().mockImplementation(() => mockStripeInstance),
+    default: class MockStripe {
+      customers = { create: mockCustomersCreate };
+      checkout = { sessions: { create: mockCheckoutSessionsCreate } };
+      billingPortal = { sessions: { create: mockBillingPortalSessionsCreate } };
+      subscriptions = { retrieve: mockSubscriptionsRetrieve };
+      webhooks = { constructEvent: mockWebhooksConstructEvent };
+    },
   };
 });
 
@@ -26,31 +36,6 @@ const { SubscriptionService } = await import('./subscription.service');
 
 describe('SubscriptionService', () => {
   let service: SubscriptionService;
-
-  beforeAll(() => {
-    // Initialize mock Stripe instance
-    mockStripeInstance = {
-      customers: {
-        create: vi.fn(),
-      },
-      checkout: {
-        sessions: {
-          create: vi.fn(),
-        },
-      },
-      billingPortal: {
-        sessions: {
-          create: vi.fn(),
-        },
-      },
-      subscriptions: {
-        retrieve: vi.fn(),
-      },
-      webhooks: {
-        constructEvent: vi.fn(),
-      },
-    };
-  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -107,7 +92,7 @@ describe('SubscriptionService', () => {
       const result = await service.createOrGetCustomer('tenant-1', 'test@example.com');
 
       expect(result).toBe('cus_existing');
-      expect(mockStripeInstance.customers.create).not.toHaveBeenCalled();
+      expect(mockCustomersCreate).not.toHaveBeenCalled();
     });
 
     it('should create new customer and update subscription', async () => {
@@ -123,7 +108,7 @@ describe('SubscriptionService', () => {
       };
 
       vi.mocked(subscriptionRepository.findByTenantId).mockResolvedValue(mockSubscription);
-      mockStripeInstance.customers.create.mockResolvedValue({ id: 'cus_new' });
+      mockCustomersCreate.mockResolvedValue({ id: 'cus_new' });
       vi.mocked(subscriptionRepository.update).mockResolvedValue({
         ...mockSubscription,
         stripeCustomerId: 'cus_new',
@@ -132,7 +117,7 @@ describe('SubscriptionService', () => {
       const result = await service.createOrGetCustomer('tenant-1', 'test@example.com');
 
       expect(result).toBe('cus_new');
-      expect(mockStripeInstance.customers.create).toHaveBeenCalledWith({
+      expect(mockCustomersCreate).toHaveBeenCalledWith({
         email: 'test@example.com',
         metadata: { tenantId: 'tenant-1' },
       });
@@ -143,7 +128,7 @@ describe('SubscriptionService', () => {
 
     it('should create new customer and subscription if none exists', async () => {
       vi.mocked(subscriptionRepository.findByTenantId).mockResolvedValue(null);
-      mockStripeInstance.customers.create.mockResolvedValue({ id: 'cus_new' });
+      mockCustomersCreate.mockResolvedValue({ id: 'cus_new' });
       vi.mocked(subscriptionRepository.create).mockResolvedValue({
         id: '1',
         tenantId: 'tenant-1',
@@ -181,7 +166,7 @@ describe('SubscriptionService', () => {
       };
 
       vi.mocked(subscriptionRepository.findByTenantId).mockResolvedValue(mockSubscription);
-      mockStripeInstance.checkout.sessions.create.mockResolvedValue({
+      mockCheckoutSessionsCreate.mockResolvedValue({
         id: 'cs_123',
         url: 'https://checkout.stripe.com/session/cs_123',
       });
@@ -195,7 +180,7 @@ describe('SubscriptionService', () => {
       );
 
       expect(result).toBe('https://checkout.stripe.com/session/cs_123');
-      expect(mockStripeInstance.checkout.sessions.create).toHaveBeenCalledWith({
+      expect(mockCheckoutSessionsCreate).toHaveBeenCalledWith({
         customer: 'cus_123',
         mode: 'subscription',
         payment_method_types: ['card'],
@@ -219,7 +204,7 @@ describe('SubscriptionService', () => {
       };
 
       vi.mocked(subscriptionRepository.findByTenantId).mockResolvedValue(mockSubscription);
-      mockStripeInstance.checkout.sessions.create.mockResolvedValue({
+      mockCheckoutSessionsCreate.mockResolvedValue({
         id: 'cs_123',
         url: null,
       });
@@ -250,7 +235,7 @@ describe('SubscriptionService', () => {
       };
 
       vi.mocked(subscriptionRepository.findByTenantId).mockResolvedValue(mockSubscription);
-      mockStripeInstance.billingPortal.sessions.create.mockResolvedValue({
+      mockBillingPortalSessionsCreate.mockResolvedValue({
         id: 'bps_123',
         url: 'https://billing.stripe.com/session/bps_123',
       });
@@ -258,7 +243,7 @@ describe('SubscriptionService', () => {
       const result = await service.createBillingPortalSession('tenant-1', 'https://app.com/return');
 
       expect(result).toBe('https://billing.stripe.com/session/bps_123');
-      expect(mockStripeInstance.billingPortal.sessions.create).toHaveBeenCalledWith({
+      expect(mockBillingPortalSessionsCreate).toHaveBeenCalledWith({
         customer: 'cus_123',
         return_url: 'https://app.com/return',
       });
@@ -294,7 +279,7 @@ describe('SubscriptionService', () => {
 
   describe('handleWebhook', () => {
     it('should throw ValidationError on invalid signature', async () => {
-      mockStripeInstance.webhooks.constructEvent.mockImplementation(() => {
+      mockWebhooksConstructEvent.mockImplementation(() => {
         throw new Error('Invalid signature');
       });
 
@@ -315,8 +300,8 @@ describe('SubscriptionService', () => {
         },
       } as Stripe.Event;
 
-      mockStripeInstance.webhooks.constructEvent.mockReturnValue(mockEvent);
-      mockStripeInstance.subscriptions.retrieve.mockResolvedValue({
+      mockWebhooksConstructEvent.mockReturnValue(mockEvent);
+      mockSubscriptionsRetrieve.mockResolvedValue({
         id: 'sub_123',
         items: {
           data: [{ price: { id: 'price_pro_monthly' } }],
@@ -368,7 +353,7 @@ describe('SubscriptionService', () => {
         },
       } as Stripe.Event;
 
-      mockStripeInstance.webhooks.constructEvent.mockReturnValue(mockEvent);
+      mockWebhooksConstructEvent.mockReturnValue(mockEvent);
       vi.mocked(subscriptionRepository.updateByStripeSubscriptionId).mockResolvedValue({
         id: '1',
         tenantId: 'tenant-1',
@@ -403,7 +388,7 @@ describe('SubscriptionService', () => {
         },
       } as Stripe.Event;
 
-      mockStripeInstance.webhooks.constructEvent.mockReturnValue(mockEvent);
+      mockWebhooksConstructEvent.mockReturnValue(mockEvent);
       vi.mocked(subscriptionRepository.updateByStripeSubscriptionId).mockResolvedValue({
         id: '1',
         tenantId: 'tenant-1',
@@ -438,7 +423,7 @@ describe('SubscriptionService', () => {
         },
       } as Stripe.Event;
 
-      mockStripeInstance.webhooks.constructEvent.mockReturnValue(mockEvent);
+      mockWebhooksConstructEvent.mockReturnValue(mockEvent);
       vi.mocked(subscriptionRepository.updateByStripeSubscriptionId).mockResolvedValue({
         id: '1',
         tenantId: 'tenant-1',

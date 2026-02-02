@@ -18,6 +18,8 @@ const activeIndex = computed(() => {
 
 const handleLogout = () => {
   localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('tenantId');
   router.push('/');
 };
 
