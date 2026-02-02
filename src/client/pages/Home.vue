@@ -821,7 +821,7 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-primary,
-.btn-seconda
+.btn-secondary {
   padding: 14px 32px;
   font-size: 16px;
   font-weight: 600;
@@ -850,7 +850,9 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-primary:active {
-  transform: translateY(0)n
+  transform: translateY(0);
+}
+
 .btn-secondary {
   background: rgba(59, 130, 246, 0.1);
   color: var(--color-primary);
