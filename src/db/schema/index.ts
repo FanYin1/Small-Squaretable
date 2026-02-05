@@ -11,3 +11,5 @@ export * from './chats';
 export * from './ratings';
 export * from './subscriptions';
 export * from './usage';
+export * from './emotions';
+export * from './memories';
