@@ -111,6 +111,16 @@ npm run build            # Production build
 | POST | `/api/v1/chats/:id/messages` | Send message |
 | GET | `/api/v1/chats/:id/messages` | Get messages |
 
+### Intelligence (智能角色系统)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/characters/:id/intelligence/memories` | Get character memories |
+| DELETE | `/api/v1/characters/:id/intelligence/memories` | Clear all memories |
+| DELETE | `/api/v1/characters/:id/intelligence/memories/:memoryId` | Delete memory |
+| GET | `/api/v1/characters/:id/intelligence/emotion` | Get current emotion |
+| DELETE | `/api/v1/characters/:id/intelligence/emotion` | Reset emotion |
+| POST | `/api/v1/characters/:id/intelligence/extract-memories` | Extract memories from chat |
+
 ### Health
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -130,14 +140,18 @@ npm run build            # Production build
 
 ### Core Services
 - `src/server/services/auth.service.ts` - Authentication
-- `src/server/services/chat.service.ts` - Chat logic
+- `src/server/services/chat.service.ts` - Chat logic + Memory/Emotion injection
 - `src/server/services/cache.service.ts` - Redis caching
 - `src/server/services/logger.service.ts` - Structured logging
+- `src/server/services/embedding.service.ts` - Text embedding (MiniLM)
+- `src/server/services/memory.service.ts` - Character memory management
+- `src/server/services/emotion.service.ts` - 2D emotion state machine
 
 ### Frontend Stores
 - `src/client/stores/user.ts` - User state
 - `src/client/stores/chat.ts` - Chat state (WebSocket + HTTP)
 - `src/client/stores/ui.ts` - UI state
+- `src/client/stores/characterIntelligence.ts` - Memory/Emotion state
 
 ---
 
