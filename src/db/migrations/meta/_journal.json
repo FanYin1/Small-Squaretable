@@ -36,6 +36,13 @@
       "when": 1770269667653,
       "tag": "0004_noisy_hairball",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770350400000,
+      "tag": "0010_add_pgvector",
+      "breakpoints": true
     }
   ]
 }

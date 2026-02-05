@@ -44,9 +44,9 @@ services:
       retries: 3
       start_period: 40s
 
-  # PostgreSQL database
+  # PostgreSQL database with pgvector extension
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: small-squaretable-postgres
     environment:
       POSTGRES_USER: postgres
