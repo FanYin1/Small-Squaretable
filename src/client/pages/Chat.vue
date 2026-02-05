@@ -2,14 +2,36 @@
   <DashboardLayout>
     <template #title>会话</template>
     <template #actions>
-      <el-button
-        type="primary"
-        :icon="Plus"
-        @click="handleNewChat"
-        class="new-chat-btn"
-      >
-        新建聊天
-      </el-button>
+      <div class="chat-header-actions">
+        <div class="chat-intelligence-toggles">
+          <el-tooltip content="情感状态" placement="bottom">
+            <el-button
+              :type="showEmotionPanel ? 'primary' : 'default'"
+              :icon="Sunny"
+              circle
+              size="small"
+              @click="showEmotionPanel = !showEmotionPanel"
+            />
+          </el-tooltip>
+          <el-tooltip content="角色记忆" placement="bottom">
+            <el-button
+              :type="showMemoryPanel ? 'primary' : 'default'"
+              :icon="Collection"
+              circle
+              size="small"
+              @click="showMemoryPanel = !showMemoryPanel"
+            />
+          </el-tooltip>
+        </div>
+        <el-button
+          type="primary"
+          :icon="Plus"
+          @click="handleNewChat"
+          class="new-chat-btn"
+        >
+          新建聊天
+        </el-button>
+      </div>
     </template>
 
     <div class="chat-content">
@@ -41,6 +63,19 @@
 
         <ChatWindow v-else :current-chat="currentChat" />
       </div>
+
+      <!-- Intelligence Panels -->
+      <Transition name="slide">
+        <div v-if="showEmotionPanel" class="chat-emotion-panel">
+          <EmotionIndicator />
+        </div>
+      </Transition>
+
+      <Transition name="slide">
+        <div v-if="showMemoryPanel && chatStore.currentChat?.characterId" class="chat-memory-panel">
+          <MemoryPanel :character-id="chatStore.currentChat.characterId" />
+        </div>
+      </Transition>
     </div>
   </DashboardLayout>
 
@@ -93,24 +128,30 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { Expand, Fold, Plus } from '@element-plus/icons-vue';
+import { Expand, Fold, Plus, Sunny, Collection } from '@element-plus/icons-vue';
 import { ElMessage, ElSelectV2 } from 'element-plus';
 import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
+import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
 import { characterApi, mapSearchItemToCharacter } from '@client/services';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import ChatSidebar from '@client/components/chat/ChatSidebar.vue';
 import ChatWindow from '@client/components/chat/ChatWindow.vue';
+import EmotionIndicator from '@client/components/EmotionIndicator.vue';
+import MemoryPanel from '@client/components/MemoryPanel.vue';
 import type { Character } from '@client/types';
 
 const route = useRoute();
 const chatStore = useChatStore();
 const userStore = useUserStore();
+const intelligenceStore = useCharacterIntelligenceStore();
 
 const sidebarCollapsed = ref(false);
 const showNewChatDialog = ref(false);
 const creating = ref(false);
 const characters = ref<Character[]>([]);
+const showEmotionPanel = ref(false);
+const showMemoryPanel = ref(false);
 
 const newChatForm = ref({
   characterId: '',
@@ -270,6 +311,18 @@ watch(() => route.query.characterId, (characterId) => {
     showNewChatDialog.value = true;
   }
 });
+
+// Watch for character changes to fetch intelligence data
+watch(() => chatStore.currentChat?.characterId, async (characterId) => {
+  if (characterId) {
+    try {
+      await intelligenceStore.fetchMemories(characterId);
+      await intelligenceStore.fetchEmotion(characterId, chatStore.currentChatId);
+    } catch (error) {
+      console.error('Failed to fetch intelligence data:', error);
+    }
+  }
+}, { immediate: true });
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
@@ -550,6 +603,77 @@ onUnmounted(() => {
 
   .chat-sidebar-container {
     transform: translateX(0) !important;
+  }
+}
+
+/* Intelligence Panels Styles */
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.chat-intelligence-toggles {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-emotion-panel,
+.chat-memory-panel {
+  position: absolute;
+  right: 16px;
+  top: 60px;
+  z-index: 100;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.chat-emotion-panel {
+  width: 200px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+.chat-memory-panel {
+  top: 80px;
+  width: 280px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+/* Mobile adjustments for panels */
+@media (max-width: 767px) {
+  .chat-header-actions {
+    gap: 8px;
+  }
+
+  .new-chat-btn {
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+
+  .chat-emotion-panel {
+    right: 8px;
+    width: 180px;
+  }
+
+  .chat-memory-panel {
+    right: 8px;
+    width: 240px;
   }
 }
 </style>
