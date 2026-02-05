@@ -151,6 +151,58 @@ describe('MemoryService', () => {
       }, undefined, 'pro');
       expect(memoryRepository.create).toHaveBeenCalled();
     });
+
+    it('should handle team tier limit', async () => {
+      vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(1500);
+      vi.mocked(memoryRepository.create).mockResolvedValue({
+        id: 'mem-1',
+        content: 'Test',
+      } as any);
+
+      // Team tier (2000 limit) - should store
+      await service.storeMemory('char-1', 'user-1', {
+        type: 'fact',
+        content: 'Test',
+        importance: 0.5,
+      }, undefined, 'team');
+      expect(memoryRepository.create).toHaveBeenCalled();
+    });
+
+    it('should handle unknown subscription tier as free', async () => {
+      vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(99);
+      vi.mocked(memoryRepository.create).mockResolvedValue({
+        id: 'mem-1',
+        content: 'Test',
+      } as any);
+
+      // Unknown tier should default to free (100 limit) - should store
+      await service.storeMemory('char-1', 'user-1', {
+        type: 'fact',
+        content: 'Test',
+        importance: 0.5,
+      }, undefined, 'unknown' as any);
+      expect(memoryRepository.create).toHaveBeenCalled();
+    });
+
+    it('should include chatId when provided', async () => {
+      vi.mocked(memoryRepository.create).mockResolvedValue({
+        id: 'mem-1',
+        content: 'Test',
+      } as any);
+      vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(0);
+
+      await service.storeMemory('char-1', 'user-1', {
+        type: 'fact',
+        content: 'Test',
+        importance: 0.5,
+      }, 'chat-123');
+
+      expect(memoryRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceChatId: 'chat-123',
+        })
+      );
+    });
   });
 
   describe('extractMemories', () => {

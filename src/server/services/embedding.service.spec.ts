@@ -182,6 +182,60 @@ describe('EmbeddingService', () => {
       expect(true).toBe(true);
     });
   });
+
+  describe('embed - edge cases', () => {
+    it('should handle empty string', async () => {
+      const embedding = await service.embed('');
+      expect(embedding).toHaveLength(384);
+      expect(embedding.every(v => typeof v === 'number')).toBe(true);
+    });
+
+    it('should handle whitespace-only string', async () => {
+      const embedding = await service.embed('   \t\n   ');
+      expect(embedding).toHaveLength(384);
+    });
+
+    it('should handle very long text', async () => {
+      const longText = 'a'.repeat(10000);
+      const embedding = await service.embed(longText);
+      expect(embedding).toHaveLength(384);
+    });
+
+    it('should handle special characters and unicode', async () => {
+      const specialText = 'Hello 世界 🌍 !@#$%^&*()';
+      const embedding = await service.embed(specialText);
+      expect(embedding).toHaveLength(384);
+    });
+  });
+
+  describe('analyzeSentiment - edge cases', () => {
+    it('should handle empty string', async () => {
+      const result = await service.analyzeSentiment('');
+      expect(result.valence).toBeGreaterThanOrEqual(-1);
+      expect(result.valence).toBeLessThanOrEqual(1);
+      expect(result.arousal).toBeGreaterThanOrEqual(0);
+      expect(result.arousal).toBeLessThanOrEqual(1);
+    });
+
+    it('should handle whitespace-only text', async () => {
+      const result = await service.analyzeSentiment('   \t\n   ');
+      expect(result).toHaveProperty('valence');
+      expect(result).toHaveProperty('arousal');
+    });
+
+    it('should handle very long text', async () => {
+      const longText = 'I am happy '.repeat(1000);
+      const result = await service.analyzeSentiment(longText);
+      expect(result).toHaveProperty('valence');
+      expect(result).toHaveProperty('arousal');
+    });
+
+    it('should handle mixed positive and negative sentiment', async () => {
+      const result = await service.analyzeSentiment('I am happy but also sad about this situation');
+      expect(result.valence).toBeGreaterThanOrEqual(-1);
+      expect(result.valence).toBeLessThanOrEqual(1);
+    });
+  });
 });
 
 function cosineSimilarity(a: number[], b: number[]): number {
