@@ -45,3 +45,6 @@ temp/
 # Database
 *.db
 *.sqlite
+
+# Worktrees
+.worktrees/
