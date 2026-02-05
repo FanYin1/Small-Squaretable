@@ -58,9 +58,13 @@
           <el-dropdown
             trigger="click"
             @command="(command: string) => handleChatAction(command, chat.id)"
-            @click.stop
           >
-            <el-button link :icon="More" class="chat-item-menu" />
+            <el-button
+              link
+              :icon="More"
+              class="chat-item-menu"
+              @click.stop
+            />
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="rename" :icon="Edit">
@@ -301,12 +305,21 @@ const handleChatAction = async (command: string, chatId: string) => {
 }
 
 .chat-item-menu {
-  opacity: 0;
+  opacity: 0.3;
   transition: opacity 0.2s;
+  z-index: 10;
+  position: relative;
+  padding: 4px 8px;
+  flex-shrink: 0;
 }
 
 .chat-item:hover .chat-item-menu {
   opacity: 1;
+}
+
+.chat-item-menu:hover {
+  background-color: var(--el-fill-color);
+  border-radius: 4px;
 }
 
 /* Scrollbar styling */

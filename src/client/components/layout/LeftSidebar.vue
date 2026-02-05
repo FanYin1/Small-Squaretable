@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { Home, ChatDotRound, Shop, User, TrendCharts, Setting } from '@element-plus/icons-vue';
+import { HomeFilled, ChatDotRound, Shop, User, TrendCharts, Setting } from '@element-plus/icons-vue';
+import { isTokenValid } from '@client/utils/auth';
 
 const router = useRouter();
 const route = useRoute();
@@ -12,23 +13,43 @@ interface NavItem {
   label: string;
   icon: any;
   path: string;
+  name: string;
+  authRequired?: boolean;
 }
 
 const navItems: NavItem[] = [
-  { key: 'home', label: '首页', icon: Home, path: '/' },
-  { key: 'chat', label: '会话', icon: ChatDotRound, path: '/chat' },
-  { key: 'market', label: '角色市场', icon: Shop, path: '/market' },
-  { key: 'characters', label: '我的角色', icon: User, path: '/my-characters' },
-  { key: 'subscription', label: '订阅管理', icon: TrendCharts, path: '/subscription' },
-  { key: 'settings', label: '设置', icon: Setting, path: '/profile' },
+  { key: 'home', label: '首页', icon: HomeFilled, path: '/', name: 'Home', authRequired: false },
+  { key: 'chat', label: '会话', icon: ChatDotRound, path: '/chat', name: 'Chat', authRequired: true },
+  { key: 'market', label: '角色市场', icon: Shop, path: '/market', name: 'Market', authRequired: false },
+  { key: 'characters', label: '我的角色', icon: User, path: '/my-characters', name: 'MyCharacters', authRequired: true },
+  { key: 'subscription', label: '订阅管理', icon: TrendCharts, path: '/subscription', name: 'Subscription', authRequired: true },
+  { key: 'settings', label: '设置', icon: Setting, path: '/profile', name: 'Profile', authRequired: true },
 ];
 
-const isActive = (path: string) => {
-  return route.path === path;
+const isAuthenticated = computed(() => {
+  const token = localStorage.getItem('token');
+  return isTokenValid(token);
+});
+
+const visibleNavItems = computed(() => {
+  return navItems.filter(item => !item.authRequired || isAuthenticated.value);
+});
+
+const isActive = (name: string) => {
+  // 对于首页，需要同时检查 Home 和 Dashboard
+  if (name === 'Home') {
+    return route.name === 'Home' || route.name === 'Dashboard';
+  }
+  return route.name === name;
 };
 
-const handleNavigate = (path: string) => {
-  router.push(path);
+const handleNavigate = (name: string) => {
+  // 如果点击首页且已登录，导航到 Dashboard
+  if (name === 'Home' && isAuthenticated.value) {
+    router.push({ name: 'Dashboard' });
+  } else {
+    router.push({ name });
+  }
 };
 
 const handleMouseEnter = () => {
@@ -48,10 +69,10 @@ const handleMouseLeave = () => {
   >
     <nav class="nav-list">
       <button
-        v-for="item in navItems"
+        v-for="item in visibleNavItems"
         :key="item.key"
-        :class="['nav-item', { active: isActive(item.path) }]"
-        @click="handleNavigate(item.path)"
+        :class="['nav-item', { active: isActive(item.name) }]"
+        @click="handleNavigate(item.name)"
       >
         <el-icon class="nav-icon" :size="24">
           <component :is="item.icon" />
@@ -69,7 +90,7 @@ const handleMouseLeave = () => {
   top: 0;
   bottom: 0;
   width: 64px;
-  background: #1F2937;
+  background: var(--sidebar-bg);
   transition: width 0.3s ease;
   z-index: 100;
   overflow: hidden;
@@ -97,7 +118,7 @@ const handleMouseLeave = () => {
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: #F9FAFB;
+  color: var(--sidebar-text-color);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
@@ -113,11 +134,11 @@ const handleMouseLeave = () => {
 }
 
 .nav-item:hover {
-  background: #374151;
+  background: var(--sidebar-hover-bg);
 }
 
 .nav-item.active {
-  background: #3B82F6;
+  background: var(--sidebar-active-bg);
   color: white;
 }
 

@@ -1,0 +1,59 @@
+# Staging overlay for Small Squaretable
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: small-squaretable-staging
+
+# Reference base configuration
+resources:
+  - ../../
+
+# Staging-specific labels
+commonLabels:
+  environment: staging
+
+# Staging image tag
+images:
+  - name: your-registry/small-squaretable
+    newTag: staging
+
+# Staging-specific patches
+patches:
+  # Reduce replicas for staging
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+    target:
+      kind: Deployment
+      name: app
+  # Reduce resource limits for staging
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: "500m"
+    target:
+      kind: Deployment
+      name: app
+  # Reduce HPA for staging
+  - patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 3
+    target:
+      kind: HorizontalPodAutoscaler
+      name: app-hpa
+  # Reduce PDB minAvailable for staging
+  - patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 1
+    target:
+      kind: PodDisruptionBudget
+      name: app-pdb

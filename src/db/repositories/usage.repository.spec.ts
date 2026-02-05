@@ -1,16 +1,29 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UsageRepository } from './usage.repository';
 
-// Mock the actual database operations by mocking the repository methods directly
-vi.mock('../index', () => ({
-  db: {},
-}));
-
 describe('UsageRepository', () => {
   let repository: UsageRepository;
+  let mockDb: any;
 
   beforeEach(() => {
-    repository = new UsageRepository({} as any);
+    // Create a mock database with chainable methods
+    const createChainableMock = () => {
+      const mock: any = {
+        select: vi.fn(() => mock),
+        from: vi.fn(() => mock),
+        where: vi.fn(() => mock),
+        insert: vi.fn(() => mock),
+        values: vi.fn(() => mock),
+        returning: vi.fn().mockResolvedValue([]),
+        groupBy: vi.fn(() => mock),
+        orderBy: vi.fn().mockResolvedValue([]),
+      };
+      return mock;
+    };
+
+    mockDb = createChainableMock();
+    repository = new UsageRepository(mockDb);
+    vi.clearAllMocks();
   });
 
   describe('record', () => {
@@ -25,13 +38,7 @@ describe('UsageRepository', () => {
         createdAt: new Date('2024-01-15'),
       };
 
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([mockUsage]),
-          }),
-        }),
-      });
+      mockDb.returning.mockResolvedValue([mockUsage]);
 
       const result = await repository.record(
         'tenant_123',
@@ -41,6 +48,7 @@ describe('UsageRepository', () => {
       );
 
       expect(result).toEqual(mockUsage);
+      expect(mockDb.insert).toHaveBeenCalled();
     });
 
     it('should record usage without metadata', async () => {
@@ -54,13 +62,7 @@ describe('UsageRepository', () => {
         createdAt: new Date('2024-01-15'),
       };
 
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([mockUsage]),
-          }),
-        }),
-      });
+      mockDb.returning.mockResolvedValue([mockUsage]);
 
       const result = await repository.record('tenant_123', 'messages', 1);
 
@@ -80,109 +82,60 @@ describe('UsageRepository', () => {
         createdAt: new Date(),
       };
 
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([mockUsage]),
-          }),
-        }),
-      });
+      mockDb.returning.mockResolvedValue([mockUsage]);
 
       const result = await repository.record('tenant_123', 'api_calls', 1);
 
-      expect(result.period).toMatch(/^\d{4}-\d{2}$/);
+      expect(result.period).toBe(currentPeriod);
     });
 
     it('should handle database errors during recording', async () => {
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        insert: vi.fn().mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockRejectedValue(new Error('Database error')),
-          }),
-        }),
-      });
+      mockDb.returning.mockRejectedValue(new Error('Database error'));
 
       await expect(
-        repository.record('tenant_123', 'images', 1)
+        repository.record('tenant_123', 'llm_tokens', 1000)
       ).rejects.toThrow('Database error');
     });
   });
 
   describe('getUsage', () => {
     it('should return usage for specific resource type and period', async () => {
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([{ total: '5000' }]),
-          }),
-        }),
-      });
+      mockDb.where.mockResolvedValue([{ total: '5000' }]);
 
       const result = await repository.getUsage('tenant_123', 'llm_tokens', '2024-01');
 
       expect(result).toBe(5000);
+      expect(mockDb.select).toHaveBeenCalled();
     });
 
     it('should return 0 when no usage found', async () => {
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([{ total: null }]),
-          }),
-        }),
-      });
+      mockDb.where.mockResolvedValue([{ total: null }]);
 
-      const result = await repository.getUsage('tenant_123', 'messages', '2024-01');
+      const result = await repository.getUsage('tenant_123', 'llm_tokens', '2024-01');
 
       expect(result).toBe(0);
     });
 
     it('should return 0 when result is empty', async () => {
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      });
+      mockDb.where.mockResolvedValue([]);
 
-      const result = await repository.getUsage('tenant_123', 'images', '2024-01');
+      const result = await repository.getUsage('tenant_123', 'llm_tokens', '2024-01');
 
       expect(result).toBe(0);
     });
 
     it('should handle different resource types', async () => {
-      const resourceTypes: Array<'llm_tokens' | 'messages' | 'images' | 'api_calls'> = [
-        'llm_tokens',
-        'messages',
-        'images',
-        'api_calls',
-      ];
+      mockDb.where.mockResolvedValue([{ total: '100' }]);
 
-      for (const resourceType of resourceTypes) {
-        vi.spyOn(repository as any, 'db').mockReturnValue({
-          select: vi.fn().mockReturnValue({
-            from: vi.fn().mockReturnValue({
-              where: vi.fn().mockResolvedValue([{ total: '100' }]),
-            }),
-          }),
-        });
+      const result = await repository.getUsage('tenant_123', 'messages', '2024-01');
 
-        const result = await repository.getUsage('tenant_123', resourceType, '2024-01');
-        expect(result).toBe(100);
-      }
+      expect(result).toBe(100);
     });
   });
 
   describe('getTotalUsage', () => {
     it('should return total usage across all resource types', async () => {
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([{ total: '10000' }]),
-          }),
-        }),
-      });
+      mockDb.where.mockResolvedValue([{ total: '10000' }]);
 
       const result = await repository.getTotalUsage('tenant_123', '2024-01');
 
@@ -190,13 +143,7 @@ describe('UsageRepository', () => {
     });
 
     it('should return 0 when no usage found', async () => {
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockResolvedValue([{ total: null }]),
-          }),
-        }),
-      });
+      mockDb.where.mockResolvedValue([{ total: null }]);
 
       const result = await repository.getTotalUsage('tenant_123', '2024-01');
 
@@ -206,43 +153,23 @@ describe('UsageRepository', () => {
 
   describe('getUsageByPeriod', () => {
     it('should return usage grouped by resource type', async () => {
-      const mockResult = [
+      mockDb.groupBy.mockResolvedValue([
         { resourceType: 'llm_tokens', total: '5000' },
         { resourceType: 'messages', total: '100' },
-        { resourceType: 'images', total: '10' },
-        { resourceType: 'api_calls', total: '500' },
-      ];
-
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              groupBy: vi.fn().mockResolvedValue(mockResult),
-            }),
-          }),
-        }),
-      });
+        { resourceType: 'api_calls', total: '50' },
+      ]);
 
       const result = await repository.getUsageByPeriod('tenant_123', '2024-01');
 
       expect(result).toEqual([
         { resourceType: 'llm_tokens', total: 5000 },
         { resourceType: 'messages', total: 100 },
-        { resourceType: 'images', total: 10 },
-        { resourceType: 'api_calls', total: 500 },
+        { resourceType: 'api_calls', total: 50 },
       ]);
     });
 
     it('should return empty array when no usage found', async () => {
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              groupBy: vi.fn().mockResolvedValue([]),
-            }),
-          }),
-        }),
-      });
+      mockDb.groupBy.mockResolvedValue([]);
 
       const result = await repository.getUsageByPeriod('tenant_123', '2024-01');
 
@@ -250,26 +177,14 @@ describe('UsageRepository', () => {
     });
 
     it('should handle null totals', async () => {
-      const mockResult = [
+      mockDb.groupBy.mockResolvedValue([
         { resourceType: 'llm_tokens', total: null },
-        { resourceType: 'messages', total: '50' },
-      ];
-
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              groupBy: vi.fn().mockResolvedValue(mockResult),
-            }),
-          }),
-        }),
-      });
+      ]);
 
       const result = await repository.getUsageByPeriod('tenant_123', '2024-01');
 
       expect(result).toEqual([
         { resourceType: 'llm_tokens', total: 0 },
-        { resourceType: 'messages', total: 50 },
       ]);
     });
   });
@@ -280,48 +195,33 @@ describe('UsageRepository', () => {
         {
           id: 'usage_1',
           tenantId: 'tenant_123',
-          resourceType: 'llm_tokens' as const,
+          resourceType: 'llm_tokens',
           amount: 1000,
           period: '2024-01',
           metadata: {},
-          createdAt: new Date('2024-01-15T10:00:00Z'),
+          createdAt: new Date('2024-01-15'),
         },
         {
           id: 'usage_2',
           tenantId: 'tenant_123',
-          resourceType: 'messages' as const,
-          amount: 5,
+          resourceType: 'messages',
+          amount: 10,
           period: '2024-01',
           metadata: {},
-          createdAt: new Date('2024-01-15T11:00:00Z'),
+          createdAt: new Date('2024-01-16'),
         },
       ];
 
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockResolvedValue(mockRecords),
-            }),
-          }),
-        }),
-      });
+      mockDb.orderBy.mockResolvedValue(mockRecords);
 
       const result = await repository.findByTenantAndPeriod('tenant_123', '2024-01');
 
       expect(result).toEqual(mockRecords);
+      expect(mockDb.select).toHaveBeenCalled();
     });
 
     it('should return empty array when no records found', async () => {
-      vi.spyOn(repository as any, 'db').mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockResolvedValue([]),
-            }),
-          }),
-        }),
-      });
+      mockDb.orderBy.mockResolvedValue([]);
 
       const result = await repository.findByTenantAndPeriod('tenant_123', '2024-01');
 

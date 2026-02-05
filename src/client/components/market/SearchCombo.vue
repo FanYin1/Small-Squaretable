@@ -33,7 +33,7 @@ const handleKeyEnter = () => {
 };
 
 const handleNewChat = () => {
-  router.push('/chat');
+  router.push({ name: 'Chat' });
 };
 </script>
 

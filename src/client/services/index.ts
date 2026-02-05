@@ -11,3 +11,4 @@ export * from './character.api';
 export * from './chat.api';
 export * from './subscription.api';
 export * from './usage.api';
+export * from './llm.api';

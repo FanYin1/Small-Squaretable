@@ -1,0 +1,155 @@
+# =============================================================================
+# Trivy Security Scanner Configuration
+# Small-Squaretable Project
+# =============================================================================
+# Documentation: https://aquasecurity.github.io/trivy/latest/docs/configuration/
+
+# -----------------------------------------------------------------------------
+# Scan Settings
+# -----------------------------------------------------------------------------
+scan:
+  # Security checks to perform
+  security-checks:
+    - vuln        # Vulnerability scanning
+    - secret      # Secret detection
+    - config      # Misconfiguration scanning
+
+# -----------------------------------------------------------------------------
+# Vulnerability Settings
+# -----------------------------------------------------------------------------
+vulnerability:
+  # Vulnerability types to scan
+  type:
+    - os          # OS package vulnerabilities
+    - library     # Application library vulnerabilities
+
+  # Ignore unfixed vulnerabilities (optional - set to false for stricter scanning)
+  ignore-unfixed: false
+
+# -----------------------------------------------------------------------------
+# Severity Settings
+# -----------------------------------------------------------------------------
+severity:
+  # Severities to report (from highest to lowest)
+  - CRITICAL
+  - HIGH
+  - MEDIUM
+  # - LOW        # Uncomment to include LOW severity
+  # - UNKNOWN    # Uncomment to include UNKNOWN severity
+
+# -----------------------------------------------------------------------------
+# Exit Code Configuration (for CI/CD pipeline blocking)
+# -----------------------------------------------------------------------------
+exit:
+  # Exit with code 1 if vulnerabilities are found at these severities
+  # This will fail the CI/CD pipeline
+  code: 1
+  on-eol: 1     # Exit code when EOL OS is detected
+
+# -----------------------------------------------------------------------------
+# Output Settings
+# -----------------------------------------------------------------------------
+format: table   # Output format: table, json, sarif, cyclonedx, spdx, etc.
+
+output: ""      # Output file path (empty = stdout)
+
+# For CI/CD, you might want to use:
+# format: sarif
+# output: trivy-results.sarif
+
+# -----------------------------------------------------------------------------
+# Cache Settings
+# -----------------------------------------------------------------------------
+cache:
+  # Cache directory for vulnerability database
+  dir: /tmp/trivy-cache
+
+  # Cache backend (fs = filesystem)
+  backend: fs
+
+# -----------------------------------------------------------------------------
+# Database Settings
+# -----------------------------------------------------------------------------
+db:
+  # Skip database update (useful for air-gapped environments)
+  skip-update: false
+
+  # Download database only (don't scan)
+  download-only: false
+
+# -----------------------------------------------------------------------------
+# Image Scanning Settings
+# -----------------------------------------------------------------------------
+image:
+  # Scan image configuration
+  config-scanners:
+    - dockerfile
+
+  # Remove temporary files after scanning
+  removed-pkgs: false
+
+# -----------------------------------------------------------------------------
+# Filesystem/Repository Scanning Settings
+# -----------------------------------------------------------------------------
+filesystem:
+  # Skip directories during filesystem scan
+  skip-dirs:
+    - node_modules
+    - .git
+    - dist
+    - coverage
+    - test-results
+
+# -----------------------------------------------------------------------------
+# Secret Detection Settings
+# -----------------------------------------------------------------------------
+secret:
+  # Secret scanning configuration
+  config: ""    # Path to secret config file (optional)
+
+# -----------------------------------------------------------------------------
+# Misconfiguration Settings
+# -----------------------------------------------------------------------------
+misconfiguration:
+  # Scanners for misconfiguration detection
+  scanners:
+    - dockerfile
+    - kubernetes
+
+# -----------------------------------------------------------------------------
+# Ignore Settings
+# -----------------------------------------------------------------------------
+# Ignore specific vulnerabilities by ID
+# ignorefile: .trivyignore
+
+# Example .trivyignore content:
+# CVE-2023-XXXXX  # Reason for ignoring
+# CVE-2024-XXXXX  # Another reason
+
+# -----------------------------------------------------------------------------
+# Timeout Settings
+# -----------------------------------------------------------------------------
+timeout: 10m    # Scan timeout
+
+# -----------------------------------------------------------------------------
+# CI/CD Integration Examples
+# -----------------------------------------------------------------------------
+# GitHub Actions:
+#   - name: Run Trivy vulnerability scanner
+#     uses: aquasecurity/trivy-action@master
+#     with:
+#       image-ref: 'small-squaretable:${{ github.sha }}'
+#       format: 'sarif'
+#       output: 'trivy-results.sarif'
+#       severity: 'CRITICAL,HIGH'
+#       exit-code: '1'
+#
+# GitLab CI:
+#   trivy-scan:
+#     image: aquasec/trivy:latest
+#     script:
+#       - trivy image --exit-code 1 --severity CRITICAL,HIGH small-squaretable:$CI_COMMIT_SHA
+#
+# Local scanning:
+#   trivy image --config .trivy.yaml small-squaretable:latest
+#   trivy fs --config .trivy.yaml .

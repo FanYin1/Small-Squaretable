@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ChatDotRound, Star } from '@element-plus/icons-vue';
+import LazyImage from '../ui/LazyImage.vue';
 import type { Character } from '@client/types';
 
 const props = defineProps<{
@@ -19,7 +20,7 @@ const ratingDisplay = computed(() =>
 );
 
 function handleStartChat() {
-  router.push(`/chat?characterId=${props.character.id}`);
+  router.push({ name: 'Chat', query: { characterId: props.character.id } });
 }
 </script>
 
@@ -27,7 +28,13 @@ function handleStartChat() {
   <el-card class="character-card" shadow="hover">
     <div class="card-content">
       <div class="avatar-section">
-        <el-avatar :size="80" :src="avatarUrl" />
+        <LazyImage
+          :src="avatarUrl"
+          :alt="character.name"
+          width="80"
+          height="80"
+          object-fit="cover"
+        />
       </div>
 
       <div class="info-section">

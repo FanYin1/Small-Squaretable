@@ -22,6 +22,20 @@
       "when": 1769900100000,
       "tag": "0002_add_ratings",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1770207549408,
+      "tag": "0003_red_cammi",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770269667653,
+      "tag": "0004_noisy_hairball",
+      "breakpoints": true
     }
   ]
 }

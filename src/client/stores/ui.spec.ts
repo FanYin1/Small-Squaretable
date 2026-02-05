@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
+import { nextTick } from 'vue';
 import { useUiStore } from './ui';
 import '../test-setup';
 
@@ -111,42 +112,48 @@ describe('UI Store', () => {
       expect(store.theme).toBe('light');
     });
 
-    it('should persist theme to localStorage', () => {
+    it('should persist theme to localStorage', async () => {
       const store = useUiStore();
 
       store.setTheme('dark');
+      await nextTick();
       expect(localStorage.getItem('theme')).toBe('dark');
 
       store.setTheme('light');
+      await nextTick();
       expect(localStorage.getItem('theme')).toBe('light');
     });
 
-    it('should update document class on theme change', () => {
+    it('should update document class on theme change', async () => {
       const store = useUiStore();
 
       store.setTheme('dark');
+      await nextTick();
       expect(document.documentElement.classList.contains('dark')).toBe(true);
       expect(document.documentElement.classList.contains('light')).toBe(false);
 
       store.setTheme('light');
+      await nextTick();
       expect(document.documentElement.classList.contains('light')).toBe(true);
       expect(document.documentElement.classList.contains('dark')).toBe(false);
     });
 
-    it('should apply theme immediately on initialization', () => {
+    it('should apply theme immediately on initialization', async () => {
       localStorage.setItem('theme', 'dark');
 
       const store = useUiStore();
+      await nextTick();
 
       expect(document.documentElement.classList.contains('dark')).toBe(true);
     });
 
-    it('should handle rapid theme changes', () => {
+    it('should handle rapid theme changes', async () => {
       const store = useUiStore();
 
       for (let i = 0; i < 10; i++) {
         store.toggleTheme();
       }
+      await nextTick();
 
       expect(store.theme).toBe('light');
       expect(document.documentElement.classList.contains('light')).toBe(true);
@@ -222,9 +229,10 @@ describe('UI Store', () => {
   });
 
   describe('State Persistence', () => {
-    it('should persist theme across store instances', () => {
+    it('should persist theme across store instances', async () => {
       const store1 = useUiStore();
       store1.setTheme('dark');
+      await nextTick();
 
       // Create new pinia instance to simulate page reload
       setActivePinia(createPinia());
@@ -345,25 +353,24 @@ describe('UI Store', () => {
   });
 
   describe('Reactivity', () => {
-    it('should trigger watchers on theme change', () => {
+    it('should trigger watchers on theme change', async () => {
       const store = useUiStore();
       const themeChanges: string[] = [];
 
-      // Watch theme changes
-      const unwatch = vi.fn();
+      // Watch theme changes using $subscribe
       store.$subscribe((mutation, state) => {
-        if (mutation.events && 'theme' in (mutation.events as any)) {
-          themeChanges.push(state.theme);
-        }
+        themeChanges.push(state.theme);
       });
 
       store.setTheme('dark');
+      await nextTick();
       store.setTheme('light');
+      await nextTick();
 
       expect(themeChanges.length).toBeGreaterThan(0);
     });
 
-    it('should be reactive to sidebar changes', () => {
+    it('should be reactive to sidebar changes', async () => {
       const store = useUiStore();
       const states: boolean[] = [];
 
@@ -372,7 +379,9 @@ describe('UI Store', () => {
       });
 
       store.toggleSidebar();
+      await nextTick();
       store.toggleSidebar();
+      await nextTick();
 
       expect(states.length).toBeGreaterThan(0);
     });

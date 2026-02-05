@@ -10,20 +10,19 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import Register from './Register.vue';
 import { useUserStore } from '@client/stores/user';
-import { ElMessage } from 'element-plus';
 import '../../test-setup';
 
-// Mock Element Plus Message
-vi.mock('element-plus', async () => {
-  const actual = await vi.importActual('element-plus');
-  return {
-    ...actual,
-    ElMessage: {
-      success: vi.fn(),
-      error: vi.fn(),
-    },
-  };
-});
+// Mock useToast composable
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+};
+
+vi.mock('@client/composables/useToast', () => ({
+  useToast: () => mockToast,
+}));
 
 // Mock user store
 vi.mock('@client/stores/user', () => ({
@@ -258,7 +257,7 @@ describe('Register Page', () => {
       );
 
       // Should show success message
-      expect(ElMessage.success).toHaveBeenCalledWith('注册成功！');
+      expect(mockToast.success).toHaveBeenCalledWith('注册成功');
     });
 
     it('should handle registration error', async () => {
@@ -279,7 +278,7 @@ describe('Register Page', () => {
       await wrapper.vm.$nextTick();
 
       // Should show error message
-      expect(ElMessage.error).toHaveBeenCalledWith('Email already exists');
+      expect(mockToast.error).toHaveBeenCalledWith('注册失败', { message: 'Email already exists' });
     });
 
     it('should disable form during registration', async () => {

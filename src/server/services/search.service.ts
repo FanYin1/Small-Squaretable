@@ -20,11 +20,19 @@ export class SearchService {
     const { query, sort, filter, category, tags, isNsfw, userId, page, limit } = options;
     const offset = (page - 1) * limit;
 
-    // 构建搜索查询 - 使用 plainto_tsquery 进行安全的文本搜索
-    const tsQuery = sql`plainto_tsquery('english', ${query})`;
+    // 检查是否为通配符查询或空查询（浏览所有角色）
+    const isWildcardQuery = !query || query.trim() === '' || query.trim() === '*';
 
-    // 基础条件：搜索向量匹配
-    const conditions = [sql`${characters.searchVector} @@ ${tsQuery}`];
+    // 构建搜索查询 - 使用 plainto_tsquery 进行安全的文本搜索
+    const tsQuery = isWildcardQuery ? null : sql`plainto_tsquery('english', ${query})`;
+
+    // 基础条件
+    const conditions: ReturnType<typeof sql>[] = [];
+
+    // 只有在非通配符查询时才添加全文搜索条件
+    if (tsQuery) {
+      conditions.push(sql`${characters.searchVector} @@ ${tsQuery}`);
+    }
 
     // 过滤条件
     if (filter === 'public') {
@@ -60,7 +68,10 @@ export class SearchService {
     let orderBy;
     switch (sort) {
       case 'relevance':
-        orderBy = sql`ts_rank(${characters.searchVector}, ${tsQuery}) DESC`;
+        // 如果是通配符查询，按下载量排序；否则按相关性排序
+        orderBy = tsQuery
+          ? sql`ts_rank(${characters.searchVector}, ${tsQuery}) DESC`
+          : desc(characters.downloadCount);
         break;
       case 'rating':
         orderBy = desc(characters.ratingAvg);
@@ -72,7 +83,9 @@ export class SearchService {
         orderBy = desc(characters.createdAt);
         break;
       default:
-        orderBy = sql`ts_rank(${characters.searchVector}, ${tsQuery}) DESC`;
+        orderBy = tsQuery
+          ? sql`ts_rank(${characters.searchVector}, ${tsQuery}) DESC`
+          : desc(characters.downloadCount);
     }
 
     // 执行搜索查询
@@ -92,10 +105,12 @@ export class SearchService {
         ratingCount: characters.ratingCount,
         createdAt: characters.createdAt,
         updatedAt: characters.updatedAt,
-        rank: sql<number>`ts_rank(${characters.searchVector}, ${tsQuery})`,
+        rank: tsQuery
+          ? sql<number>`ts_rank(${characters.searchVector}, ${tsQuery})`
+          : sql<number>`1`,
       })
       .from(characters)
-      .where(and(...conditions))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
@@ -104,7 +119,7 @@ export class SearchService {
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(characters)
-      .where(and(...conditions));
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
 
     const total = countResult[0]?.count ?? 0;
 

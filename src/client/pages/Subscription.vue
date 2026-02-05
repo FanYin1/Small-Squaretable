@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { useRoute } from 'vue-router';
 import { Check, CreditCard, Calendar, TrendCharts, User } from '@element-plus/icons-vue';
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { useUsageStore } from '@client/stores/usage';
-import { useUserStore } from '@client/stores';
-import LeftSidebar from '@client/components/layout/LeftSidebar.vue';
+import { useToast } from '@client/composables/useToast';
+import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import UsageDashboard from '@client/components/subscription/UsageDashboard.vue';
 
 const route = useRoute();
-const router = useRouter();
 const subscriptionStore = useSubscriptionStore();
 const usageStore = useUsageStore();
-const userStore = useUserStore();
+const toast = useToast();
 const billingCycle = ref<'monthly' | 'yearly'>('monthly');
-const showUserMenu = ref(false);
 
 const plans = computed(() => [
   {
@@ -134,8 +131,6 @@ const usageStats = computed(() => [
   },
 ]);
 
-const isLoggedIn = computed(() => !!userStore.user);
-
 onMounted(async () => {
   await Promise.all([
     subscriptionStore.fetchStatus(),
@@ -144,9 +139,9 @@ onMounted(async () => {
   ]);
 
   if (route.query.success === 'true') {
-    ElMessage.success('订阅成功！感谢您的支持');
+    toast.success('订阅成功', { message: '感谢您的支持' });
   } else if (route.query.canceled === 'true') {
-    ElMessage.info('订阅已取消');
+    toast.info('订阅已取消');
   }
 });
 
@@ -155,7 +150,7 @@ async function handleSubscribe(priceId: string | null) {
   try {
     await subscriptionStore.startCheckout(priceId);
   } catch {
-    ElMessage.error('启动支付失败，请稍后重试');
+    toast.error('启动支付失败', { message: '请稍后重试' });
   }
 }
 
@@ -163,7 +158,7 @@ async function handleManage() {
   try {
     await subscriptionStore.openPortal();
   } catch {
-    ElMessage.error('打开账单管理失败，请稍后重试');
+    toast.error('打开账单管理失败', { message: '请稍后重试' });
   }
 }
 
@@ -177,76 +172,18 @@ function formatNumber(num: number): string {
   return num.toString();
 }
 
-function handleLogout() {
-  userStore.logout();
-  showUserMenu.value = false;
-}
 </script>
 
 <template>
-  <div class="subscription-page">
-    <!-- 左侧导航栏 -->
-    <LeftSidebar />
+  <DashboardLayout>
+    <template #title>订阅管理</template>
 
-    <!-- 主内容区 -->
-    <div class="main-content">
-      <!-- 顶部栏 -->
-      <header class="top-bar">
-        <h1 class="page-title">订阅管理</h1>
-
-        <!-- 用户菜单 -->
-        <div class="user-menu-wrapper">
-          <el-dropdown v-if="isLoggedIn" trigger="click" @command="handleLogout">
-            <div class="user-avatar-btn">
-              <el-avatar
-                :size="40"
-                :src="userStore.user?.avatar"
-              >
-                {{ userStore.user?.name?.[0] }}
-              </el-avatar>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item disabled>
-                  <div class="user-info">
-                    <div class="user-name">{{ userStore.user?.name }}</div>
-                    <div class="user-email">{{ userStore.user?.email }}</div>
-                  </div>
-                </el-dropdown-item>
-                <el-dropdown-item divided @click="$router.push('/profile')">
-                  个人中心
-                </el-dropdown-item>
-                <el-dropdown-item @click="$router.push('/my-characters')">
-                  我的角色
-                </el-dropdown-item>
-                <el-dropdown-item @click="$router.push('/subscription')">
-                  订阅管理
-                </el-dropdown-item>
-                <el-dropdown-item @click="$router.push('/profile')">
-                  设置
-                </el-dropdown-item>
-                <el-dropdown-item divided command="logout">
-                  退出登录
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-
-          <div v-else class="auth-buttons">
-            <el-button @click="$router.push('/login')">登录</el-button>
-            <el-button type="primary" @click="$router.push('/register')">注册</el-button>
-          </div>
+    <div class="content-wrapper">
+      <section class="current-status-section">
+        <div class="section-header">
+          <h2>当前订阅</h2>
+          <p>管理您的订阅计划和使用情况</p>
         </div>
-      </header>
-
-      <!-- 内容区域 -->
-      <div class="content-wrapper">
-        <!-- 当前订阅状态卡片 -->
-        <section class="current-status-section">
-          <div class="section-header">
-            <h2>当前订阅</h2>
-            <p>管理您的订阅计划和使用情况</p>
-          </div>
 
           <div class="status-cards">
             <!-- 订阅信息卡片 -->
@@ -391,88 +328,14 @@ function handleLogout() {
         <section class="dashboard-section">
           <UsageDashboard />
         </section>
-      </div>
     </div>
-  </div>
+  </DashboardLayout>
 </template>
 
 <style scoped>
-.subscription-page {
-  display: flex;
-  min-height: 100vh;
-  background: #F9FAFB;
-}
-
-/* 主内容区 */
-.main-content {
-  flex: 1;
-  margin-left: 64px;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-/* 顶部栏 */
-.top-bar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 16px 32px;
-  background: white;
-  border-bottom: 1px solid #E5E7EB;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #111827;
-  margin: 0;
-  white-space: nowrap;
-}
-
-.user-menu-wrapper {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.user-avatar-btn {
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-}
-
-.user-avatar-btn:hover {
-  opacity: 0.8;
-}
-
-.user-info {
-  padding: 8px 0;
-}
-
-.user-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 4px;
-}
-
-.user-email {
-  font-size: 12px;
-  color: #9CA3AF;
-}
-
-.auth-buttons {
-  display: flex;
-  gap: 12px;
-}
-
 /* 内容包装器 */
 .content-wrapper {
   flex: 1;
-  padding: 32px;
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
@@ -486,13 +349,13 @@ function handleLogout() {
 .section-header h2 {
   font-size: 20px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-color-primary);
   margin: 0 0 8px 0;
 }
 
 .section-header p {
   font-size: 14px;
-  color: #6B7280;
+  color: var(--text-color-secondary);
   margin: 0;
 }
 
@@ -508,11 +371,12 @@ function handleLogout() {
 }
 
 .status-card {
-  background: white;
+  background: var(--bg-color);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  border: 1px solid var(--border-color);
 }
 
 .status-card:hover {
@@ -537,17 +401,17 @@ function handleLogout() {
 }
 
 .card-badge.free {
-  background: linear-gradient(135deg, #6B7280, #9CA3AF);
+  background: linear-gradient(135deg, var(--text-color-secondary), var(--text-color-placeholder));
   color: white;
 }
 
 .card-badge.pro {
-  background: linear-gradient(135deg, #3B82F6, #60A5FA);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   color: white;
 }
 
 .card-badge.team {
-  background: linear-gradient(135deg, #10B981, #34D399);
+  background: linear-gradient(135deg, var(--color-cta), var(--color-success));
   color: white;
 }
 
@@ -562,7 +426,7 @@ function handleLogout() {
   align-items: center;
   justify-content: space-between;
   padding: 12px 0;
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid var(--border-color-light);
 }
 
 .status-row:last-of-type {
@@ -575,13 +439,13 @@ function handleLogout() {
   gap: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: #6B7280;
+  color: var(--text-color-secondary);
 }
 
 .status-row .value {
   font-size: 14px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-color-primary);
 }
 
 .cancel-warning {
@@ -591,13 +455,13 @@ function handleLogout() {
 .manage-btn {
   width: 100%;
   margin-top: 8px;
-  background: #3B82F6;
-  border-color: #3B82F6;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .manage-btn:hover {
-  background: #2563EB;
-  border-color: #2563EB;
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
 }
 
 /* 使用量卡片 */
@@ -607,18 +471,18 @@ function handleLogout() {
   gap: 8px;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 2px solid #F3F4F6;
+  border-bottom: 2px solid var(--border-color-light);
 }
 
 .header-icon {
   font-size: 20px;
-  color: #3B82F6;
+  color: var(--color-primary);
 }
 
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-color-primary);
 }
 
 .usage-list {
@@ -647,7 +511,7 @@ function handleLogout() {
   flex: 1;
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-color-regular);
 }
 
 .usage-progress {
@@ -658,21 +522,21 @@ function handleLogout() {
 
 .progress-bar {
   height: 8px;
-  background: #E5E7EB;
+  background: var(--border-color);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3B82F6, #10B981);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-cta));
   border-radius: 4px;
   transition: width 0.3s ease;
 }
 
 .usage-text {
   font-size: 12px;
-  color: #6B7280;
+  color: var(--text-color-secondary);
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
@@ -688,20 +552,21 @@ function handleLogout() {
   gap: 16px;
   padding: 20px;
   margin-bottom: 32px;
-  background: white;
+  background: var(--bg-color);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
 }
 
 .billing-toggle span {
   font-size: 15px;
   font-weight: 500;
-  color: #6B7280;
+  color: var(--text-color-secondary);
   transition: all 0.2s;
 }
 
 .billing-toggle span.active {
-  color: #3B82F6;
+  color: var(--color-primary);
   font-weight: 600;
 }
 
@@ -714,8 +579,8 @@ function handleLogout() {
 
 .plan-card {
   position: relative;
-  background: white;
-  border: 2px solid #E5E7EB;
+  background: var(--bg-color);
+  border: 2px solid var(--border-color);
   border-radius: 16px;
   padding: 32px 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -730,13 +595,13 @@ function handleLogout() {
 }
 
 .plan-card.popular {
-  border-color: #3B82F6;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.03), rgba(59, 130, 246, 0.08));
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--bg-color));
 }
 
 .plan-card.current {
-  border-color: #10B981;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.03), rgba(16, 185, 129, 0.08));
+  border-color: var(--color-cta);
+  background: color-mix(in srgb, var(--color-cta) 6%, var(--bg-color));
 }
 
 .popular-badge {
@@ -744,7 +609,7 @@ function handleLogout() {
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   color: white;
   padding: 6px 20px;
   border-radius: 20px;
@@ -757,7 +622,7 @@ function handleLogout() {
 .plan-header {
   text-align: center;
   padding-bottom: 24px;
-  border-bottom: 2px solid #F3F4F6;
+  border-bottom: 2px solid var(--border-color-light);
   margin-bottom: 24px;
 }
 
@@ -765,7 +630,7 @@ function handleLogout() {
   font-size: 20px;
   font-weight: 700;
   margin: 0 0 16px 0;
-  color: #111827;
+  color: var(--text-color-primary);
 }
 
 .price {
@@ -775,19 +640,19 @@ function handleLogout() {
 .price .amount {
   font-size: 36px;
   font-weight: 800;
-  color: #3B82F6;
+  color: var(--color-primary);
 }
 
 .price .period {
   font-size: 14px;
-  color: #6B7280;
+  color: var(--text-color-secondary);
   font-weight: 500;
 }
 
 .savings {
   margin-top: 8px;
   font-size: 13px;
-  color: #10B981;
+  color: var(--color-cta);
   font-weight: 600;
 }
 
@@ -803,12 +668,12 @@ function handleLogout() {
   align-items: center;
   gap: 10px;
   padding: 10px 0;
-  color: #374151;
+  color: var(--text-color-regular);
   font-size: 14px;
 }
 
 .features li .check-icon {
-  color: #10B981;
+  color: var(--color-cta);
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -820,19 +685,19 @@ function handleLogout() {
   font-weight: 600;
   border-radius: 10px;
   transition: all 0.2s ease;
-  background: #3B82F6;
-  border-color: #3B82F6;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: white;
 }
 
 .subscribe-btn:hover {
-  background: #2563EB;
-  border-color: #2563EB;
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
   transform: translateY(-1px);
 }
 
 .popular-btn {
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   border: none;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
@@ -860,37 +725,6 @@ function handleLogout() {
 
 /* 移动端适配 */
 @media (max-width: 767px) {
-  .main-content {
-    margin-left: 0;
-  }
-
-  .top-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-    padding: 16px;
-  }
-
-  .page-title {
-    font-size: 20px;
-  }
-
-  .user-menu-wrapper {
-    margin-left: 0;
-  }
-
-  .auth-buttons {
-    width: 100%;
-  }
-
-  .auth-buttons .el-button {
-    flex: 1;
-  }
-
-  .content-wrapper {
-    padding: 20px 16px;
-  }
-
   .section-header h2 {
     font-size: 18px;
   }

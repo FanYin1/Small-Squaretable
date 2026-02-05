@@ -6,6 +6,8 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import App from './App.vue';
 import router from './router';
 import { useUserStore } from './stores/user';
+import { initWebVitals, observeCustomMetrics } from './utils/webVitals';
+import { initSentry } from './utils/sentry';
 
 // 导入全局样式
 import './styles/variables.css';
@@ -14,6 +16,9 @@ import './styles/transitions.css';
 
 const app = createApp(App);
 const pinia = createPinia();
+
+// Initialize Sentry first (before other setup)
+initSentry(app, router);
 
 // Register Pinia
 app.use(pinia);
@@ -36,5 +41,9 @@ userStore.initialize().then(() => {
 }).catch((error) => {
   console.error('Failed to initialize user authentication:', error);
 });
+
+// Initialize Web Vitals monitoring
+initWebVitals();
+observeCustomMetrics();
 
 app.mount('#app');

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { User, Lock, Bell, Shield } from '@element-plus/icons-vue';
+import { User, Lock, Bell, Medal } from '@element-plus/icons-vue';
 import { useUserStore } from '@client/stores';
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { userApi } from '@client/services';
-import LeftSidebar from '@client/components/layout/LeftSidebar.vue';
+import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import ProfileForm from '@client/components/profile/ProfileForm.vue';
 import AvatarUpload from '@client/components/profile/AvatarUpload.vue';
 
@@ -76,150 +76,93 @@ async function handleSave(data: { name: string }) {
 </script>
 
 <template>
-  <div class="profile-page">
-    <!-- 左侧导航栏 -->
-    <LeftSidebar />
+  <DashboardLayout>
+    <template #title>个人中心</template>
+    <template #subtitle>管理您的账户信息和偏好设置</template>
 
-    <!-- 主内容区 -->
-    <div class="main-content">
-      <!-- 顶部栏 -->
-      <header class="top-bar">
-        <h1 class="page-title">个人中心</h1>
-        <p class="page-subtitle">管理您的账户信息和偏好设置</p>
-      </header>
+    <div v-if="userStore.user" class="profile-body">
+      <aside class="profile-sidebar">
+        <div class="user-info-card">
+          <div class="avatar-wrapper">
+            <AvatarUpload :avatar-url="avatarUrl" :disabled="!editMode" />
+          </div>
 
-      <!-- 主体内容 -->
-      <div v-if="userStore.user" class="profile-body">
-        <!-- 左侧卡片区 -->
-        <aside class="profile-sidebar">
-          <!-- 用户信息卡片 -->
-          <div class="user-info-card">
-            <div class="avatar-wrapper">
-              <AvatarUpload :avatar-url="avatarUrl" :disabled="!editMode" />
-            </div>
-
-            <div class="user-details">
-              <h3 class="user-name">{{ userStore.user.name }}</h3>
-              <p class="user-email">{{ userStore.user.email }}</p>
-              <div class="membership-badge" :style="{ borderColor: membershipColor }">
-                <Shield :style="{ color: membershipColor }" />
-                <span :style="{ color: membershipColor }">{{ membershipLevel }}</span>
-              </div>
-            </div>
-
-            <div class="user-stats">
-              <div class="stat-item">
-                <span class="stat-label">注册时间</span>
-                <span class="stat-value">{{ new Date(userStore.user.createdAt).toLocaleDateString('zh-CN') }}</span>
-              </div>
+          <div class="user-details">
+            <h3 class="user-name">{{ userStore.user.name }}</h3>
+            <p class="user-email">{{ userStore.user.email }}</p>
+            <div class="membership-badge" :style="{ borderColor: membershipColor }">
+              <Medal :style="{ color: membershipColor }" />
+              <span :style="{ color: membershipColor }">{{ membershipLevel }}</span>
             </div>
           </div>
 
-          <!-- 导航菜单 -->
-          <nav class="profile-nav">
-            <button
-              v-for="item in menuItems"
-              :key="item.key"
-              :class="['nav-item', { active: activeSection === item.key }]"
-              @click="activeSection = item.key"
-            >
-              <el-icon><component :is="item.icon" /></el-icon>
-              <span>{{ item.label }}</span>
-            </button>
-          </nav>
-        </aside>
-
-        <!-- 右侧主内容区 -->
-        <main class="profile-main">
-          <!-- 基本信息 -->
-          <div v-if="activeSection === 'basic'" class="content-section">
-            <div class="section-header">
-              <h2>基本信息</h2>
-              <el-button v-if="!editMode" type="primary" @click="handleEdit">
-                编辑资料
-              </el-button>
-            </div>
-
-            <div class="form-container">
-              <ProfileForm
-                :user="userStore.user"
-                :edit-mode="editMode"
-                @save="handleSave"
-                @cancel="handleCancel"
-              />
+          <div class="user-stats">
+            <div class="stat-item">
+              <span class="stat-label">注册时间</span>
+              <span class="stat-value">{{ new Date(userStore.user.createdAt).toLocaleDateString('zh-CN') }}</span>
             </div>
           </div>
+        </div>
 
-          <!-- 安全设置 -->
-          <div v-else-if="activeSection === 'security'" class="content-section">
-            <div class="section-header">
-              <h2>安全设置</h2>
-            </div>
-            <div class="placeholder-content">
-              <el-icon :size="48" color="#909399"><Lock /></el-icon>
-              <p>密码修改和安全设置功能即将推出</p>
-            </div>
+        <nav class="profile-nav">
+          <button
+            v-for="item in menuItems"
+            :key="item.key"
+            :class="['nav-item', { active: activeSection === item.key }]"
+            @click="activeSection = item.key"
+          >
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span>{{ item.label }}</span>
+          </button>
+        </nav>
+      </aside>
+
+      <main class="profile-main">
+        <div v-if="activeSection === 'basic'" class="content-section">
+          <div class="section-header">
+            <h2>基本信息</h2>
+            <el-button v-if="!editMode" type="primary" @click="handleEdit">
+              编辑资料
+            </el-button>
           </div>
 
-          <!-- 通知偏好 -->
-          <div v-else-if="activeSection === 'notifications'" class="content-section">
-            <div class="section-header">
-              <h2>通知偏好</h2>
-            </div>
-            <div class="placeholder-content">
-              <el-icon :size="48" color="#909399"><Bell /></el-icon>
-              <p>通知设置功能即将推出</p>
-            </div>
+          <div class="form-container">
+            <ProfileForm
+              :user="userStore.user"
+              :edit-mode="editMode"
+              @save="handleSave"
+              @cancel="handleCancel"
+            />
           </div>
-        </main>
-      </div>
+        </div>
 
-      <!-- 加载状态 -->
-      <div v-else v-loading="userStore.loading" class="loading-container" />
+        <div v-else-if="activeSection === 'security'" class="content-section">
+          <div class="section-header">
+            <h2>安全设置</h2>
+          </div>
+          <div class="placeholder-content">
+            <el-icon :size="48" color="var(--text-color-secondary)"><Lock /></el-icon>
+            <p>密码修改和安全设置功能即将推出</p>
+          </div>
+        </div>
+
+        <div v-else-if="activeSection === 'notifications'" class="content-section">
+          <div class="section-header">
+            <h2>通知偏好</h2>
+          </div>
+          <div class="placeholder-content">
+            <el-icon :size="48" color="var(--text-color-secondary)"><Bell /></el-icon>
+            <p>通知设置功能即将推出</p>
+          </div>
+        </div>
+      </main>
     </div>
-  </div>
+
+    <div v-else v-loading="userStore.loading" class="loading-container" />
+  </DashboardLayout>
 </template>
 
 <style scoped>
-.profile-page {
-  display: flex;
-  min-height: 100vh;
-  background: #F9FAFB;
-}
-
-/* 主内容区 */
-.main-content {
-  flex: 1;
-  margin-left: 64px;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-/* 顶部栏 */
-.top-bar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  padding: 24px 32px;
-  background: white;
-  border-bottom: 1px solid #E5E7EB;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #111827;
-  margin: 0 0 8px 0;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: #6B7280;
-  margin: 0;
-}
-
 /* 主体内容 */
 .profile-body {
   flex: 1;
@@ -244,7 +187,7 @@ async function handleSave(data: { name: string }) {
 
 /* 用户信息卡片 */
 .user-info-card {
-  background: white;
+  background: var(--bg-color);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -253,12 +196,12 @@ async function handleSave(data: { name: string }) {
   align-items: center;
   text-align: center;
   transition: all 0.3s ease;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-color);
 }
 
 .user-info-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: #D1D5DB;
+  border-color: var(--border-color-light);
 }
 
 .avatar-wrapper {
@@ -274,12 +217,12 @@ async function handleSave(data: { name: string }) {
   font-size: 18px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  color: #111827;
+  color: var(--text-color-primary);
 }
 
 .user-email {
   font-size: 13px;
-  color: #6B7280;
+  color: var(--text-color-secondary);
   margin: 0 0 12px 0;
   word-break: break-all;
 }
@@ -293,13 +236,13 @@ async function handleSave(data: { name: string }) {
   border-radius: 20px;
   font-size: 13px;
   font-weight: 600;
-  background: rgba(59, 130, 246, 0.05);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 
 .user-stats {
   width: 100%;
   padding-top: 20px;
-  border-top: 1px solid #E5E7EB;
+  border-top: 1px solid var(--border-color);
 }
 
 .stat-item {
@@ -311,13 +254,13 @@ async function handleSave(data: { name: string }) {
 
 .stat-label {
   font-size: 13px;
-  color: #6B7280;
+  color: var(--text-color-secondary);
 }
 
 .stat-value {
   font-size: 13px;
   font-weight: 500;
-  color: #111827;
+  color: var(--text-color-primary);
 }
 
 /* 导航菜单 */
@@ -326,10 +269,10 @@ async function handleSave(data: { name: string }) {
   flex-direction: column;
   gap: 4px;
   padding: 12px;
-  background: white;
+  background: var(--bg-color);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-color);
 }
 
 .nav-item {
@@ -341,19 +284,19 @@ async function handleSave(data: { name: string }) {
   background: transparent;
   border-radius: 8px;
   font-size: 14px;
-  color: #4B5563;
+  color: var(--text-color-regular);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
 }
 
 .nav-item:hover {
-  background: #F3F4F6;
-  color: #3B82F6;
+  background: var(--bg-color-page);
+  color: var(--color-primary);
 }
 
 .nav-item.active {
-  background: #3B82F6;
+  background: var(--color-primary);
   color: white;
   font-weight: 500;
 }
@@ -365,11 +308,11 @@ async function handleSave(data: { name: string }) {
 
 /* 主内容区 */
 .profile-main {
-  background: white;
+  background: var(--bg-color);
   border-radius: 12px;
   padding: 32px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--border-color);
   min-height: 600px;
 }
 
@@ -394,14 +337,14 @@ async function handleSave(data: { name: string }) {
   align-items: center;
   margin-bottom: 32px;
   padding-bottom: 16px;
-  border-bottom: 2px solid #E5E7EB;
+  border-bottom: 2px solid var(--border-color);
 }
 
 .section-header h2 {
   font-size: 20px;
   font-weight: 600;
   margin: 0;
-  color: #111827;
+  color: var(--text-color-primary);
 }
 
 .form-container {

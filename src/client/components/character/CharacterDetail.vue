@@ -68,7 +68,7 @@ async function fetchRatings() {
 
 function handleStartChat() {
   if (character.value) {
-    router.push(`/chat?characterId=${character.value.id}`);
+    router.push({ name: 'Chat', query: { characterId: character.value.id } });
     emit('close');
   }
 }

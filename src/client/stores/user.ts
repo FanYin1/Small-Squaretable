@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { User } from '@client/types';
-import { authApi, ApiError } from '@client/services';
+import { authApi, ApiError, csrfTokenManager } from '@client/services';
 
 export const useUserStore = defineStore('user', () => {
   // State
@@ -85,6 +85,8 @@ export const useUserStore = defineStore('user', () => {
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('tenantId');
+      // 清除 CSRF token
+      csrfTokenManager.clearToken();
     }
   }
 

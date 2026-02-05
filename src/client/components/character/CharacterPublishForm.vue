@@ -131,7 +131,7 @@ function handleClose() {
         需要升级到 Pro 或 Team 套餐
       </template>
       <p>{{ getUpgradeMessage('character_share') }}</p>
-      <el-button type="primary" size="small" @click="$router.push('/subscription')">
+      <el-button type="primary" size="small" @click="$router.push({ name: 'Subscription' })">
         立即升级
       </el-button>
     </el-alert>

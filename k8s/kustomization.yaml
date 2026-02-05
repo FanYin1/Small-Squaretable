@@ -1,0 +1,53 @@
+# Kustomize configuration for Small Squaretable
+# Usage: kubectl apply -k k8s/
+# Or for specific environment: kubectl apply -k k8s/overlays/production/
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: small-squaretable
+
+# Namespace for all resources
+namespace: small-squaretable
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/name: small-squaretable
+  app.kubernetes.io/part-of: small-squaretable
+  app.kubernetes.io/managed-by: kustomize
+
+# Resources to include (in order of deployment)
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - pvc.yaml
+  - postgres-deployment.yaml
+  - redis-deployment.yaml
+  - db-migration-job.yaml
+  - app-deployment.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - network-policy.yaml
+  - backup-cronjob.yaml
+
+# Images configuration (can be overridden in overlays)
+images:
+  - name: your-registry/small-squaretable
+    newTag: latest
+
+# ConfigMap generator (optional - for environment-specific configs)
+# configMapGenerator:
+#   - name: app-config
+#     behavior: merge
+#     literals:
+#       - NODE_ENV=production
+
+# Secret generator (optional - for environment-specific secrets)
+# secretGenerator:
+#   - name: app-secrets
+#     behavior: merge
+#     literals:
+#       - JWT_SECRET=your-production-secret

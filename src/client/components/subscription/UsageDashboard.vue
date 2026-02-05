@@ -61,7 +61,7 @@ function formatNumber(num: number): string {
 }
 
 function handleUpgrade() {
-  router.push('/subscription');
+  router.push({ name: 'Subscription' });
 }
 </script>
 

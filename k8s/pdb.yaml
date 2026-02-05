@@ -1,0 +1,42 @@
+# Pod Disruption Budget for Small Squaretable
+# Ensures minimum availability during voluntary disruptions (node maintenance, upgrades)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: app-pdb
+  namespace: small-squaretable
+  labels:
+    app: small-squaretable
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: small-squaretable
+---
+# PDB for PostgreSQL - ensure at least 1 pod is available
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-pdb
+  namespace: small-squaretable
+  labels:
+    app: postgres
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: postgres
+---
+# PDB for Redis - ensure at least 1 pod is available
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-pdb
+  namespace: small-squaretable
+  labels:
+    app: redis
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: redis

@@ -2,12 +2,13 @@
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@client/stores/user';
-import { ElMessage } from 'element-plus';
+import { useToast } from '@client/composables/useToast';
 import type { FormInstance, FormRules } from 'element-plus';
 import { View, Hide } from '@element-plus/icons-vue';
 
 const router = useRouter();
 const userStore = useUserStore();
+const toast = useToast();
 
 // Form data
 const formRef = ref<FormInstance>();
@@ -127,12 +128,14 @@ const handleRegister = async () => {
 
     await userStore.register(formData.email, formData.password, formData.name);
 
-    ElMessage.success('注册成功！');
+    toast.success('注册成功');
 
     // Redirect to home page after successful registration
-    router.push('/');
+    router.push({ name: 'Home' });
   } catch (error: any) {
-    ElMessage.error(error.message || '注册失败，请重试');
+    toast.error('注册失败', {
+      message: error.message || '请检查输入信息后重试'
+    });
   } finally {
     loading.value = false;
   }
@@ -140,7 +143,7 @@ const handleRegister = async () => {
 
 // Navigate to login
 const goToLogin = () => {
-  router.push('/auth/login');
+  router.push({ name: 'Login' });
 };
 </script>
 
@@ -555,6 +558,37 @@ const goToLogin = () => {
 
   :deep(.el-input__inner::placeholder) {
     color: #9CA3AF;
+  }
+}
+
+/* Validation success state */
+:deep(.el-form-item.is-success .el-input__wrapper) {
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Validation error state */
+:deep(.el-form-item.is-error .el-input__wrapper) {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Error message animation */
+:deep(.el-form-item__error) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

@@ -1,19 +1,41 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+// Define preload/prefetch hints for performance
+// @ts-ignore - Custom webpackChunkName comment for code splitting
+const loadHome = () => import(/* webpackPrefetch: true */ '../pages/Home.vue');
+const loadDashboard = () => import(/* webpackPrefetch: true */ '../pages/Dashboard.vue');
+const loadLogin = () => import(/* webpackPrefetch: true */ '../pages/auth/Login.vue');
+const loadRegister = () => import(/* webpackPrefetch: true */ '../pages/auth/Register.vue');
+const loadChat = () => import(/* webpackChunkName: "chat" */ '../pages/Chat.vue');
+const loadMarket = () => import(/* webpackPrefetch: true */ '../pages/Market.vue');
+const loadMyCharacters = () => import(/* webpackChunkName: "characters" */ '../pages/MyCharacters.vue');
+const loadProfile = () => import(/* webpackChunkName: "profile" */ '../pages/Profile.vue');
+const loadSubscription = () => import(/* webpackChunkName: "subscription" */ '../pages/Subscription.vue');
+const loadNotFound = () => import('../pages/NotFound.vue');
+
 export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Home',
-    component: () => import('../pages/Home.vue'),
+    component: loadHome,
     meta: {
       requiresAuth: false,
+      guestOnly: true,
+    },
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: loadDashboard,
+    meta: {
+      requiresAuth: true,
       guestOnly: false,
     },
   },
   {
     path: '/auth/login',
     name: 'Login',
-    component: () => import('../pages/auth/Login.vue'),
+    component: loadLogin,
     meta: {
       requiresAuth: false,
       guestOnly: true,
@@ -26,7 +48,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/auth/register',
     name: 'Register',
-    component: () => import('../pages/auth/Register.vue'),
+    component: loadRegister,
     meta: {
       requiresAuth: false,
       guestOnly: true,
@@ -39,7 +61,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/chat',
     name: 'Chat',
-    component: () => import('../pages/Chat.vue'),
+    component: loadChat,
     meta: {
       requiresAuth: true,
       guestOnly: false,
@@ -48,7 +70,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/chat/:chatId',
     name: 'ChatSession',
-    component: () => import('../pages/Chat.vue'),
+    component: loadChat,
     meta: {
       requiresAuth: true,
       guestOnly: false,
@@ -57,7 +79,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/market',
     name: 'Market',
-    component: () => import('../pages/Market.vue'),
+    component: loadMarket,
     meta: {
       requiresAuth: false,
       guestOnly: false,
@@ -66,7 +88,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/my-characters',
     name: 'MyCharacters',
-    component: () => import('../pages/MyCharacters.vue'),
+    component: loadMyCharacters,
     meta: {
       requiresAuth: true,
       guestOnly: false,
@@ -75,7 +97,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/profile',
     name: 'Profile',
-    component: () => import('../pages/Profile.vue'),
+    component: loadProfile,
     meta: {
       requiresAuth: true,
       guestOnly: false,
@@ -84,9 +106,18 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/subscription',
     name: 'Subscription',
-    component: () => import('../pages/Subscription.vue'),
+    component: loadSubscription,
     meta: {
       requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: loadNotFound,
+    meta: {
+      requiresAuth: false,
       guestOnly: false,
     },
   },

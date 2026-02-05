@@ -9,6 +9,8 @@ import {
   exportToSillyTavern,
   importFromSillyTavern,
   validateSillyTavernFormat,
+  isV2Format,
+  normalizeSillyTavernData,
   type SillyTavernCharacter,
 } from './sillytavern';
 import type { Character } from '@client/types';
@@ -323,6 +325,128 @@ describe('SillyTavern Import/Export', () => {
       expect(imported.cardData.first_mes).toBe(original.cardData.first_mes);
       expect(imported.cardData.mes_example).toBe(original.cardData.mes_example);
       expect(imported.cardData.custom_field).toBe(original.cardData.custom_field);
+    });
+  });
+
+  describe('V2 format support', () => {
+    it('should detect V2 format correctly', () => {
+      const v2Data = {
+        spec: 'chara_card_v2',
+        spec_version: '2.0',
+        data: {
+          name: 'V2 Character',
+          description: 'A V2 character',
+          personality: 'Friendly',
+        },
+      };
+
+      const v1Data = {
+        name: 'V1 Character',
+        description: 'A V1 character',
+        spec: 'chara_card_v2',
+        spec_version: '2.0',
+      };
+
+      expect(isV2Format(v2Data)).toBe(true);
+      expect(isV2Format(v1Data)).toBe(false);
+    });
+
+    it('should normalize V2 format to flat structure', () => {
+      const v2Data = {
+        spec: 'chara_card_v2',
+        spec_version: '2.0',
+        data: {
+          name: 'V2 Character',
+          description: 'A V2 character',
+          personality: 'Brave',
+          scenario: 'Adventure',
+          first_mes: 'Hello!',
+          mes_example: 'Example',
+          tags: ['fantasy'],
+          creator: 'TestCreator',
+        },
+      };
+
+      const normalized = normalizeSillyTavernData(v2Data);
+
+      expect(normalized.name).toBe('V2 Character');
+      expect(normalized.description).toBe('A V2 character');
+      expect(normalized.personality).toBe('Brave');
+      expect(normalized.scenario).toBe('Adventure');
+      expect(normalized.first_mes).toBe('Hello!');
+      expect(normalized.tags).toEqual(['fantasy']);
+      expect(normalized.creator).toBe('TestCreator');
+    });
+
+    it('should import V2 format character correctly', () => {
+      // This is the actual format from SillyTavern PNG cards
+      const v2Character = {
+        spec: 'chara_card_v2',
+        spec_version: '2.0',
+        data: {
+          name: 'Mushoku Tensei RPG',
+          description: 'A fantasy RPG character',
+          personality: 'Adventurous',
+          scenario: 'Medieval fantasy world',
+          first_mes: 'Welcome to the world!',
+          mes_example: '<START>\n{{user}}: Hi\n{{char}}: Hello!',
+          tags: ['fantasy', 'rpg'],
+          creator: 'AliceRoselynn',
+          character_version: '1.0',
+          extensions: {
+            depth_prompt: 'Custom prompt',
+          },
+          character_book: {
+            entries: [],
+          },
+        },
+      };
+
+      const result = importFromSillyTavern(v2Character);
+
+      expect(result.name).toBe('Mushoku Tensei RPG');
+      expect(result.description).toBe('A fantasy RPG character');
+      expect(result.tags).toEqual(['fantasy', 'rpg']);
+      expect(result.cardData.name).toBe('Mushoku Tensei RPG');
+      expect(result.cardData.personality).toBe('Adventurous');
+      expect(result.cardData.scenario).toBe('Medieval fantasy world');
+      expect(result.cardData.first_mes).toBe('Welcome to the world!');
+      expect(result.cardData.creator).toBe('AliceRoselynn');
+      expect(result.cardData.extensions).toEqual({ depth_prompt: 'Custom prompt' });
+      expect(result.cardData.data).toBeDefined();
+    });
+
+    it('should validate V2 format correctly', () => {
+      const v2Character = {
+        spec: 'chara_card_v2',
+        spec_version: '2.0',
+        data: {
+          name: 'Valid V2 Character',
+          description: 'Valid',
+          personality: 'Friendly',
+        },
+      };
+
+      const result = validateSillyTavernFormat(v2Character);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it('should reject V2 format with missing name in data block', () => {
+      const invalidV2 = {
+        spec: 'chara_card_v2',
+        spec_version: '2.0',
+        data: {
+          description: 'Missing name',
+          personality: 'Friendly',
+        },
+      };
+
+      const result = validateSillyTavernFormat(invalidV2);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Missing required field: name');
     });
   });
 });

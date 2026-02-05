@@ -99,6 +99,87 @@ class InterceptorManager {
 const API_BASE_URL = '/api/v1'; // Vite 会代理到 http://localhost:3000/api/v1
 
 /**
+ * CSRF Token 管理器
+ */
+class CsrfTokenManager {
+  private token: string | null = null;
+  private fetching = false;
+  private fetchPromise: Promise<string> | null = null;
+
+  /**
+   * 获取 CSRF Token
+   */
+  async getToken(): Promise<string | null> {
+    // 如果已有 token，直接返回
+    if (this.token) {
+      return this.token;
+    }
+
+    // 如果正在获取，等待结果
+    if (this.fetching && this.fetchPromise) {
+      return this.fetchPromise;
+    }
+
+    // 只有在已登录时才获取 CSRF token
+    const authToken = localStorage.getItem('token');
+    if (!authToken) {
+      return null;
+    }
+
+    try {
+      this.fetching = true;
+      this.fetchPromise = this.fetchToken();
+      this.token = await this.fetchPromise;
+      return this.token;
+    } catch (error) {
+      console.error('Failed to fetch CSRF token:', error);
+      return null;
+    } finally {
+      this.fetching = false;
+      this.fetchPromise = null;
+    }
+  }
+
+  /**
+   * 从服务器获取 CSRF Token
+   */
+  private async fetchToken(): Promise<string> {
+    const response = await fetch(`${API_BASE_URL}/csrf-token`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get CSRF token');
+    }
+
+    const data = await response.json();
+    return data.csrfToken;
+  }
+
+  /**
+   * 刷新 CSRF Token
+   */
+  async refreshToken(): Promise<string | null> {
+    this.token = null;
+    return this.getToken();
+  }
+
+  /**
+   * 清除 CSRF Token（登出时调用）
+   */
+  clearToken(): void {
+    this.token = null;
+  }
+}
+
+/**
+ * CSRF Token 管理器实例
+ */
+const csrfTokenManager = new CsrfTokenManager();
+
+/**
  * 拦截器实例
  */
 const interceptors = new InterceptorManager();
@@ -137,6 +218,19 @@ export async function apiRequest<T = unknown>(
   // 添加 X-Tenant-ID header
   if (tenantId) {
     headers['X-Tenant-ID'] = tenantId;
+  }
+
+  // 添加 CSRF Token for state-changing methods (POST, PUT, PATCH, DELETE)
+  // Skip for auth endpoints (login, register) and public endpoints
+  const method = (options.method || 'GET').toUpperCase();
+  const isAuthEndpoint = endpoint.startsWith('/auth');
+  const isCsrfExcluded = isAuthEndpoint || !token;
+
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && !isCsrfExcluded) {
+    const csrfToken = await csrfTokenManager.getToken();
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
   }
 
   // 应用请求拦截器
@@ -254,15 +348,56 @@ export const api = {
 };
 
 /**
- * 默认错误拦截器：处理 401 未授权错误
+ * 默认错误拦截器：处理 401 未授权错误和 403 CSRF 错误
  */
+let isRefreshing = false;
+
 api.addErrorInterceptor(async (error: ApiError) => {
   if (error.status === 401) {
-    // 清除本地存储的认证信息
+    // 尝试刷新 token
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken && !isRefreshing) {
+      isRefreshing = true;
+      try {
+        const response = await fetch('/api/v1/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.tokens) {
+            localStorage.setItem('token', data.data.tokens.accessToken);
+            localStorage.setItem('refreshToken', data.data.tokens.refreshToken);
+            console.log('Token refreshed successfully');
+            isRefreshing = false;
+            // 提示用户重试操作
+            console.warn('Token refreshed, please retry the operation');
+            return;
+          }
+        }
+      } catch (refreshError) {
+        console.error('Failed to refresh token:', refreshError);
+      }
+      isRefreshing = false;
+    }
+
+    // 刷新失败，清除认证信息
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
-
-    // 可以在这里触发全局事件或重定向到登录页
+    csrfTokenManager.clearToken();
     console.warn('Unauthorized access, please login again');
   }
+
+  if (error.status === 403) {
+    // CSRF token invalid, try to refresh
+    await csrfTokenManager.refreshToken();
+    console.warn('CSRF token refreshed, please retry the request');
+  }
 });
+
+/**
+ * 导出 CSRF Token 管理器用于手动控制
+ */
+export { csrfTokenManager };

@@ -1,0 +1,151 @@
+# Network Policies for Small Squaretable
+# Restricts pod-to-pod communication to only necessary traffic
+
+# Default deny all ingress traffic in namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: small-squaretable
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+---
+# Allow ingress traffic to app from ingress controller and within namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-ingress
+  namespace: small-squaretable
+  labels:
+    app: small-squaretable
+spec:
+  podSelector:
+    matchLabels:
+      app: small-squaretable
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow traffic from ingress controller (nginx-ingress namespace)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 3000
+  # Allow traffic from within the namespace (for health checks, etc.)
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 3000
+---
+# Allow PostgreSQL traffic only from app pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres-ingress
+  namespace: small-squaretable
+  labels:
+    app: postgres
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: small-squaretable
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow traffic from migration jobs
+  - from:
+    - podSelector:
+        matchLabels:
+          app: db-migration
+    ports:
+    - protocol: TCP
+      port: 5432
+---
+# Allow Redis traffic only from app pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis-ingress
+  namespace: small-squaretable
+  labels:
+    app: redis
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: small-squaretable
+    ports:
+    - protocol: TCP
+      port: 6379
+---
+# Allow egress from app to PostgreSQL, Redis, and external services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-egress
+  namespace: small-squaretable
+  labels:
+    app: small-squaretable
+spec:
+  podSelector:
+    matchLabels:
+      app: small-squaretable
+  policyTypes:
+  - Egress
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Allow external HTTPS (for Stripe, Sentry, etc.)
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+    ports:
+    - protocol: TCP
+      port: 443

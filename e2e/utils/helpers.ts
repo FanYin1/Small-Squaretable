@@ -18,10 +18,19 @@ export async function waitForNetworkIdle(page: Page, timeout = 5000) {
  */
 export async function clearSession(page: Page) {
   await page.context().clearCookies();
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
+  try {
+    await page.evaluate(() => {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.clear();
+      }
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.clear();
+      }
+    });
+  } catch (error) {
+    // Ignore errors from accessing localStorage on pages that don't support it
+    console.log('Note: Could not clear storage (page may not support localStorage)');
+  }
 }
 
 /**

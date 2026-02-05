@@ -20,19 +20,19 @@ const handleLogout = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('tenantId');
-  router.push('/');
+  router.push({ name: 'Home' });
 };
 
 const handleLogin = () => {
-  router.push('/auth/login');
+  router.push({ name: 'Login' });
 };
 
 const handleRegister = () => {
-  router.push('/auth/register');
+  router.push({ name: 'Register' });
 };
 
 const handleProfile = () => {
-  router.push('/profile');
+  router.push({ name: 'Profile' });
 };
 
 // Mobile menu
@@ -46,7 +46,7 @@ const toggleMobileMenu = () => {
   <el-header class="app-header">
     <div class="header-content">
       <!-- Logo and Brand -->
-      <div class="brand" @click="router.push('/')">
+      <div class="brand" @click="router.push({ name: 'Home' })">
         <el-icon :size="28" color="#409eff">
           <ChatDotRound />
         </el-icon>
@@ -63,14 +63,14 @@ const toggleMobileMenu = () => {
         text-color="#303133"
         active-text-color="#409eff"
       >
-        <el-menu-item index="1" @click="router.push('/')">
+        <el-menu-item index="1" @click="router.push({ name: 'Home' })">
           首页
         </el-menu-item>
-        <el-menu-item index="2" @click="router.push('/market')">
+        <el-menu-item index="2" @click="router.push({ name: 'Market' })">
           <el-icon><ShoppingBag /></el-icon>
           <span>角色市场</span>
         </el-menu-item>
-        <el-menu-item index="3" @click="router.push('/chat')">
+        <el-menu-item index="3" @click="router.push({ name: 'Chat' })">
           <el-icon><ChatDotRound /></el-icon>
           <span>聊天</span>
         </el-menu-item>
@@ -79,7 +79,7 @@ const toggleMobileMenu = () => {
       <!-- User Menu -->
       <div class="user-menu">
         <template v-if="isAuthenticated">
-          <el-dropdown @command="(command: string) => command === 'profile' ? handleProfile() : command === 'subscription' ? router.push('/subscription') : handleLogout()">
+          <el-dropdown @command="(command: string) => command === 'profile' ? handleProfile() : command === 'subscription' ? router.push({ name: 'Subscription' }) : handleLogout()">
             <el-button circle :icon="User" />
             <template #dropdown>
               <el-dropdown-menu>
@@ -116,14 +116,14 @@ const toggleMobileMenu = () => {
         :default-active="activeIndex"
         class="mobile-menu"
       >
-        <el-menu-item index="1" @click="router.push('/'); isMobileMenuOpen = false">
+        <el-menu-item index="1" @click="router.push({ name: 'Home' }); isMobileMenuOpen = false">
           首页
         </el-menu-item>
-        <el-menu-item index="2" @click="router.push('/market'); isMobileMenuOpen = false">
+        <el-menu-item index="2" @click="router.push({ name: 'Market' }); isMobileMenuOpen = false">
           <el-icon><ShoppingBag /></el-icon>
           <span>角色市场</span>
         </el-menu-item>
-        <el-menu-item index="3" @click="router.push('/chat'); isMobileMenuOpen = false">
+        <el-menu-item index="3" @click="router.push({ name: 'Chat' }); isMobileMenuOpen = false">
           <el-icon><ChatDotRound /></el-icon>
           <span>聊天</span>
         </el-menu-item>
@@ -132,7 +132,7 @@ const toggleMobileMenu = () => {
           <el-icon><User /></el-icon>
           <span>个人中心</span>
         </el-menu-item>
-        <el-menu-item v-if="isAuthenticated" @click="router.push('/subscription'); isMobileMenuOpen = false">
+        <el-menu-item v-if="isAuthenticated" @click="router.push({ name: 'Subscription' }); isMobileMenuOpen = false">
           订阅管理
         </el-menu-item>
         <el-menu-item v-if="isAuthenticated" @click="handleLogout(); isMobileMenuOpen = false">

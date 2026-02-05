@@ -1,11 +1,24 @@
 :root {
   /* ========== 品牌颜色 ========== */
-  /* 主色调 - 紫色系 */
-  --color-primary: #7C3AED;
-  --color-secondary: #A78BFA;
+  /* 主色调 - 蓝色系 */
+  --color-primary: #3B82F6;
+  --color-secondary: #60A5FA;
   --color-cta: #22C55E;
-  --color-text: #4C1D95;
-  --color-bg: #FAF5FF;
+  --color-text: #1E3A8A;
+  --color-bg: #EFF6FF;
+  --color-text-primary: var(--text-color-primary);
+  --color-text-secondary: var(--text-color-secondary);
+  --color-border: var(--border-color);
+  --color-border-light: var(--border-color-light);
+  --color-primary-dark: #2563EB;
+  --color-primary-light: #DBEAFE;
+  --color-success-strong: #10B981;
+  --color-success-strong-dark: #059669;
+  --color-bg-light: #F0F9FF;
+  --color-bg-dark: #1F2937;
+  --color-bg-darker: #111827;
+  --color-surface-dark: #1F2937;
+  --color-surface-darker: #374151;
 
   /* 扩展颜色 */
   --color-success: #67c23a;
@@ -40,6 +53,12 @@
   --border-radius-sm: 4px;
   --border-radius-md: 8px;
   --border-radius-lg: 16px;
+
+  /* ========== 侧边栏 ========== */
+  --sidebar-bg: #1F2937;
+  --sidebar-hover-bg: #374151;
+  --sidebar-active-bg: var(--color-primary);
+  --sidebar-text-color: #F9FAFB;
 
   /* ========== 阴影 ========== */
   --box-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);

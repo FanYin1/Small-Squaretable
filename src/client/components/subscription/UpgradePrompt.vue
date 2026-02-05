@@ -72,7 +72,7 @@ function handleClose() {
 
 function handleUpgrade() {
   handleClose();
-  router.push('/subscription');
+  router.push({ name: 'Subscription' });
 }
 </script>
 

@@ -4,14 +4,32 @@
  * Provides reusable test data for E2E tests
  */
 
+// Generate unique ID for test isolation
+let testCounter = 0;
+function generateTestId() {
+  return `${Date.now()}-${++testCounter}-${Math.random().toString(36).substring(2, 8)}`;
+}
+
+// Function to generate unique user for registration tests
+export function generateUniqueUser() {
+  const id = generateTestId();
+  return {
+    email: `test-user-${id}@example.com`,
+    password: 'TestPassword123!',
+    name: `Test User ${id}`,
+  };
+}
+
 export const testUsers = {
-  free: {
-    email: `free-user-${Date.now()}@example.com`,
-    password: 'TestPassword123!',
+  // For registration tests - generates unique email each time
+  get free() {
+    return generateUniqueUser();
   },
+  // For login tests - uses a stable email that can be pre-registered
   pro: {
-    email: `pro-user-${Date.now()}@example.com`,
+    email: 'pro-test-user@example.com',
     password: 'TestPassword123!',
+    name: 'Pro Test User',
   },
   existing: {
     email: 'existing@example.com',

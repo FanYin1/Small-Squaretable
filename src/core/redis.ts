@@ -1,15 +1,15 @@
-import { createClient } from 'redis';
+import { createClient, type RedisClientType } from 'redis';
 import { config } from './config';
 
-let redisClient: ReturnType<typeof createClient> | null = null;
-let connectionPromise: Promise<ReturnType<typeof createClient>> | null = null;
+let redisClient: RedisClientType | null = null;
+let connectionPromise: Promise<RedisClientType> | null = null;
 
 export async function getRedisClient() {
   if (!redisClient) {
     redisClient = createClient({
       url: config.redisUrl,
       password: config.redisPassword || undefined,
-    });
+    }) as RedisClientType;
 
     redisClient.on('error', (err) => {
       console.error('Redis Client Error:', err);
@@ -49,5 +49,9 @@ export const redis = {
   async del(key: string): Promise<number> {
     const client = await getRedisClient();
     return await client.del(key);
+  },
+  async keys(pattern: string): Promise<string[]> {
+    const client = await getRedisClient();
+    return await client.keys(pattern);
   },
 };

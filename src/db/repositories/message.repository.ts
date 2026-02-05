@@ -1,4 +1,4 @@
-import { eq, desc, gt, lt, sql } from 'drizzle-orm';
+import { eq, desc, gt, lt, sql, asc } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { messages, type Message, type NewMessage } from '../schema/chats';
@@ -23,7 +23,8 @@ export class MessageRepository extends BaseRepository {
       query = query.limit(pagination.limit);
     }
 
-    return await query.orderBy(desc(messages.sentAt));
+    // Order by sentAt ascending so oldest messages appear first (top of chat)
+    return await query.orderBy(asc(messages.sentAt));
   }
 
   async findById(id: number): Promise<Message | null> {

@@ -14,13 +14,26 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/client/test-setup.ts'],
+    exclude: [
+      'node_modules/**',
+      'dist/**',
+      'e2e/**',
+    ],
+    environmentMatchGlobs: [
+      // Server-side tests should run in Node environment
+      ['src/core/**/*.spec.ts', 'node'],
+      ['src/server/**/*.spec.ts', 'node'],
+      ['src/db/**/*.spec.ts', 'node'],
+      ['tests/**/*.ts', 'node'],
+    ],
+    setupFiles: ['./src/test-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
         'dist/',
+        'e2e/',
         '**/*.spec.ts',
         '**/*.test.ts',
         '**/types/**',

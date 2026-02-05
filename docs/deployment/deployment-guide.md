@@ -186,6 +186,21 @@ kubectl exec -it deployment/app -n small-squaretable -- curl http://localhost:30
 | `JWT_EXPIRES_IN` | JWT token expiration | `7d` |
 | `STORAGE_TYPE` | Storage backend | `local` |
 | `STORAGE_PATH` | Local storage path | `./uploads` |
+| `LOG_LEVEL` | Logging level (debug/info/warn/error) | `info` |
+| `SENTRY_DSN` | Sentry error tracking DSN | - |
+
+### LLM Provider Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key | - |
+| `OPENAI_BASE_URL` | OpenAI API base URL | `https://api.openai.com/v1` |
+| `ANTHROPIC_API_KEY` | Anthropic API key | - |
+| `ANTHROPIC_BASE_URL` | Anthropic API base URL | `https://api.anthropic.com/v1` |
+| `CUSTOM_LLM_API_KEY` | Custom LLM provider API key | - |
+| `CUSTOM_LLM_BASE_URL` | Custom LLM provider base URL | - |
+| `CUSTOM_LLM_MODELS` | Available models (comma-separated) | - |
+| `CUSTOM_LLM_DEFAULT_MODEL` | Default model to use | - |
 
 ### Stripe Configuration
 
@@ -276,6 +291,18 @@ Used by Kubernetes to determine if pod should be restarted.
 curl http://localhost:3000/health/live
 ```
 
+**Kubernetes Configuration:**
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 3000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+```
+
 ### `/health/ready` - Readiness Probe
 
 Checks database and Redis connectivity. Used by Kubernetes to determine if pod can receive traffic.
@@ -318,6 +345,36 @@ Response (unhealthy):
 }
 ```
 
+**Kubernetes Configuration:**
+```yaml
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 10
+  failureThreshold: 3
+```
+
+### Health Check Best Practices
+
+1. **Liveness vs Readiness**
+   - Liveness: Is the application running? (restart if not)
+   - Readiness: Can the application handle traffic? (remove from load balancer if not)
+
+2. **Timeout Configuration**
+   - Set appropriate timeouts based on expected response times
+   - Database checks may take longer under load
+
+3. **Failure Thresholds**
+   - Use `failureThreshold` to avoid false positives
+   - Typically 3 failures before taking action
+
+4. **Initial Delay**
+   - Allow time for application startup
+   - Database migrations may take time
+
 ## Monitoring
 
 ### Kubernetes Monitoring
@@ -347,12 +404,143 @@ The application exposes health check endpoints that can be monitored:
 - **Database connectivity**: Check `/health/ready` endpoint
 - **Response time**: Monitor latency in health check responses
 
+### Prometheus Integration
+
+For production deployments, configure Prometheus to scrape metrics:
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: 'small-squaretable'
+    static_configs:
+      - targets: ['app-service:3000']
+    metrics_path: '/health'
+    scrape_interval: 30s
+```
+
+### Grafana Dashboards
+
+Recommended dashboards for monitoring:
+
+1. **Application Health**
+   - HTTP request rate
+   - Response time percentiles (P50, P95, P99)
+   - Error rate
+   - Active connections
+
+2. **Database Metrics**
+   - Connection pool usage
+   - Query latency
+   - Active queries
+   - Cache hit ratio
+
+3. **Redis Metrics**
+   - Memory usage
+   - Cache hit/miss ratio
+   - Connected clients
+   - Operations per second
+
+### Alert Rules
+
+Configure alerts for critical conditions:
+
+```yaml
+# alertmanager rules
+groups:
+  - name: small-squaretable
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: High error rate detected
+
+      - alert: DatabaseConnectionFailure
+        expr: health_check_database_status == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Database connection failed
+
+      - alert: RedisConnectionFailure
+        expr: health_check_redis_status == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Redis connection failed
+
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High memory usage detected
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) > 0.7
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage detected
+```
+
+### Sentry Error Tracking
+
+Configure Sentry for error tracking:
+
+```bash
+# Set environment variable
+SENTRY_DSN=https://xxx@sentry.io/xxx
+```
+
+Sentry will automatically capture:
+- Unhandled exceptions
+- API errors
+- Performance traces
+- User context
+
+### Log Aggregation
+
+For centralized logging, configure Loki or ELK stack:
+
+```yaml
+# Loki configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+    positions:
+      filename: /tmp/positions.yaml
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+```
+
 ### Recommended Monitoring Tools
 
 - **Prometheus**: Metrics collection
 - **Grafana**: Metrics visualization
 - **Loki**: Log aggregation
 - **Sentry**: Error tracking (configure `SENTRY_DSN`)
+- **Jaeger**: Distributed tracing (optional)
 
 ## Troubleshooting
 

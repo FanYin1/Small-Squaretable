@@ -7,8 +7,14 @@ import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { config } from '@/core/config';
+import { logger as appLogger, getLogConfig } from './services/logger.service';
+import { initializeSentry, closeSentry } from './services/sentry.service';
 import { errorHandler } from './middleware/error-handler';
+import { requestIdMiddleware } from './middleware/request-id';
 import { tenantMiddleware } from './middleware/tenant';
+import { securityHeaders, developmentSecurityHeaders } from './middleware/security';
+import { csrfProtection, getCsrfToken } from './middleware/csrf';
+import { authRateLimit, apiRateLimit, searchRateLimit } from './middleware/rateLimit';
 import { authRoutes } from './routes/auth';
 import { userRoutes } from './routes/users';
 import { characterRoutes } from './routes/characters';
@@ -21,21 +27,56 @@ import { websocketHandler } from './routes/websocket';
 
 type Variables = {
   tenantId?: string;
+  userId?: string;
+  requestId?: string;
+  logger?: ReturnType<typeof import('./services/logger.service').createLogger>;
 };
 
 const app = new Hono<{ Variables: Variables }>();
 
-// 中间件
+// Initialize Sentry for error tracking
+appLogger.info('Initializing Sentry', { environment: config.nodeEnv });
+initializeSentry();
+
+// Log configuration
+const logConfig = getLogConfig();
+appLogger.info('Logger initialized', logConfig);
+
+// Security headers first
+if (config.nodeEnv === 'production') {
+  app.use('*', securityHeaders());
+} else {
+  app.use('*', developmentSecurityHeaders());
+}
+
+// Request ID middleware (must be first to set context)
+app.use('*', requestIdMiddleware);
+
+// General middleware
 app.use('*', logger());
 app.use('*', cors());
 
+// Apply rate limiting to API routes
+app.use('/api/v1/auth/*', authRateLimit);
+app.use('/api/v1/characters/search', searchRateLimit);
+app.use('/api/v1/*', apiRateLimit);
+
 // Tenant middleware 只应用到需要租户隔离的 API 路由
-app.use('/api/v1/users/*', tenantMiddleware());
-app.use('/api/v1/characters/*', tenantMiddleware());
-app.use('/api/v1/chats/*', tenantMiddleware());
-app.use('/api/v1/subscriptions/*', tenantMiddleware());
-app.use('/api/v1/usage/*', tenantMiddleware());
-app.use('/api/v1/llm/*', tenantMiddleware());
+// 注意：/api/v1/characters/search 和 /api/v1/characters/marketplace 是公开端点，不需要租户 ID
+const publicPaths = [
+  '/health',
+  '/api/v1/auth',
+  '/api/v1/characters/search',
+  '/api/v1/characters/marketplace',
+  '/api/v1/characters/:id',  // 公开访问角色详情
+];
+
+app.use('/api/v1/users/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/characters/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/chats/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/subscriptions/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/usage/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/llm/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -55,7 +96,22 @@ app.get('/health/ready', async (c) => {
 });
 
 // API 路由
+
+// CSRF token endpoint (must be before auth routes)
+app.get('/api/v1/csrf-token', getCsrfToken);
+
+// Apply CSRF protection to state-changing routes
+// Auth endpoints (login/register don't need CSRF as they're public)
 app.route('/api/v1/auth', authRoutes);
+
+// Protected routes with CSRF
+app.use('/api/v1/users', csrfProtection());
+app.use('/api/v1/characters', csrfProtection());
+app.use('/api/v1/chats', csrfProtection());
+app.use('/api/v1/subscriptions', csrfProtection());
+app.use('/api/v1/usage', csrfProtection());
+app.use('/api/v1/llm', csrfProtection());
+
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
 app.route('/api/v1/chats', chatRoutes);
@@ -108,15 +164,17 @@ if (process.env.NODE_ENV !== 'test') {
   websocketHandler.initialize(serverInstance);
 
   // 优雅关闭
-  process.on('SIGTERM', () => {
-    console.log('SIGTERM received, closing server...');
+  process.on('SIGTERM', async () => {
+    appLogger.info('SIGTERM received, closing server...');
     websocketHandler.close();
+    await closeSentry();
     process.exit(0);
   });
 
-  process.on('SIGINT', () => {
-    console.log('SIGINT received, closing server...');
+  process.on('SIGINT', async () => {
+    appLogger.info('SIGINT received, closing server...');
     websocketHandler.close();
+    await closeSentry();
     process.exit(0);
   });
 }

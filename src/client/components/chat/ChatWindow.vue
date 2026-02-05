@@ -52,7 +52,7 @@
 
     <div class="chat-input-container">
       <MessageInput
-        :disabled="!currentChat || !wsConnected"
+        :disabled="!currentChat"
         :sending="sending"
         @send="handleSendMessage"
       />

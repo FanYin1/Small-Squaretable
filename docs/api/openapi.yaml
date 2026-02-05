@@ -1,0 +1,2441 @@
+openapi: 3.1.0
+info:
+  title: Small Squaretable API
+  description: |
+    Enterprise-grade multi-tenant SaaS platform for AI chat and character management.
+
+    ## Authentication
+
+    Most endpoints require authentication via JWT Bearer tokens. Include the access token in the Authorization header:
+
+    ```
+    Authorization: Bearer <your_access_token>
+    ```
+
+    ## Error Handling
+
+    All errors follow a standard format:
+
+    ```json
+    {
+      "success": false,
+      "error": {
+        "code": "ERROR_CODE",
+        "message": "Human-readable error message",
+        "details": {}
+      },
+      "meta": {
+        "timestamp": "2026-02-04T12:00:00.000Z"
+      }
+    }
+    ```
+
+    ## Pagination
+
+    List endpoints support pagination via query parameters:
+
+    - `page`: Page number (default: 1)
+    - `limit`: Items per page (default: 20, max: 100)
+    - `sortBy`: Field to sort by
+    - `sortOrder`: Sort order (asc/desc, default: desc)
+
+    ## Caching
+
+    Some endpoints use Redis caching. Check the `X-Cache` response header:
+    - `HIT`: Response served from cache
+    - `MISS`: Response served from database
+
+  version: 0.1.0
+  contact:
+    name: Small Squaretable Team
+    url: https://github.com/small-squaretable
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.small-squaretable.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User registration and authentication
+  - name: Users
+    description: User profile management
+  - name: Characters
+    description: Character CRUD and marketplace
+  - name: Chats
+    description: Chat and message management
+  - name: LLM
+    description: AI model integration
+  - name: Subscriptions
+    description: Subscription and billing
+  - name: Usage
+    description: Usage tracking and quotas
+  - name: Health
+    description: Health check endpoints
+  - name: WebSocket
+    description: Real-time communication
+
+paths:
+  # ============================================================
+  # Health Endpoints
+  # ============================================================
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Basic health check
+      description: Returns basic application status
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                    example: 0.1.0
+
+  /health/live:
+    get:
+      tags:
+        - Health
+      summary: Liveness probe
+      description: Kubernetes liveness probe - checks if server is running
+      operationId: livenessProbe
+      responses:
+        '200':
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /health/ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness probe
+      description: Kubernetes readiness probe - checks database and Redis connectivity
+      operationId: readinessProbe
+      responses:
+        '200':
+          description: Server is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+
+  # ============================================================
+  # Authentication Endpoints
+  # ============================================================
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account with Free subscription
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login
+      description: Authenticates a user and returns tokens
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Uses a refresh token to get a new access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokensResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout
+      description: Invalidates the refresh token
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /api/v1/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Returns the currently authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
+  # User Endpoints
+  # ============================================================
+  /api/v1/users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      description: Returns detailed profile information for the authenticated user
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+
+    patch:
+      tags:
+        - Users
+      summary: Update current user profile
+      description: Updates the authenticated user's profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    delete:
+      tags:
+        - Users
+      summary: Delete account
+      description: Permanently deletes the user's account
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /api/v1/users/me/password:
+    patch:
+      tags:
+        - Users
+      summary: Change password
+      description: Updates the user's password
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
+  # Character Endpoints
+  # ============================================================
+  /api/v1/characters:
+    post:
+      tags:
+        - Characters
+      summary: Create character
+      description: Creates a new character for the authenticated user
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCharacterRequest'
+      responses:
+        '201':
+          description: Character created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Character'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    get:
+      tags:
+        - Characters
+      summary: List user's characters
+      description: Returns paginated list of the user's private characters
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Character list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PaginatedCharacters'
+
+  /api/v1/characters/marketplace:
+    get:
+      tags:
+        - Characters
+      summary: Browse marketplace
+      description: Returns paginated list of public characters (authentication optional)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Marketplace characters
+          headers:
+            X-Cache:
+              description: Cache status (HIT or MISS)
+              schema:
+                type: string
+                enum: [HIT, MISS]
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PaginatedCharacters'
+
+  /api/v1/characters/search:
+    get:
+      tags:
+        - Characters
+      summary: Search characters
+      description: Full-text search across public characters
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Search query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+        - name: tags
+          in: query
+          description: Filter by tags (comma-separated)
+          schema:
+            type: string
+            example: "helper,coding"
+        - name: sort
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [popular, newest, rating, relevance]
+            default: relevance
+        - name: filter
+          in: query
+          description: Additional filters
+          schema:
+            type: string
+            enum: [all, safe, nsfw]
+            default: safe
+        - name: isNsfw
+          in: query
+          description: Include NSFW content
+          schema:
+            type: boolean
+            default: false
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Search results
+          headers:
+            X-Cache:
+              description: Cache status
+              schema:
+                type: string
+                enum: [HIT, MISS]
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SearchResults'
+
+  /api/v1/characters/{characterId}:
+    get:
+      tags:
+        - Characters
+      summary: Get character by ID
+      description: Returns character details
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      responses:
+        '200':
+          description: Character details
+          headers:
+            X-Cache:
+              description: Cache status
+              schema:
+                type: string
+                enum: [HIT, MISS]
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Character'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Characters
+      summary: Update character
+      description: Updates an existing character
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCharacterRequest'
+      responses:
+        '200':
+          description: Character updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Character'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Characters
+      summary: Delete character
+      description: Permanently deletes a character
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/characters/{characterId}/publish:
+    post:
+      tags:
+        - Characters
+      summary: Publish character to marketplace
+      description: Makes a character publicly available (requires Pro/Team plan)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      responses:
+        '200':
+          description: Character published
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Character'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/characters/{characterId}/unpublish:
+    post:
+      tags:
+        - Characters
+      summary: Unpublish character
+      description: Removes a character from the marketplace
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      responses:
+        '200':
+          description: Character unpublished
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Character'
+
+  /api/v1/characters/{characterId}/fork:
+    post:
+      tags:
+        - Characters
+      summary: Fork character
+      description: Creates a copy of a public character for personal use
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      responses:
+        '201':
+          description: Character forked
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Character'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/characters/{characterId}/ratings:
+    post:
+      tags:
+        - Characters
+      summary: Submit rating
+      description: Rates a character (Pro/Team only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatingRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/Success'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    get:
+      tags:
+        - Characters
+      summary: Get character ratings
+      description: Returns aggregated ratings for a character
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      responses:
+        '200':
+          description: Ratings data
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RatingResponse'
+
+    put:
+      tags:
+        - Characters
+      summary: Update rating
+      description: Updates an existing rating
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RatingRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+    delete:
+      tags:
+        - Characters
+      summary: Delete rating
+      description: Removes a user's rating
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CharacterId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  # ============================================================
+  # Chat Endpoints
+  # ============================================================
+  /api/v1/chats:
+    post:
+      tags:
+        - Chats
+      summary: Create chat
+      description: Creates a new chat with a character
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChatRequest'
+      responses:
+        '201':
+          description: Chat created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Chat'
+
+    get:
+      tags:
+        - Chats
+      summary: List chats
+      description: Returns paginated list of user's chats
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Chat list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PaginatedChats'
+
+  /api/v1/chats/{chatId}:
+    get:
+      tags:
+        - Chats
+      summary: Get chat
+      description: Returns chat details with all messages
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      responses:
+        '200':
+          description: Chat details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Chat'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Chats
+      summary: Update chat
+      description: Updates chat metadata
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateChatRequest'
+      responses:
+        '200':
+          description: Chat updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Chat'
+
+    delete:
+      tags:
+        - Chats
+      summary: Delete chat
+      description: Permanently deletes a chat and its messages
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/chats/{chatId}/messages:
+    post:
+      tags:
+        - Chats
+      summary: Send message
+      description: Adds a message to a chat
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMessageRequest'
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Message'
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+
+    get:
+      tags:
+        - Chats
+      summary: Get chat messages
+      description: Returns paginated messages for a chat (cursor-based)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+        - name: limit
+          in: query
+          description: Number of messages to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: before
+          in: query
+          description: Get messages before this message ID (cursor)
+          schema:
+            type: integer
+        - name: after
+          in: query
+          description: Get messages after this message ID (cursor)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MessagesResponse'
+
+  # ============================================================
+  # LLM Endpoints
+  # ============================================================
+  /api/v1/llm/chat/completions:
+    post:
+      tags:
+        - LLM
+      summary: Chat completions
+      description: Generate chat completions (streaming or non-streaming)
+      operationId: chatCompletions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+      responses:
+        '200':
+          description: Chat completion (non-streaming)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+      x-code-samples:
+        - lang: JavaScript
+          label: Streaming
+          source: |
+            const response = await fetch('/api/v1/llm/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer YOUR_TOKEN',
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [{role: 'user', content: 'Hello!'}],
+                stream: true
+              })
+            });
+
+            const reader = response.body.getReader();
+            while (true) {
+              const {done, value} = await reader.read();
+              if (done) break;
+              // Process streaming data
+              console.log(new TextDecoder().decode(value));
+            }
+
+  /api/v1/llm/completions:
+    post:
+      tags:
+        - LLM
+      summary: Text completions
+      description: Generate text completions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompletionRequest'
+      responses:
+        '200':
+          description: Completion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompletionResponse'
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+
+  /api/v1/llm/models:
+    get:
+      tags:
+        - LLM
+      summary: List available models
+      description: Returns list of available LLM models
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Available models
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelsResponse'
+
+  # ============================================================
+  # Subscription Endpoints
+  # ============================================================
+  /api/v1/subscriptions/status:
+    get:
+      tags:
+        - Subscriptions
+      summary: Get subscription status
+      description: Returns current subscription status
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Subscription status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SubscriptionStatus'
+
+  /api/v1/subscriptions/checkout:
+    post:
+      tags:
+        - Subscriptions
+      summary: Create checkout session
+      description: Creates a Stripe checkout session for subscription
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                            format: uri
+                            description: Stripe checkout URL
+
+  /api/v1/subscriptions/portal:
+    post:
+      tags:
+        - Subscriptions
+      summary: Create billing portal session
+      description: Creates a Stripe portal session for managing subscription
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [returnUrl]
+              properties:
+                returnUrl:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Portal session created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+                            format: uri
+
+  /api/v1/subscriptions/webhook:
+    post:
+      tags:
+        - Subscriptions
+      summary: Stripe webhook
+      description: Receives Stripe webhook events
+      security: []
+      parameters:
+        - name: stripe-signature
+          in: header
+          required: true
+          description: Stripe webhook signature
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Stripe webhook payload
+      responses:
+        '200':
+          description: Webhook received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+
+  /api/v1/subscriptions/config:
+    get:
+      tags:
+        - Subscriptions
+      summary: Get subscription config
+      description: Returns Stripe publishable key and price IDs
+      security: []
+      responses:
+        '200':
+          description: Subscription config
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SubscriptionConfig'
+
+  # ============================================================
+  # Usage Endpoints
+  # ============================================================
+  /api/v1/usage/stats:
+    get:
+      tags:
+        - Usage
+      summary: Get usage statistics
+      description: Returns current month's usage statistics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Usage stats
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UsageStats'
+
+  /api/v1/usage/quota:
+    get:
+      tags:
+        - Usage
+      summary: Get quota information
+      description: Returns quota status for all resource types
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Quota information
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          messages:
+                            $ref: '#/components/schemas/QuotaInfo'
+                          llm_tokens:
+                            $ref: '#/components/schemas/QuotaInfo'
+                          images:
+                            $ref: '#/components/schemas/QuotaInfo'
+                          api_calls:
+                            $ref: '#/components/schemas/QuotaInfo'
+
+  # ============================================================
+  # WebSocket Connection
+  # ============================================================
+  /ws:
+    get:
+      tags:
+        - WebSocket
+      summary: WebSocket connection
+      description: |
+        Establishes a WebSocket connection for real-time chat.
+
+        Connection URL: `ws://localhost:3000/ws?token=<access_token>`
+
+        ## Message Types
+
+        ### Client -> Server
+        - `CONNECTED` - Sent by server on successful connection
+        - `USER_MESSAGE` - Send a message to the chat
+        - `JOIN_CHAT` - Join a chat room
+        - `LEAVE_CHAT` - Leave a chat room
+        - `TYPING_START` - User started typing
+        - `TYPING_STOP` - User stopped typing
+        - `PING` - Heartbeat ping
+
+        ### Server -> Client
+        - `CONNECTED` - Connection established
+        - `USER_MESSAGE` - New user message
+        - `ASSISTANT_MESSAGE_CHUNK` - Streaming AI response chunk
+        - `ASSISTANT_MESSAGE_DONE` - AI response complete
+        - `USER_TYPING` - Another user is typing
+        - `ERROR` - Error occurred
+        - `PONG` - Heartbeat response
+      operationId: websocketConnection
+      parameters:
+        - name: token
+          in: query
+          required: true
+          description: JWT access token
+          schema:
+            type: string
+      responses:
+        '101':
+          description: WebSocket connection established
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token (7 day expiration)
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Page number
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      description: Items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    SortByParam:
+      name: sortBy
+      in: query
+      description: Field to sort by
+      schema:
+        type: string
+
+    SortOrderParam:
+      name: sortOrder
+      in: query
+      description: Sort order
+      schema:
+        type: string
+        enum: [asc, desc]
+        default: desc
+
+    CharacterId:
+      name: characterId
+      in: path
+      required: true
+      description: Character ID
+      schema:
+        type: string
+        format: uuid
+
+    ChatId:
+      name: chatId
+      in: path
+      required: true
+      description: Chat ID
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    # ============================================================
+    # Common Schemas
+    # ============================================================
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          nullable: true
+        error:
+          type: object
+          nullable: true
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+        meta:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+            requestId:
+              type: string
+
+    HealthCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+        checks:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                status:
+                  type: string
+                latency:
+                  type: number
+                error:
+                  type: string
+            redis:
+              type: object
+              properties:
+                status:
+                  type: string
+                latency:
+                  type: number
+                error:
+                  type: string
+
+    # ============================================================
+    # Authentication Schemas
+    # ============================================================
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 8
+          example: SecurePass123
+        displayName:
+          type: string
+          maxLength: 100
+          example: John Doe
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: SecurePass123
+
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token from login response
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+            expiresIn:
+              type: integer
+              description: Access token expiration in seconds
+              example: 604800
+
+    AuthTokensResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+            expiresIn:
+              type: integer
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+        meta:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+
+    # ============================================================
+    # User Management Schemas
+    # ============================================================
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          maxLength: 100
+        avatarUrl:
+          type: string
+          format: uri
+          maxLength: 2000
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+
+    Subscription:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum: [free, pro, team]
+        status:
+          type: string
+          enum: [active, past_due, canceled, trialing]
+        stripeCustomerId:
+          type: string
+          nullable: true
+        stripeSubscriptionId:
+          type: string
+          nullable: true
+        cancelAtPeriodEnd:
+          type: boolean
+        currentPeriodEnd:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ============================================================
+    # Character Schemas
+    # ============================================================
+    Character:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        avatarUrl:
+          type: string
+          format: uri
+          maxLength: 2000
+          nullable: true
+        cardData:
+          type: object
+          additionalProperties: true
+          description: SillyTavern character card data
+        tags:
+          type: array
+          items:
+            type: string
+          maxItems: 20
+        category:
+          type: string
+          maxLength: 50
+          nullable: true
+        isPublic:
+          type: boolean
+        isNsfw:
+          type: boolean
+        downloadCount:
+          type: integer
+          default: 0
+        avgRating:
+          type: number
+          nullable: true
+        ratingCount:
+          type: integer
+          default: 0
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateCharacterRequest:
+      type: object
+      required: [name, cardData]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+        avatarUrl:
+          type: string
+          format: uri
+          maxLength: 2000
+        cardData:
+          type: object
+          description: SillyTavern character card data
+          additionalProperties: true
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+        category:
+          type: string
+          maxLength: 50
+        isNsfw:
+          type: boolean
+          default: false
+
+    UpdateCharacterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+        avatarUrl:
+          type: string
+          format: uri
+          maxLength: 2000
+        cardData:
+          type: object
+          additionalProperties: true
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+        category:
+          type: string
+          maxLength: 50
+        isNsfw:
+          type: boolean
+
+    PaginatedResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items: {}
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+            hasNext:
+              type: boolean
+            hasPrev:
+              type: boolean
+
+    PaginatedCharacters:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Character'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    PaginationInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+    SearchResults:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Character'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+        query:
+          type: string
+          description: Original search query
+
+    # ============================================================
+    # Rating Schemas
+    # ============================================================
+    RatingRequest:
+      type: object
+      required: [quality, creativity, interactivity, accuracy, entertainment]
+      properties:
+        quality:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Quality rating (1-5 stars)
+        creativity:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Creativity rating (1-5 stars)
+        interactivity:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Interactivity rating (1-5 stars)
+        accuracy:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Accuracy rating (1-5 stars)
+        entertainment:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Entertainment value (1-5 stars)
+        comment:
+          type: string
+          maxLength: 500
+          description: Optional comment
+
+    RatingResponse:
+      type: object
+      properties:
+        characterId:
+          type: string
+          format: uuid
+        avgQuality:
+          type: number
+        avgCreativity:
+          type: number
+        avgInteractivity:
+          type: number
+        avgAccuracy:
+          type: number
+        avgEntertainment:
+          type: number
+        overall:
+          type: number
+          description: Weighted average rating
+        ratingCount:
+          type: integer
+        userRating:
+          type: object
+          nullable: true
+          properties:
+            quality:
+              type: integer
+            creativity:
+              type: integer
+            interactivity:
+              type: integer
+            accuracy:
+              type: integer
+            entertainment:
+              type: integer
+            comment:
+              type: string
+
+    # ============================================================
+    # Chat Schemas
+    # ============================================================
+    Chat:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        characterId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 500
+        metadata:
+          type: object
+          additionalProperties: true
+        messageCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        character:
+          $ref: '#/components/schemas/Character'
+
+    CreateChatRequest:
+      type: object
+      required: [characterId]
+      properties:
+        characterId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 500
+        metadata:
+          type: object
+          additionalProperties: true
+
+    UpdateChatRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 500
+        metadata:
+          type: object
+          additionalProperties: true
+
+    PaginatedChats:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Chat'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        chatId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+          maxLength: 50000
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+        createdAt:
+          type: string
+          format: date-time
+
+    Attachment:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [image, audio, video, file]
+        url:
+          type: string
+          format: uri
+        name:
+          type: string
+          maxLength: 255
+        size:
+          type: integer
+        mimeType:
+          type: string
+          maxLength: 100
+
+    CreateMessageRequest:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 50000
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+          maxItems: 10
+
+    MessagesResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        pagination:
+          type: object
+          properties:
+            hasMore:
+              type: boolean
+            cursor:
+              type: integer
+              nullable: true
+
+    # ============================================================
+    # LLM Schemas
+    # ============================================================
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+
+    ChatCompletionRequest:
+      type: object
+      required: [model, messages]
+      properties:
+        model:
+          type: string
+          description: Model ID to use
+          example: gpt-3.5-turbo
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 2
+          default: 0.7
+        maxTokens:
+          type: integer
+          minimum: 1
+        n:
+          type: integer
+          minimum: 1
+          default: 1
+        stream:
+          type: boolean
+          default: false
+        presencePenalty:
+          type: number
+          minimum: -2
+          maximum: 2
+          default: 0
+        frequencyPenalty:
+          type: number
+          minimum: -2
+          maximum: 2
+          default: 0
+
+    ChatCompletionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+          example: chat.completion
+        created:
+          type: integer
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              message:
+                type: object
+                properties:
+                  role:
+                    type: string
+                  content:
+                    type: string
+              finishReason:
+                type: string
+        usage:
+          type: object
+          properties:
+            promptTokens:
+              type: integer
+            completionTokens:
+              type: integer
+            totalTokens:
+              type: integer
+
+    CompletionRequest:
+      type: object
+      required: [model, prompt]
+      properties:
+        model:
+          type: string
+        prompt:
+          type: string
+        temperature:
+          type: number
+        maxTokens:
+          type: integer
+
+    CompletionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+        created:
+          type: integer
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+              index:
+                type: integer
+        usage:
+          type: object
+          properties:
+            promptTokens:
+              type: integer
+            completionTokens:
+              type: integer
+            totalTokens:
+              type: integer
+
+    Model:
+      type: object
+      properties:
+        id:
+          type: string
+        object:
+          type: string
+          example: model
+        created:
+          type: integer
+        ownedBy:
+          type: string
+          example: system
+
+    ModelsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Model'
+
+    # ============================================================
+    # Subscription Schemas
+    # ============================================================
+    SubscriptionStatus:
+      type: object
+      properties:
+        subscription:
+          type: object
+          properties:
+            plan:
+              type: string
+              enum: [free, pro, team]
+            status:
+              type: string
+              enum: [active, past_due, canceled, trialing]
+            currentPeriodEnd:
+              type: string
+              format: date-time
+              nullable: true
+            cancelAtPeriodEnd:
+              type: boolean
+
+    CheckoutRequest:
+      type: object
+      required: [priceId, successUrl, cancelUrl]
+      properties:
+        priceId:
+          type: string
+          description: Stripe price ID
+        successUrl:
+          type: string
+          format: uri
+          description: URL to redirect after successful payment
+        cancelUrl:
+          type: string
+          format: uri
+          description: URL to redirect after canceling payment
+
+    SubscriptionConfig:
+      type: object
+      properties:
+        publishableKey:
+          type: string
+          description: Stripe publishable key
+        prices:
+          type: object
+          properties:
+            proMonthly:
+              type: string
+              description: Pro monthly price ID
+            proYearly:
+              type: string
+              description: Pro yearly price ID
+            teamMonthly:
+              type: string
+              description: Team monthly price ID
+
+    # ============================================================
+    # Usage Schemas
+    # ============================================================
+    UsageStats:
+      type: object
+      properties:
+        period:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+        usage:
+          type: object
+          properties:
+            messages:
+              type: integer
+            llmTokens:
+              type: integer
+            images:
+              type: integer
+            apiCalls:
+              type: integer
+
+    QuotaInfo:
+      type: object
+      properties:
+        used:
+          type: integer
+        limit:
+          type: integer
+        remaining:
+          type: integer
+        percentage:
+          type: number
+          format: float
+        resetsAt:
+          type: string
+          format: date-time
+
+    # ============================================================
+    # Response Templates
+    # ============================================================
+    Success:
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: true
+              data:
+                type: object
+                example:
+                  message: Operation successful
+              meta:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: VALIDATION_ERROR
+                  message:
+                    type: string
+                  details:
+                    type: object
+              meta:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: UNAUTHORIZED
+                  message:
+                    type: string
+                    example: Invalid or missing authentication token
+              meta:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: FORBIDDEN
+                  message:
+                    type: string
+                    example: Insufficient permissions for this operation
+              meta:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: NOT_FOUND
+                  message:
+                    type: string
+                    example: The requested resource was not found
+              meta:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: CONFLICT
+                  message:
+                    type: string
+                    example: Resource already exists
+              meta:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+
+    QuotaExceeded:
+      description: Quota exceeded
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: QUOTA_EXCEEDED
+                  message:
+                    type: string
+                    example: Monthly quota exceeded
+                  details:
+                    type: object
+                    properties:
+                      resource:
+                        type: string
+                      used:
+                        type: integer
+                      limit:
+                        type: integer
+              meta:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              error:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: INTERNAL_ERROR
+                  message:
+                    type: string
+                    example: An unexpected error occurred
+              meta:
+                type: object
+                properties:
+                  timestamp:
+                    type: string
+                    format: date-time

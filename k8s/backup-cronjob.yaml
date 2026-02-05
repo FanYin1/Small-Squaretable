@@ -1,0 +1,315 @@
+# PostgreSQL Backup CronJob
+# Runs daily at 2:00 AM UTC
+# Performs full database backup with optional S3 upload
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: small-squaretable
+  labels:
+    app.kubernetes.io/name: postgres-backup
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: small-squaretable
+spec:
+  # Run at 2:00 AM UTC every day
+  schedule: "0 2 * * *"
+  # Timezone (requires Kubernetes 1.27+)
+  # timeZone: "UTC"
+
+  # Keep last 3 successful jobs and 1 failed job for debugging
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  # Don't run if previous job is still running
+  concurrencyPolicy: Forbid
+
+  # Start deadline - if job misses scheduled time by more than 1 hour, skip it
+  startingDeadlineSeconds: 3600
+
+  jobTemplate:
+    spec:
+      # Retry up to 3 times on failure
+      backoffLimit: 3
+
+      # Job timeout - 1 hour max
+      activeDeadlineSeconds: 3600
+
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: postgres-backup
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+
+          # Security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            fsGroup: 999
+
+          # Service account for S3 access (if using IRSA)
+          # serviceAccountName: backup-service-account
+
+          containers:
+            - name: backup
+              image: postgres:15-alpine
+              imagePullPolicy: IfNotPresent
+
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  echo "Starting PostgreSQL backup..."
+                  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                  BACKUP_FILE="/backups/small-squaretable_full_${TIMESTAMP}.sql.gz"
+
+                  # Wait for database to be ready
+                  echo "Waiting for database..."
+                  until pg_isready -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER}; do
+                    echo "Database not ready, waiting..."
+                    sleep 5
+                  done
+
+                  echo "Database is ready, starting backup..."
+
+                  # Perform backup
+                  PGPASSWORD=${POSTGRES_PASSWORD} pg_dump \
+                    -h ${POSTGRES_HOST} \
+                    -p ${POSTGRES_PORT} \
+                    -U ${POSTGRES_USER} \
+                    -d ${POSTGRES_DB} \
+                    --format=plain \
+                    --no-owner \
+                    --no-acl \
+                    | gzip > ${BACKUP_FILE}
+
+                  # Create checksum
+                  sha256sum ${BACKUP_FILE} > ${BACKUP_FILE}.sha256
+
+                  # Get backup size
+                  BACKUP_SIZE=$(du -h ${BACKUP_FILE} | cut -f1)
+                  echo "Backup completed: ${BACKUP_FILE} (${BACKUP_SIZE})"
+
+                  # Apply retention policy - keep last 7 days
+                  echo "Applying retention policy..."
+                  find /backups -name "small-squaretable_*.sql.gz" -type f -mtime +7 -delete
+                  find /backups -name "small-squaretable_*.sha256" -type f -mtime +7 -delete
+
+                  # List remaining backups
+                  echo "Current backups:"
+                  ls -lh /backups/
+
+                  echo "Backup job completed successfully!"
+
+              env:
+                - name: POSTGRES_HOST
+                  value: "postgres-service"
+                - name: POSTGRES_PORT
+                  value: "5432"
+                - name: POSTGRES_DB
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secrets
+                      key: POSTGRES_DB
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secrets
+                      key: POSTGRES_USER
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-secrets
+                      key: POSTGRES_PASSWORD
+
+              # Resource limits
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+
+              # Volume mounts
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+
+              # Security context for container
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                capabilities:
+                  drop:
+                    - ALL
+
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: backup-pvc
+
+---
+# PVC for backup storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-pvc
+  namespace: small-squaretable
+  labels:
+    app.kubernetes.io/name: postgres-backup
+    app.kubernetes.io/component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+# Optional: CronJob for S3 upload (runs after backup)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup-s3-sync
+  namespace: small-squaretable
+  labels:
+    app.kubernetes.io/name: postgres-backup-s3
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: small-squaretable
+spec:
+  # Run at 3:00 AM UTC (1 hour after backup)
+  schedule: "0 3 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+
+  # Suspend by default - enable when S3 is configured
+  suspend: true
+
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: 1800
+
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: postgres-backup-s3
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+
+          # Service account with S3 access (IRSA)
+          # serviceAccountName: backup-s3-service-account
+
+          containers:
+            - name: s3-sync
+              image: amazon/aws-cli:2.15.0
+              imagePullPolicy: IfNotPresent
+
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+
+                  echo "Starting S3 sync..."
+
+                  # Sync backups to S3
+                  aws s3 sync /backups/ s3://${S3_BUCKET}/${S3_PREFIX}/ \
+                    --exclude "*" \
+                    --include "small-squaretable_*.sql.gz" \
+                    --include "small-squaretable_*.sha256" \
+                    --storage-class STANDARD_IA
+
+                  echo "S3 sync completed!"
+
+                  # List S3 backups
+                  echo "S3 backups:"
+                  aws s3 ls s3://${S3_BUCKET}/${S3_PREFIX}/
+
+              env:
+                - name: S3_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: S3_BUCKET
+                - name: S3_PREFIX
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: S3_PREFIX
+                      optional: true
+                - name: AWS_REGION
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: AWS_REGION
+                      optional: true
+                # For non-IRSA setups, use secrets
+                # - name: AWS_ACCESS_KEY_ID
+                #   valueFrom:
+                #     secretKeyRef:
+                #       name: aws-credentials
+                #       key: AWS_ACCESS_KEY_ID
+                # - name: AWS_SECRET_ACCESS_KEY
+                #   valueFrom:
+                #     secretKeyRef:
+                #       name: aws-credentials
+                #       key: AWS_SECRET_ACCESS_KEY
+
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+                  readOnly: true
+
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: backup-pvc
+
+---
+# ConfigMap for backup configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-config
+  namespace: small-squaretable
+  labels:
+    app.kubernetes.io/name: postgres-backup
+    app.kubernetes.io/component: config
+data:
+  # S3 configuration (update these values)
+  S3_BUCKET: "your-backup-bucket"
+  S3_PREFIX: "backups/postgres/small-squaretable"
+  AWS_REGION: "us-east-1"
+
+  # Retention settings
+  BACKUP_RETENTION_DAYS: "7"

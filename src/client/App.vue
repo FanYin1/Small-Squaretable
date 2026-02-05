@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import MainLayout from './components/layout/MainLayout.vue';
+import { useRoute } from 'vue-router';
 import LoadingOverlay from './components/ui/LoadingOverlay.vue';
+import ToastContainer from './components/ui/ToastContainer.vue';
 import { useLoading } from './composables';
 
-const { visible, startLoading, stopLoading } = useLoading();
+const route = useRoute();
+const { visible } = useLoading();
 
-// Compute the visible state from the reactive object
 const isLoading = computed(() => visible.value.visible);
 const loadingText = computed(() => visible.value.text);
 </script>
 
 <template>
-  <MainLayout />
+  <!-- All pages render directly through router-view -->
+  <router-view />
   <LoadingOverlay :visible="isLoading" :text="loadingText" />
+  <ToastContainer />
 </template>
 
 <style>

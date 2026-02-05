@@ -26,7 +26,8 @@ export const characters = pgTable('characters', {
   // 基本信息
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  avatarUrl: varchar('avatar_url', { length: 500 }),
+  // Use text type to support base64 encoded images (data URLs can be very large)
+  avatarUrl: text('avatar_url'),
 
   // 角色卡数据 (完整的 SillyTavern 角色卡 JSON)
   cardData: jsonb('card_data').notNull(),

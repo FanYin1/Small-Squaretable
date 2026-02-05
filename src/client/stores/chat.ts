@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Chat, Message } from '@client/types';
-import { chatApi, ApiError } from '@client/services';
+import type { Chat, Message, Character } from '@client/types';
+import { chatApi, ApiError, llmApi, characterApi } from '@client/services';
 import { WebSocketClient } from '@client/services/websocket';
 import { WSConnectionState } from '../../types/websocket';
 
@@ -10,6 +10,7 @@ export const useChatStore = defineStore('chat', () => {
   const chats = ref<Chat[]>([]);
   const currentChatId = ref<string | null>(null);
   const messages = ref<Message[]>([]);
+  const currentCharacter = ref<Character | null>(null);
   const loading = ref(false);
   const sending = ref(false);
   const error = ref<string | null>(null);
@@ -24,6 +25,42 @@ export const useChatStore = defineStore('chat', () => {
   const currentChat = computed(() =>
     chats.value.find(c => c.id === currentChatId.value)
   );
+
+  /**
+   * 构建角色的 system prompt
+   */
+  function buildSystemPrompt(character: Character): string {
+    const cardData = character.cardData || {};
+    const parts: string[] = [];
+
+    // 角色名称和描述
+    parts.push(`You are ${character.name}.`);
+    if (character.description) {
+      parts.push(character.description);
+    }
+
+    // 角色卡数据
+    if (cardData.personality) {
+      parts.push(`Personality: ${cardData.personality}`);
+    }
+    if (cardData.scenario) {
+      parts.push(`Scenario: ${cardData.scenario}`);
+    }
+    if (cardData.first_mes) {
+      parts.push(`Your greeting: ${cardData.first_mes}`);
+    }
+    if (cardData.mes_example) {
+      parts.push(`Example dialogue:\n${cardData.mes_example}`);
+    }
+    if (cardData.system_prompt) {
+      parts.push(cardData.system_prompt);
+    }
+
+    // 默认指令
+    parts.push('Stay in character at all times. Respond naturally as this character would.');
+
+    return parts.join('\n\n');
+  }
 
   /**
    * 初始化 WebSocket 连接
@@ -65,17 +102,33 @@ export const useChatStore = defineStore('chat', () => {
       console.log('WebSocket disconnected');
     });
 
-    // 接收用户消息
+    // 接收用户消息（来自 WebSocket 广播，包含数据库真实 ID）
     wsClient.on('userMessage', (data: unknown) => {
       const msgData = data as { messageId: string; chatId: string; content: string };
-      const message: Message = {
-        id: msgData.messageId,
-        chatId: msgData.chatId,
-        role: 'user',
-        content: msgData.content,
-        createdAt: new Date().toISOString(),
-      };
-      messages.value.push(message);
+
+      // 查找并替换临时消息，或添加新消息（如果是其他客户端发送的）
+      const tempIndex = messages.value.findIndex(
+        m => m.id.startsWith('temp-') && m.content === msgData.content && m.chatId === msgData.chatId
+      );
+
+      if (tempIndex !== -1) {
+        // 替换临时消息为真实消息（更新 ID）
+        messages.value[tempIndex] = {
+          ...messages.value[tempIndex],
+          id: msgData.messageId,
+        };
+        console.log('[Chat] Replaced temp message with real ID:', msgData.messageId);
+      } else {
+        // 新消息（可能来自其他客户端）
+        const message: Message = {
+          id: msgData.messageId,
+          chatId: msgData.chatId,
+          role: 'user',
+          content: msgData.content,
+          createdAt: new Date().toISOString(),
+        };
+        messages.value.push(message);
+      }
     });
 
     // 接收助手消息块（流式）
@@ -193,17 +246,90 @@ export const useChatStore = defineStore('chat', () => {
       sending.value = true;
       error.value = null;
       try {
-        const response = await chatApi.sendMessage(currentChatId.value, { content });
+        // 1. 保存用户消息
+        console.log('[Chat] Sending user message...');
+        const response = await chatApi.sendMessage(currentChatId.value, { role: 'user', content });
         messages.value.push(response.message);
+        console.log('[Chat] User message saved:', response.message.id);
+
+        // 2. 调用 LLM 获取 AI 回复（流式）
+        console.log('[Chat] Starting LLM stream...');
+        isStreaming.value = true;
+        streamingMessage.value = '';
+
+        // 构建消息历史，包含角色的 system prompt
+        const chatMessages: Array<{ role: string; content: string }> = [];
+
+        // 添加角色的 system prompt
+        if (currentCharacter.value) {
+          const systemPrompt = buildSystemPrompt(currentCharacter.value);
+          chatMessages.push({ role: 'system', content: systemPrompt });
+          console.log('[Chat] Added system prompt for character:', currentCharacter.value.name);
+        }
+
+        // 添加消息历史
+        messages.value.forEach(m => {
+          chatMessages.push({ role: m.role, content: m.content });
+        });
+        console.log('[Chat] Message history:', chatMessages.length, 'messages (including system)');
+
+        await llmApi.streamChatCompletion(
+          {
+            model: 'glm-4-flash',
+            messages: chatMessages,
+            stream: true,
+          },
+          // onChunk
+          (chunk: string) => {
+            console.log('[Chat] LLM chunk received:', chunk.length, 'chars');
+            streamingMessage.value += chunk;
+          },
+          // onDone
+          async () => {
+            console.log('[Chat] LLM stream done, content length:', streamingMessage.value.length);
+            // 保存 AI 回复到数据库
+            if (streamingMessage.value && currentChatId.value) {
+              try {
+                const aiResponse = await chatApi.sendMessage(currentChatId.value, {
+                  role: 'assistant',
+                  content: streamingMessage.value,
+                });
+                messages.value.push(aiResponse.message);
+              } catch (saveError) {
+                // 即使保存失败，也显示消息
+                const tempMessage: Message = {
+                  id: `temp-ai-${Date.now()}`,
+                  chatId: currentChatId.value,
+                  role: 'assistant',
+                  content: streamingMessage.value,
+                  createdAt: new Date().toISOString(),
+                };
+                messages.value.push(tempMessage);
+                console.error('Failed to save AI message:', saveError);
+              }
+            }
+            streamingMessage.value = '';
+            isStreaming.value = false;
+            sending.value = false;
+          },
+          // onError
+          (err: Error) => {
+            console.error('LLM stream error:', err);
+            error.value = err.message;
+            streamingMessage.value = '';
+            isStreaming.value = false;
+            sending.value = false;
+          }
+        );
       } catch (e) {
         if (e instanceof ApiError) {
           error.value = e.message;
         } else {
           error.value = e instanceof Error ? e.message : 'Failed to send message';
         }
-        throw e;
-      } finally {
+        isStreaming.value = false;
         sending.value = false;
+        throw e;
       }
     }
   }
@@ -256,9 +382,22 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     currentChatId.value = chatId;
+    currentCharacter.value = null;
 
     if (chatId) {
       await fetchMessages(chatId);
+
+      // 加载角色信息
+      const chat = chats.value.find(c => c.id === chatId);
+      if (chat?.characterId) {
+        try {
+          currentCharacter.value = await characterApi.getCharacter(chat.characterId);
+          console.log('[Chat] Character loaded:', currentCharacter.value?.name);
+        } catch (err) {
+          console.error('[Chat] Failed to load character:', err);
+        }
+      }
+
       // 加入新聊天室
       if (wsClient && wsConnected.value) {
         wsClient.joinChat(chatId);
@@ -280,6 +419,7 @@ export const useChatStore = defineStore('chat', () => {
     chats,
     currentChatId,
     currentChat,
+    currentCharacter,
     messages,
     loading,
     sending,

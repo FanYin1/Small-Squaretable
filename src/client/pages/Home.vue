@@ -1,16 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ChatDotRound, Star, TrendCharts, Check, Clock, User, MessageBox } from '@element-plus/icons-vue';
-import { useUserStore } from '@client/stores';
-import { api } from '@client/services/api';
-import LeftSidebar from '@client/components/layout/LeftSidebar.vue';
+import { ChatDotRound, Star, TrendCharts, Check } from '@element-plus/icons-vue';
 
 const router = useRouter();
-const userStore = useUserStore();
-
-// Authentication state
-const isLoggedIn = computed(() => !!userStore.user);
 
 // Marketing page features
 const features = [
@@ -37,97 +29,28 @@ const stats = [
   { label: '对话次数', value: '1M+' },
 ];
 
-// Dashboard data for logged-in users
-const dashboardData = ref({
-  recentChats: [] as any[],
-  characterStats: { total: 0, favorites: 0 },
-  usageStats: { messagesThisMonth: 0, charactersUsed: 0 },
-});
-
-const loading = ref(false);
-
-onMounted(async () => {
-  if (isLoggedIn.value) {
-    await fetchDashboardData();
-  }
-});
-
-async function fetchDashboardData() {
-  loading.value = true;
-  try {
-    // Fetch recent chats
-    const chatsResponse = await api.get('/chats?limit=5&sort=-updatedAt');
-    dashboardData.value.recentChats = chatsResponse.items || [];
-
-    // Fetch character stats
-    const statsResponse = await api.get('/characters/stats');
-    dashboardData.value.characterStats = statsResponse;
-
-    // Fetch usage stats
-    const usageResponse = await api.get('/usage/stats');
-    dashboardData.value.usageStats = usageResponse;
-  } catch (error) {
-    console.error('Failed to fetch dashboard data:', error);
-  } finally {
-    loading.value = false;
-  }
-}
-
 const handleStartChat = () => {
-  router.push('/market');
+  router.push({ name: 'Market' });
 };
 
 const handleLogin = () => {
-  router.push('/login');
+  router.push({ name: 'Login' });
 };
 
 const handleRegister = () => {
-  router.push('/register');
+  router.push({ name: 'Register' });
 };
-
-const handleChatClick = (chatId: string) => {
-  router.push(`/chat/${chatId}`);
-};
-
-const handleViewAllChats = () => {
-  router.push('/chat');
-};
-
-const handleViewCharacters = () => {
-  router.push('/my-characters');
-};
-
-const handleViewMarket = () => {
-  router.push('/market');
-};
-
-// Helper function to format time
-function formatTime(date: string | Date): string {
-  if (!date) return '';
-  const d = new Date(date);
-  const now = new Date();
-  const diff = now.getTime() - d.getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
-  if (hours < 24) return `${hours}小时前`;
-  if (days < 7) return `${days}天前`;
-  return d.toLocaleDateString('zh-CN');
-}
 </script>
 
 <template>
-  <!-- Unauthenticated: Marketing Page -->
-  <div v-if="!isLoggedIn" class="home-page-marketing">
+  <!-- Marketing Page (Guest Only) -->
+  <div class="home-page-marketing">
     <!-- Two-column layout container -->
     <div class="main-layout">
       <!-- Left Column: Hero Content (40%) -->
       <div class="left-column">
         <div class="hero-content glass-card">
-          <div class="hero-badge">✨ AI 驱动的智能对话</div>
+          <div class="hero-badge">AI 驱动的智能对话</div>
           <h1 class="hero-title">Small Squaretable</h1>
           <p class="hero-subtitle">下一代 AI 角色聊天平台</p>
           <p class="hero-description">
@@ -236,157 +159,17 @@ function formatTime(date: string | Date): string {
       </div>
     </div>
   </div>
-
-  <!-- Authenticated: Dashboard with Three-Segment Layout -->
-  <div v-else class="home-page-dashboard">
-    <!-- Left Sidebar -->
-    <LeftSidebar />
-
-    <!-- Main Content Area -->
-    <div class="main-content">
-      <!-- Top Bar -->
-      <header class="top-bar">
-        <h1 class="page-title">仪表盘</h1>
-        <div class="top-bar-actions">
-          <button class="btn-action" @click="handleViewMarket">
-            <el-icon><Star /></el-icon>
-            浏览角色
-          </button>
-          <button class="btn-action btn-action-primary" @click="handleStartChat">
-            <el-icon><ChatDotRound /></el-icon>
-            新建聊天
-          </button>
-        </div>
-      </header>
-
-      <!-- Dashboard Content -->
-      <div v-loading="loading" class="dashboard-content">
-        <!-- Welcome Section -->
-        <div class="welcome-section">
-          <h2 class="welcome-title">欢迎回来，{{ userStore.user?.name }}！</h2>
-          <p class="welcome-subtitle">继续您的 AI 对话之旅</p>
-        </div>
-
-        <!-- Three-Column Grid -->
-        <div class="dashboard-grid">
-          <!-- Recent Chats Card -->
-          <div class="dashboard-card">
-            <div class="card-header">
-              <h3 class="card-title">
-                <el-icon><Clock /></el-icon>
-                最近聊天
-              </h3>
-              <button class="card-link" @click="handleViewAllChats">查看全部</button>
-            </div>
-            <div class="card-content">
-              <div v-if="dashboardData.recentChats.length === 0" class="empty-state">
-                <el-icon class="empty-icon"><MessageBox /></el-icon>
-                <p>暂无聊天记录</p>
-                <button class="btn-small" @click="handleStartChat">开始聊天</button>
-              </div>
-              <div v-else class="chat-list">
-                <div
-                  v-for="chat in dashboardData.recentChats"
-                  :key="chat.id"
-                  class="chat-item"
-                  @click="handleChatClick(chat.id)"
-                >
-                  <div class="chat-avatar">
-                    <el-avatar :src="chat.character?.avatar" :size="40">
-                      {{ chat.character?.name?.[0] }}
-                    </el-avatar>
-                  </div>
-                  <div class="chat-info">
-                    <div class="chat-name">{{ chat.character?.name || '未知角色' }}</div>
-                    <div class="chat-preview">{{ chat.lastMessage || '暂无消息' }}</div>
-                  </div>
-                  <div class="chat-time">{{ formatTime(chat.updatedAt) }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Character Stats Card -->
-          <div class="dashboard-card">
-            <div class="card-header">
-              <h3 class="card-title">
-                <el-icon><Users /></el-icon>
-                角色统计
-              </h3>
-              <button class="card-link" @click="handleViewCharacters">管理</button>
-            </div>
-            <div class="card-content">
-              <div class="stats-container">
-                <div class="stat-box">
-                  <div class="stat-label">总角色数</div>
-                  <div class="stat-value">{{ dashboardData.characterStats.total }}</div>
-                </div>
-                <div class="stat-box">
-                  <div class="stat-label">收藏角色</div>
-                  <div class="stat-value">{{ dashboardData.characterStats.favorites }}</div>
-                </div>
-              </div>
-              <button class="btn-small" @click="handleViewMarket">发现更多角色</button>
-            </div>
-          </div>
-
-          <!-- Usage Stats Card -->
-          <div class="dashboard-card">
-            <div class="card-header">
-              <h3 class="card-title">
-                <el-icon><TrendCharts /></el-icon>
-                使用统计
-              </h3>
-            </div>
-            <div class="card-content">
-              <div class="stats-container">
-                <div class="stat-box">
-                  <div class="stat-label">本月消息</div>
-                  <div class="stat-value">{{ dashboardData.usageStats.messagesThisMonth }}</div>
-                </div>
-                <div class="stat-box">
-                  <div class="stat-label">使用角色</div>
-                  <div class="stat-value">{{ dashboardData.usageStats.charactersUsed }}</div>
-                </div>
-              </div>
-              <button class="btn-small" @click="$router.push('/subscription')">查看详情</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </template>
 
 <style scoped>
 /* Import Plus Jakarta Sans font */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 
-/* Root variables - Blue color scheme */
-:root {
-  --color-primary: #3B82F6;
-  --color-primary-dark: #2563EB;
-  --color-primary-light: #DBEAFE;
-  --color-success: #10B981;
-  --color-success-dark: #059669;
-  --color-bg: #EFF6FF;
-  --color-text-primary: #111827;
-  --color-text-secondary: #6B7280;
-  --color-border: #E5E7EB;
-  --color-border-light: rgba(59, 130, 246, 0.1);
-}
-
 .home-page-marketing {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--color-bg) 0%, #F0F9FF 100%);
+  background: linear-gradient(135deg, var(--color-bg) 0%, var(--color-bg-light) 100%);
   padding: 40px 20px;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-.home-page-dashboard {
-  display: flex;
-  min-height: 100vh;
-  background: #F9FAFB;
 }
 
 /* Main two-column layout */
@@ -401,13 +184,13 @@ function formatTime(date: string | Date): string {
 
 /* Glassmorphism card style */
 .glass-card {
-  background: rgba(255, 255, 255, 0.8);
+  background: color-mix(in srgb, var(--bg-color) 80%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--color-border);
   border-radius: 24px;
   padding: 40px;
-  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.1);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--color-primary) 12%, transparent);
   transition: all 0.3s ease;
 }
 
@@ -435,7 +218,7 @@ function formatTime(date: string | Date): string {
   font-size: 14px;
   font-weight: 600;
   width: fit-content;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 .hero-title {
@@ -487,9 +270,9 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-primary {
-  background: var(--color-success);
+  background: var(--color-success-strong);
   color: white;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-success-strong) 30%, transparent);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -497,8 +280,8 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-primary:hover {
-  background: var(--color-success-dark);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  background: var(--color-success-strong-dark);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-success-strong) 40%, transparent);
   transform: translateY(-2px);
 }
 
@@ -507,13 +290,13 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-secondary {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
   border: 1px solid var(--color-primary);
 }
 
 .btn-secondary:hover {
-  background: rgba(59, 130, 246, 0.2);
+  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
   border-color: var(--color-primary-dark);
   color: var(--color-primary-dark);
   transform: translateY(-2px);
@@ -530,7 +313,7 @@ function formatTime(date: string | Date): string {
   gap: 14px;
   margin-top: 8px;
   padding: 20px;
-  background: rgba(59, 130, 246, 0.05);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
   border-radius: 12px;
   border: 1px solid var(--color-border-light);
 }
@@ -545,7 +328,7 @@ function formatTime(date: string | Date): string {
 }
 
 .feature-check {
-  color: var(--color-success);
+  color: var(--color-success-strong);
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -563,16 +346,16 @@ function formatTime(date: string | Date): string {
   flex-direction: column;
   align-items: center;
   padding: 16px;
-  background: rgba(59, 130, 246, 0.05);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
   border-radius: 8px;
   border: 1px solid var(--color-border-light);
   transition: all 0.2s ease;
 }
 
 .quick-stat-item:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 
 .stat-number {
@@ -610,12 +393,12 @@ function formatTime(date: string | Date): string {
 .stat-item {
   padding: 16px;
   border-radius: 8px;
-  background: rgba(59, 130, 246, 0.05);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
   transition: all 0.2s ease;
 }
 
 .stat-item:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   transform: translateY(-2px);
 }
 
@@ -640,8 +423,8 @@ function formatTime(date: string | Date): string {
 }
 
 .feature-card:hover {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.15);
+  background: color-mix(in srgb, var(--bg-color) 95%, transparent);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--color-primary) 15%, transparent);
   border-color: var(--color-primary);
   transform: translateY(-4px);
 }
@@ -716,12 +499,12 @@ function formatTime(date: string | Date): string {
 .btn-primary-large {
   background: var(--color-primary);
   color: white;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 .btn-primary-large:hover {
   background: var(--color-primary-dark);
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-primary) 40%, transparent);
   transform: translateY(-2px);
 }
 
@@ -732,7 +515,7 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-secondary-large:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   transform: translateY(-2px);
 }
 
@@ -748,13 +531,13 @@ function formatTime(date: string | Date): string {
 
 /* Glassmorphism card style */
 .glass-card {
-  background: rgba(255, 255, 255, 0.8);
+  background: color-mix(in srgb, var(--bg-color) 80%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--color-border-light);
   border-radius: 16px;
   padding: 40px;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 8%, transparent);
   transition: all 0.3s ease;
 }
 
@@ -782,7 +565,7 @@ function formatTime(date: string | Date): string {
   font-size: 14px;
   font-weight: 600;
   width: fit-content;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 .hero-title {
@@ -834,9 +617,9 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-primary {
-  background: var(--color-success);
+  background: var(--color-success-strong);
   color: white;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-success-strong) 30%, transparent);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -844,8 +627,8 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-primary:hover {
-  background: var(--color-success-dark);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  background: var(--color-success-strong-dark);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-success-strong) 40%, transparent);
   transform: translateY(-2px);
 }
 
@@ -854,13 +637,13 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-secondary {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
   border: 1px solid var(--color-primary);
 }
 
 .btn-secondary:hover {
-  background: rgba(59, 130, 246, 0.2);
+  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
   border-color: var(--color-primary-dark);
   color: var(--color-primary-dark);
   transform: translateY(-2px);
@@ -877,7 +660,7 @@ function formatTime(date: string | Date): string {
   gap: 14px;
   margin-top: 8px;
   padding: 20px;
-  background: rgba(59, 130, 246, 0.05);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
   border-radius: 12px;
   border: 1px solid var(--color-border-light);
 }
@@ -892,7 +675,7 @@ function formatTime(date: string | Date): string {
 }
 
 .feature-check {
-  color: var(--color-success);
+  color: var(--color-success-strong);
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -910,16 +693,16 @@ function formatTime(date: string | Date): string {
   flex-direction: column;
   align-items: center;
   padding: 16px;
-  background: rgba(59, 130, 246, 0.05);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
   border-radius: 8px;
   border: 1px solid var(--color-border-light);
   transition: all 0.2s ease;
 }
 
 .quick-stat-item:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 
 .stat-number {
@@ -957,12 +740,12 @@ function formatTime(date: string | Date): string {
 .stat-item {
   padding: 16px;
   border-radius: 8px;
-  background: rgba(59, 130, 246, 0.05);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
   transition: all 0.2s ease;
 }
 
 .stat-item:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   transform: translateY(-2px);
 }
 
@@ -987,8 +770,8 @@ function formatTime(date: string | Date): string {
 }
 
 .feature-card:hover {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.15);
+  background: color-mix(in srgb, var(--bg-color) 95%, transparent);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--color-primary) 15%, transparent);
   border-color: var(--color-primary);
   transform: translateY(-4px);
 }
@@ -1063,12 +846,12 @@ function formatTime(date: string | Date): string {
 .btn-primary-large {
   background: var(--color-primary);
   color: white;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 .btn-primary-large:hover {
   background: var(--color-primary-dark);
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-primary) 40%, transparent);
   transform: translateY(-2px);
 }
 
@@ -1079,49 +862,11 @@ function formatTime(date: string | Date): string {
 }
 
 .btn-secondary-large:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   transform: translateY(-2px);
 }
 
 /* ===== DASHBOARD STYLES ===== */
-
-/* Main content area */
-.main-content {
-  flex: 1;
-  margin-left: 64px;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-/* Top bar */
-.top-bar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 16px 32px;
-  background: white;
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0;
-  white-space: nowrap;
-}
-
-.top-bar-actions {
-  display: flex;
-  gap: 12px;
-  margin-left: auto;
-}
 
 .btn-action {
   display: flex;
@@ -1132,7 +877,7 @@ function formatTime(date: string | Date): string {
   font-weight: 500;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: white;
+  background: var(--bg-color);
   color: var(--color-text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1188,7 +933,7 @@ function formatTime(date: string | Date): string {
 }
 
 .dashboard-card {
-  background: white;
+  background: var(--bg-color);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   overflow: hidden;
@@ -1196,7 +941,7 @@ function formatTime(date: string | Date): string {
 }
 
 .dashboard-card:hover {
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 10%, transparent);
   border-color: var(--color-primary-light);
 }
 
@@ -1206,7 +951,7 @@ function formatTime(date: string | Date): string {
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border);
-  background: rgba(59, 130, 246, 0.02);
+  background: color-mix(in srgb, var(--color-primary) 2%, transparent);
 }
 
 .card-title {
@@ -1278,13 +1023,13 @@ function formatTime(date: string | Date): string {
   gap: 12px;
   padding: 12px;
   border-radius: 8px;
-  background: rgba(59, 130, 246, 0.02);
+  background: color-mix(in srgb, var(--color-primary) 2%, transparent);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .chat-item:hover {
-  background: rgba(59, 130, 246, 0.08);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
   transform: translateX(4px);
 }
 
@@ -1328,7 +1073,7 @@ function formatTime(date: string | Date): string {
 
 .stat-box {
   padding: 16px;
-  background: rgba(59, 130, 246, 0.05);
+  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
   border-radius: 8px;
   text-align: center;
 }
@@ -1353,7 +1098,7 @@ function formatTime(date: string | Date): string {
   font-weight: 500;
   border: 1px solid var(--color-primary);
   border-radius: 8px;
-  background: rgba(59, 130, 246, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1458,26 +1203,6 @@ function formatTime(date: string | Date): string {
     gap: 16px;
   }
 
-  .main-content {
-    margin-left: 0;
-  }
-
-  .top-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-    padding: 16px;
-  }
-
-  .page-title {
-    font-size: 20px;
-  }
-
-  .top-bar-actions {
-    margin-left: 0;
-    width: 100%;
-  }
-
   .btn-action {
     flex: 1;
   }
@@ -1532,84 +1257,63 @@ function formatTime(date: string | Date): string {
 
 /* Dark theme support */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #1F2937;
-    --color-text-primary: #F9FAFB;
-    --color-text-secondary: #D1D5DB;
-    --color-border: #374151;
-    --color-border-light: rgba(59, 130, 246, 0.2);
-  }
-
   .home-page-marketing {
-    background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
-  }
-
-  .home-page-dashboard {
-    background: #111827;
+    background: linear-gradient(135deg, var(--color-bg-dark) 0%, var(--color-bg-darker) 100%);
   }
 
   .glass-card {
-    background: rgba(30, 30, 40, 0.8);
-    border-color: var(--color-border-light);
+    background: color-mix(in srgb, var(--color-surface-dark) 80%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
   }
 
   .stat-item {
-    background: rgba(59, 130, 246, 0.15);
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
   }
 
   .stat-item:hover {
-    background: rgba(59, 130, 246, 0.25);
+    background: color-mix(in srgb, var(--color-primary) 25%, transparent);
   }
 
   .btn-secondary {
-    background: rgba(59, 130, 246, 0.2);
+    background: color-mix(in srgb, var(--color-primary) 20%, transparent);
     color: var(--color-primary-light);
   }
 
   .btn-secondary:hover {
-    background: rgba(59, 130, 246, 0.3);
-  }
-
-  .main-content {
-    background: #111827;
-  }
-
-  .top-bar {
-    background: #1F2937;
-    border-bottom-color: var(--color-border);
+    background: color-mix(in srgb, var(--color-primary) 30%, transparent);
   }
 
   .dashboard-card {
-    background: #1F2937;
+    background: var(--color-surface-dark);
     border-color: var(--color-border);
   }
 
   .card-header {
-    background: rgba(59, 130, 246, 0.1);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
     border-bottom-color: var(--color-border);
   }
 
   .btn-action {
-    background: #1F2937;
+    background: var(--color-surface-dark);
     color: var(--color-text-primary);
     border-color: var(--color-border);
   }
 
   .btn-action:hover {
-    background: #374151;
+    background: var(--color-surface-darker);
     border-color: var(--color-primary);
   }
 
   .chat-item {
-    background: rgba(59, 130, 246, 0.08);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
   }
 
   .chat-item:hover {
-    background: rgba(59, 130, 246, 0.15);
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
   }
 
   .stat-box {
-    background: rgba(59, 130, 246, 0.1);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   }
 }
 </style>

@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { ElMessage } from 'element-plus';
 import Login from './Login.vue';
 import { useUserStore } from '@client/stores/user';
 import '../../test-setup';
@@ -23,18 +22,17 @@ vi.mock('vue-router', () => ({
   useRoute: () => mockRoute,
 }));
 
-// Mock Element Plus Message
-vi.mock('element-plus', async () => {
-  const actual = await vi.importActual('element-plus');
-  return {
-    ...actual,
-    ElMessage: {
-      success: vi.fn(),
-      error: vi.fn(),
-      info: vi.fn(),
-    },
-  };
-});
+// Mock useToast composable
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+};
+
+vi.mock('@client/composables/useToast', () => ({
+  useToast: () => mockToast,
+}));
 
 describe('Login Page', () => {
   beforeEach(() => {
@@ -174,7 +172,7 @@ describe('Login Page', () => {
     await vm.handleLogin(mockFormRef);
 
     expect(userStore.login).toHaveBeenCalledWith('test@example.com', 'password123');
-    expect(ElMessage.success).toHaveBeenCalledWith('登录成功');
+    expect(mockToast.success).toHaveBeenCalledWith('登录成功');
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
@@ -246,7 +244,7 @@ describe('Login Page', () => {
 
     await vm.handleLogin(mockFormRef);
 
-    expect(ElMessage.error).toHaveBeenCalledWith('Invalid credentials');
+    expect(mockToast.error).toHaveBeenCalledWith('登录失败', { message: 'Invalid credentials' });
     expect(mockPush).not.toHaveBeenCalled();
   });
 
@@ -314,7 +312,7 @@ describe('Login Page', () => {
     const vm = wrapper.vm as any;
     vm.goToRegister();
 
-    expect(mockPush).toHaveBeenCalledWith('/auth/register');
+    expect(mockPush).toHaveBeenCalledWith({ name: 'Register' });
   });
 
   it('should show info message for forgot password', async () => {
@@ -337,7 +335,7 @@ describe('Login Page', () => {
     const vm = wrapper.vm as any;
     vm.handleForgotPassword();
 
-    expect(ElMessage.info).toHaveBeenCalledWith('忘记密码功能即将推出');
+    expect(mockToast.info).toHaveBeenCalledWith('忘记密码功能即将推出');
   });
 
   it('should not submit form if validation fails', async () => {

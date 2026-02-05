@@ -2,13 +2,14 @@
 import { ref, reactive } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@client/stores/user';
-import { ElMessage } from 'element-plus';
+import { useToast } from '@client/composables/useToast';
 import { User, Lock, View, Hide } from '@element-plus/icons-vue';
 import type { FormInstance, FormRules } from 'element-plus';
 
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
+const toast = useToast();
 
 // Form data
 const loginForm = reactive({
@@ -49,13 +50,15 @@ const handleLogin = async (formEl: FormInstance | undefined) => {
     try {
       await userStore.login(loginForm.email, loginForm.password);
 
-      ElMessage.success('登录成功');
+      toast.success('登录成功');
 
       // Redirect to the original page or home
       const redirect = (route.query.redirect as string) || '/';
       router.push(redirect);
     } catch (error) {
-      ElMessage.error(userStore.error || '登录失败，请检查邮箱和密码');
+      toast.error('登录失败', {
+        message: userStore.error || '邮箱或密码错误，请重试'
+      });
     } finally {
       loading.value = false;
     }
@@ -64,12 +67,12 @@ const handleLogin = async (formEl: FormInstance | undefined) => {
 
 // Navigate to register
 const goToRegister = () => {
-  router.push('/auth/register');
+  router.push({ name: 'Register' });
 };
 
 // Handle forgot password (placeholder)
 const handleForgotPassword = () => {
-  ElMessage.info('忘记密码功能即将推出');
+  toast.info('忘记密码功能即将推出');
 };
 </script>
 
@@ -432,6 +435,37 @@ const handleForgotPassword = () => {
 
   :deep(.el-input__inner::placeholder) {
     color: #9CA3AF;
+  }
+}
+
+/* Validation success state */
+:deep(.el-form-item.is-success .el-input__wrapper) {
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Validation error state */
+:deep(.el-form-item.is-error .el-input__wrapper) {
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Error message animation */
+:deep(.el-form-item__error) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

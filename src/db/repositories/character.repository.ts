@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, gt, lt } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { characters, type Character, type NewCharacter } from '../schema/characters';
@@ -11,6 +11,19 @@ export interface CharacterFilters {
   isNsfw?: boolean;
   category?: string;
   tags?: string[];
+}
+
+export interface CursorPaginationParams {
+  cursor?: string;
+  limit?: number;
+  direction?: 'forward' | 'backward';
+}
+
+export interface CursorPaginatedResult<T> {
+  items: T[];
+  nextCursor?: string;
+  prevCursor?: string;
+  hasMore: boolean;
 }
 
 export class CharacterRepository extends BaseRepository {
@@ -59,6 +72,63 @@ export class CharacterRepository extends BaseRepository {
     }
 
     return await query;
+  }
+
+  /**
+   * Cursor-based pagination for marketplace (more efficient for large datasets)
+   * Uses download_count as the cursor for consistent ordering
+   */
+  async findPublicWithCursor(params: CursorPaginationParams): Promise<CursorPaginatedResult<Character>> {
+    const limit = params.limit ?? 20;
+
+    // Build base conditions
+    const conditions = [eq(characters.isPublic, true)];
+
+    // Apply cursor condition if provided
+    if (params.cursor) {
+      const [downloadCount, id] = params.cursor.split('_');
+      const cursorDownloadCount = parseInt(downloadCount, 10);
+
+      // Get items after cursor (lower download count or same count but different id)
+      conditions.push(
+        sql`(${characters.downloadCount}, ${characters.id}) < (${cursorDownloadCount}, ${id})`
+      );
+    }
+
+    // Execute query with all conditions
+    const results = await this.db
+      .select()
+      .from(characters)
+      .where(and(...conditions))
+      .orderBy(desc(characters.downloadCount), desc(characters.id))
+      .limit(limit + 1);
+
+    const hasMore = results.length > limit;
+    const items = hasMore ? results.slice(0, limit) : results;
+
+    // Generate cursors
+    let nextCursor: string | undefined;
+    let prevCursor: string | undefined;
+
+    if (items.length > 0) {
+      const lastItem = items[items.length - 1];
+      const firstItem = items[0];
+
+      if (hasMore) {
+        nextCursor = `${lastItem.downloadCount}_${lastItem.id}`;
+      }
+
+      if (params.cursor) {
+        prevCursor = `${firstItem.downloadCount}_${firstItem.id}`;
+      }
+    }
+
+    return {
+      items,
+      nextCursor,
+      prevCursor,
+      hasMore,
+    };
   }
 
   async create(data: NewCharacter): Promise<Character> {
@@ -111,6 +181,29 @@ export class CharacterRepository extends BaseRepository {
       .from(characters)
       .where(eq(characters.isPublic, true));
     return result[0]?.count ?? 0;
+  }
+
+  /**
+   * Batch fetch characters by IDs (avoids N+1 queries)
+   */
+  async findByIds(ids: string[]): Promise<Character[]> {
+    if (ids.length === 0) return [];
+
+    const result = await this.db
+      .select()
+      .from(characters)
+      .where(sql`${characters.id} = ANY(ARRAY[${sql.join(ids.map(id => sql`${id}::uuid`), sql`, `)}])`);
+
+    return result;
+  }
+
+  /**
+   * Get characters with their ratings in a single query (avoids N+1)
+   */
+  async findPublicWithRatings(pagination?: PaginationParams): Promise<Character[]> {
+    // The ratings are already denormalized in the characters table
+    // (ratingAvg, ratingCount), so no join needed
+    return this.findPublic(pagination);
   }
 }
 

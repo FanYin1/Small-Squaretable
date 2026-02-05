@@ -29,7 +29,7 @@ const toggleCollapse = () => {
         type="primary"
         :icon="Plus"
         class="new-chat-button"
-        @click="router.push('/market')"
+        @click="router.push({ name: 'Market' })"
       >
         新建聊天
       </el-button>
@@ -39,7 +39,7 @@ const toggleCollapse = () => {
         :icon="Plus"
         circle
         class="new-chat-button-collapsed"
-        @click="router.push('/market')"
+        @click="router.push({ name: 'Market' })"
       />
 
       <div class="placeholder-content">

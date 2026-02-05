@@ -26,6 +26,11 @@ vi.mock('@client/services', () => ({
       this.name = 'ApiError';
     }
   },
+  csrfTokenManager: {
+    clearToken: vi.fn(),
+    getToken: vi.fn(),
+    setToken: vi.fn(),
+  },
 }));
 
 describe('User Store', () => {
@@ -38,7 +43,7 @@ describe('User Store', () => {
   describe('login', () => {
     it('should login successfully', async () => {
       const mockResponse = {
-        user: { id: '1', email: 'test@example.com', name: 'Test User', createdAt: '2024-01-01' },
+        user: { id: '1', email: 'test@example.com', name: 'Test User', tenantId: 'tenant-1', createdAt: '2024-01-01' },
         token: 'test-token',
         refreshToken: 'test-refresh-token',
       };
@@ -72,7 +77,7 @@ describe('User Store', () => {
   describe('register', () => {
     it('should register successfully', async () => {
       const mockResponse = {
-        user: { id: '1', email: 'new@example.com', name: 'New User', createdAt: '2024-01-01' },
+        user: { id: '1', email: 'new@example.com', name: 'New User', tenantId: 'tenant-1', createdAt: '2024-01-01' },
         token: 'new-token',
         refreshToken: 'new-refresh-token',
       };
