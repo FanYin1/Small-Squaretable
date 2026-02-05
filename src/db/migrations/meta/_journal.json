@@ -43,6 +43,13 @@
       "when": 1770350400000,
       "tag": "0010_add_pgvector",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770290079848,
+      "tag": "0006_tearful_blindfold",
+      "breakpoints": true
     }
   ]
 }
