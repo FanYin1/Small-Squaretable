@@ -22,6 +22,7 @@ import { chatRoutes } from './routes/chats';
 import { subscriptionRoutes } from './routes/subscriptions';
 import { usageRoutes } from './routes/usage';
 import { llmRoutes } from './routes/llm';
+import { intelligenceRoutes } from './routes/intelligence';
 import { basicHealthCheck, livenessCheck, readinessCheck } from './services/health';
 import { websocketHandler } from './routes/websocket';
 
@@ -118,6 +119,7 @@ app.route('/api/v1/chats', chatRoutes);
 app.route('/api/v1/subscriptions', subscriptionRoutes);
 app.route('/api/v1/usage', usageRoutes);
 app.route('/api/v1/llm', llmRoutes);
+app.route('/api/v1', intelligenceRoutes);
 
 app.get('/api/v1', (c) => {
   return c.json({
