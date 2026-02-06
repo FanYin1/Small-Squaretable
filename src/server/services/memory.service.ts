@@ -7,6 +7,7 @@
 import { memoryRepository, type MemoryWithScore } from '../../db/repositories/memory.repository';
 import { embeddingService } from './embedding.service';
 import { llmService } from './llm.service';
+import { getDefaultModel } from '../config/llm.config';
 import type { Message } from '../../db/schema/chats';
 
 export interface MemoryFact {
@@ -19,6 +20,7 @@ export interface MemoryQuery {
   characterId: string;
   userId: string;
   query: string;
+  chatId?: string;  // Optional: filter by chat session for isolation
   limit?: number;
 }
 
@@ -38,16 +40,17 @@ const MEMORY_LIMITS: Record<string, number> = {
 
 export class MemoryService {
   async retrieveMemories(query: MemoryQuery): Promise<ScoredMemory[]> {
-    const { characterId, userId, query: queryText, limit = 10 } = query;
+    const { characterId, userId, query: queryText, chatId, limit = 10 } = query;
 
     // Generate embedding for query
     const embedding = await embeddingService.embed(queryText);
 
-    // Hybrid search
+    // Hybrid search with optional chatId filter for session isolation
     const memories = await memoryRepository.hybridSearch({
       characterId,
       userId,
       embedding,
+      chatId,
       limit,
     });
 
@@ -128,7 +131,7 @@ ${conversationText}
 
     try {
       const response = await llmService.chatCompletion({
-        model: 'gpt-3.5-turbo',
+        model: getDefaultModel() || 'glm-4.5-air',
         messages: [
           { role: 'system', content: 'You are a memory extraction assistant. Output valid JSON only.' },
           { role: 'user', content: prompt },
@@ -164,16 +167,16 @@ ${conversationText}
     await memoryRepository.delete(memoryId);
   }
 
-  async clearAllMemories(characterId: string, userId: string): Promise<void> {
-    await memoryRepository.deleteAllForCharacterUser(characterId, userId);
+  async clearAllMemories(characterId: string, userId: string, chatId?: string): Promise<void> {
+    await memoryRepository.deleteAllForCharacterUser(characterId, userId, chatId);
   }
 
-  async getMemories(characterId: string, userId: string, limit = 100) {
-    return await memoryRepository.findByCharacterAndUser(characterId, userId, limit);
+  async getMemories(characterId: string, userId: string, limit = 100, chatId?: string) {
+    return await memoryRepository.findByCharacterAndUser(characterId, userId, limit, chatId);
   }
 
-  async getMemoryCount(characterId: string, userId: string): Promise<number> {
-    return await memoryRepository.countByCharacterUser(characterId, userId);
+  async getMemoryCount(characterId: string, userId: string, chatId?: string): Promise<number> {
+    return await memoryRepository.countByCharacterUser(characterId, userId, chatId);
   }
 }
 

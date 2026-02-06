@@ -161,6 +161,19 @@ curl http://localhost:3000/api/v1/characters \
 | GET | `/api/v1/chats/:id/messages` | 获取消息列表 |
 | POST | `/api/v1/chats/:id/messages` | 发送消息 |
 
+### 智能角色 API (需要 Token + 租户 ID)
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| GET | `/api/v1/characters/:id/intelligence/memories` | 获取角色记忆 |
+| DELETE | `/api/v1/characters/:id/intelligence/memories` | 清空所有记忆 |
+| DELETE | `/api/v1/characters/:id/intelligence/memories/:memoryId` | 删除单条记忆 |
+| GET | `/api/v1/characters/:id/intelligence/emotion` | 获取当前情感状态 |
+| DELETE | `/api/v1/characters/:id/intelligence/emotion` | 重置情感状态 |
+| POST | `/api/v1/characters/:id/intelligence/extract-memories` | 从聊天提取记忆 |
+| GET | `/api/v1/characters/:id/intelligence/debug` | 获取调试状态 |
+| GET | `/api/v1/characters/:id/intelligence/system-prompt` | 获取系统提示详情 |
+
 ### 订阅 API (需要 Token + 租户 ID)
 
 | 方法 | 端点 | 描述 |
@@ -270,5 +283,5 @@ ws.send(JSON.stringify({ type: 'ping' }));
 
 ---
 
-**状态**: 🟡 后端可用，前端待完善
-**最后更新**: 2026-02-02
+**状态**: 🟢 后端可用，前端已完善
+**最后更新**: 2026-02-06

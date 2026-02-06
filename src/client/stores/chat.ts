@@ -4,6 +4,7 @@ import type { Chat, Message, Character } from '@client/types';
 import { chatApi, ApiError, llmApi, characterApi } from '@client/services';
 import { WebSocketClient } from '@client/services/websocket';
 import { WSConnectionState } from '../../types/websocket';
+import { useCharacterIntelligenceStore } from './characterIntelligence';
 
 export const useChatStore = defineStore('chat', () => {
   // State
@@ -166,6 +167,27 @@ export const useChatStore = defineStore('chat', () => {
       error.value = errorData.message;
       sending.value = false;
       isStreaming.value = false;
+    });
+
+    // Intelligence events - forward to intelligence store
+    wsClient.on('intelligenceEmotionChange', (data: unknown) => {
+      const intelligenceStore = useCharacterIntelligenceStore();
+      intelligenceStore.handleEmotionChange(data as Parameters<typeof intelligenceStore.handleEmotionChange>[0]);
+    });
+
+    wsClient.on('intelligenceMemoryRetrieval', (data: unknown) => {
+      const intelligenceStore = useCharacterIntelligenceStore();
+      intelligenceStore.handleMemoryRetrieval(data as Parameters<typeof intelligenceStore.handleMemoryRetrieval>[0]);
+    });
+
+    wsClient.on('intelligenceMemoryExtraction', (data: unknown) => {
+      const intelligenceStore = useCharacterIntelligenceStore();
+      intelligenceStore.handleMemoryExtraction(data as Parameters<typeof intelligenceStore.handleMemoryExtraction>[0]);
+    });
+
+    wsClient.on('intelligencePromptBuild', (data: unknown) => {
+      const intelligenceStore = useCharacterIntelligenceStore();
+      intelligenceStore.handlePromptBuild(data as Parameters<typeof intelligenceStore.handlePromptBuild>[0]);
     });
 
     wsClient.connect();

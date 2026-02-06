@@ -22,6 +22,12 @@ export enum WSMessageType {
   ERROR = 'error',
   PONG = 'pong',
   CONNECTED = 'connected',
+
+  // Intelligence events
+  INTELLIGENCE_EMOTION_CHANGE = 'intelligence:emotion_change',
+  INTELLIGENCE_MEMORY_RETRIEVAL = 'intelligence:memory_retrieval',
+  INTELLIGENCE_MEMORY_EXTRACTION = 'intelligence:memory_extraction',
+  INTELLIGENCE_PROMPT_BUILD = 'intelligence:prompt_build',
 }
 
 /**
@@ -161,7 +167,11 @@ export type WSMessageUnion =
   | WSErrorMessage
   | WSPingMessage
   | WSPongMessage
-  | WSConnectedMessage;
+  | WSConnectedMessage
+  | WSEmotionChangeEvent
+  | WSMemoryRetrievalEvent
+  | WSMemoryExtractionEvent
+  | WSPromptBuildEvent;
 
 /**
  * WebSocket 客户端配置
@@ -208,4 +218,57 @@ export interface WSClientInfo {
   chatId?: string;
   connectedAt: Date;
   lastHeartbeat: Date;
+}
+
+/**
+ * Intelligence: Emotion Change Event
+ */
+export interface WSEmotionChangeEvent extends WSMessage {
+  type: WSMessageType.INTELLIGENCE_EMOTION_CHANGE;
+  data: {
+    chatId: string;
+    characterId: string;
+    previous: { valence: number; arousal: number; label: string } | null;
+    current: { valence: number; arousal: number; label: string };
+    trigger: string;
+  };
+}
+
+/**
+ * Intelligence: Memory Retrieval Event
+ */
+export interface WSMemoryRetrievalEvent extends WSMessage {
+  type: WSMessageType.INTELLIGENCE_MEMORY_RETRIEVAL;
+  data: {
+    chatId: string;
+    query: string;
+    results: Array<{ id: string; content: string; score: number }>;
+    latencyMs: number;
+  };
+}
+
+/**
+ * Intelligence: Memory Extraction Event
+ */
+export interface WSMemoryExtractionEvent extends WSMessage {
+  type: WSMessageType.INTELLIGENCE_MEMORY_EXTRACTION;
+  data: {
+    chatId: string;
+    extracted: Array<{ type: string; content: string; importance: number }>;
+    messageCount: number;
+  };
+}
+
+/**
+ * Intelligence: Prompt Build Event
+ */
+export interface WSPromptBuildEvent extends WSMessage {
+  type: WSMessageType.INTELLIGENCE_PROMPT_BUILD;
+  data: {
+    chatId: string;
+    tokenCount: number;
+    memoriesIncluded: number;
+    emotionIncluded: boolean;
+    latencyMs: number;
+  };
 }

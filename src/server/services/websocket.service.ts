@@ -7,6 +7,7 @@
 import type { WebSocket } from 'ws';
 import { nanoid } from 'nanoid';
 import type { WSClientInfo, WSMessageUnion } from '../../types/websocket';
+import { WSMessageType } from '../../types/websocket';
 
 export class WebSocketService {
   private clients: Map<string, { ws: WebSocket; info: WSClientInfo }> = new Map();
@@ -197,6 +198,71 @@ export class WebSocketService {
     }
     this.clients.clear();
     this.chatRooms.clear();
+  }
+
+  /**
+   * 发送情感变化事件
+   */
+  emitEmotionChange(
+    chatId: string,
+    characterId: string,
+    previous: { valence: number; arousal: number; label: string } | null,
+    current: { valence: number; arousal: number; label: string },
+    trigger: string
+  ): void {
+    this.broadcastToChat(chatId, {
+      type: WSMessageType.INTELLIGENCE_EMOTION_CHANGE,
+      timestamp: new Date().toISOString(),
+      data: { chatId, characterId, previous, current, trigger },
+    });
+  }
+
+  /**
+   * 发送记忆检索事件
+   */
+  emitMemoryRetrieval(
+    chatId: string,
+    query: string,
+    results: Array<{ id: string; content: string; score: number }>,
+    latencyMs: number
+  ): void {
+    this.broadcastToChat(chatId, {
+      type: WSMessageType.INTELLIGENCE_MEMORY_RETRIEVAL,
+      timestamp: new Date().toISOString(),
+      data: { chatId, query, results, latencyMs },
+    });
+  }
+
+  /**
+   * 发送记忆提取事件
+   */
+  emitMemoryExtraction(
+    chatId: string,
+    extracted: Array<{ type: string; content: string; importance: number }>,
+    messageCount: number
+  ): void {
+    this.broadcastToChat(chatId, {
+      type: WSMessageType.INTELLIGENCE_MEMORY_EXTRACTION,
+      timestamp: new Date().toISOString(),
+      data: { chatId, extracted, messageCount },
+    });
+  }
+
+  /**
+   * 发送提示构建事件
+   */
+  emitPromptBuild(
+    chatId: string,
+    tokenCount: number,
+    memoriesIncluded: number,
+    emotionIncluded: boolean,
+    latencyMs: number
+  ): void {
+    this.broadcastToChat(chatId, {
+      type: WSMessageType.INTELLIGENCE_PROMPT_BUILD,
+      timestamp: new Date().toISOString(),
+      data: { chatId, tokenCount, memoriesIncluded, emotionIncluded, latencyMs },
+    });
   }
 }
 

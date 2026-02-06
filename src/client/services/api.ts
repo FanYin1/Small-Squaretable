@@ -351,43 +351,73 @@ export const api = {
  * 默认错误拦截器：处理 401 未授权错误和 403 CSRF 错误
  */
 let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+function subscribeTokenRefresh(callback: (token: string) => void) {
+  refreshSubscribers.push(callback);
+}
+
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach(callback => callback(token));
+  refreshSubscribers = [];
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return null;
+
+  try {
+    const response = await fetch('/api/v1/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.data?.tokens) {
+        const newToken = data.data.tokens.accessToken;
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('refreshToken', data.data.tokens.refreshToken);
+        console.log('Token refreshed successfully');
+        return newToken;
+      }
+    }
+  } catch (refreshError) {
+    console.error('Failed to refresh token:', refreshError);
+  }
+  return null;
+}
 
 api.addErrorInterceptor(async (error: ApiError) => {
   if (error.status === 401) {
-    // 尝试刷新 token
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (refreshToken && !isRefreshing) {
+    if (!isRefreshing) {
       isRefreshing = true;
-      try {
-        const response = await fetch('/api/v1/auth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data?.tokens) {
-            localStorage.setItem('token', data.data.tokens.accessToken);
-            localStorage.setItem('refreshToken', data.data.tokens.refreshToken);
-            console.log('Token refreshed successfully');
-            isRefreshing = false;
-            // 提示用户重试操作
-            console.warn('Token refreshed, please retry the operation');
-            return;
-          }
-        }
-      } catch (refreshError) {
-        console.error('Failed to refresh token:', refreshError);
-      }
+      const newToken = await refreshAccessToken();
       isRefreshing = false;
+
+      if (newToken) {
+        onTokenRefreshed(newToken);
+        // Token refreshed - the request will need to be retried by the caller
+        console.warn('Token refreshed, please retry the operation');
+        return;
+      }
+    } else {
+      // Wait for the refresh to complete
+      return new Promise<void>((resolve) => {
+        subscribeTokenRefresh(() => {
+          resolve();
+        });
+      });
     }
 
-    // 刷新失败，清除认证信息
+    // Refresh failed, clear auth
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     csrfTokenManager.clearToken();
     console.warn('Unauthorized access, please login again');
+    // Redirect to login page
+    window.location.href = '/login';
   }
 
   if (error.status === 403) {

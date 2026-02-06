@@ -100,75 +100,94 @@ class IntelligenceDebugService {
   }
 
   // Record retrieval event
-  recordRetrieval(chatId: string, query: string, results: MemoryRetrievalResult[], latencyMs: number) {
-    const data = this.getOrCreateDebugData(chatId);
-    data.lastRetrieval = {
-      query,
-      results,
+  recordRetrieval(
+    characterId: string,
+    userId: string,
+    chatId: string | undefined,
+    data: {
+      query: string;
+      results: MemoryRetrievalResult[];
+      latencyMs: number;
+    }
+  ) {
+    const key = chatId || `${characterId}-${userId}`;
+    const debugData = this.getOrCreateDebugData(key);
+    debugData.lastRetrieval = {
+      query: data.query,
+      results: data.results,
       timestamp: new Date().toISOString(),
-      latencyMs,
+      latencyMs: data.latencyMs,
     };
   }
 
   // Record performance metric
-  recordLatency(chatId: string, metric: keyof DebugPerformanceMetrics, value: number) {
-    const data = this.getOrCreateDebugData(chatId);
+  recordLatency(
+    characterId: string,
+    userId: string,
+    chatId: string | undefined,
+    metric: keyof DebugPerformanceMetrics,
+    value: number
+  ) {
+    const key = chatId || `${characterId}-${userId}`;
+    const data = this.getOrCreateDebugData(key);
     data.performance[metric] = value;
   }
 
   // Increment message counter
-  incrementMessageCounter(chatId: string): number {
-    const data = this.getOrCreateDebugData(chatId);
+  incrementMessageCounter(characterId: string, userId: string, chatId: string | undefined): number {
+    const key = chatId || `${characterId}-${userId}`;
+    const data = this.getOrCreateDebugData(key);
     data.messageCounter++;
     return data.messageCounter;
   }
 
   // Reset message counter after extraction
-  resetMessageCounter(chatId: string) {
-    const data = this.getOrCreateDebugData(chatId);
+  resetMessageCounter(characterId: string, userId: string, chatId: string | undefined) {
+    const key = chatId || `${characterId}-${userId}`;
+    const data = this.getOrCreateDebugData(key);
     data.messageCounter = 0;
     data.lastExtractedAt = new Date().toISOString();
   }
 
   // Get full debug state
-  async getDebugState(
-    chatId: string,
+  getDebugState(
     characterId: string,
-    userId: string
-  ): Promise<IntelligenceDebugState> {
-    const data = this.getOrCreateDebugData(chatId);
-
-    // Get current emotion
-    const emotion = await emotionService.getCurrentEmotion(characterId, userId, chatId);
-
-    // Get memory stats
-    const memories = await memoryRepository.findByCharacterAndUser(characterId, userId, 1000);
-    const byType: Record<string, number> = { fact: 0, preference: 0, relationship: 0, event: 0 };
-    for (const mem of memories) {
-      byType[mem.type] = (byType[mem.type] || 0) + 1;
-    }
+    userId: string,
+    chatId: string | undefined
+  ): {
+    lastRetrieval: LastRetrieval | null;
+    performance: DebugPerformanceMetrics;
+    messageCounter: number;
+    extractionThreshold: number;
+    memoryStats: { lastExtractedAt: string | null };
+  } {
+    const key = chatId || `${characterId}-${userId}`;
+    const data = this.getOrCreateDebugData(key);
 
     return {
-      currentEmotion: emotion ? {
-        valence: emotion.valence,
-        arousal: emotion.arousal,
-        label: emotion.label,
-        updatedAt: new Date().toISOString(),
-      } : null,
-      memoryStats: {
-        total: memories.length,
-        byType,
-        lastExtractedAt: data.lastExtractedAt,
-      },
       lastRetrieval: data.lastRetrieval,
       performance: data.performance,
       messageCounter: data.messageCounter,
-      extractionThreshold: 10,
+      extractionThreshold: 1,
+      memoryStats: {
+        lastExtractedAt: data.lastExtractedAt,
+      },
     };
   }
 
   // Get system prompt details
   async getSystemPromptDetails(
+    characterId: string,
+    userId: string,
+    chatId: string | undefined
+  ): Promise<SystemPromptDetails | null> {
+    // This method needs a character to work with
+    // Return null if we can't build the prompt
+    return null;
+  }
+
+  // Get system prompt details with character
+  async getSystemPromptDetailsWithCharacter(
     character: Character,
     characterId: string,
     userId: string,
@@ -187,12 +206,13 @@ class IntelligenceDebugService {
     if (cardData.system_prompt) characterBaseParts.push(cardData.system_prompt);
     const characterBase = characterBaseParts.join('\n');
 
-    // Memories section
+    // Memories section (session-isolated)
     let memoriesSection: string | null = null;
     const memories = await memoryService.retrieveMemories({
       characterId,
       userId,
       query: userMessage,
+      chatId,  // Filter by chat session for isolation
       limit: 5,
     });
 

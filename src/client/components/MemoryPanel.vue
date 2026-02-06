@@ -78,6 +78,7 @@ import type { MemoryType } from '../../types/intelligence';
 
 const props = defineProps<{
   characterId: string;
+  chatId?: string;
 }>();
 
 const store = useCharacterIntelligenceStore();
@@ -115,7 +116,7 @@ function formatImportance(importance: number | string | null): string {
 
 async function handleDelete(memoryId: string) {
   try {
-    await store.deleteMemory(props.characterId, memoryId);
+    await store.deleteMemory(props.characterId, memoryId, props.chatId);
     showSuccess('记忆已删除');
   } catch (e) {
     showError('删除失败');
@@ -124,7 +125,7 @@ async function handleDelete(memoryId: string) {
 
 async function handleClearAll() {
   try {
-    await store.clearAllMemories(props.characterId);
+    await store.clearAllMemories(props.characterId, props.chatId);
     showSuccess('所有记忆已清除');
   } catch (e) {
     showError('清除失败');

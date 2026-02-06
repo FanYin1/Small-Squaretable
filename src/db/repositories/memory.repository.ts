@@ -17,6 +17,7 @@ export interface HybridSearchParams {
   characterId: string;
   userId: string;
   embedding: number[];
+  chatId?: string;  // Optional: filter by chat session
   limit?: number;
 }
 
@@ -43,26 +44,36 @@ class MemoryRepository {
   async findByCharacterAndUser(
     characterId: string,
     userId: string,
-    limit = 100
+    limit = 100,
+    chatId?: string
   ): Promise<CharacterMemory[]> {
+    const conditions = [
+      eq(characterMemories.characterId, characterId),
+      eq(characterMemories.userId, userId),
+    ];
+
+    if (chatId) {
+      conditions.push(eq(characterMemories.sourceChatId, chatId));
+    }
+
     return await db
       .select()
       .from(characterMemories)
-      .where(
-        and(
-          eq(characterMemories.characterId, characterId),
-          eq(characterMemories.userId, userId)
-        )
-      )
+      .where(and(...conditions))
       .orderBy(desc(characterMemories.lastAccessed))
       .limit(limit);
   }
 
   async hybridSearch(params: HybridSearchParams): Promise<MemoryWithScore[]> {
-    const { characterId, userId, embedding, limit = 10 } = params;
+    const { characterId, userId, embedding, chatId, limit = 10 } = params;
     const embeddingStr = `[${embedding.join(',')}]`;
 
     // Hybrid scoring: 0.5 * similarity + 0.3 * importance + 0.2 * recency
+    // If chatId is provided, filter by source_chat_id for session isolation
+    const chatFilter = chatId
+      ? sql`AND m.source_chat_id = ${chatId}::uuid`
+      : sql``;
+
     const result = await db.execute(sql`
       SELECT
         m.*,
@@ -75,6 +86,7 @@ class MemoryRepository {
       JOIN character_memory_vectors v ON v.memory_id = m.id
       WHERE m.character_id = ${characterId}::uuid
         AND m.user_id = ${userId}::uuid
+        ${chatFilter}
       ORDER BY score DESC
       LIMIT ${limit}
     `);
@@ -96,27 +108,35 @@ class MemoryRepository {
     await db.delete(characterMemories).where(eq(characterMemories.id, memoryId));
   }
 
-  async deleteAllForCharacterUser(characterId: string, userId: string): Promise<void> {
+  async deleteAllForCharacterUser(characterId: string, userId: string, chatId?: string): Promise<void> {
+    const conditions = [
+      eq(characterMemories.characterId, characterId),
+      eq(characterMemories.userId, userId),
+    ];
+
+    if (chatId) {
+      conditions.push(eq(characterMemories.sourceChatId, chatId));
+    }
+
     await db
       .delete(characterMemories)
-      .where(
-        and(
-          eq(characterMemories.characterId, characterId),
-          eq(characterMemories.userId, userId)
-        )
-      );
+      .where(and(...conditions));
   }
 
-  async countByCharacterUser(characterId: string, userId: string): Promise<number> {
+  async countByCharacterUser(characterId: string, userId: string, chatId?: string): Promise<number> {
+    const conditions = [
+      eq(characterMemories.characterId, characterId),
+      eq(characterMemories.userId, userId),
+    ];
+
+    if (chatId) {
+      conditions.push(eq(characterMemories.sourceChatId, chatId));
+    }
+
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(characterMemories)
-      .where(
-        and(
-          eq(characterMemories.characterId, characterId),
-          eq(characterMemories.userId, userId)
-        )
-      );
+      .where(and(...conditions));
     return Number(result[0]?.count ?? 0);
   }
 }

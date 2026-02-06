@@ -7,7 +7,7 @@
 import * as jose from 'jose';
 import { config } from './config';
 
-const ACCESS_TOKEN_EXPIRY = '15m';
+const ACCESS_TOKEN_EXPIRY = '6h';
 const REFRESH_TOKEN_EXPIRY = '7d';
 
 export interface AccessTokenPayload {

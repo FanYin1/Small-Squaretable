@@ -9,7 +9,10 @@ import type { Server } from 'http';
 import { verifyAccessToken } from '../../core/jwt';
 import { websocketService } from '../services/websocket.service';
 import { llmService } from '../services/llm.service';
+import { getDefaultModel } from '../config/llm.config';
 import { chatService } from '../services/chat.service';
+import { chatRepository } from '../../db/repositories/chat.repository';
+import { characterRepository } from '../../db/repositories/character.repository';
 import {
   WSMessageType,
   type WSMessageUnion,
@@ -17,6 +20,10 @@ import {
   type WSChatControlMessage,
   type WSPingMessage,
   type WSTypingMessage,
+  type WSEmotionChangeEvent,
+  type WSMemoryRetrievalEvent,
+  type WSMemoryExtractionEvent,
+  type WSPromptBuildEvent,
 } from '../../types/websocket';
 import { nanoid } from 'nanoid';
 
@@ -45,6 +52,7 @@ export class WebSocketHandler {
    * 处理新连接
    */
   private async handleConnection(ws: WebSocket, request: { url: string; headers: { host: string } }): Promise<void> {
+    console.log('[WebSocket] New connection attempt from:', request.headers.host);
     const url = new URL(request.url, `http://${request.headers.host}`);
     const token = url.searchParams.get('token');
 
@@ -99,9 +107,11 @@ export class WebSocketHandler {
   private async handleMessage(clientId: string, data: Buffer): Promise<void> {
     try {
       const message: WSMessageUnion = JSON.parse(data.toString());
+      console.log('[WebSocket] Received message type:', message.type);
 
       switch (message.type) {
         case WSMessageType.USER_MESSAGE:
+          console.log('[WebSocket] Processing USER_MESSAGE');
           await this.handleUserMessage(clientId, message as WSUserMessage);
           break;
 
@@ -134,10 +144,15 @@ export class WebSocketHandler {
    * 处理用户消息
    */
   private async handleUserMessage(clientId: string, message: WSUserMessage): Promise<void> {
+    console.log('[WebSocket] handleUserMessage called');
     const clientInfo = websocketService.getClientInfo(clientId);
-    if (!clientInfo) return;
+    if (!clientInfo) {
+      console.log('[WebSocket] No client info found');
+      return;
+    }
 
     const { chatId, content } = message.data;
+    console.log('[WebSocket] Processing message for chat:', chatId, 'content:', content.substring(0, 50));
 
     try {
       // 保存用户消息到数据库
@@ -157,17 +172,56 @@ export class WebSocketHandler {
         },
       });
 
+      // 获取聊天和角色信息
+      const chat = await chatRepository.findById(chatId);
+      if (!chat) {
+        throw new Error('Chat not found');
+      }
+
+      const character = chat.characterId
+        ? await characterRepository.findById(chat.characterId)
+        : null;
+
       // 获取聊天上下文
       const messages = await chatService.getMessages(chatId);
+
+      // 构建消息数组，包含智能系统增强的 system prompt
+      const llmMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+
+      if (character) {
+        // 使用智能系统构建增强的 system prompt
+        const enhancedPrompt = await chatService.buildEnhancedSystemPrompt({
+          character,
+          characterId: character.id,
+          userId: clientInfo.userId,
+          chatId,
+          userMessage: content,
+        });
+        llmMessages.push({ role: 'system', content: enhancedPrompt });
+
+        // 更新情感状态
+        await chatService.updateEmotionFromMessage(
+          character.id,
+          clientInfo.userId,
+          chatId,
+          content,
+          userMessage.id
+        );
+      }
+
+      // 添加历史消息
+      for (const m of messages) {
+        llmMessages.push({
+          role: m.role as 'user' | 'assistant' | 'system',
+          content: m.content,
+        });
+      }
 
       // 调用 LLM 生成回复（流式）
       const assistantMessageId = nanoid();
       const response = await llmService.streamChatCompletion({
-        messages: messages.map((m) => ({
-          role: m.role as 'user' | 'assistant' | 'system',
-          content: m.content,
-        })),
-        model: 'gpt-3.5-turbo',
+        messages: llmMessages,
+        model: getDefaultModel() || 'glm-4.5-air',
         temperature: 0.7,
         n: 1,
         stream: true,
@@ -237,6 +291,26 @@ export class WebSocketHandler {
           messageId: assistantMessage.id.toString(),
         },
       });
+
+      // 智能系统: 提取记忆 (每 5 条消息)
+      if (character) {
+        const allMessages = await chatService.getMessages(chatId);
+        await chatService.checkAndExtractMemories(
+          chatId,
+          character.id,
+          clientInfo.userId,
+          allMessages
+        );
+
+        // 更新情感状态 (基于助手回复)
+        await chatService.updateEmotionFromMessage(
+          character.id,
+          clientInfo.userId,
+          chatId,
+          fullContent,
+          assistantMessage.id
+        );
+      }
     } catch (error) {
       console.error('Error handling user message:', error);
       websocketService.sendToClient(clientId, {
@@ -334,6 +408,130 @@ export class WebSocketHandler {
         console.log(`Cleaned up ${cleaned} stale connections`);
       }
     }, 30000); // 每 30 秒检查一次
+  }
+
+  /**
+   * 发送情感变化事件
+   */
+  emitEmotionChange(
+    ws: WebSocket,
+    data: WSEmotionChangeEvent['data']
+  ): void {
+    this.sendMessage(ws, {
+      type: WSMessageType.INTELLIGENCE_EMOTION_CHANGE,
+      timestamp: new Date().toISOString(),
+      data,
+    });
+  }
+
+  /**
+   * 发送记忆检索事件
+   */
+  emitMemoryRetrieval(
+    ws: WebSocket,
+    data: WSMemoryRetrievalEvent['data']
+  ): void {
+    this.sendMessage(ws, {
+      type: WSMessageType.INTELLIGENCE_MEMORY_RETRIEVAL,
+      timestamp: new Date().toISOString(),
+      data,
+    });
+  }
+
+  /**
+   * 发送记忆提取事件
+   */
+  emitMemoryExtraction(
+    ws: WebSocket,
+    data: WSMemoryExtractionEvent['data']
+  ): void {
+    this.sendMessage(ws, {
+      type: WSMessageType.INTELLIGENCE_MEMORY_EXTRACTION,
+      timestamp: new Date().toISOString(),
+      data,
+    });
+  }
+
+  /**
+   * 发送提示词构建事件
+   */
+  emitPromptBuild(
+    ws: WebSocket,
+    data: WSPromptBuildEvent['data']
+  ): void {
+    this.sendMessage(ws, {
+      type: WSMessageType.INTELLIGENCE_PROMPT_BUILD,
+      timestamp: new Date().toISOString(),
+      data,
+    });
+  }
+
+  /**
+   * 广播情感变化事件到聊天室
+   */
+  broadcastEmotionChange(
+    chatId: string,
+    data: Omit<WSEmotionChangeEvent['data'], 'chatId'>
+  ): void {
+    websocketService.broadcastToChat(chatId, {
+      type: WSMessageType.INTELLIGENCE_EMOTION_CHANGE,
+      timestamp: new Date().toISOString(),
+      data: {
+        ...data,
+        chatId,
+      },
+    });
+  }
+
+  /**
+   * 广播记忆检索事件到聊天室
+   */
+  broadcastMemoryRetrieval(
+    chatId: string,
+    data: Omit<WSMemoryRetrievalEvent['data'], 'chatId'>
+  ): void {
+    websocketService.broadcastToChat(chatId, {
+      type: WSMessageType.INTELLIGENCE_MEMORY_RETRIEVAL,
+      timestamp: new Date().toISOString(),
+      data: {
+        ...data,
+        chatId,
+      },
+    });
+  }
+
+  /**
+   * 广播记忆提取事件到聊天室
+   */
+  broadcastMemoryExtraction(
+    chatId: string,
+    data: Omit<WSMemoryExtractionEvent['data'], 'chatId'>
+  ): void {
+    websocketService.broadcastToChat(chatId, {
+      type: WSMessageType.INTELLIGENCE_MEMORY_EXTRACTION,
+      timestamp: new Date().toISOString(),
+      data: {
+        ...data,
+        chatId,
+      },
+    });
+  }
+
+  /**
+   * 广播提示词构建事件到聊天室
+   */
+  broadcastPromptBuild(
+    chatId: string,
+    data: Omit<WSPromptBuildEvent['data'], 'chatId'>
+  ): void {
+    websocketService.broadcastToChat(chatId, {
+      type: WSMessageType.INTELLIGENCE_PROMPT_BUILD,
+      timestamp: new Date().toISOString(),
+      data: {
+        ...data,
+        chatId,
+      },
+    });
   }
 
   /**

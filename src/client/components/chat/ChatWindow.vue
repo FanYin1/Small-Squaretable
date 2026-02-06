@@ -11,6 +11,37 @@
         </div>
       </div>
       <div class="chat-actions">
+        <div class="chat-intelligence-toggles">
+          <el-tooltip content="情感状态" placement="bottom">
+            <el-button
+              :type="showEmotionPanel ? 'primary' : 'default'"
+              :icon="Sunny"
+              circle
+              size="small"
+              @click="showEmotionPanel = !showEmotionPanel"
+            />
+          </el-tooltip>
+          <el-tooltip content="角色记忆" placement="bottom">
+            <el-button
+              :type="showMemoryPanel ? 'primary' : 'default'"
+              :icon="Collection"
+              circle
+              size="small"
+              @click="showMemoryPanel = !showMemoryPanel"
+            />
+          </el-tooltip>
+          <el-tooltip content="智能系统调试" placement="bottom">
+            <el-badge :value="intelligenceStore.debugEventCount" :hidden="intelligenceStore.debugEventCount === 0" :max="99">
+              <el-button
+                :type="showDebugPanel ? 'primary' : 'default'"
+                :icon="DataAnalysis"
+                circle
+                size="small"
+                @click="toggleDebugPanel"
+              />
+            </el-badge>
+          </el-tooltip>
+        </div>
         <el-button link :icon="More" @click="showMenu" />
       </div>
     </div>
@@ -57,16 +88,46 @@
         @send="handleSendMessage"
       />
     </div>
+
+    <!-- Intelligence Panels -->
+    <Transition name="slide">
+      <div v-if="showEmotionPanel" class="chat-emotion-panel">
+        <EmotionIndicator />
+      </div>
+    </Transition>
+
+    <Transition name="slide">
+      <div v-if="showMemoryPanel && currentChat?.characterId" class="chat-memory-panel">
+        <MemoryPanel
+          :character-id="currentChat.characterId"
+          :chat-id="currentChat.id"
+        />
+      </div>
+    </Transition>
+
+    <!-- Intelligence Debug Panel -->
+    <Transition name="slide-up">
+      <div v-if="showDebugPanel" class="chat-debug-panel">
+        <IntelligenceDebugPanel
+          :chat-id="currentChat?.id"
+          :character-id="currentChat?.characterId"
+        />
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
-import { More } from '@element-plus/icons-vue';
+import { More, Sunny, Collection, DataAnalysis } from '@element-plus/icons-vue';
 import { marked } from 'marked';
 import { useChatStore } from '@client/stores/chat';
+import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
 import MessageBubble from './MessageBubble.vue';
 import MessageInput from './MessageInput.vue';
+import EmotionIndicator from '@client/components/EmotionIndicator.vue';
+import MemoryPanel from '@client/components/MemoryPanel.vue';
+import IntelligenceDebugPanel from '@client/components/debug/IntelligenceDebugPanel.vue';
 import type { Chat } from '@client/types';
 
 interface Props {
@@ -76,8 +137,14 @@ interface Props {
 const props = defineProps<Props>();
 
 const chatStore = useChatStore();
+const intelligenceStore = useCharacterIntelligenceStore();
 const messagesContainer = ref<HTMLElement | null>(null);
 const messagesEnd = ref<HTMLElement | null>(null);
+
+// Panel visibility state
+const showEmotionPanel = ref(false);
+const showMemoryPanel = ref(false);
+const showDebugPanel = ref(false);
 
 const messages = computed(() => chatStore.messages);
 const loading = computed(() => chatStore.loading);
@@ -98,11 +165,16 @@ const renderedStreamingContent = computed(() => {
 
 const scrollToBottom = (smooth = true) => {
   nextTick(() => {
-    if (messagesEnd.value) {
-      messagesEnd.value.scrollIntoView({
-        behavior: smooth ? 'smooth' : 'auto',
-        block: 'end',
-      });
+    if (messagesContainer.value) {
+      const container = messagesContainer.value;
+      if (smooth) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth',
+        });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
     }
   });
 };
@@ -121,6 +193,28 @@ const showMenu = () => {
   console.log('Show chat menu');
 };
 
+const toggleDebugPanel = () => {
+  showDebugPanel.value = !showDebugPanel.value;
+  if (showDebugPanel.value) {
+    intelligenceStore.resetDebugEventCount();
+  }
+};
+
+// Watch for chat changes to fetch intelligence data
+watch(() => props.currentChat, async (newChat, oldChat) => {
+  if (newChat && newChat.characterId) {
+    // Fetch memories and emotion for the new chat session
+    try {
+      await intelligenceStore.fetchMemories(newChat.characterId, newChat.id);
+      await intelligenceStore.fetchEmotion(newChat.characterId, newChat.id);
+    } catch (error) {
+      console.error('Failed to fetch intelligence data:', error);
+    }
+  }
+  // Scroll to bottom when chat changes
+  scrollToBottom(false);
+}, { immediate: true });
+
 // Watch for new messages and scroll to bottom
 watch(messages, () => {
   scrollToBottom();
@@ -129,11 +223,6 @@ watch(messages, () => {
 // Watch for streaming updates
 watch(streamingMessage, () => {
   scrollToBottom();
-});
-
-// Scroll to bottom when chat changes
-watch(() => props.currentChat, () => {
-  scrollToBottom(false);
 });
 
 // Auto-scroll on mount
@@ -194,6 +283,76 @@ onUnmounted(() => {
 .chat-subtitle {
   font-size: 14px;
   color: var(--el-text-color-secondary);
+}
+
+.chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-intelligence-toggles {
+  display: flex;
+  gap: 4px;
+}
+
+/* Intelligence Panels */
+.chat-emotion-panel,
+.chat-memory-panel {
+  position: absolute;
+  right: 16px;
+  top: 70px;
+  z-index: 100;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.chat-emotion-panel {
+  width: 200px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.chat-memory-panel {
+  top: 70px;
+  width: 300px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+.chat-debug-panel {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  width: calc(100% - 32px);
+  max-width: 800px;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
 }
 
 .chat-messages {

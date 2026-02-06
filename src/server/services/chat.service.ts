@@ -13,6 +13,8 @@ import type { Chat, Message } from '../../db/schema/chats';
 import type { MessagePagination } from '../../db/repositories/message.repository';
 import { memoryService } from './memory.service';
 import { emotionService } from './emotion.service';
+import { websocketService } from './websocket.service';
+import { intelligenceDebugService } from './intelligence-debug.service';
 import type { Character } from '../../db/schema/characters';
 
 export interface EnhancedPromptParams {
@@ -119,6 +121,8 @@ export class ChatService {
    */
   async buildEnhancedSystemPrompt(params: EnhancedPromptParams): Promise<string> {
     const { character, characterId, userId, chatId, userMessage } = params;
+    console.log('[Intelligence] Building enhanced prompt for chat:', chatId, 'character:', characterId);
+    const promptStartTime = Date.now();
     const parts: string[] = [];
 
     // Base character prompt
@@ -137,13 +141,42 @@ export class ChatService {
       parts.push(cardData.system_prompt);
     }
 
-    // Retrieve relevant memories
+    // Retrieve relevant memories with timing (session-isolated)
+    const retrievalStartTime = Date.now();
+    console.log('[Intelligence] Retrieving memories for query:', userMessage.substring(0, 50));
     const memories = await memoryService.retrieveMemories({
       characterId,
       userId,
       query: userMessage,
+      chatId,  // Filter by chat session for isolation
       limit: 5,
     });
+    const retrievalLatency = Date.now() - retrievalStartTime;
+    console.log('[Intelligence] Retrieved', memories.length, 'memories in', retrievalLatency, 'ms');
+
+    // Record retrieval for debug
+    intelligenceDebugService.recordRetrieval(characterId, userId, chatId, {
+      query: userMessage,
+      results: memories.map((m) => ({
+        id: m.id,
+        content: m.content,
+        type: m.type,
+        score: m.score ?? 0,
+        similarity: m.score ?? 0, // Use score as similarity proxy
+        importance: 0.5, // Default importance
+        recency: 0.5, // Default recency
+      })),
+      latencyMs: retrievalLatency,
+    });
+    intelligenceDebugService.recordLatency(characterId, userId, chatId, 'retrievalLatency', retrievalLatency);
+
+    // Emit WebSocket event for memory retrieval
+    websocketService.emitMemoryRetrieval(
+      chatId,
+      userMessage,
+      memories.map((m) => ({ id: m.id, content: m.content, score: m.score ?? 0 })),
+      retrievalLatency
+    );
 
     if (memories.length > 0) {
       parts.push('\n## 关于用户的记忆');
@@ -188,7 +221,22 @@ export class ChatService {
     parts.push('- 可以主动提及相关记忆，但不要生硬');
     parts.push('Stay in character at all times.');
 
-    return parts.join('\n');
+    const fullPrompt = parts.join('\n');
+    const promptBuildLatency = Date.now() - promptStartTime;
+
+    // Record prompt build latency
+    intelligenceDebugService.recordLatency(characterId, userId, chatId, 'promptBuildLatency', promptBuildLatency);
+
+    // Emit WebSocket event for prompt build
+    websocketService.emitPromptBuild(
+      chatId,
+      fullPrompt.length, // Approximate token count (chars as proxy)
+      memories.length,
+      !!emotion,
+      promptBuildLatency
+    );
+
+    return fullPrompt;
   }
 
   /**
@@ -204,14 +252,26 @@ export class ChatService {
     const count = (this.messageCounters.get(key) ?? 0) + 1;
     this.messageCounters.set(key, count);
 
-    // Extract memories every 10 messages
-    if (count >= 10) {
+    // Update message counter in debug service
+    intelligenceDebugService.incrementMessageCounter(characterId, userId, chatId);
+
+    // Extract memories every 1 message (immediate extraction)
+    if (count >= 1) {
       this.messageCounters.set(key, 0);
-      const recentMessages = messages.slice(-10);
+      const recentMessages = messages.slice(-2); // Get last 2 messages (user + assistant)
       const extracted = await memoryService.extractMemories(characterId, userId, recentMessages);
 
       for (const memory of extracted) {
         await memoryService.storeMemory(characterId, userId, memory, chatId);
+      }
+
+      // Emit WebSocket event for memory extraction
+      if (extracted.length > 0) {
+        websocketService.emitMemoryExtraction(
+          chatId,
+          extracted.map((m) => ({ type: m.type, content: m.content, importance: m.importance })),
+          count
+        );
       }
     }
   }
@@ -226,13 +286,34 @@ export class ChatService {
     messageContent: string,
     messageId?: number
   ): Promise<void> {
-    await emotionService.analyzeAndUpdate({
+    console.log('[Intelligence] Updating emotion for chat:', chatId, 'message:', messageContent.substring(0, 50));
+    // Get previous emotion state
+    const previousEmotion = await emotionService.getCurrentEmotion(characterId, userId, chatId);
+
+    // Analyze and update emotion
+    const result = await emotionService.analyzeAndUpdate({
       characterId,
       userId,
       chatId,
       text: messageContent,
       messageId,
     });
+
+    // Record emotion analysis latency
+    intelligenceDebugService.recordLatency(characterId, userId, chatId, 'emotionAnalysisLatency', 0);
+
+    // Emit WebSocket event for emotion change
+    if (result) {
+      websocketService.emitEmotionChange(
+        chatId,
+        characterId,
+        previousEmotion
+          ? { valence: previousEmotion.valence, arousal: previousEmotion.arousal, label: previousEmotion.label }
+          : null,
+        { valence: result.valence, arousal: result.arousal, label: result.label },
+        messageContent.substring(0, 100)
+      );
+    }
   }
 }
 

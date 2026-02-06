@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "tsx watch src/server/index.ts",
     "dev:client": "vite",
+    "dev:ml": "cd ml-service && npm start",
+    "dev:all": "npm run dev:ml & npm run dev & npm run dev:client",
     "build": "tsc && vite build",
     "build:client": "vite build",
     "start": "NODE_ENV=production tsx src/server/index.ts",

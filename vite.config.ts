@@ -64,9 +64,21 @@ export default defineConfig(async () => {
     },
     server: {
       port: 5173,
+      hmr: {
+        overlay: false,
+        clientPort: 5173,
+      },
+      watch: {
+        usePolling: false,
+      },
       proxy: {
         '/api': {
           target: 'http://localhost:3000',
+          changeOrigin: true,
+        },
+        '/ws': {
+          target: 'ws://localhost:3000',
+          ws: true,
           changeOrigin: true,
         },
       },

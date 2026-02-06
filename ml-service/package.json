@@ -1,0 +1,18 @@
+{
+  "name": "ml-service",
+  "version": "1.0.0",
+  "description": "Local ML microservice for embedding and sentiment analysis",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@xenova/transformers": "^2.17.0",
+    "global-agent": "^4.1.2",
+    "https-proxy-agent": "^7.0.6",
+    "node-fetch": "^3.3.2",
+    "undici": "^7.20.0"
+  }
+}

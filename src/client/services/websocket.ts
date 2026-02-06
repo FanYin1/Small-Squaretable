@@ -48,6 +48,7 @@ export class WebSocketClient {
     this.emit('stateChange', this.state);
 
     const url = `${this.config.url}?token=${encodeURIComponent(this.config.token)}`;
+    console.log('[WebSocket Client] Connecting to:', url);
 
     try {
       this.ws = new WebSocket(url);
@@ -57,7 +58,7 @@ export class WebSocketClient {
       this.ws.onerror = this.handleError.bind(this);
       this.ws.onmessage = this.handleMessage.bind(this);
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
+      console.error('[WebSocket Client] Failed to create WebSocket:', error);
       this.state = WSConnectionState.ERROR;
       this.emit('stateChange', this.state);
       this.scheduleReconnect();
@@ -184,7 +185,7 @@ export class WebSocketClient {
    * 处理连接打开
    */
   private handleOpen(): void {
-    console.log('WebSocket connected');
+    console.log('[WebSocket Client] Connected successfully');
     this.state = WSConnectionState.CONNECTED;
     this.reconnectAttempts = 0;
     this.emit('stateChange', this.state);
@@ -195,7 +196,7 @@ export class WebSocketClient {
    * 处理连接关闭
    */
   private handleClose(event: CloseEvent): void {
-    console.log('WebSocket closed:', event.code, event.reason);
+    console.log('[WebSocket Client] Closed:', event.code, event.reason);
     this.stopHeartbeat();
 
     if (this.state !== WSConnectionState.DISCONNECTED) {
@@ -210,7 +211,7 @@ export class WebSocketClient {
    * 处理错误
    */
   private handleError(event: Event): void {
-    console.error('WebSocket error:', event);
+    console.error('[WebSocket Client] Error:', event);
     this.state = WSConnectionState.ERROR;
     this.emit('stateChange', this.state);
     this.emit('error', { code: 'CONNECTION_ERROR', message: 'WebSocket connection error' });
@@ -254,6 +255,23 @@ export class WebSocketClient {
 
         case WSMessageType.PONG:
           // Heartbeat response received
+          break;
+
+        // Intelligence events
+        case WSMessageType.INTELLIGENCE_EMOTION_CHANGE:
+          this.emit('intelligenceEmotionChange', message.data);
+          break;
+
+        case WSMessageType.INTELLIGENCE_MEMORY_RETRIEVAL:
+          this.emit('intelligenceMemoryRetrieval', message.data);
+          break;
+
+        case WSMessageType.INTELLIGENCE_MEMORY_EXTRACTION:
+          this.emit('intelligenceMemoryExtraction', message.data);
+          break;
+
+        case WSMessageType.INTELLIGENCE_PROMPT_BUILD:
+          this.emit('intelligencePromptBuild', message.data);
           break;
 
         default:
