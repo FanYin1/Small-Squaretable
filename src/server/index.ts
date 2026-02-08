@@ -96,6 +96,7 @@ app.use('/api/v1/worldbooks/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/uploads/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/webhooks/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/notifications/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/social/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -134,6 +135,7 @@ app.use('/api/v1/worldbooks', csrfProtection());
 app.use('/api/v1/uploads', csrfProtection());
 app.use('/api/v1/webhooks', csrfProtection());
 app.use('/api/v1/notifications', csrfProtection());
+app.use('/api/v1/social', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
@@ -145,6 +147,7 @@ app.route('/api/v1/worldbooks', worldbooksRouter);
 app.route('/api/v1/uploads', uploadRoutes);
 app.route('/api/v1/webhooks', webhookRoutes);
 app.route('/api/v1/notifications', notificationRoutes);
+app.route('/api/v1/social', socialRoutes);
 app.route('/api/v1', intelligenceRoutes);
 
 app.get('/api/v1', (c) => {
@@ -165,6 +168,7 @@ app.get('/api/v1', (c) => {
       llm: '/api/v1/llm',
       uploads: '/api/v1/uploads',
       notifications: '/api/v1/notifications',
+      social: '/api/v1/social',
       docs: '/api/v1/docs',
       ws: '/ws',
     },
