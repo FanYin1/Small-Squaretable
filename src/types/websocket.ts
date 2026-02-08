@@ -28,6 +28,17 @@ export enum WSMessageType {
   INTELLIGENCE_MEMORY_RETRIEVAL = 'intelligence:memory_retrieval',
   INTELLIGENCE_MEMORY_EXTRACTION = 'intelligence:memory_extraction',
   INTELLIGENCE_PROMPT_BUILD = 'intelligence:prompt_build',
+
+  // Sync events (多设备同步)
+  SYNC_EVENT = 'sync:event',
+  SYNC_DEVICES = 'sync:devices',
+  DEVICE_CONNECTED = 'sync:device_connected',
+  DEVICE_DISCONNECTED = 'sync:device_disconnected',
+  CHAT_READ = 'sync:chat_read',
+
+  // Social notification events
+  SOCIAL_NOTIFICATION = 'social:notification',
+  SOCIAL_UNREAD_COUNT = 'social:unread_count',
 }
 
 /**
@@ -50,6 +61,18 @@ export interface WSMessage {
 }
 
 /**
+ * 附件类型 (用于 WebSocket 消息)
+ */
+export interface WSAttachment {
+  type: 'image' | 'audio' | 'video' | 'file';
+  url: string;
+  name?: string;
+  size?: number;
+  mimeType?: string;
+  thumbnailUrl?: string;
+}
+
+/**
  * 用户消息
  */
 export interface WSUserMessage extends WSMessage {
@@ -58,6 +81,7 @@ export interface WSUserMessage extends WSMessage {
     chatId: string;
     content: string;
     messageId?: string;
+    attachments?: WSAttachment[];
   };
 }
 
@@ -155,6 +179,34 @@ export interface WSConnectedMessage extends WSMessage {
 }
 
 /**
+ * Social: Real-time Notification
+ */
+export interface WSSocialNotificationMessage extends WSMessage {
+  type: WSMessageType.SOCIAL_NOTIFICATION;
+  data: {
+    id: string;
+    type: string;
+    message: string;
+    actorId?: string;
+    actorName?: string;
+    actorAvatar?: string;
+    targetType?: string;
+    targetId?: string;
+    createdAt: string;
+  };
+}
+
+/**
+ * Social: Unread Notification Count
+ */
+export interface WSSocialUnreadCountMessage extends WSMessage {
+  type: WSMessageType.SOCIAL_UNREAD_COUNT;
+  data: {
+    count: number;
+  };
+}
+
+/**
  * 所有消息类型的联合类型
  */
 export type WSMessageUnion =
@@ -171,7 +223,14 @@ export type WSMessageUnion =
   | WSEmotionChangeEvent
   | WSMemoryRetrievalEvent
   | WSMemoryExtractionEvent
-  | WSPromptBuildEvent;
+  | WSPromptBuildEvent
+  | WSSyncEventMessage
+  | WSSyncDevicesMessage
+  | WSDeviceConnectedMessage
+  | WSDeviceDisconnectedMessage
+  | WSChatReadMessage
+  | WSSocialNotificationMessage
+  | WSSocialUnreadCountMessage;
 
 /**
  * WebSocket 客户端配置
@@ -215,6 +274,7 @@ export interface WSClientInfo {
   id: string;
   userId: string;
   tenantId: string;
+  displayName?: string;
   chatId?: string;
   connectedAt: Date;
   lastHeartbeat: Date;
@@ -270,5 +330,64 @@ export interface WSPromptBuildEvent extends WSMessage {
     memoriesIncluded: number;
     emotionIncluded: boolean;
     latencyMs: number;
+  };
+}
+
+/**
+ * Sync: Generic Sync Event
+ */
+export interface WSSyncEventMessage extends WSMessage {
+  type: WSMessageType.SYNC_EVENT;
+  data: {
+    id: string;
+    eventType: string;
+    payload: Record<string, unknown>;
+  };
+}
+
+/**
+ * Sync: Devices List
+ */
+export interface WSSyncDevicesMessage extends WSMessage {
+  type: WSMessageType.SYNC_DEVICES;
+  data: {
+    devices: Array<{
+      clientId: string;
+      deviceType: string;
+      connectedAt: string;
+    }>;
+  };
+}
+
+/**
+ * Sync: Device Connected
+ */
+export interface WSDeviceConnectedMessage extends WSMessage {
+  type: WSMessageType.DEVICE_CONNECTED;
+  data: {
+    clientId: string;
+    deviceType: string;
+    connectedAt: string;
+  };
+}
+
+/**
+ * Sync: Device Disconnected
+ */
+export interface WSDeviceDisconnectedMessage extends WSMessage {
+  type: WSMessageType.DEVICE_DISCONNECTED;
+  data: {
+    clientId: string;
+  };
+}
+
+/**
+ * Sync: Chat Read Receipt
+ */
+export interface WSChatReadMessage extends WSMessage {
+  type: WSMessageType.CHAT_READ;
+  data: {
+    chatId: string;
+    lastReadMessageId: string;
   };
 }
