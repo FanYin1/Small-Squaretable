@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ChatDotRound, Star } from '@element-plus/icons-vue';
 import LazyImage from '../ui/LazyImage.vue';
 import type { Character } from '@client/types';
@@ -10,6 +11,18 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+const { t } = useI18n();
+
+const cardRef = ref<HTMLElement>();
+
+function handleMouseMove(e: MouseEvent) {
+  if (!cardRef.value) return;
+  const rect = cardRef.value.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  cardRef.value.style.setProperty('--mouse-x', `${x}px`);
+  cardRef.value.style.setProperty('--mouse-y', `${y}px`);
+}
 
 const avatarUrl = computed(() =>
   props.character.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${props.character.id}`
@@ -25,7 +38,19 @@ function handleStartChat() {
 </script>
 
 <template>
-  <el-card class="character-card" shadow="hover">
+  <div
+    ref="cardRef"
+    class="character-card-wrapper"
+    @mousemove="handleMouseMove"
+  >
+  <el-card
+    class="character-card"
+    shadow="hover"
+    role="article"
+    tabindex="0"
+    :aria-label="character.name"
+    @keydown.enter="handleStartChat"
+  >
     <div class="card-content">
       <div class="avatar-section">
         <LazyImage
@@ -40,7 +65,7 @@ function handleStartChat() {
       <div class="info-section">
         <h3 class="character-name">{{ character.name }}</h3>
         <p class="character-description">
-          {{ character.description || '暂无描述' }}
+          {{ character.description || $t('market.noDescription') }}
         </p>
 
         <div v-if="character.tags && character.tags.length" class="tags">
@@ -69,27 +94,56 @@ function handleStartChat() {
             :icon="ChatDotRound"
             @click.stop="handleStartChat"
           >
-            开始聊天
+            {{ $t('market.startChat') }}
           </el-button>
         </div>
       </div>
     </div>
   </el-card>
+  </div>
 </template>
 
 <style scoped>
+.character-card-wrapper {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+}
+
+.character-card-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    300px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    color-mix(in srgb, var(--accent-purple) 10%, transparent),
+    transparent
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 1;
+}
+
+.character-card-wrapper:hover::before {
+  opacity: 1;
+}
+
 .character-card {
   cursor: pointer;
-  transition: all 0.2s ease;
-  border-radius: 16px;
-  border: 1px solid #E5E7EB;
-  background: white;
+  transition: all var(--duration-slow) var(--ease-out);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
 }
 
 .character-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
-  border-color: #3B82F6;
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--accent-purple) 12%, transparent);
+  border-color: var(--accent-purple);
 }
 
 .character-card :deep(.el-card__body) {
@@ -120,12 +174,12 @@ function handleStartChat() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .character-description {
   font-size: 14px;
-  color: #6B7280;
+  color: var(--text-secondary);
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -142,9 +196,9 @@ function handleStartChat() {
 }
 
 .tags :deep(.el-tag) {
-  background: #EFF6FF;
-  color: #3B82F6;
-  border-color: #DBEAFE;
+  background: color-mix(in srgb, var(--accent-purple) 8%, transparent);
+  color: var(--accent-purple);
+  border-color: color-mix(in srgb, var(--accent-purple) 15%, transparent);
   font-size: 12px;
 }
 
@@ -154,7 +208,7 @@ function handleStartChat() {
   align-items: center;
   margin-top: 8px;
   padding-top: 12px;
-  border-top: 1px solid #F3F4F6;
+  border-top: 1px solid var(--bg-surface);
 }
 
 .rating {
@@ -162,33 +216,82 @@ function handleStartChat() {
   align-items: center;
   gap: 4px;
   font-size: 14px;
-  color: #6B7280;
+  color: var(--text-secondary);
 }
 
 .rating .el-icon {
-  color: #FBBF24;
+  color: var(--color-warning);
   font-size: 16px;
 }
 
 .rating-count {
   font-size: 12px;
-  color: #9CA3AF;
+  color: var(--text-tertiary);
 }
 
 .card-footer :deep(.el-button) {
-  background: #3B82F6;
-  border-color: #3B82F6;
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
   font-size: 13px;
   padding: 6px 16px;
 }
 
 .card-footer :deep(.el-button:hover) {
-  background: #2563EB;
-  border-color: #2563EB;
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+  opacity: 0.85;
 }
 
 .card-footer :deep(.el-button:active) {
-  background: #1D4ED8;
-  border-color: #1D4ED8;
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+  opacity: 0.75;
+}
+
+/* Mobile breakpoint */
+@media (max-width: 480px) {
+  .character-card :deep(.el-card__body) {
+    padding: 15px;
+  }
+
+  .card-content {
+    gap: 12px;
+  }
+
+  .avatar-section :deep(img) {
+    width: 64px;
+    height: 64px;
+  }
+
+  .character-name {
+    font-size: 14px;
+  }
+
+  .character-description {
+    font-size: 12px;
+    min-height: 34px;
+  }
+
+  .tags :deep(.el-tag) {
+    font-size: 11px;
+  }
+
+  .rating {
+    font-size: 12px;
+  }
+
+  .rating .el-icon {
+    font-size: 14px;
+  }
+
+  .card-footer {
+    padding-top: 8px;
+    margin-top: 6px;
+  }
+
+  .card-footer :deep(.el-button) {
+    font-size: 12px;
+    padding: 4px 12px;
+  }
 }
 </style>
