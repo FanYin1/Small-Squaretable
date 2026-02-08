@@ -461,6 +461,40 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function regenerateMessage(messageId: string): Promise<void> {
+    if (!currentChatId.value) return;
+
+    // Find the assistant message to regenerate
+    const msgIndex = messages.value.findIndex(m => m.id === messageId);
+    if (msgIndex === -1) return;
+
+    const targetMessage = messages.value[msgIndex];
+    if (targetMessage.role !== 'assistant') return;
+
+    // Find the preceding user message
+    let userMessage: Message | null = null;
+    for (let i = msgIndex - 1; i >= 0; i--) {
+      if (messages.value[i].role === 'user') {
+        userMessage = messages.value[i];
+        break;
+      }
+    }
+    if (!userMessage) return;
+
+    // Delete the assistant message from backend
+    try {
+      await chatApi.deleteMessage(currentChatId.value, messageId);
+    } catch {
+      // If delete fails (e.g. temp message), just remove locally
+    }
+
+    // Remove the assistant message from local state
+    messages.value = messages.value.filter(m => m.id !== messageId);
+
+    // Re-send the user message content to trigger a new LLM response
+    await sendMessage(userMessage.content, userMessage.attachments);
+  }
+
   async function setCurrentChat(chatId: string | null): Promise<void> {
     // 离开当前聊天室
     if (currentChatId.value && wsClient && wsConnected.value) {
@@ -519,6 +553,7 @@ export const useChatStore = defineStore('chat', () => {
     deleteChat,
     deleteMessage,
     editMessage,
+    regenerateMessage,
     renameChat,
     setCurrentChat,
     addMessage,

@@ -365,8 +365,13 @@ const handleCancelEdit = () => {
   editingMessageId.value = null;
 };
 
-const handleRegenerateMessage = (_messageId: string) => {
-  // TODO: Task 3
+const handleRegenerateMessage = async (messageId: string) => {
+  try {
+    await chatStore.regenerateMessage(messageId);
+    scrollToBottom();
+  } catch (error: unknown) {
+    logger.error('Failed to regenerate message', error);
+  }
 };
 
 const toggleIntelligenceDrawer = () => {
