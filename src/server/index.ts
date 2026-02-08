@@ -26,6 +26,8 @@ import { intelligenceRoutes } from './routes/intelligence';
 import { worldbooksRouter } from './routes/worldbooks';
 import { uploadRoutes } from './routes/uploads';
 import { webhookRoutes } from './routes/webhooks';
+import { notificationRoutes } from './routes/notifications';
+import { socialRoutes } from './routes/social';
 import { WebhookWorker } from './workers/webhook.worker';
 import { webhookRepository } from '../db/repositories/webhook.repository';
 import { basicHealthCheck, livenessCheck, readinessCheck } from './services/health';
@@ -93,6 +95,7 @@ app.use('/api/v1/llm/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/worldbooks/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/uploads/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/webhooks/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/notifications/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -130,6 +133,7 @@ app.use('/api/v1/llm', csrfProtection());
 app.use('/api/v1/worldbooks', csrfProtection());
 app.use('/api/v1/uploads', csrfProtection());
 app.use('/api/v1/webhooks', csrfProtection());
+app.use('/api/v1/notifications', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
@@ -140,6 +144,7 @@ app.route('/api/v1/llm', llmRoutes);
 app.route('/api/v1/worldbooks', worldbooksRouter);
 app.route('/api/v1/uploads', uploadRoutes);
 app.route('/api/v1/webhooks', webhookRoutes);
+app.route('/api/v1/notifications', notificationRoutes);
 app.route('/api/v1', intelligenceRoutes);
 
 app.get('/api/v1', (c) => {
@@ -159,6 +164,7 @@ app.get('/api/v1', (c) => {
       usage: '/api/v1/usage',
       llm: '/api/v1/llm',
       uploads: '/api/v1/uploads',
+      notifications: '/api/v1/notifications',
       docs: '/api/v1/docs',
       ws: '/ws',
     },
