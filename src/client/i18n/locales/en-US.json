@@ -97,7 +97,9 @@
     "uploading": "Uploading...",
     "imagePreview": "Image Preview",
     "deleteMessage": "Delete Message",
-    "deleteMessageConfirm": "Are you sure you want to delete this message?"
+    "deleteMessageConfirm": "Are you sure you want to delete this message?",
+    "loadingOlder": "Loading older messages...",
+    "noMoreMessages": "No more messages"
   },
   "market": {
     "title": "Character Market",

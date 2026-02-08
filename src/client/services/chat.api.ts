@@ -13,7 +13,8 @@ export interface CreateChatRequest {
 }
 
 export interface GetMessagesParams {
-  cursor?: string;
+  before?: number;
+  after?: number;
   limit?: number;
 }
 
@@ -138,9 +139,10 @@ export const chatApi = {
   /**
    * 获取聊天消息
    */
-  getMessages: async (chatId: string, params?: GetMessagesParams): Promise<{ messages: Message[] }> => {
+  getMessages: async (chatId: string, params?: GetMessagesParams): Promise<{ messages: Message[]; hasMore: boolean }> => {
     const searchParams = new URLSearchParams();
-    if (params?.cursor) searchParams.set('cursor', params.cursor);
+    if (params?.before) searchParams.set('before', params.before.toString());
+    if (params?.after) searchParams.set('after', params.after.toString());
     if (params?.limit) searchParams.set('limit', params.limit.toString());
 
     const query = searchParams.toString();
@@ -151,8 +153,11 @@ export const chatApi = {
 
     // Handle both array and paginated response formats
     const messagesArray = Array.isArray(response) ? response : (response.items || []);
+    const limit = params?.limit ?? 20;
+
     return {
       messages: messagesArray.map(transformMessage),
+      hasMore: messagesArray.length >= limit,
     };
   },
 

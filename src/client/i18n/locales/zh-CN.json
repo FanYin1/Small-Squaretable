@@ -97,7 +97,9 @@
     "uploading": "上传中...",
     "imagePreview": "图片预览",
     "deleteMessage": "删除消息",
-    "deleteMessageConfirm": "确定要删除这条消息吗？"
+    "deleteMessageConfirm": "确定要删除这条消息吗？",
+    "loadingOlder": "加载更多消息...",
+    "noMoreMessages": "没有更多消息了"
   },
   "market": {
     "title": "角色市场",

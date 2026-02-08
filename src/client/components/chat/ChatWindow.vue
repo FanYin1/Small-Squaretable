@@ -76,6 +76,13 @@
       </div>
 
       <div v-else class="messages-list">
+        <div v-if="chatStore.loadingOlder" class="loading-older">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>{{ t('chat.loadingOlder') }}</span>
+        </div>
+        <div v-else-if="!chatStore.hasMoreMessages && messages.length > 0" class="no-more-messages">
+          <span>{{ t('chat.noMoreMessages') }}</span>
+        </div>
         <template v-for="(message, index) in messages" :key="message.id">
           <DateDivider
             v-if="shouldShowDateDivider(index)"
@@ -197,7 +204,28 @@ const editingMessageId = ref<string | null>(null);
 const handleScroll = () => {
   if (!messagesContainer.value) return;
   const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
+
+  // Show scroll-to-bottom button
   showScrollButton.value = scrollHeight - scrollTop - clientHeight > 200;
+
+  // Load older messages when near top
+  if (scrollTop < 100 && chatStore.hasMoreMessages && !chatStore.loadingOlder) {
+    loadOlderMessages();
+  }
+};
+
+const loadOlderMessages = async () => {
+  if (!messagesContainer.value) return;
+
+  const container = messagesContainer.value;
+  const previousScrollHeight = container.scrollHeight;
+
+  await chatStore.fetchOlderMessages();
+
+  // Preserve scroll position after prepending messages
+  await nextTick();
+  const newScrollHeight = container.scrollHeight;
+  container.scrollTop = newScrollHeight - previousScrollHeight;
 };
 
 // Intelligence drawer state
@@ -462,7 +490,7 @@ const handleTouchEnd = async () => {
     try {
       // Load older messages
       if (props.currentChat) {
-        await chatStore.fetchMessages(props.currentChat.id);
+        await chatStore.fetchOlderMessages();
         logger.info('Pull-to-refresh: loaded messages');
       }
     } catch (error: unknown) {
@@ -761,5 +789,22 @@ onUnmounted(() => {
 .pull-refresh-text {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
+}
+
+.loading-older {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.no-more-messages {
+  text-align: center;
+  padding: 12px;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
 }
 </style>

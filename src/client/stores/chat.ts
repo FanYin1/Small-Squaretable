@@ -23,6 +23,8 @@ export const useChatStore = defineStore('chat', () => {
   const wsConnectionState = ref<WSConnectionState>(WSConnectionState.DISCONNECTED);
   const streamingMessage = ref<string>('');
   const isStreaming = ref(false);
+  const hasMoreMessages = ref(true);
+  const loadingOlder = ref(false);
 
   // WebSocket client
   let wsClient: WebSocketClient | null = null;
@@ -254,8 +256,9 @@ export const useChatStore = defineStore('chat', () => {
     loading.value = true;
     error.value = null;
     try {
-      const response = await chatApi.getMessages(chatId);
+      const response = await chatApi.getMessages(chatId, { limit: 30 });
       messages.value = response.messages;
+      hasMoreMessages.value = response.hasMore;
     } catch (e) {
       if (e instanceof ApiError) {
         error.value = e.message;
@@ -265,6 +268,33 @@ export const useChatStore = defineStore('chat', () => {
       throw e;
     } finally {
       loading.value = false;
+    }
+  }
+
+  async function fetchOlderMessages(): Promise<void> {
+    if (!currentChatId.value || !hasMoreMessages.value || loadingOlder.value) return;
+
+    const oldestMessage = messages.value[0];
+    if (!oldestMessage) return;
+
+    loadingOlder.value = true;
+    try {
+      const oldestId = parseInt(oldestMessage.id);
+      if (isNaN(oldestId)) return;
+
+      const response = await chatApi.getMessages(currentChatId.value, {
+        before: oldestId,
+        limit: 20,
+      });
+
+      if (response.messages.length > 0) {
+        messages.value = [...response.messages, ...messages.value];
+      }
+      hasMoreMessages.value = response.hasMore;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to load older messages';
+    } finally {
+      loadingOlder.value = false;
     }
   }
 
@@ -550,8 +580,11 @@ export const useChatStore = defineStore('chat', () => {
     wsConnectionState,
     streamingMessage,
     isStreaming,
+    hasMoreMessages,
+    loadingOlder,
     fetchChats,
     fetchMessages,
+    fetchOlderMessages,
     sendMessage,
     createChat,
     deleteChat,
