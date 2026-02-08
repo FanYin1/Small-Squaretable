@@ -2,14 +2,14 @@
 <template>
   <div class="memory-retrieval-log">
     <div class="log-header">
-      <span class="log-title">记忆检索日志</span>
-      <el-button size="small" @click="refresh" :icon="Refresh" :loading="loading">刷新</el-button>
+      <span class="log-title">{{ t('debug.retrieval.title') }}</span>
+      <el-button size="small" @click="refresh" :icon="Refresh" :loading="loading">{{ t('common.refresh') }}</el-button>
     </div>
 
     <div v-if="debugState?.lastRetrieval" class="retrieval-content">
       <!-- Last Query -->
       <div class="query-section">
-        <div class="section-label">查询文本</div>
+        <div class="section-label">{{ t('debug.retrieval.queryText') }}</div>
         <div class="query-text">{{ debugState.lastRetrieval.query }}</div>
         <div class="query-meta">
           <el-tag size="small" type="info">{{ debugState.lastRetrieval.latencyMs }}ms</el-tag>
@@ -19,10 +19,10 @@
 
       <!-- Results -->
       <div class="results-section">
-        <div class="section-label">检索结果 ({{ debugState.lastRetrieval.results.length }})</div>
+        <div class="section-label">{{ t('debug.retrieval.results') }} ({{ debugState.lastRetrieval.results.length }})</div>
 
         <div v-if="debugState.lastRetrieval.results.length === 0" class="no-results">
-          <el-empty description="无匹配记忆" :image-size="40" />
+          <el-empty :description="t('debug.retrieval.noMatch')" :image-size="40" />
         </div>
 
         <div v-else class="results-list">
@@ -41,7 +41,7 @@
             <!-- Score Breakdown -->
             <div class="score-breakdown">
               <div class="score-item">
-                <span class="score-label">相似度</span>
+                <span class="score-label">{{ t('debug.retrieval.similarity') }}</span>
                 <el-progress
                   :percentage="(result.similarity || 0) * 100"
                   :stroke-width="6"
@@ -51,7 +51,7 @@
                 <span class="score-value">{{ ((result.similarity || 0) * 100).toFixed(0) }}%</span>
               </div>
               <div class="score-item">
-                <span class="score-label">重要性</span>
+                <span class="score-label">{{ t('debug.retrieval.importance') }}</span>
                 <el-progress
                   :percentage="(result.importance || 0.5) * 100"
                   :stroke-width="6"
@@ -61,7 +61,7 @@
                 <span class="score-value">{{ ((result.importance || 0.5) * 100).toFixed(0) }}%</span>
               </div>
               <div class="score-item">
-                <span class="score-label">时效性</span>
+                <span class="score-label">{{ t('debug.retrieval.recency') }}</span>
                 <el-progress
                   :percentage="(result.recency || 0.5) * 100"
                   :stroke-width="6"
@@ -76,21 +76,28 @@
 
       <!-- Score Formula -->
       <div class="formula-section">
-        <div class="section-label">评分公式</div>
-        <code class="formula">Score = 0.5×相似度 + 0.3×重要性 + 0.2×时效性</code>
+        <div class="section-label">{{ t('debug.retrieval.formula') }}</div>
+        <code class="formula">{{ t('debug.retrieval.formulaText') }}</code>
       </div>
     </div>
 
     <div v-else class="log-empty">
-      <el-empty description="暂无检索记录" :image-size="60" />
+      <el-empty :description="t('debug.retrieval.empty')" :image-size="60" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Refresh } from '@element-plus/icons-vue';
 import { api } from '../../services/api';
+import { createLogger } from '@client/utils/logger';
+import { useDateTime } from '@client/composables';
+
+const logger = createLogger('MemoryRetrievalLog');
+const { t } = useI18n();
+const { formatTime } = useDateTime();
 
 interface MemoryResult {
   id: string;
@@ -130,10 +137,6 @@ function getTypeTagType(type: string) {
   return TYPE_CONFIG[type] || 'info';
 }
 
-function formatTime(timestamp: string) {
-  return new Date(timestamp).toLocaleTimeString();
-}
-
 async function refresh() {
   if (!props.chatId || !props.characterId) return;
 
@@ -144,7 +147,7 @@ async function refresh() {
     );
     debugState.value = response;
   } catch (error) {
-    console.error('Failed to fetch debug state:', error);
+    logger.error('Failed to fetch debug state', error);
   } finally {
     loading.value = false;
   }
@@ -174,13 +177,13 @@ watch(() => [props.chatId, props.characterId], () => {
 
 .section-label {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   margin-bottom: 8px;
   font-weight: 500;
 }
 
 .query-section {
-  background: var(--el-fill-color-light);
+  background: var(--bg-surface);
   padding: 12px;
   border-radius: 8px;
   margin-bottom: 16px;
@@ -199,7 +202,7 @@ watch(() => [props.chatId, props.characterId], () => {
 
 .timestamp {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .results-section {
@@ -213,10 +216,10 @@ watch(() => [props.chatId, props.characterId], () => {
 }
 
 .result-item {
-  background: var(--el-fill-color-lighter);
+  background: var(--border-subtle);
   padding: 12px;
   border-radius: 8px;
-  border-left: 3px solid var(--el-color-primary);
+  border-left: 3px solid var(--accent-purple);
 }
 
 .result-header {
@@ -228,13 +231,13 @@ watch(() => [props.chatId, props.characterId], () => {
 
 .result-rank {
   font-weight: 600;
-  color: var(--el-color-primary);
+  color: var(--accent-purple);
 }
 
 .result-score {
   margin-left: auto;
   font-weight: 600;
-  color: var(--el-color-success);
+  color: var(--color-success);
 }
 
 .result-content {
@@ -257,7 +260,7 @@ watch(() => [props.chatId, props.characterId], () => {
 
 .score-label {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   width: 50px;
 }
 
@@ -272,14 +275,14 @@ watch(() => [props.chatId, props.characterId], () => {
 }
 
 .formula-section {
-  background: var(--el-fill-color-light);
+  background: var(--bg-surface);
   padding: 12px;
   border-radius: 8px;
 }
 
 .formula {
   font-size: 12px;
-  color: var(--el-color-primary);
+  color: var(--accent-purple);
 }
 
 .log-empty,

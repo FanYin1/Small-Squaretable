@@ -2,15 +2,15 @@
 <template>
   <div class="emotion-indicator">
     <div class="emotion-indicator__header">
-      <span class="emotion-indicator__title">情感状态</span>
+      <span class="emotion-indicator__title">{{ t('emotion.title') }}</span>
     </div>
 
     <!-- 2D Visualization -->
     <div class="emotion-indicator__chart">
       <div class="emotion-chart">
         <div class="emotion-chart__axes">
-          <div class="emotion-chart__y-label">激活度</div>
-          <div class="emotion-chart__x-label">效价</div>
+          <div class="emotion-chart__y-label">{{ t('emotion.arousal') }}</div>
+          <div class="emotion-chart__x-label">{{ t('emotion.valence') }}</div>
         </div>
         <div
           class="emotion-chart__point"
@@ -32,13 +32,13 @@
     <!-- Values -->
     <div class="emotion-indicator__values">
       <div class="emotion-value">
-        <span class="emotion-value__label">效价</span>
+        <span class="emotion-value__label">{{ t('emotion.valence') }}</span>
         <span class="emotion-value__number" :class="valenceClass">
           {{ formatValue(currentEmotion?.valence ?? 0) }}
         </span>
       </div>
       <div class="emotion-value">
-        <span class="emotion-value__label">激活度</span>
+        <span class="emotion-value__label">{{ t('emotion.arousal') }}</span>
         <span class="emotion-value__number">
           {{ formatValue(currentEmotion?.arousal ?? 0.5) }}
         </span>
@@ -49,8 +49,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useCharacterIntelligenceStore } from '../stores/characterIntelligence';
 import { storeToRefs } from 'pinia';
+
+const { t } = useI18n();
 
 const store = useCharacterIntelligenceStore();
 const { currentEmotion } = storeToRefs(store);
@@ -120,7 +123,7 @@ function formatValue(value: number | string | null): string {
 
 <style scoped>
 .emotion-indicator {
-  background: var(--el-bg-color);
+  background: var(--surface-card);
   border-radius: 8px;
   padding: 12px;
   display: flex;
@@ -136,7 +139,7 @@ function formatValue(value: number | string | null): string {
 .emotion-indicator__title {
   font-weight: 600;
   font-size: 14px;
-  color: var(--el-text-color-primary);
+  color: var(--text-primary);
 }
 
 .emotion-indicator__chart {
@@ -150,14 +153,14 @@ function formatValue(value: number | string | null): string {
   height: 120px;
   background: linear-gradient(
     135deg,
-    #ffcccc 0%,
-    #ffffcc 25%,
-    #ccffcc 50%,
-    #ccccff 75%,
-    #ffccff 100%
+    color-mix(in srgb, var(--color-danger) 30%, var(--surface-card)) 0%,
+    color-mix(in srgb, var(--color-warning) 30%, var(--surface-card)) 25%,
+    color-mix(in srgb, var(--color-success) 30%, var(--surface-card)) 50%,
+    color-mix(in srgb, var(--color-info) 30%, var(--surface-card)) 75%,
+    color-mix(in srgb, var(--accent-pink) 30%, var(--surface-card)) 100%
   );
   border-radius: 8px;
-  border: 1px solid var(--el-border-color);
+  border: 1px solid var(--border-default);
 }
 
 .emotion-chart__axes {
@@ -173,7 +176,7 @@ function formatValue(value: number | string | null): string {
   top: 50%;
   transform: rotate(-90deg) translateX(50%);
   font-size: 10px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -183,7 +186,7 @@ function formatValue(value: number | string | null): string {
   left: 50%;
   transform: translateX(-50%);
   font-size: 10px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .emotion-chart__point {
@@ -194,9 +197,9 @@ function formatValue(value: number | string | null): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
+  background: var(--surface-card);
   border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 20%, transparent);
   transition: all 0.3s ease;
 }
 
@@ -223,7 +226,7 @@ function formatValue(value: number | string | null): string {
 
 .emotion-value__label {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .emotion-value__number {
@@ -233,14 +236,14 @@ function formatValue(value: number | string | null): string {
 }
 
 .emotion-value__number.positive {
-  color: var(--el-color-success);
+  color: var(--color-success);
 }
 
 .emotion-value__number.negative {
-  color: var(--el-color-danger);
+  color: var(--color-danger);
 }
 
 .emotion-value__number.neutral {
-  color: var(--el-text-color-regular);
+  color: var(--text-primary);
 }
 </style>

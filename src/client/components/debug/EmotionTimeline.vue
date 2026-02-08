@@ -2,13 +2,13 @@
 <template>
   <div class="emotion-timeline">
     <div class="timeline-header">
-      <span class="timeline-title">情感变化时间线</span>
-      <el-button size="small" @click="refresh" :icon="Refresh" :loading="loading">刷新</el-button>
+      <span class="timeline-title">{{ t('debug.emotion.title') }}</span>
+      <el-button size="small" @click="refresh" :icon="Refresh" :loading="loading">{{ t('common.refresh') }}</el-button>
     </div>
 
     <!-- Current State -->
     <div v-if="currentEmotion" class="current-state">
-      <div class="state-label">当前状态</div>
+      <div class="state-label">{{ t('debug.emotion.currentState') }}</div>
       <div class="state-content">
         <span class="emotion-emoji">{{ getEmoji(currentEmotion.label) }}</span>
         <span class="emotion-label">{{ currentEmotion.label }}</span>
@@ -28,7 +28,7 @@
 
     <!-- History List -->
     <div class="history-section">
-      <div class="section-label">历史记录 ({{ emotionHistory.length }})</div>
+      <div class="section-label">{{ t('debug.emotion.history') }} ({{ emotionHistory.length }})</div>
       <div class="history-list">
         <div
           v-for="(item, index) in emotionHistory.slice(0, 10)"
@@ -49,8 +49,15 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Refresh } from '@element-plus/icons-vue';
 import { api } from '../../services/api';
+import { createLogger } from '@client/utils/logger';
+import { useDateTime } from '@client/composables';
+
+const logger = createLogger('EmotionTimeline');
+const { t } = useI18n();
+const { formatTime } = useDateTime();
 
 interface EmotionState {
   valence: number;
@@ -99,9 +106,8 @@ function formatValue(val: unknown): string {
   return toNumber(val).toFixed(2);
 }
 
-function formatTime(timestamp?: string) {
-  if (!timestamp) return '';
-  return new Date(timestamp).toLocaleTimeString();
+function getCssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 async function refresh() {
@@ -119,7 +125,7 @@ async function refresh() {
 
     renderChart();
   } catch (error) {
-    console.error('Failed to fetch emotion data:', error);
+    logger.error('Failed to fetch emotion data', error);
   } finally {
     loading.value = false;
   }
@@ -143,7 +149,7 @@ function renderChart() {
   svg.style.display = 'block';
 
   // Draw grid
-  const gridColor = '#e0e0e0';
+  const gridColor = getCssVar('--border-default');
   for (let i = 0; i <= 4; i++) {
     const y = padding + (height - padding * 2) * (i / 4);
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -166,7 +172,7 @@ function renderChart() {
     }).join(' ');
     valencePath.setAttribute('points', valencePoints);
     valencePath.setAttribute('fill', 'none');
-    valencePath.setAttribute('stroke', '#409EFF');
+    valencePath.setAttribute('stroke', getCssVar('--accent-purple'));
     valencePath.setAttribute('stroke-width', '2');
     svg.appendChild(valencePath);
   }
@@ -181,7 +187,7 @@ function renderChart() {
     }).join(' ');
     arousalPath.setAttribute('points', arousalPoints);
     arousalPath.setAttribute('fill', 'none');
-    arousalPath.setAttribute('stroke', '#E6A23C');
+    arousalPath.setAttribute('stroke', getCssVar('--color-warning'));
     arousalPath.setAttribute('stroke-width', '2');
     svg.appendChild(arousalPath);
   }
@@ -196,7 +202,7 @@ function renderChart() {
     vCircle.setAttribute('cx', String(x));
     vCircle.setAttribute('cy', String(vy));
     vCircle.setAttribute('r', '4');
-    vCircle.setAttribute('fill', '#409EFF');
+    vCircle.setAttribute('fill', getCssVar('--accent-purple'));
     svg.appendChild(vCircle);
 
     // Arousal point
@@ -205,7 +211,7 @@ function renderChart() {
     aCircle.setAttribute('cx', String(x));
     aCircle.setAttribute('cy', String(ay));
     aCircle.setAttribute('r', '4');
-    aCircle.setAttribute('fill', '#E6A23C');
+    aCircle.setAttribute('fill', getCssVar('--color-warning'));
     svg.appendChild(aCircle);
   });
 
@@ -215,7 +221,7 @@ function renderChart() {
   const vLegend = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   vLegend.setAttribute('x', String(padding));
   vLegend.setAttribute('y', '15');
-  vLegend.setAttribute('fill', '#409EFF');
+  vLegend.setAttribute('fill', getCssVar('--accent-purple'));
   vLegend.setAttribute('font-size', '11');
   vLegend.textContent = '● Valence';
   legend.appendChild(vLegend);
@@ -223,7 +229,7 @@ function renderChart() {
   const aLegend = document.createElementNS('http://www.w3.org/2000/svg', 'text');
   aLegend.setAttribute('x', String(padding + 70));
   aLegend.setAttribute('y', '15');
-  aLegend.setAttribute('fill', '#E6A23C');
+  aLegend.setAttribute('fill', getCssVar('--color-warning'));
   aLegend.setAttribute('font-size', '11');
   aLegend.textContent = '● Arousal';
   legend.appendChild(aLegend);
@@ -266,7 +272,7 @@ onUnmounted(() => {
 }
 
 .current-state {
-  background: var(--el-fill-color-light);
+  background: var(--bg-surface);
   padding: 12px;
   border-radius: 8px;
   margin-bottom: 16px;
@@ -274,7 +280,7 @@ onUnmounted(() => {
 
 .state-label {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
@@ -302,19 +308,19 @@ onUnmounted(() => {
 }
 
 .valence.positive {
-  color: var(--el-color-success);
+  color: var(--color-success);
 }
 
 .valence.negative {
-  color: var(--el-color-danger);
+  color: var(--color-danger);
 }
 
 .arousal {
-  color: var(--el-color-warning);
+  color: var(--color-warning);
 }
 
 .chart-container {
-  background: var(--el-fill-color-lighter);
+  background: var(--border-subtle);
   border-radius: 8px;
   padding: 8px;
   margin-bottom: 16px;
@@ -327,7 +333,7 @@ onUnmounted(() => {
 
 .section-label {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   margin-bottom: 8px;
   font-weight: 500;
 }
@@ -345,7 +351,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  background: var(--el-fill-color-lighter);
+  background: var(--border-subtle);
   border-radius: 6px;
   font-size: 12px;
 }
@@ -361,12 +367,12 @@ onUnmounted(() => {
 
 .history-values {
   font-family: monospace;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .history-time {
   margin-left: auto;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   font-size: 11px;
 }
 </style>

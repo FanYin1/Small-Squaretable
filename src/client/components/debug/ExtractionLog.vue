@@ -2,13 +2,13 @@
 <template>
   <div class="extraction-log">
     <div class="log-header">
-      <span class="log-title">记忆提取日志</span>
-      <el-button size="small" @click="refresh" :icon="Refresh" :loading="loading">刷新</el-button>
+      <span class="log-title">{{ t('debug.extraction.title') }}</span>
+      <el-button size="small" @click="refresh" :icon="Refresh" :loading="loading">{{ t('common.refresh') }}</el-button>
     </div>
 
     <!-- Message Counter -->
     <div class="counter-section">
-      <div class="section-label">消息计数器</div>
+      <div class="section-label">{{ t('debug.extraction.messageCounter') }}</div>
       <div class="counter-content">
         <el-progress
           :percentage="(debugState?.messageCounter || 0) * 10"
@@ -16,14 +16,14 @@
           :format="() => `${debugState?.messageCounter || 0} / ${debugState?.extractionThreshold || 10}`"
         />
         <div class="counter-hint">
-          每 {{ debugState?.extractionThreshold || 10 }} 条消息自动提取记忆
+          {{ t('debug.extraction.autoExtract', { n: debugState?.extractionThreshold || 10 }) }}
         </div>
       </div>
     </div>
 
     <!-- Last Extraction -->
     <div class="extraction-section">
-      <div class="section-label">最近提取</div>
+      <div class="section-label">{{ t('debug.extraction.recentExtraction') }}</div>
 
       <div v-if="debugState?.memoryStats?.lastExtractedAt" class="last-extraction">
         <el-tag type="success" size="small">
@@ -31,34 +31,34 @@
         </el-tag>
       </div>
       <div v-else class="no-extraction">
-        <el-tag type="info" size="small">暂无提取记录</el-tag>
+        <el-tag type="info" size="small">{{ t('debug.extraction.noRecords') }}</el-tag>
       </div>
     </div>
 
     <!-- Memory Stats -->
     <div class="stats-section">
-      <div class="section-label">记忆统计</div>
+      <div class="section-label">{{ t('debug.extraction.memoryStats') }}</div>
 
       <div class="stats-grid">
         <div class="stat-item">
           <span class="stat-value">{{ debugState?.memoryStats?.total || 0 }}</span>
-          <span class="stat-label">总计</span>
+          <span class="stat-label">{{ t('debug.extraction.total') }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value fact">{{ debugState?.memoryStats?.byType?.fact || 0 }}</span>
-          <span class="stat-label">事实</span>
+          <span class="stat-label">{{ t('debug.extraction.fact') }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value preference">{{ debugState?.memoryStats?.byType?.preference || 0 }}</span>
-          <span class="stat-label">偏好</span>
+          <span class="stat-label">{{ t('debug.extraction.preference') }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value relationship">{{ debugState?.memoryStats?.byType?.relationship || 0 }}</span>
-          <span class="stat-label">关系</span>
+          <span class="stat-label">{{ t('debug.extraction.relationship') }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value event">{{ debugState?.memoryStats?.byType?.event || 0 }}</span>
-          <span class="stat-label">事件</span>
+          <span class="stat-label">{{ t('debug.extraction.event') }}</span>
         </div>
       </div>
     </div>
@@ -72,15 +72,15 @@
         :loading="extracting"
         :disabled="!props.chatId"
       >
-        手动提取记忆
+        {{ t('debug.extraction.manualExtract') }}
       </el-button>
     </div>
 
     <!-- Extraction History -->
     <div class="history-section">
-      <div class="section-label">提取历史</div>
+      <div class="section-label">{{ t('debug.extraction.history') }}</div>
       <div v-if="extractionHistory.length === 0" class="no-history">
-        <el-empty description="暂无提取历史" :image-size="40" />
+        <el-empty :description="t('debug.extraction.noHistory')" :image-size="40" />
       </div>
       <div v-else class="history-list">
         <div
@@ -89,7 +89,7 @@
           class="history-item"
         >
           <div class="history-header">
-            <el-tag size="small" type="success">{{ item.extracted.length }} 条</el-tag>
+            <el-tag size="small" type="success">{{ item.extracted.length }}</el-tag>
             <span class="history-time">{{ formatTime(item.timestamp) }}</span>
           </div>
           <div class="history-memories">
@@ -110,9 +110,16 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Refresh } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { api } from '../../services/api';
+import { createLogger } from '@client/utils/logger';
+import { useDateTime } from '@client/composables';
+
+const logger = createLogger('ExtractionLog');
+const { t } = useI18n();
+const { formatTime } = useDateTime();
 
 interface DebugState {
   messageCounter: number;
@@ -150,10 +157,6 @@ function getTypeTagType(type: string) {
   return TYPE_CONFIG[type] || 'info';
 }
 
-function formatTime(timestamp: string) {
-  return new Date(timestamp).toLocaleString();
-}
-
 async function refresh() {
   if (!props.chatId || !props.characterId) return;
 
@@ -164,7 +167,7 @@ async function refresh() {
     );
     debugState.value = response;
   } catch (error) {
-    console.error('Failed to fetch debug state:', error);
+    logger.error('Failed to fetch debug state', error);
   } finally {
     loading.value = false;
   }
@@ -186,15 +189,15 @@ async function triggerExtraction() {
         extracted,
         timestamp: new Date().toISOString(),
       });
-      ElMessage.success(`成功提取 ${extracted.length} 条记忆`);
+      ElMessage.success(t('debug.extraction.extractSuccess', { n: extracted.length }));
     } else {
-      ElMessage.info('未提取到新记忆');
+      ElMessage.info(t('debug.extraction.noNewMemories'));
     }
 
     await refresh();
   } catch (error) {
-    console.error('Failed to extract memories:', error);
-    ElMessage.error('提取失败');
+    logger.error('Failed to extract memories', error);
+    ElMessage.error(t('debug.extraction.extractError'));
   } finally {
     extracting.value = false;
   }
@@ -224,13 +227,13 @@ watch(() => [props.chatId, props.characterId], () => {
 
 .section-label {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   margin-bottom: 8px;
   font-weight: 500;
 }
 
 .counter-section {
-  background: var(--el-fill-color-light);
+  background: var(--bg-surface);
   padding: 12px;
   border-radius: 8px;
   margin-bottom: 16px;
@@ -238,7 +241,7 @@ watch(() => [props.chatId, props.characterId], () => {
 
 .counter-hint {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   margin-top: 8px;
 }
 
@@ -257,7 +260,7 @@ watch(() => [props.chatId, props.characterId], () => {
 }
 
 .stat-item {
-  background: var(--el-fill-color-lighter);
+  background: var(--border-subtle);
   padding: 12px 8px;
   border-radius: 8px;
   text-align: center;
@@ -270,14 +273,14 @@ watch(() => [props.chatId, props.characterId], () => {
   margin-bottom: 4px;
 }
 
-.stat-value.fact { color: var(--el-color-primary); }
-.stat-value.preference { color: var(--el-color-success); }
-.stat-value.relationship { color: var(--el-color-warning); }
-.stat-value.event { color: var(--el-color-danger); }
+.stat-value.fact { color: var(--accent-purple); }
+.stat-value.preference { color: var(--color-success); }
+.stat-value.relationship { color: var(--color-warning); }
+.stat-value.event { color: var(--color-danger); }
 
 .stat-label {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .action-section {
@@ -297,7 +300,7 @@ watch(() => [props.chatId, props.characterId], () => {
 }
 
 .history-item {
-  background: var(--el-fill-color-lighter);
+  background: var(--border-subtle);
   padding: 12px;
   border-radius: 8px;
 }
@@ -311,7 +314,7 @@ watch(() => [props.chatId, props.characterId], () => {
 
 .history-time {
   font-size: 11px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .history-memories {
