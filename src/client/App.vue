@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs';
+import en from 'element-plus/dist/locale/en.mjs';
 import LoadingOverlay from './components/ui/LoadingOverlay.vue';
 import ToastContainer from './components/ui/ToastContainer.vue';
 import { useLoading } from './composables';
+
+const { locale } = useI18n();
+const elementLocale = computed(() => locale.value === 'zh-CN' ? zhCn : en);
 
 const route = useRoute();
 const { visible } = useLoading();
@@ -13,29 +19,18 @@ const loadingText = computed(() => visible.value.text);
 </script>
 
 <template>
-  <!-- All pages render directly through router-view -->
-  <router-view />
-  <LoadingOverlay :visible="isLoading" :text="loadingText" />
-  <ToastContainer />
+  <el-config-provider :locale="elementLocale">
+    <!-- All pages render with page transition -->
+    <router-view v-slot="{ Component }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" />
+      </Transition>
+    </router-view>
+    <LoadingOverlay :visible="isLoading" :text="loadingText" />
+    <ToastContainer />
+  </el-config-provider>
 </template>
 
 <style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html,
-body,
-#app {
-  height: 100%;
-  width: 100%;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-    'Noto Color Emoji';
-}
+/* Global styles loaded via main.ts imports */
 </style>
