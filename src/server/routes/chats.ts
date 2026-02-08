@@ -19,6 +19,7 @@ import {
 import { paginationSchema } from '../../types/api';
 import type { ApiResponse, PaginatedResponse } from '../../types/api';
 import type { Chat } from '../../db/schema/chats';
+import { eventBus } from '../services/event-bus.service';
 
 export const chatRoutes = new Hono();
 
@@ -31,6 +32,9 @@ chatRoutes.post(
     const user = c.get('user');
     const input = c.req.valid('json');
     const chat = await chatService.create(user.id, user.tenantId, input);
+
+
+    eventBus.emit('chat.created', { chatId: chat.id, userId: user.id, characterId: input.characterId });
 
     return c.json<ApiResponse>(
       {
@@ -143,6 +147,9 @@ chatRoutes.post(
     }
 
     const message = await chatService.addMessage(chatId, input);
+
+
+    eventBus.emit('chat.message.sent', { chatId, messageId: message.id, userId: user.id, role: input.role });
 
     return c.json<ApiResponse>(
       {

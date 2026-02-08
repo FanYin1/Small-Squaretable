@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { subscriptionService } from '../services/subscription.service';
 import { authMiddleware } from '../middleware/auth';
 import type { ApiResponse } from '../../types/api';
+import { eventBus } from '../services/event-bus.service';
 
 export const subscriptionRoutes = new Hono();
 

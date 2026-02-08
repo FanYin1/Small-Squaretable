@@ -22,6 +22,120 @@ import { ratingInputSchema } from '../../types/rating';
 import type { ApiResponse, PaginatedResponse } from '../../types/api';
 import type { Character } from '../../db/schema/characters';
 import type { RatingResponseDto } from '../../types/rating';
+import { worldBookRepository } from '../../db/repositories/worldbook.repository';
+import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.repository';
+import { eventBus } from '../services/event-bus.service';
+
+/**
+ * Create a world book from a SillyTavern character_book embedded in card data.
+ *
+ * Maps the V2 character_book format to the internal world book schema and
+ * creates all associated entries. Errors are caught and logged so that a
+ * failure here never prevents the character from being created.
+ */
+async function createCharacterWorldBook(
+  characterId: string,
+  ownerId: string,
+  characterName: string,
+  characterBook: any
+) {
+  try {
+    // Map position from SillyTavern format to internal format
+    // Supports both string formats (V1) and numeric formats (V2: 0-6)
+    const mapPosition = (pos: string | number | undefined): string => {
+      switch (pos) {
+        case 0:
+        case 'before_char':
+          return 'before';
+        case 1:
+        case 'after_char':
+          return 'after';
+        case 2:
+          return 'ANTop';
+        case 3:
+          return 'ANBottom';
+        case 4:
+          return 'atDepth';
+        case 5:
+          return 'EMTop';
+        case 6:
+          return 'EMBottom';
+        default:
+          return 'after';
+      }
+    };
+
+    // Map selective logic from SillyTavern numeric format to internal string format
+    const mapSelectiveLogic = (entry: any): string => {
+      if (entry.selective === false) {
+        return 'AND_ANY';
+      }
+      switch (entry.selectiveLogic ?? entry.selective_logic) {
+        case 0:
+          return 'AND_ANY';
+        case 1:
+          return 'AND_ALL';
+        case 2:
+          return 'NOT_ANY';
+        case 3:
+          return 'NOT_ALL';
+        default:
+          return 'AND_ANY';
+      }
+    };
+
+    // Create the world book
+    const worldBook = await worldBookRepository.create({
+      name: characterBook.name || `${characterName}'s Lorebook`,
+      scope: 'character',
+      ownerId,
+      characterId,
+      settings: {
+        budget: 25,
+        budgetCap: characterBook.token_budget ?? 0,
+        recursive: characterBook.recursive_scanning ?? false,
+        maxRecursionSteps: 0,
+        caseSensitive: false,
+        matchWholeWords: false,
+        scanDepth: characterBook.scan_depth ?? 4,
+      },
+    });
+
+    // Create entries
+    const entries = Array.isArray(characterBook.entries) ? characterBook.entries : [];
+    for (const entry of entries) {
+      await worldBookEntryRepository.create({
+        worldBookId: worldBook.id,
+        keys: Array.isArray(entry.keys) ? entry.keys : [],
+        keysSecondary: Array.isArray(entry.secondary_keys) ? entry.secondary_keys : [],
+        selectiveLogic: mapSelectiveLogic(entry),
+        content: entry.content ?? '',
+        comment: entry.comment || entry.name || null,
+        position: mapPosition(entry.position),
+        depth: entry.depth ?? entry.extensions?.depth ?? 4,
+        order: entry.insertion_order ?? 100,
+        enabled: entry.enabled ?? true,
+        constant: entry.constant ?? false,
+        probability: entry.probability ?? 100,
+        sticky: entry.sticky ?? 0,
+        cooldown: entry.cooldown ?? 0,
+        delay: entry.delay ?? 0,
+        caseSensitive: entry.case_sensitive ?? false,
+        matchWholeWords: entry.match_whole_words ?? false,
+        preventRecursion: entry.prevent_recursion ?? false,
+        excludeRecursion: entry.exclude_recursion ?? false,
+      });
+    }
+
+    return worldBook;
+  } catch (error) {
+    console.warn(
+      `[characters] Failed to create world book for character ${characterId}:`,
+      error
+    );
+    return null;
+  }
+}
 
 export const characterRoutes = new Hono();
 
@@ -37,6 +151,25 @@ characterRoutes.post(
 
     // Invalidate relevant caches
     await cacheService.invalidateCharacter(character.id);
+
+    // Create world book from character_book if present
+    const cardData = input.cardData as Record<string, any>;
+    const characterBook = cardData?.character_book;
+    if (
+      characterBook &&
+      Array.isArray(characterBook.entries) &&
+      characterBook.entries.length > 0
+    ) {
+      await createCharacterWorldBook(
+        character.id,
+        user.id,
+        character.name,
+        characterBook
+      );
+    }
+
+
+    eventBus.emit('character.created', { characterId: character.id, creatorId: user.id, name: character.name, isPublic: character.isPublic });
 
     return c.json<ApiResponse>(
       {
@@ -215,11 +348,23 @@ characterRoutes.get(
 
 // 获取单个角色
 characterRoutes.get('/:id', authMiddleware(), async (c) => {
+  const user = c.get('user');
   const characterId = c.req.param('id');
 
   // Try to get from cache first
   const cached = await cacheService.getCachedCharacter<Character>(characterId);
   if (cached) {
+    // IDOR fix: verify the character belongs to the user's tenant or is public
+    if (cached.tenantId !== user.tenantId && !cached.isPublic) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Character not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
     c.header('X-Cache', 'HIT');
     return c.json<ApiResponse>(
       {
@@ -232,6 +377,18 @@ characterRoutes.get('/:id', authMiddleware(), async (c) => {
   }
 
   const character = await characterService.getById(characterId);
+
+  // IDOR fix: verify the character belongs to the user's tenant or is public
+  if (character.tenantId !== user.tenantId && !character.isPublic) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Character not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404
+    );
+  }
 
   // Cache the result
   await cacheService.setCachedCharacter(characterId, character);
@@ -261,6 +418,8 @@ characterRoutes.patch(
     // Invalidate relevant caches
     await cacheService.invalidateCharacter(characterId);
 
+    eventBus.emit('character.updated', { characterId: character.id, updatedBy: user.id });
+
     return c.json<ApiResponse>(
       {
         success: true,
@@ -280,6 +439,8 @@ characterRoutes.delete('/:id', authMiddleware(), async (c) => {
 
   // Invalidate relevant caches
   await cacheService.invalidateCharacter(characterId);
+
+  eventBus.emit('character.deleted', { characterId, deletedBy: user.id });
 
   return c.json<ApiResponse>(
     {
@@ -303,6 +464,8 @@ characterRoutes.post(
 
     // Invalidate relevant caches
     await cacheService.invalidateCharacter(characterId);
+
+    eventBus.emit('character.published', { characterId: character.id, creatorId: user.id });
 
     return c.json<ApiResponse>(
       {
@@ -347,6 +510,22 @@ characterRoutes.post('/:id/fork', authMiddleware(), async (c) => {
 
   // Invalidate marketplace cache as it affects download count
   await cacheService.invalidateMarketplace();
+
+  // Create world book from character_book if present in forked character's card data
+  const cardData = character.cardData as Record<string, any> | null;
+  const characterBook = cardData?.character_book;
+  if (
+    characterBook &&
+    Array.isArray(characterBook.entries) &&
+    characterBook.entries.length > 0
+  ) {
+    await createCharacterWorldBook(
+      character.id,
+      user.id,
+      character.name,
+      characterBook
+    );
+  }
 
   return c.json<ApiResponse>(
     {
