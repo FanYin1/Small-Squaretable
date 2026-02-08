@@ -1,24 +1,28 @@
 <template>
   <div class="chat-sidebar">
     <div class="sidebar-header">
-      <h2 class="sidebar-title">Chats</h2>
+      <h2 class="sidebar-title">{{ t('chat.title') }}</h2>
       <el-button
         type="primary"
         :icon="Plus"
         @click="handleNewChat"
         size="small"
       >
-        New Chat
+        {{ t('chat.newChat') }}
       </el-button>
     </div>
 
     <div class="sidebar-search">
       <el-input
         v-model="searchQuery"
-        placeholder="Search chats..."
+        :placeholder="t('chat.searchChats')"
         :prefix-icon="Search"
         clearable
-      />
+      >
+        <template #suffix>
+          <kbd class="search-shortcut">⌘K</kbd>
+        </template>
+      </el-input>
     </div>
 
     <div class="sidebar-content">
@@ -28,54 +32,57 @@
 
       <div v-else-if="filteredChats.length === 0" class="empty-state">
         <el-empty
-          :description="searchQuery ? 'No chats found' : 'No chats yet'"
+          :description="searchQuery ? t('market.noResults') : t('chat.noChats')"
         >
           <el-button v-if="!searchQuery" type="primary" @click="handleNewChat">
-            Create your first chat
+            {{ t('chat.createFirst') }}
           </el-button>
         </el-empty>
       </div>
 
       <div v-else class="chat-list">
-        <div
-          v-for="chat in filteredChats"
-          :key="chat.id"
-          :class="['chat-item', { active: chat.id === currentChatId }]"
-          @click="handleSelectChat(chat.id)"
-        >
-          <el-avatar :size="48" :src="chat.characterAvatar">
-            {{ chat.characterName[0] }}
-          </el-avatar>
-          <div class="chat-item-content">
-            <div class="chat-item-header">
-              <span class="chat-item-title">{{ chat.title || chat.characterName }}</span>
-              <span class="chat-item-time">{{ formatTime(chat.lastMessageAt || chat.createdAt) }}</span>
-            </div>
-            <div class="chat-item-preview">
-              {{ chat.lastMessage || 'No messages yet' }}
-            </div>
-          </div>
-          <el-dropdown
-            trigger="click"
-            @command="(command: string) => handleChatAction(command, chat.id)"
+        <div v-for="group in groupedChats" :key="group.label" class="chat-group">
+          <div class="chat-group-header">{{ group.label }}</div>
+          <div
+            v-for="chat in group.chats"
+            :key="chat.id"
+            :class="['chat-item', { active: chat.id === currentChatId }]"
+            @click="handleSelectChat(chat.id)"
           >
-            <el-button
-              link
-              :icon="More"
-              class="chat-item-menu"
-              @click.stop
-            />
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="rename" :icon="Edit">
-                  Rename
-                </el-dropdown-item>
-                <el-dropdown-item command="delete" :icon="Delete" divided>
-                  Delete
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+            <el-avatar class="chat-avatar" :src="chat.characterAvatar">
+              {{ chat.characterName[0] }}
+            </el-avatar>
+            <div class="chat-item-content">
+              <div class="chat-item-header">
+                <span class="chat-item-title">{{ chat.title || chat.characterName }}</span>
+                <span class="chat-item-time">{{ formatRelativeTime(chat.lastMessageAt || chat.createdAt) }}</span>
+              </div>
+              <div class="chat-item-preview">
+                {{ chat.lastMessage || t('chat.noMessages') }}
+              </div>
+            </div>
+            <el-dropdown
+              trigger="click"
+              @command="(command: string) => handleChatAction(command, chat.id)"
+            >
+              <el-button
+                link
+                :icon="More"
+                class="chat-item-menu"
+                @click.stop
+              />
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="rename" :icon="Edit">
+                    {{ t('common.rename') }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" :icon="Delete" divided>
+                    {{ t('common.delete') }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
       </div>
     </div>
@@ -84,10 +91,15 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Plus, Search, More, Edit, Delete } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { useChatStore } from '@client/stores/chat';
+import { useDateTime } from '@client/composables';
+import { createLogger } from '@client/utils/logger';
 import type { Chat } from '@client/types';
+
+const logger = createLogger('ChatSidebar');
 
 interface Emits {
   (e: 'new-chat'): void;
@@ -96,6 +108,8 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
+const { t } = useI18n();
+const { formatRelativeTime } = useDateTime();
 const chatStore = useChatStore();
 const searchQuery = ref('');
 
@@ -118,21 +132,38 @@ const filteredChats = computed(() => {
   });
 });
 
-const formatTime = (timestamp: string) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
+interface ChatGroup {
+  label: string;
+  chats: Chat[];
+}
 
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m`;
-  if (hours < 24) return `${hours}h`;
-  if (days < 7) return `${days}d`;
+const groupedChats = computed<ChatGroup[]>(() => {
+  const groups: ChatGroup[] = [];
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
 
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
+  const todayChats: Chat[] = [];
+  const yesterdayChats: Chat[] = [];
+  const earlierChats: Chat[] = [];
+
+  for (const chat of filteredChats.value) {
+    const date = new Date(chat.lastMessageAt || chat.createdAt);
+    if (date.toDateString() === today.toDateString()) {
+      todayChats.push(chat);
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      yesterdayChats.push(chat);
+    } else {
+      earlierChats.push(chat);
+    }
+  }
+
+  if (todayChats.length > 0) groups.push({ label: t('time.today'), chats: todayChats });
+  if (yesterdayChats.length > 0) groups.push({ label: t('time.yesterday'), chats: yesterdayChats });
+  if (earlierChats.length > 0) groups.push({ label: t('time.earlier'), chats: earlierChats });
+
+  return groups;
+});
 
 const handleNewChat = () => {
   emit('new-chat');
@@ -146,21 +177,21 @@ const handleChatAction = async (command: string, chatId: string) => {
   if (command === 'delete') {
     try {
       await ElMessageBox.confirm(
-        'Are you sure you want to delete this chat? This action cannot be undone.',
-        'Delete Chat',
+        t('chat.deleteConfirm'),
+        t('chat.deleteTitle'),
         {
-          confirmButtonText: 'Delete',
-          cancelButtonText: 'Cancel',
+          confirmButtonText: t('common.delete'),
+          cancelButtonText: t('common.cancel'),
           type: 'warning',
         }
       );
 
       await chatStore.deleteChat(chatId);
-      ElMessage.success('Chat deleted successfully');
+      ElMessage.success(t('chat.deleteSuccess'));
     } catch (error) {
       if (error !== 'cancel') {
-        console.error('Failed to delete chat:', error);
-        ElMessage.error('Failed to delete chat');
+        logger.error('Failed to delete chat', error);
+        ElMessage.error(t('chat.deleteFailed'));
       }
     }
   } else if (command === 'rename') {
@@ -169,23 +200,22 @@ const handleChatAction = async (command: string, chatId: string) => {
       if (!chat) return;
 
       const { value } = await ElMessageBox.prompt(
-        'Enter a new name for this chat',
-        'Rename Chat',
+        t('chat.renamePrompt'),
+        t('chat.renameTitle'),
         {
-          confirmButtonText: 'Rename',
-          cancelButtonText: 'Cancel',
+          confirmButtonText: t('common.rename'),
+          cancelButtonText: t('common.cancel'),
           inputValue: chat.title || chat.characterName,
           inputPattern: /.+/,
-          inputErrorMessage: 'Chat name cannot be empty',
+          inputErrorMessage: t('chat.renameEmpty'),
         }
       );
 
-      // TODO: Implement rename API
-      console.log('Rename chat:', chatId, value);
-      ElMessage.success('Chat renamed successfully');
+      await chatStore.renameChat(chatId, value);
+      ElMessage.success(t('common.save') + '!');
     } catch (error) {
       if (error !== 'cancel') {
-        console.error('Failed to rename chat:', error);
+        logger.error('Failed to rename chat', error);
       }
     }
   }
@@ -197,8 +227,8 @@ const handleChatAction = async (command: string, chatId: string) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--el-bg-color);
-  border-right: 1px solid var(--el-border-color);
+  background-color: var(--surface-card);
+  border-right: 1px solid var(--border-default);
 }
 
 .sidebar-header {
@@ -206,7 +236,7 @@ const handleChatAction = async (command: string, chatId: string) => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid var(--el-border-color);
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
 }
 
@@ -214,13 +244,24 @@ const handleChatAction = async (command: string, chatId: string) => {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: var(--el-text-color-primary);
+  color: var(--text-primary);
 }
 
 .sidebar-search {
   padding: 12px 16px;
-  border-bottom: 1px solid var(--el-border-color);
+  border-bottom: 1px solid var(--border-default);
   flex-shrink: 0;
+}
+
+.search-shortcut {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-hover);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-default);
+  font-family: inherit;
+  line-height: 1;
 }
 
 .sidebar-content {
@@ -245,6 +286,15 @@ const handleChatAction = async (command: string, chatId: string) => {
   flex-direction: column;
 }
 
+.chat-group-header {
+  padding: 8px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .chat-item {
   display: flex;
   align-items: center;
@@ -252,17 +302,17 @@ const handleChatAction = async (command: string, chatId: string) => {
   padding: 12px 16px;
   cursor: pointer;
   transition: background-color 0.2s;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid var(--border-subtle);
   position: relative;
 }
 
 .chat-item:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: var(--surface-hover);
 }
 
 .chat-item.active {
-  background-color: var(--el-color-primary-light-9);
-  border-left: 3px solid var(--el-color-primary);
+  background-color: color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-left: 3px solid var(--accent-purple);
 }
 
 .chat-item-content {
@@ -283,7 +333,7 @@ const handleChatAction = async (command: string, chatId: string) => {
 .chat-item-title {
   font-size: 14px;
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -292,13 +342,13 @@ const handleChatAction = async (command: string, chatId: string) => {
 
 .chat-item-time {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 
 .chat-item-preview {
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -318,8 +368,16 @@ const handleChatAction = async (command: string, chatId: string) => {
 }
 
 .chat-item-menu:hover {
-  background-color: var(--el-fill-color);
+  background-color: var(--surface-hover);
   border-radius: 4px;
+}
+
+.chat-avatar {
+  width: 48px;
+  height: 48px;
+  line-height: 48px;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 /* Scrollbar styling */
@@ -328,15 +386,71 @@ const handleChatAction = async (command: string, chatId: string) => {
 }
 
 .sidebar-content::-webkit-scrollbar-track {
-  background: var(--el-fill-color-lighter);
+  background: var(--surface-card);
 }
 
 .sidebar-content::-webkit-scrollbar-thumb {
-  background: var(--el-fill-color-dark);
+  background: var(--surface-active);
   border-radius: 3px;
 }
 
 .sidebar-content::-webkit-scrollbar-thumb:hover {
-  background: var(--el-text-color-secondary);
+  background: var(--text-tertiary);
+}
+
+/* Mobile breakpoint */
+@media (max-width: 480px) {
+  .sidebar-header {
+    padding: 12px;
+  }
+
+  .sidebar-title {
+    font-size: 16px;
+  }
+
+  .sidebar-search {
+    padding: 8px 12px;
+  }
+
+  .loading-container {
+    padding: 12px;
+  }
+
+  .empty-state {
+    padding: 16px;
+  }
+
+  .chat-group-header {
+    padding: 6px 12px 4px;
+    font-size: 10px;
+  }
+
+  .chat-item {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .chat-avatar {
+    width: 36px;
+    height: 36px;
+    line-height: 36px;
+    font-size: 13px;
+  }
+
+  .chat-item-title {
+    font-size: 13px;
+  }
+
+  .chat-item-time {
+    font-size: 11px;
+  }
+
+  .chat-item-preview {
+    font-size: 12px;
+  }
+
+  .chat-item-menu {
+    padding: 2px 6px;
+  }
 }
 </style>
