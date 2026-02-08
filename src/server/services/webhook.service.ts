@@ -110,3 +110,8 @@ export class WebhookService {
     });
   }
 }
+
+import { webhookRepository } from '../../db/repositories/webhook.repository';
+import { eventBus } from './event-bus.service';
+
+export const webhookService = new WebhookService(webhookRepository, eventBus);

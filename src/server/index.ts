@@ -23,8 +23,15 @@ import { subscriptionRoutes } from './routes/subscriptions';
 import { usageRoutes } from './routes/usage';
 import { llmRoutes } from './routes/llm';
 import { intelligenceRoutes } from './routes/intelligence';
+import { worldbooksRouter } from './routes/worldbooks';
+import { uploadRoutes } from './routes/uploads';
+import { webhookRoutes } from './routes/webhooks';
+import { WebhookWorker } from './workers/webhook.worker';
+import { webhookRepository } from '../db/repositories/webhook.repository';
 import { basicHealthCheck, livenessCheck, readinessCheck } from './services/health';
 import { websocketHandler } from './routes/websocket';
+import * as fs from 'fs';
+import * as path from 'path';
 
 type Variables = {
   tenantId?: string;
@@ -55,7 +62,12 @@ app.use('*', requestIdMiddleware);
 
 // General middleware
 app.use('*', logger());
-app.use('*', cors());
+app.use('*', cors({
+  origin: config.corsOrigins.split(',').map((o) => o.trim()),
+  credentials: true,
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-ID'],
+}));
 
 // Apply rate limiting to API routes
 app.use('/api/v1/auth/*', authRateLimit);
@@ -78,6 +90,9 @@ app.use('/api/v1/chats/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/subscriptions/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/usage/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/llm/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/worldbooks/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/uploads/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/webhooks/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -112,6 +127,9 @@ app.use('/api/v1/chats', csrfProtection());
 app.use('/api/v1/subscriptions', csrfProtection());
 app.use('/api/v1/usage', csrfProtection());
 app.use('/api/v1/llm', csrfProtection());
+app.use('/api/v1/worldbooks', csrfProtection());
+app.use('/api/v1/uploads', csrfProtection());
+app.use('/api/v1/webhooks', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
@@ -119,6 +137,9 @@ app.route('/api/v1/chats', chatRoutes);
 app.route('/api/v1/subscriptions', subscriptionRoutes);
 app.route('/api/v1/usage', usageRoutes);
 app.route('/api/v1/llm', llmRoutes);
+app.route('/api/v1/worldbooks', worldbooksRouter);
+app.route('/api/v1/uploads', uploadRoutes);
+app.route('/api/v1/webhooks', webhookRoutes);
 app.route('/api/v1', intelligenceRoutes);
 
 app.get('/api/v1', (c) => {
@@ -133,13 +154,58 @@ app.get('/api/v1', (c) => {
       users: '/api/v1/users',
       characters: '/api/v1/characters',
       chats: '/api/v1/chats',
-      subscriptions: '/api/v1/ions',
+      worldbooks: '/api/v1/worldbooks',
+      subscriptions: '/api/v1/subscriptions',
       usage: '/api/v1/usage',
       llm: '/api/v1/llm',
+      uploads: '/api/v1/uploads',
       docs: '/api/v1/docs',
       ws: '/ws',
     },
   });
+});
+
+// Static file serving for uploads
+app.get('/uploads/*', async (c) => {
+  const filePath = c.req.path;
+  const absolutePath = path.resolve(config.storagePath, filePath.replace(/^\/uploads\//, ''));
+
+  // Security: prevent directory traversal
+  const resolvedBase = path.resolve(config.storagePath);
+  if (!absolutePath.startsWith(resolvedBase)) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  try {
+    const stat = await fs.promises.stat(absolutePath);
+    if (!stat.isFile()) {
+      return c.json({ error: 'Not Found' }, 404);
+    }
+
+    const fileBuffer = await fs.promises.readFile(absolutePath);
+    const ext = path.extname(absolutePath).toLowerCase();
+    const mimeMap: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.ogg': 'audio/ogg',
+      '.webm': 'audio/webm',
+    };
+    const contentType = mimeMap[ext] || 'application/octet-stream';
+
+    return new Response(fileBuffer, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
+  } catch {
+    return c.json({ error: 'Not Found' }, 404);
+  }
 });
 
 // 404 处理
@@ -153,6 +219,10 @@ app.onError(errorHandler);
 // 启动服务器（仅在非测试环境）
 if (process.env.NODE_ENV !== 'test') {
   const port = config.port;
+
+  // Start webhook delivery worker
+  const webhookWorker = new WebhookWorker(webhookRepository);
+  webhookWorker.start();
   console.log(`🚀 Server starting on http://${config.host}:${port}`);
 
   const serverInstance = serve({
