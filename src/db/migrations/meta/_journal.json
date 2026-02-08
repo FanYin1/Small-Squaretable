@@ -50,6 +50,20 @@
       "when": 1770290079848,
       "tag": "0006_tearful_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1770386990629,
+      "tag": "0007_spooky_korg",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1770577759136,
+      "tag": "0008_amused_bug",
+      "breakpoints": true
     }
   ]
 }
