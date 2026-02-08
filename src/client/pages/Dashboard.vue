@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ChatDotRound, Star, TrendCharts, Clock, User, MessageBox } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
+import { ChatDotRound, Star, TrendCharts, Clock, User, MessageBox, Promotion } from '@element-plus/icons-vue';
 import { useUserStore } from '@client/stores';
-import { useToast } from '@client/composables/useToast';
+import { useToast, useDateTime } from '@client/composables';
 import { api } from '@client/services/api';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 
 const router = useRouter();
 const userStore = useUserStore();
 const toast = useToast();
+const { t } = useI18n();
+const { formatRelativeTime } = useDateTime();
 
 // Dashboard data
 const dashboardData = ref({
@@ -19,6 +22,63 @@ const dashboardData = ref({
 });
 
 const loading = ref(false);
+
+const activityData = ref([
+  { day: 'Mon', count: 12 },
+  { day: 'Tue', count: 28 },
+  { day: 'Wed', count: 15 },
+  { day: 'Thu', count: 35 },
+  { day: 'Fri', count: 22 },
+  { day: 'Sat', count: 40 },
+  { day: 'Sun', count: 18 },
+]);
+
+const activityDayKeys: Record<string, string> = {
+  Mon: 'dashboard.mon',
+  Tue: 'dashboard.tue',
+  Wed: 'dashboard.wed',
+  Thu: 'dashboard.thu',
+  Fri: 'dashboard.fri',
+  Sat: 'dashboard.sat',
+  Sun: 'dashboard.sun',
+};
+
+const chartPadding = { top: 10, right: 20, bottom: 24, left: 20 };
+const chartWidth = 300;
+const chartHeight = 120;
+
+const activityPoints = computed(() => {
+  const data = activityData.value;
+  const maxCount = Math.max(...data.map((d) => d.count));
+  const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
+  const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+  const stepX = plotWidth / (data.length - 1);
+
+  return data.map((d, i) => ({
+    x: chartPadding.left + i * stepX,
+    y: chartPadding.top + plotHeight - (d.count / maxCount) * plotHeight,
+    day: d.day,
+    count: d.count,
+  }));
+});
+
+const polylinePoints = computed(() =>
+  activityPoints.value.map((p) => `${p.x},${p.y}`).join(' ')
+);
+
+const areaPath = computed(() => {
+  const pts = activityPoints.value;
+  if (pts.length === 0) return '';
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+  const bottomY = chartHeight - chartPadding.bottom;
+  let d = `M ${first.x},${bottomY}`;
+  for (const p of pts) {
+    d += ` L ${p.x},${p.y}`;
+  }
+  d += ` L ${last.x},${bottomY} Z`;
+  return d;
+});
 
 onMounted(async () => {
   await fetchDashboardData();
@@ -39,8 +99,7 @@ async function fetchDashboardData() {
     const usageResponse = await api.get('/usage/stats');
     dashboardData.value.usageStats = usageResponse;
   } catch (error) {
-    console.error('Failed to fetch dashboard data:', error);
-    toast.error('加载失败', { message: '无法获取仪表盘数据' });
+    toast.error(t('common.retry'));
   } finally {
     loading.value = false;
   }
@@ -70,42 +129,50 @@ const handleViewSubscription = () => {
   router.push({ name: 'Subscription' });
 };
 
-// Helper function to format time
-function formatTime(date: string | Date): string {
-  if (!date) return '';
-  const d = new Date(date);
-  const now = new Date();
-  const diff = now.getTime() - d.getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
-  if (hours < 24) return `${hours}小时前`;
-  if (days < 7) return `${days}天前`;
-  return d.toLocaleDateString('zh-CN');
-}
 </script>
 
 <template>
   <DashboardLayout>
-    <template #title>仪表盘</template>
+    <template #title>{{ $t('nav.home') }}</template>
     <template #actions>
       <button class="btn-action" @click="handleViewMarket">
         <el-icon><Star /></el-icon>
-        浏览角色
+        {{ $t('dashboard.browseMarket') }}
       </button>
       <button class="btn-action btn-action-primary" @click="handleStartChat">
         <el-icon><ChatDotRound /></el-icon>
-        新建聊天
+        {{ $t('chat.newChat') }}
       </button>
     </template>
 
-    <div v-loading="loading" class="dashboard-content">
+    <div class="dashboard-content">
       <div class="welcome-section">
-        <h2 class="welcome-title">欢迎回来，{{ userStore.user?.name }}！</h2>
-        <p class="welcome-subtitle">继续您的 AI 对话之旅</p>
+        <h2 class="welcome-title">{{ $t('dashboard.welcome', { name: userStore.user?.name }) }}</h2>
+        <p class="welcome-subtitle">{{ $t('dashboard.continueChat') }}</p>
+      </div>
+
+      <div class="quick-actions" role="navigation" aria-label="Quick actions">
+        <div class="quick-action-card" role="button" tabindex="0" @click="handleChatClick(dashboardData.recentChats[0]?.id)" @keydown.enter="handleChatClick(dashboardData.recentChats[0]?.id)" v-if="dashboardData.recentChats.length > 0">
+          <el-icon :size="24"><ChatDotRound /></el-icon>
+          <div class="quick-action-info">
+            <span class="quick-action-title">{{ $t('dashboard.continueChat') }}</span>
+            <span class="quick-action-desc">{{ dashboardData.recentChats[0]?.character?.name }}</span>
+          </div>
+        </div>
+        <div class="quick-action-card" role="button" tabindex="0" @click="handleViewMarket" @keydown.enter="handleViewMarket">
+          <el-icon :size="24"><Star /></el-icon>
+          <div class="quick-action-info">
+            <span class="quick-action-title">{{ $t('dashboard.browseMarket') }}</span>
+            <span class="quick-action-desc">{{ $t('dashboard.characterStats') }}</span>
+          </div>
+        </div>
+        <div class="quick-action-card" role="button" tabindex="0" @click="handleStartChat" @keydown.enter="handleStartChat">
+          <el-icon :size="24"><Promotion /></el-icon>
+          <div class="quick-action-info">
+            <span class="quick-action-title">{{ $t('dashboard.startChat') }}</span>
+            <span class="quick-action-desc">{{ $t('dashboard.createCharacter') }}</span>
+          </div>
+        </div>
       </div>
 
       <div class="dashboard-grid">
@@ -113,35 +180,41 @@ function formatTime(date: string | Date): string {
           <div class="card-header">
             <h3 class="card-title">
               <el-icon><Clock /></el-icon>
-              最近聊天
+              {{ $t('dashboard.recentChats') }}
             </h3>
-            <button class="card-link" @click="handleViewAllChats">查看全部</button>
+            <button class="card-link" @click="handleViewAllChats">{{ $t('dashboard.viewAll') }}</button>
           </div>
           <div class="card-content">
-            <div v-if="dashboardData.recentChats.length === 0" class="empty-state">
-              <el-icon class="empty-icon"><MessageBox /></el-icon>
-              <p>暂无聊天记录</p>
-              <button class="btn-small" @click="handleStartChat">开始聊天</button>
-            </div>
-            <div v-else class="chat-list">
-              <div
-                v-for="chat in dashboardData.recentChats"
-                :key="chat.id"
-                class="chat-item"
-                @click="handleChatClick(chat.id)"
-              >
-                <div class="chat-avatar">
-                  <el-avatar :src="chat.character?.avatar" :size="40">
-                    {{ chat.character?.name?.[0] }}
-                  </el-avatar>
-                </div>
-                <div class="chat-info">
-                  <div class="chat-name">{{ chat.character?.name || '未知角色' }}</div>
-                  <div class="chat-preview">{{ chat.lastMessage || '暂无消息' }}</div>
-                </div>
-                <div class="chat-time">{{ formatTime(chat.updatedAt) }}</div>
+            <el-skeleton v-if="loading" :rows="4" animated />
+            <template v-else>
+              <div v-if="dashboardData.recentChats.length === 0" class="empty-state">
+                <el-icon class="empty-icon"><MessageBox /></el-icon>
+                <p>{{ $t('dashboard.noRecentChats') }}</p>
+                <button class="btn-small" @click="handleStartChat">{{ $t('dashboard.startChat') }}</button>
               </div>
-            </div>
+              <div v-else class="chat-list">
+                <div
+                  v-for="chat in dashboardData.recentChats"
+                  :key="chat.id"
+                  class="chat-item"
+                  role="button"
+                  tabindex="0"
+                  @click="handleChatClick(chat.id)"
+                  @keydown.enter="handleChatClick(chat.id)"
+                >
+                  <div class="chat-avatar">
+                    <el-avatar :src="chat.character?.avatar" :size="40">
+                      {{ chat.character?.name?.[0] }}
+                    </el-avatar>
+                  </div>
+                  <div class="chat-info">
+                    <div class="chat-name">{{ chat.character?.name || $t('chat.noMessages') }}</div>
+                    <div class="chat-preview">{{ chat.lastMessage || $t('chat.noMessages') }}</div>
+                  </div>
+                  <div class="chat-time">{{ formatRelativeTime(chat.updatedAt) }}</div>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -149,22 +222,25 @@ function formatTime(date: string | Date): string {
           <div class="card-header">
             <h3 class="card-title">
               <el-icon><User /></el-icon>
-              角色统计
+              {{ $t('dashboard.characterStats') }}
             </h3>
-            <button class="card-link" @click="handleViewCharacters">管理</button>
+            <button class="card-link" @click="handleViewCharacters">{{ $t('common.edit') }}</button>
           </div>
           <div class="card-content">
-            <div class="stats-container">
-              <div class="stat-box">
-                <div class="stat-label">总角色数</div>
-                <div class="stat-value">{{ dashboardData.characterStats.total }}</div>
+            <el-skeleton v-if="loading" :rows="2" animated />
+            <template v-else>
+              <div class="stats-container">
+                <div class="stat-box">
+                  <div class="stat-label">{{ $t('dashboard.totalCharacters') }}</div>
+                  <div class="stat-value">{{ dashboardData.characterStats.total }}</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">{{ $t('dashboard.favorites') }}</div>
+                  <div class="stat-value">{{ dashboardData.characterStats.favorites }}</div>
+                </div>
               </div>
-              <div class="stat-box">
-                <div class="stat-label">收藏角色</div>
-                <div class="stat-value">{{ dashboardData.characterStats.favorites }}</div>
-              </div>
-            </div>
-            <button class="btn-small" @click="handleViewMarket">发现更多角色</button>
+              <button class="btn-small" @click="handleViewMarket">{{ $t('dashboard.browseMarket') }}</button>
+            </template>
           </div>
         </div>
 
@@ -172,21 +248,47 @@ function formatTime(date: string | Date): string {
           <div class="card-header">
             <h3 class="card-title">
               <el-icon><TrendCharts /></el-icon>
-              使用统计
+              {{ $t('dashboard.usageStats') }}
             </h3>
           </div>
           <div class="card-content">
-            <div class="stats-container">
-              <div class="stat-box">
-                <div class="stat-label">本月消息</div>
-                <div class="stat-value">{{ dashboardData.usageStats.messagesThisMonth }}</div>
+            <el-skeleton v-if="loading" :rows="2" animated />
+            <template v-else>
+              <div class="stats-container">
+                <div class="stat-box">
+                  <div class="stat-label">{{ $t('dashboard.messagesThisMonth') }}</div>
+                  <div class="stat-value">{{ dashboardData.usageStats.messagesThisMonth }}</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-label">{{ $t('dashboard.charactersUsed') }}</div>
+                  <div class="stat-value">{{ dashboardData.usageStats.charactersUsed }}</div>
+                </div>
               </div>
-              <div class="stat-box">
-                <div class="stat-label">使用角色</div>
-                <div class="stat-value">{{ dashboardData.usageStats.charactersUsed }}</div>
-              </div>
-            </div>
-            <button class="btn-small" @click="handleViewSubscription">查看详情</button>
+              <button class="btn-small" @click="handleViewSubscription">{{ $t('dashboard.viewAll') }}</button>
+            </template>
+          </div>
+        </div>
+
+        <div class="dashboard-card activity-card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <el-icon><TrendCharts /></el-icon>
+              {{ $t('dashboard.activityTitle') }}
+            </h3>
+          </div>
+          <div class="card-content activity-chart-content">
+            <svg :viewBox="`0 0 ${chartWidth} ${chartHeight}`" class="activity-chart" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <linearGradient id="activityGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--accent-purple)" stop-opacity="0.3" />
+                  <stop offset="100%" stop-color="var(--accent-purple)" stop-opacity="0.02" />
+                </linearGradient>
+              </defs>
+              <path :d="areaPath" fill="url(#activityGradient)" />
+              <polyline :points="polylinePoints" fill="none" stroke="var(--accent-purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <circle v-for="(point, idx) in activityPoints" :key="idx" :cx="point.x" :cy="point.y" r="3" fill="var(--accent-purple)" class="chart-dot" />
+              <text v-for="(point, idx) in activityPoints" :key="'label-'+idx" :x="point.x" :y="chartHeight - 6" text-anchor="middle" class="chart-label">{{ t(activityDayKeys[point.day]) }}</text>
+            </svg>
           </div>
         </div>
       </div>
@@ -195,8 +297,6 @@ function formatTime(date: string | Date): string {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
-
 .btn-action {
   display: flex;
   align-items: center;
@@ -204,30 +304,29 @@ function formatTime(date: string | Date): string {
   padding: 10px 16px;
   font-size: 14px;
   font-weight: 500;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
-  background: var(--bg-color);
-  color: var(--color-text-primary);
+  background: var(--surface-card);
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 .btn-action:hover {
-  background: var(--color-bg);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  background: var(--bg-base);
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
 }
 
 .btn-action-primary {
-  background: var(--color-primary);
+  background: var(--accent-purple);
   color: white;
-  border-color: var(--color-primary);
+  border-color: var(--accent-purple);
 }
 
 .btn-action-primary:hover {
-  background: var(--color-primary-dark);
-  border-color: var(--color-primary-dark);
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
 }
 
 .dashboard-content {
@@ -238,18 +337,25 @@ function formatTime(date: string | Date): string {
 
 .welcome-section {
   margin-bottom: 32px;
+  padding: 32px;
+  border-radius: 16px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--accent-purple) 12%, var(--surface-card)),
+    color-mix(in srgb, var(--accent-cyan) 8%, var(--surface-card))
+  );
+  border: 1px solid var(--border-subtle);
 }
 
 .welcome-title {
   font-size: 28px;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--text-primary);
   margin: 0 0 8px 0;
 }
 
 .welcome-subtitle {
   font-size: 16px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -260,16 +366,24 @@ function formatTime(date: string | Date): string {
 }
 
 .dashboard-card {
-  background: var(--bg-color);
-  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--surface-card) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   overflow: hidden;
-  transition: all 0.2s ease;
+  transition: all var(--duration-slow) var(--ease-out);
+  animation: fadeIn var(--duration-slow) var(--ease-out) both;
 }
 
+.dashboard-card:nth-child(1) { animation-delay: 0s; }
+.dashboard-card:nth-child(2) { animation-delay: 0.1s; }
+.dashboard-card:nth-child(3) { animation-delay: 0.2s; }
+
 .dashboard-card:hover {
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 10%, transparent);
-  border-color: var(--color-primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-purple) 8%, transparent);
+  border-color: var(--accent-purple);
 }
 
 .card-header {
@@ -277,8 +391,8 @@ function formatTime(date: string | Date): string {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-primary) 2%, transparent);
+  border-bottom: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--accent-purple) 2%, transparent);
 }
 
 .card-title {
@@ -287,28 +401,27 @@ function formatTime(date: string | Date): string {
   gap: 8px;
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--text-primary);
   margin: 0;
 }
 
 .card-title :deep(.el-icon) {
-  color: var(--color-primary);
+  color: var(--accent-purple);
 }
 
 .card-link {
   padding: 0;
   background: none;
   border: none;
-  color: var(--color-primary);
+  color: var(--accent-purple);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: color 0.2s ease;
-  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 .card-link:hover {
-  color: var(--color-primary-dark);
+  color: var(--accent-purple);
 }
 
 .card-content {
@@ -326,13 +439,13 @@ function formatTime(date: string | Date): string {
 
 .empty-icon {
   font-size: 48px;
-  color: var(--color-primary-light);
+  color: color-mix(in srgb, var(--accent-purple) 15%, transparent);
   margin-bottom: 16px;
 }
 
 .empty-state p {
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   margin: 0 0 16px 0;
 }
 
@@ -348,13 +461,19 @@ function formatTime(date: string | Date): string {
   gap: 12px;
   padding: 12px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--color-primary) 2%, transparent);
+  background: color-mix(in srgb, var(--accent-purple) 2%, transparent);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
+.chat-item:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
 .chat-item:hover {
-  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  background: color-mix(in srgb, var(--accent-purple) 8%, transparent);
   transform: translateX(4px);
 }
 
@@ -370,13 +489,13 @@ function formatTime(date: string | Date): string {
 .chat-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .chat-preview {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -384,7 +503,7 @@ function formatTime(date: string | Date): string {
 
 .chat-time {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -397,21 +516,21 @@ function formatTime(date: string | Date): string {
 
 .stat-box {
   padding: 16px;
-  background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  background: color-mix(in srgb, var(--accent-purple) 5%, transparent);
   border-radius: 8px;
   text-align: center;
 }
 
 .stat-box .stat-label {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
 .stat-box .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: var(--color-primary);
+  color: var(--accent-purple);
 }
 
 .btn-small {
@@ -419,18 +538,99 @@ function formatTime(date: string | Date): string {
   padding: 10px 16px;
   font-size: 14px;
   font-weight: 500;
-  border: 1px solid var(--color-primary);
+  border: 1px solid var(--accent-purple);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-primary);
+  background: color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  color: var(--accent-purple);
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 .btn-small:hover {
-  background: var(--color-primary);
+  background: var(--accent-purple);
   color: white;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.quick-action-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: color-mix(in srgb, var(--surface-card) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--duration-slow) var(--ease-out);
+}
+
+.quick-action-card:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: 2px;
+}
+
+.quick-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-purple) 8%, transparent);
+  border-color: var(--accent-purple);
+}
+
+.quick-action-card .el-icon {
+  color: var(--accent-purple);
+  flex-shrink: 0;
+}
+
+.quick-action-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quick-action-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quick-action-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.activity-card {
+  grid-column: 1 / -1;
+}
+
+.activity-chart-content {
+  padding: 16px 20px 8px;
+}
+
+.activity-chart {
+  width: 100%;
+  height: auto;
+  max-height: 160px;
+}
+
+.chart-dot {
+  transition: r 0.2s ease;
+}
+
+.chart-dot:hover {
+  r: 5;
+}
+
+.chart-label {
+  font-size: 10px;
+  fill: var(--text-secondary);
+  user-select: none;
 }
 
 @media (max-width: 1024px) {
@@ -456,6 +656,10 @@ function formatTime(date: string | Date): string {
   .welcome-title {
     font-size: 20px;
   }
+
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 480px) {
@@ -464,38 +668,4 @@ function formatTime(date: string | Date): string {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .dashboard-card {
-    background: var(--color-surface-dark);
-    border-color: var(--color-border);
-  }
-
-  .card-header {
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-    border-bottom-color: var(--color-border);
-  }
-
-  .btn-action {
-    background: var(--color-surface-dark);
-    color: var(--color-text-primary);
-    border-color: var(--color-border);
-  }
-
-  .btn-action:hover {
-    background: var(--color-surface-darker);
-    border-color: var(--color-primary);
-  }
-
-  .chat-item {
-    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  }
-
-  .chat-item:hover {
-    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
-  }
-
-  .stat-box {
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  }
-}
 </style>
