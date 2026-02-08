@@ -20,6 +20,7 @@ export const useChatStore = defineStore('chat', () => {
   const sending = ref(false);
   const error = ref<string | null>(null);
   const wsConnected = ref(false);
+  const wsConnectionState = ref<WSConnectionState>(WSConnectionState.DISCONNECTED);
   const streamingMessage = ref<string>('');
   const isStreaming = ref(false);
 
@@ -91,6 +92,7 @@ export const useChatStore = defineStore('chat', () => {
     wsClient.on('stateChange', (data: unknown) => {
       const state = data as WSConnectionState;
       wsConnected.value = state === WSConnectionState.CONNECTED;
+      wsConnectionState.value = state;
     });
 
     // 连接成功
@@ -226,6 +228,7 @@ export const useChatStore = defineStore('chat', () => {
       wsClient = null;
     }
     wsConnected.value = false;
+    wsConnectionState.value = WSConnectionState.DISCONNECTED;
   }
 
   // Actions
@@ -544,6 +547,7 @@ export const useChatStore = defineStore('chat', () => {
     sending,
     error,
     wsConnected,
+    wsConnectionState,
     streamingMessage,
     isStreaming,
     fetchChats,

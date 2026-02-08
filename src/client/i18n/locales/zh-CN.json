@@ -742,5 +742,11 @@
     "later": "稍后",
     "updateAvailable": "新版本可用，点击更新",
     "offlineReady": "应用已准备好离线使用"
+  },
+  "ws": {
+    "connected": "已连接",
+    "reconnecting": "正在重连...",
+    "connectionError": "连接失败",
+    "disconnected": "未连接"
   }
 }

@@ -742,5 +742,11 @@
     "later": "Later",
     "updateAvailable": "New version available. Click to update.",
     "offlineReady": "App ready for offline use"
+  },
+  "ws": {
+    "connected": "Connected",
+    "reconnecting": "Reconnecting...",
+    "connectionError": "Connection error",
+    "disconnected": "Disconnected"
   }
 }
