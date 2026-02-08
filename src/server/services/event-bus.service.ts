@@ -4,13 +4,16 @@
  * 进程内事件发布/订阅，作为 Webhook 和通知系统的基础
  */
 
-type EventHandler = (...args: unknown[]) => void | Promise<void>;
+export type EventHandler = (...args: unknown[]) => void | Promise<void>;
+export type WildcardHandler = (event: string, payload: Record<string, unknown>) => void | Promise<void>;
 
 export class EventBus {
   private handlers: Map<string, Set<EventHandler>> = new Map();
   private wildcardHandlers: Set<(event: string, payload: Record<string, unknown>) => void | Promise<void>> = new Set();
 
-  on(event: string, handler: EventHandler): void {
+  on(event: '*', handler: WildcardHandler): void;
+  on(event: string, handler: EventHandler): void;
+  on(event: string, handler: EventHandler | WildcardHandler): void {
     if (event === '*') {
       this.wildcardHandlers.add(handler as (event: string, payload: Record<string, unknown>) => void | Promise<void>);
       return;

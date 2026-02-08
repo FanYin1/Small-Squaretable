@@ -8,7 +8,7 @@ import { randomBytes } from 'crypto';
 import type { WebhookRepository } from '../../db/repositories/webhook.repository';
 import type { WebhookEndpoint, WebhookDelivery } from '../../db/schema/webhooks';
 import type { CreateWebhookInput, UpdateWebhookInput, WebhookPayload } from '../../types/webhook';
-import type { EventBus } from './event-bus.service';
+import type { EventBus, WildcardHandler } from './event-bus.service';
 import { NotFoundError, ForbiddenError } from '../../core/errors';
 
 export class WebhookService {
@@ -16,7 +16,7 @@ export class WebhookService {
     private repo: WebhookRepository,
     private eventBus: EventBus,
   ) {
-    this.eventBus.on('*', this.handleEvent.bind(this));
+    this.eventBus.on('*', this.handleEvent.bind(this) as WildcardHandler);
   }
 
   private async handleEvent(event: string, payload: Record<string, unknown>): Promise<void> {
