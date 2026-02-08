@@ -12,3 +12,7 @@ export * from './chat.api';
 export * from './subscription.api';
 export * from './usage.api';
 export * from './llm.api';
+export * from './worldbook.api';
+export * from './upload.api';
+export * from './social.api';
+export * from './notification.api';
