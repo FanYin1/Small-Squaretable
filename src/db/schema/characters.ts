@@ -4,7 +4,7 @@
  * 存储 AI 角色卡数据，支持公开分享和市场功能
  */
 
-import { pgTable, uuid, varchar, timestamp, jsonb, boolean, integer, decimal, text, customType } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, boolean, integer, decimal, text, customType, index } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 import { users } from './users';
 
@@ -45,6 +45,8 @@ export const characters = pgTable('characters', {
   viewCount: integer('view_count').default(0).notNull(),
   ratingAvg: decimal('rating_avg', { precision: 3, scale: 2 }),
   ratingCount: integer('rating_count').default(0).notNull(),
+  favoriteCount: integer('favorite_count').default(0).notNull(),
+  commentCount: integer('comment_count').default(0).notNull(),
 
   // 五维度评分平均值
   ratingQualityAvg: decimal('rating_quality_avg', { precision: 3, scale: 2 }),
@@ -60,7 +62,11 @@ export const characters = pgTable('characters', {
 
   // 全文搜索向量
   searchVector: tsvector('search_vector'),
-});
+}, (table) => ({
+  tenantIdIdx: index('idx_characters_tenant_id').on(table.tenantId),
+  creatorIdIdx: index('idx_characters_creator_id').on(table.creatorId),
+  isPublicIdx: index('idx_characters_is_public').on(table.isPublic),
+}));
 
 export type Character = typeof characters.$inferSelect;
 export type NewCharacter = typeof characters.$inferInsert;

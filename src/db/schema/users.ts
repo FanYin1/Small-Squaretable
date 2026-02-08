@@ -4,7 +4,7 @@
  * 存储用户认证信息和基本资料
  */
 
-import { pgTable, uuid, varchar, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, boolean, integer, index } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 
 export const users = pgTable('users', {
@@ -21,7 +21,11 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
-});
+  followerCount: integer('follower_count').default(0).notNull(),
+  followingCount: integer('following_count').default(0).notNull(),
+}, (table) => ({
+  tenantIdIdx: index('idx_users_tenant_id').on(table.tenantId),
+}));
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
