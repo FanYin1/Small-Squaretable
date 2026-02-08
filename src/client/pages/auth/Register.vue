@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@client/stores/user';
 import { useToast } from '@client/composables/useToast';
 import type { FormInstance, FormRules } from 'element-plus';
 import { View, Hide } from '@element-plus/icons-vue';
 
 const router = useRouter();
+const { t } = useI18n();
 const userStore = useUserStore();
 const toast = useToast();
 
@@ -49,16 +51,16 @@ const passwordStrength = computed(() => {
 
   if (strength <= 2) {
     level = 1;
-    text = '弱';
-    color = '#F56C6C';
+    text = t('auth.passwordWeak');
+    color = 'var(--color-danger)';
   } else if (strength <= 4) {
     level = 2;
-    text = '中';
-    color = '#E6A23C';
+    text = t('auth.passwordMedium');
+    color = 'var(--color-warning)';
   } else {
     level = 3;
-    text = '强';
-    color = '#67C23A';
+    text = t('auth.passwordStrong');
+    color = 'var(--color-success)';
   }
 
   return { level, text, color };
@@ -67,11 +69,11 @@ const passwordStrength = computed(() => {
 // Custom validators
 const validatePassword = (_rule: any, value: any, callback: any) => {
   if (!value) {
-    callback(new Error('请输入密码'));
+    callback(new Error(t('auth.passwordRequired')));
   } else if (value.length < 8) {
-    callback(new Error('密码至少需要 8 个字符'));
+    callback(new Error(t('auth.passwordMinLength8')));
   } else if (!/[a-zA-Z]/.test(value) || !/[0-9]/.test(value)) {
-    callback(new Error('密码必须包含字母和数字'));
+    callback(new Error(t('auth.passwordAlphanumeric')));
   } else {
     callback();
   }
@@ -79,9 +81,9 @@ const validatePassword = (_rule: any, value: any, callback: any) => {
 
 const validateConfirmPassword = (_rule: any, value: any, callback: any) => {
   if (!value) {
-    callback(new Error('请确认密码'));
+    callback(new Error(t('auth.confirmPasswordRequired')));
   } else if (value !== formData.password) {
-    callback(new Error('两次输入的密码不一致'));
+    callback(new Error(t('auth.passwordMismatch')));
   } else {
     callback();
   }
@@ -89,7 +91,7 @@ const validateConfirmPassword = (_rule: any, value: any, callback: any) => {
 
 const validateTerms = (_rule: any, value: any, callback: any) => {
   if (!value) {
-    callback(new Error('请阅读并同意服务条款'));
+    callback(new Error(t('auth.agreeTermsRequired')));
   } else {
     callback();
   }
@@ -98,12 +100,12 @@ const validateTerms = (_rule: any, value: any, callback: any) => {
 // Form validation rules
 const rules = reactive<FormRules>({
   name: [
-    { required: true, message: '请输入姓名', trigger: 'blur' },
-    { min: 2, max: 50, message: '姓名长度应在 2-50 个字符之间', trigger: 'blur' },
+    { required: true, message: t('auth.nameRequired'), trigger: 'blur' },
+    { min: 2, max: 50, message: t('auth.nameLength'), trigger: 'blur' },
   ],
   email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' },
+    { required: true, message: t('auth.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('auth.emailInvalid'), trigger: 'blur' },
   ],
   password: [
     { required: true, validator: validatePassword, trigger: 'blur' },
@@ -128,13 +130,13 @@ const handleRegister = async () => {
 
     await userStore.register(formData.email, formData.password, formData.name);
 
-    toast.success('注册成功');
+    toast.success(t('auth.registerSuccess'));
 
     // Redirect to home page after successful registration
     router.push({ name: 'Home' });
-  } catch (error: any) {
-    toast.error('注册失败', {
-      message: error.message || '请检查输入信息后重试'
+  } catch (error: unknown) {
+    toast.error(t('auth.registerFailed'), {
+      message: error instanceof Error ? error.message : t('auth.checkInputRetry')
     });
   } finally {
     loading.value = false;
@@ -152,8 +154,8 @@ const goToLogin = () => {
     <el-card class="register-card">
       <template #header>
         <div class="card-header">
-          <h1>创建账号</h1>
-          <p class="subtitle">开始您的 SillyTavern 之旅</p>
+          <h1>{{ t('auth.createAccount') }}</h1>
+          <p class="subtitle">{{ t('auth.startJourney') }}</p>
         </div>
       </template>
 
@@ -163,35 +165,36 @@ const goToLogin = () => {
         :rules="rules"
         label-position="top"
         size="large"
+        :aria-label="t('auth.register')"
         @submit.prevent="handleRegister"
       >
         <!-- Name Field -->
-        <el-form-item label="姓名" prop="name">
+        <el-form-item :label="t('auth.name')" prop="name">
           <el-input
             v-model="formData.name"
-            placeholder="请输入您的姓名"
+            :placeholder="t('auth.enterName')"
             :disabled="loading"
             clearable
           />
         </el-form-item>
 
         <!-- Email Field -->
-        <el-form-item label="邮箱" prop="email">
+        <el-form-item :label="t('auth.email')" prop="email">
           <el-input
             v-model="formData.email"
             type="email"
-            placeholder="请输入您的邮箱"
+            :placeholder="t('auth.enterEmail')"
             :disabled="loading"
             clearable
           />
         </el-form-item>
 
         <!-- Password Field -->
-        <el-form-item label="密码" prop="password">
+        <el-form-item :label="t('auth.password')" prop="password">
           <el-input
             v-model="formData.password"
             :type="showPassword ? 'text' : 'password'"
-            placeholder="请输入密码（至少 8 个字符，包含字母和数字）"
+            :placeholder="t('auth.enterPassword')"
             :disabled="loading"
             clearable
           >
@@ -221,17 +224,17 @@ const goToLogin = () => {
               class="strength-text"
               :style="{ color: passwordStrength.color }"
             >
-              密码强度：{{ passwordStrength.text }}
+              {{ t('auth.passwordStrength') }}{{ passwordStrength.text }}
             </span>
           </div>
         </el-form-item>
 
         <!-- Confirm Password Field -->
-        <el-form-item label="确认密码" prop="confirmPassword">
+        <el-form-item :label="t('auth.confirmPassword')" prop="confirmPassword">
           <el-input
             v-model="formData.confirmPassword"
             :type="showConfirmPassword ? 'text' : 'password'"
-            placeholder="请再次输入密码"
+            :placeholder="t('auth.reenterPassword')"
             :disabled="loading"
             clearable
           >
@@ -250,10 +253,10 @@ const goToLogin = () => {
         <!-- Terms and Conditions -->
         <el-form-item prop="agreeToTerms">
           <el-checkbox v-model="formData.agreeToTerms" :disabled="loading">
-            我已阅读并同意
-            <a href="#" class="terms-link" @click.prevent>服务条款</a>
-            和
-            <a href="#" class="terms-link" @click.prevent>隐私政策</a>
+            {{ t('auth.agreeToTerms') }}
+            <router-link :to="{ name: 'Terms' }" class="terms-link">{{ t('auth.termsOfService') }}</router-link>
+            {{ t('auth.and') }}
+            <router-link :to="{ name: 'Privacy' }" class="terms-link">{{ t('auth.privacyPolicy') }}</router-link>
           </el-checkbox>
         </el-form-item>
 
@@ -266,15 +269,42 @@ const goToLogin = () => {
             :disabled="loading"
             class="register-button"
           >
-            {{ loading ? '注册中...' : '注册' }}
+            {{ loading ? t('auth.registering') : t('auth.register') }}
           </el-button>
         </el-form-item>
 
+        <!-- Social Login -->
+        <div class="social-divider">
+          <el-divider>{{ t('auth.orContinueWith') }}</el-divider>
+        </div>
+
+        <div class="social-buttons">
+          <el-tooltip :content="t('auth.comingSoon')" placement="top">
+            <button class="social-btn" disabled>
+              <svg class="social-icon" viewBox="0 0 24 24" width="20" height="20">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              Google
+            </button>
+          </el-tooltip>
+          <el-tooltip :content="t('auth.comingSoon')" placement="top">
+            <button class="social-btn" disabled>
+              <svg class="social-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+              </svg>
+              GitHub
+            </button>
+          </el-tooltip>
+        </div>
+
         <!-- Login Link -->
         <div class="login-link">
-          已有账号？
+          {{ t('auth.hasAccount') }}
           <el-button type="primary" link @click="goToLogin">
-            立即登录
+            {{ t('auth.loginNow') }}
           </el-button>
         </div>
       </el-form>
@@ -283,55 +313,28 @@ const goToLogin = () => {
 </template>
 
 <style scoped>
-/* Color Scheme */
-:root {
-  --primary-50: #EFF6FF;
-  --primary-500: #3B82F6;
-  --primary-600: #2563EB;
-  --primary-700: #1D4ED8;
-  --gray-50: #F9FAFB;
-  --gray-100: #F3F4F6;
-  --gray-200: #E5E7EB;
-  --gray-400: #9CA3AF;
-  --gray-600: #4B5563;
-  --gray-900: #111827;
-  --success-500: #10B981;
-  --success-600: #059669;
-  --error-500: #EF4444;
-}
-
 .register-page {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: 20px;
-  background-color: var(--gray-50);
+  background: var(--bg-surface);
   background-image:
-    radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+    radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--accent-purple) 12%, transparent) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent-cyan) 8%, transparent) 0%, transparent 50%),
+    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent-pink) 5%, transparent) 0%, transparent 50%);
 }
 
 .register-card {
   max-width: 480px;
   width: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
   border-radius: 16px;
   animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background-color: white;
-  border: 1px solid var(--gray-200);
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
   overflow: hidden;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .card-header {
@@ -342,14 +345,14 @@ const goToLogin = () => {
 .card-header h1 {
   font-size: 28px;
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--text-primary);
   margin: 0 0 8px 0;
   letter-spacing: -0.5px;
 }
 
 .subtitle {
   font-size: 14px;
-  color: var(--gray-400);
+  color: var(--text-tertiary);
   margin: 0;
   font-weight: 500;
 }
@@ -357,11 +360,11 @@ const goToLogin = () => {
 .password-toggle {
   cursor: pointer;
   transition: color 0.2s ease;
-  color: var(--gray-400);
+  color: var(--text-tertiary);
 }
 
 .password-toggle:hover {
-  color: var(--primary-500);
+  color: var(--accent-purple);
 }
 
 .password-strength {
@@ -370,7 +373,7 @@ const goToLogin = () => {
 
 .strength-bar {
   height: 4px;
-  background-color: var(--gray-200);
+  background-color: var(--border-subtle);
   border-radius: 2px;
   overflow: hidden;
   margin-bottom: 4px;
@@ -389,13 +392,13 @@ const goToLogin = () => {
 }
 
 .terms-link {
-  color: var(--primary-500);
+  color: var(--accent-purple);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 .terms-link:hover {
-  color: var(--primary-600);
+  color: var(--accent-purple);
   text-decoration: underline;
 }
 
@@ -405,30 +408,67 @@ const goToLogin = () => {
   font-size: 16px;
   font-weight: 600;
   margin-top: 8px;
-  background-color: var(--primary-500);
+  background-color: var(--accent-purple);
   border: none;
   color: white;
   transition: all 0.2s ease;
 }
 
 .register-button:hover {
-  background-color: var(--primary-600);
+  background-color: var(--accent-purple);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-purple) 15%, transparent);
 }
 
 .register-button:active {
-  background-color: var(--primary-700);
+  background-color: var(--accent-purple);
   transform: translateY(0);
 }
 
 .login-link {
   text-align: center;
   font-size: 14px;
-  color: var(--gray-600);
+  color: var(--text-secondary);
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid var(--gray-200);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.social-divider {
+  margin: 8px 0 0;
+}
+
+.social-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.social-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.social-btn:hover {
+  border-color: var(--border-default);
+  background: var(--surface-hover);
+}
+
+.social-icon {
+  flex-shrink: 0;
 }
 
 /* Responsive Design */
@@ -477,35 +517,6 @@ const goToLogin = () => {
   }
 }
 
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .register-page {
-    background-color: #111827;
-    background-image:
-      radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
-  }
-
-  .register-card {
-    background-color: #1F2937;
-    border-color: #374151;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .card-header h1 {
-    color: #F9FAFB;
-  }
-
-  .subtitle {
-    color: #9CA3AF;
-  }
-
-  .login-link {
-    color: #D1D5DB;
-    border-top-color: #374151;
-  }
-}
-
 /* Form Item Spacing */
 :deep(.el-form-item) {
   margin-bottom: 20px;
@@ -518,59 +529,39 @@ const goToLogin = () => {
 /* Input styling */
 :deep(.el-input__wrapper) {
   border-radius: 8px;
-  border: 1px solid var(--gray-200);
-  background-color: white;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-card);
   transition: all 0.2s ease;
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
 }
 
 :deep(.el-input__inner) {
-  color: var(--gray-900);
+  color: var(--text-primary);
 }
 
 :deep(.el-input__inner::placeholder) {
-  color: var(--gray-400);
-}
-
-/* Dark mode input */
-@media (prefers-color-scheme: dark) {
-  :deep(.el-input__wrapper) {
-    background-color: #374151;
-    border-color: #4B5563;
-  }
-
-  :deep(.el-input__wrapper:hover) {
-    border-color: var(--primary-500);
-  }
-
-  :deep(.el-input__inner) {
-    color: #F9FAFB;
-  }
-
-  :deep(.el-input__inner::placeholder) {
-    color: #9CA3AF;
-  }
+  color: var(--text-tertiary);
 }
 
 /* Validation success state */
 :deep(.el-form-item.is-success .el-input__wrapper) {
-  border-color: #10B981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  border-color: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 10%, transparent);
 }
 
 /* Validation error state */
 :deep(.el-form-item.is-error .el-input__wrapper) {
-  border-color: #EF4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 10%, transparent);
 }
 
 /* Error message animation */
@@ -579,17 +570,6 @@ const goToLogin = () => {
   align-items: center;
   gap: 4px;
   animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Checkbox Styling */
@@ -601,23 +581,23 @@ const goToLogin = () => {
 :deep(.el-checkbox__label) {
   white-space: normal;
   line-height: 1.5;
-  color: var(--gray-600);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: var(--primary-500);
-  border-color: var(--primary-500);
+  background-color: var(--accent-purple);
+  border-color: var(--accent-purple);
 }
 
 /* Link styling */
 :deep(.el-link) {
-  color: var(--primary-500);
+  color: var(--accent-purple);
   transition: color 0.2s ease;
 }
 
 :deep(.el-link:hover) {
-  color: var(--primary-600);
+  color: var(--accent-purple);
 }
 
 /* Form wrapper padding */
@@ -635,5 +615,16 @@ const goToLogin = () => {
   :deep(.el-form) {
     padding: 0 16px 24px;
   }
+}
+
+/* Divider styling */
+:deep(.el-divider) {
+  background-color: var(--border-subtle);
+  margin: 20px 0;
+}
+
+:deep(.el-divider__text) {
+  color: var(--text-tertiary);
+  font-size: 14px;
 }
 </style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@client/stores/user';
 import { useToast } from '@client/composables/useToast';
 import { User, Lock, View, Hide } from '@element-plus/icons-vue';
@@ -8,6 +9,7 @@ import type { FormInstance, FormRules } from 'element-plus';
 
 const router = useRouter();
 const route = useRoute();
+const { t } = useI18n();
 const userStore = useUserStore();
 const toast = useToast();
 
@@ -30,12 +32,12 @@ const loading = ref(false);
 // Form validation rules
 const rules: FormRules = {
   email: [
-    { required: true, message: '请输入邮箱地址', trigger: 'blur' },
-    { type: 'email', message: '请输入有效的邮箱地址', trigger: ['blur', 'change'] },
+    { required: true, message: t('auth.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('auth.emailInvalid'), trigger: ['blur', 'change'] },
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少为 6 位', trigger: 'blur' },
+    { required: true, message: t('auth.passwordRequired'), trigger: 'blur' },
+    { min: 6, message: t('auth.passwordMinLength'), trigger: 'blur' },
   ],
 };
 
@@ -50,14 +52,14 @@ const handleLogin = async (formEl: FormInstance | undefined) => {
     try {
       await userStore.login(loginForm.email, loginForm.password);
 
-      toast.success('登录成功');
+      toast.success(t('auth.loginSuccess'));
 
       // Redirect to the original page or home
       const redirect = (route.query.redirect as string) || '/';
       router.push(redirect);
     } catch (error) {
-      toast.error('登录失败', {
-        message: userStore.error || '邮箱或密码错误，请重试'
+      toast.error(t('auth.loginFailed'), {
+        message: userStore.error || t('auth.invalidCredentials')
       });
     } finally {
       loading.value = false;
@@ -70,10 +72,6 @@ const goToRegister = () => {
   router.push({ name: 'Register' });
 };
 
-// Handle forgot password (placeholder)
-const handleForgotPassword = () => {
-  toast.info('忘记密码功能即将推出');
-};
 </script>
 
 <template>
@@ -82,8 +80,8 @@ const handleForgotPassword = () => {
       <el-card class="login-card" shadow="always">
         <template #header>
           <div class="card-header">
-            <h1 class="title">登录</h1>
-            <p class="subtitle">欢迎回到 Small Squaretable</p>
+            <h1 class="title">{{ t('auth.login') }}</h1>
+            <p class="subtitle">{{ t('auth.welcomeBack') }}</p>
           </div>
         </template>
 
@@ -92,12 +90,13 @@ const handleForgotPassword = () => {
           :model="loginForm"
           :rules="rules"
           size="large"
+          :aria-label="t('auth.login')"
           @submit.prevent="handleLogin(loginFormRef)"
         >
           <el-form-item prop="email">
             <el-input
               v-model="loginForm.email"
-              placeholder="邮箱地址"
+              :placeholder="t('auth.email')"
               :prefix-icon="User"
               clearable
               autocomplete="email"
@@ -108,7 +107,7 @@ const handleForgotPassword = () => {
             <el-input
               v-model="loginForm.password"
               :type="showPassword ? 'text' : 'password'"
-              placeholder="密码"
+              :placeholder="t('auth.password')"
               :prefix-icon="Lock"
               autocomplete="current-password"
             >
@@ -127,15 +126,13 @@ const handleForgotPassword = () => {
           <el-form-item>
             <div class="form-options">
               <el-checkbox v-model="loginForm.rememberMe">
-                记住我
+                {{ t('auth.rememberMe') }}
               </el-checkbox>
-              <el-link
-                type="primary"
-                :underline="false"
-                @click="handleForgotPassword"
-              >
-                忘记密码？
-              </el-link>
+              <el-tooltip :content="t('auth.forgotPasswordComingSoon')" placement="top">
+                <el-link type="primary" :underline="false" class="forgot-link">
+                  {{ t('auth.forgotPassword') }}
+                </el-link>
+              </el-tooltip>
             </div>
           </el-form-item>
 
@@ -146,17 +143,39 @@ const handleForgotPassword = () => {
               :loading="loading"
               class="login-button"
             >
-              {{ loading ? '登录中...' : '登录' }}
+              {{ loading ? t('auth.loggingIn') : t('auth.login') }}
             </el-button>
           </el-form-item>
         </el-form>
 
-        <el-divider>或</el-divider>
+        <el-divider>{{ t('auth.or') }}</el-divider>
+
+        <div class="social-login">
+          <el-tooltip :content="t('auth.socialComingSoon')" placement="top">
+            <button class="social-btn" disabled>
+              <svg class="social-icon" viewBox="0 0 24 24" width="20" height="20">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+              Google
+            </button>
+          </el-tooltip>
+          <el-tooltip :content="t('auth.socialComingSoon')" placement="top">
+            <button class="social-btn" disabled>
+              <svg class="social-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+              </svg>
+              GitHub
+            </button>
+          </el-tooltip>
+        </div>
 
         <div class="register-link">
-          <span class="register-text">还没有账号？</span>
+          <span class="register-text">{{ t('auth.noAccount') }}</span>
           <el-link type="primary" :underline="false" @click="goToRegister">
-            立即注册
+            {{ t('auth.registerNow') }}
           </el-link>
         </div>
       </el-card>
@@ -165,33 +184,17 @@ const handleForgotPassword = () => {
 </template>
 
 <style scoped>
-/* Color Scheme */
-:root {
-  --primary-50: #EFF6FF;
-  --primary-500: #3B82F6;
-  --primary-600: #2563EB;
-  --primary-700: #1D4ED8;
-  --gray-50: #F9FAFB;
-  --gray-100: #F3F4F6;
-  --gray-200: #E5E7EB;
-  --gray-400: #9CA3AF;
-  --gray-600: #4B5563;
-  --gray-900: #111827;
-  --success-500: #10B981;
-  --success-600: #059669;
-  --error-500: #EF4444;
-}
-
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background-color: var(--gray-50);
+  background: var(--bg-surface);
   background-image:
-    radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+    radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--accent-purple) 12%, transparent) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent-cyan) 8%, transparent) 0%, transparent 50%),
+    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent-pink) 5%, transparent) 0%, transparent 50%);
 }
 
 .login-container {
@@ -200,23 +203,12 @@ const handleForgotPassword = () => {
   animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .login-card {
   border-radius: 16px;
   overflow: hidden;
-  background-color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--gray-200);
+  background-color: var(--surface-card);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border: 1px solid var(--border-subtle);
 }
 
 .card-header {
@@ -227,14 +219,14 @@ const handleForgotPassword = () => {
 .title {
   font-size: 28px;
   font-weight: 700;
-  color: var(--gray-900);
+  color: var(--text-primary);
   margin: 0 0 8px 0;
   letter-spacing: -0.5px;
 }
 
 .subtitle {
   font-size: 14px;
-  color: var(--gray-400);
+  color: var(--text-tertiary);
   margin: 0;
   font-weight: 500;
 }
@@ -254,11 +246,11 @@ const handleForgotPassword = () => {
 .password-toggle {
   cursor: pointer;
   transition: color 0.2s ease;
-  color: var(--gray-400);
+  color: var(--text-tertiary);
 }
 
 .password-toggle:hover {
-  color: var(--primary-500);
+  color: var(--accent-purple);
 }
 
 .login-button {
@@ -268,33 +260,71 @@ const handleForgotPassword = () => {
   font-weight: 600;
   border-radius: 8px;
   transition: all 0.2s ease;
-  background-color: var(--primary-500);
+  background-color: var(--accent-purple);
   border: none;
   color: white;
 }
 
 .login-button:hover {
-  background-color: var(--primary-600);
+  background-color: var(--accent-purple);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-purple) 15%, transparent);
 }
 
 .login-button:active {
-  background-color: var(--primary-700);
+  background-color: var(--accent-purple);
   transform: translateY(0);
 }
 
 .register-link {
   text-align: center;
   padding: 16px 0 0;
-  border-top: 1px solid var(--gray-200);
+  border-top: 1px solid var(--border-subtle);
   margin-top: 16px;
 }
 
 .register-text {
-  color: var(--gray-600);
+  color: var(--text-secondary);
   margin-right: 8px;
   font-size: 14px;
+}
+
+.social-login {
+  display: flex;
+  gap: 12px;
+  padding: 0 24px;
+  margin-bottom: 16px;
+}
+
+.social-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: not-allowed;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.social-btn:hover {
+  border-color: var(--border-default);
+  background: var(--surface-hover);
+}
+
+.social-icon {
+  flex-shrink: 0;
+}
+
+.forgot-link {
+  cursor: help;
 }
 
 /* Responsive Design */
@@ -351,38 +381,6 @@ const handleForgotPassword = () => {
   }
 }
 
-/* Dark theme support */
-@media (prefers-color-scheme: dark) {
-  .login-page {
-    background-color: #111827;
-    background-image:
-      radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
-  }
-
-  .login-card {
-    background-color: #1F2937;
-    border-color: #374151;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .title {
-    color: #F9FAFB;
-  }
-
-  .subtitle {
-    color: #9CA3AF;
-  }
-
-  .register-text {
-    color: #D1D5DB;
-  }
-
-  .register-link {
-    border-top-color: #374151;
-  }
-}
-
 /* Element Plus form item spacing */
 :deep(.el-form-item) {
   margin-bottom: 20px;
@@ -395,59 +393,39 @@ const handleForgotPassword = () => {
 /* Input styling */
 :deep(.el-input__wrapper) {
   border-radius: 8px;
-  border: 1px solid var(--gray-200);
-  background-color: white;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-card);
   transition: all 0.2s ease;
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
 }
 
 :deep(.el-input__inner) {
-  color: var(--gray-900);
+  color: var(--text-primary);
 }
 
 :deep(.el-input__inner::placeholder) {
-  color: var(--gray-400);
-}
-
-/* Dark mode input */
-@media (prefers-color-scheme: dark) {
-  :deep(.el-input__wrapper) {
-    background-color: #374151;
-    border-color: #4B5563;
-  }
-
-  :deep(.el-input__wrapper:hover) {
-    border-color: var(--primary-500);
-  }
-
-  :deep(.el-input__inner) {
-    color: #F9FAFB;
-  }
-
-  :deep(.el-input__inner::placeholder) {
-    color: #9CA3AF;
-  }
+  color: var(--text-tertiary);
 }
 
 /* Validation success state */
 :deep(.el-form-item.is-success .el-input__wrapper) {
-  border-color: #10B981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  border-color: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 10%, transparent);
 }
 
 /* Validation error state */
 :deep(.el-form-item.is-error .el-input__wrapper) {
-  border-color: #EF4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 10%, transparent);
 }
 
 /* Error message animation */
@@ -456,17 +434,6 @@ const handleForgotPassword = () => {
   align-items: center;
   gap: 4px;
   animation: slideDown 0.2s ease;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Checkbox styling */
@@ -478,43 +445,33 @@ const handleForgotPassword = () => {
 :deep(.el-checkbox__label) {
   white-space: normal;
   line-height: 1.5;
-  color: var(--gray-600);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: var(--primary-500);
-  border-color: var(--primary-500);
+  background-color: var(--accent-purple);
+  border-color: var(--accent-purple);
 }
 
 /* Link styling */
 :deep(.el-link) {
-  color: var(--primary-500);
+  color: var(--accent-purple);
   transition: color 0.2s ease;
 }
 
 :deep(.el-link:hover) {
-  color: var(--primary-600);
+  color: var(--accent-purple);
 }
 
 /* Divider styling */
 :deep(.el-divider) {
-  background-color: var(--gray-200);
+  background-color: var(--border-subtle);
   margin: 20px 0;
 }
 
 :deep(.el-divider__text) {
-  color: var(--gray-400);
+  color: var(--text-tertiary);
   font-size: 14px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :deep(.el-divider) {
-    background-color: #374151;
-  }
-
-  :deep(.el-divider__text) {
-    color: #9CA3AF;
-  }
 }
 </style>
