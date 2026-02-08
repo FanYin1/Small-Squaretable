@@ -11,7 +11,12 @@ const loadMarket = () => import(/* webpackPrefetch: true */ '../pages/Market.vue
 const loadMyCharacters = () => import(/* webpackChunkName: "characters" */ '../pages/MyCharacters.vue');
 const loadProfile = () => import(/* webpackChunkName: "profile" */ '../pages/Profile.vue');
 const loadSubscription = () => import(/* webpackChunkName: "subscription" */ '../pages/Subscription.vue');
+const loadWorldBooks = () => import(/* webpackChunkName: "worldbooks" */ '../pages/WorldBooks.vue');
+const loadTerms = () => import('../pages/legal/Terms.vue');
+const loadPrivacy = () => import('../pages/legal/Privacy.vue');
+const loadAbout = () => import('../pages/legal/About.vue');
 const loadNotFound = () => import('../pages/NotFound.vue');
+const loadNotifications = () => import(/* webpackChunkName: "notifications" */ '../pages/Notifications.vue');
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -107,6 +112,51 @@ export const routes: RouteRecordRaw[] = [
     path: '/subscription',
     name: 'Subscription',
     component: loadSubscription,
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/worldbooks',
+    name: 'WorldBooks',
+    component: loadWorldBooks,
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/terms',
+    name: 'Terms',
+    component: loadTerms,
+    meta: {
+      requiresAuth: false,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/privacy',
+    name: 'Privacy',
+    component: loadPrivacy,
+    meta: {
+      requiresAuth: false,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: loadAbout,
+    meta: {
+      requiresAuth: false,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/notifications',
+    name: 'Notifications',
+    component: loadNotifications,
     meta: {
       requiresAuth: true,
       guestOnly: false,
