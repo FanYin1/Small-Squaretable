@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
-import { User, Lock, Bell, Medal } from '@element-plus/icons-vue';
+import { User, Lock, Bell, Medal, Setting } from '@element-plus/icons-vue';
 import { useUserStore } from '@client/stores';
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { userApi } from '@client/services';
+import { useDateTime } from '@client/composables/useDateTime';
+import { useTheme } from '@client/composables/useTheme';
+import { useLocale } from '@client/composables/useLocale';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import ProfileForm from '@client/components/profile/ProfileForm.vue';
 import AvatarUpload from '@client/components/profile/AvatarUpload.vue';
+
+const { t } = useI18n();
+const { formatRelativeTime } = useDateTime();
+const { setTheme } = useTheme();
+const { currentLocale, setLocale } = useLocale();
 
 const userStore = useUserStore();
 const subscriptionStore = useSubscriptionStore();
@@ -15,9 +24,10 @@ const editMode = ref(false);
 const activeSection = ref('basic');
 
 const menuItems = [
-  { key: 'basic', label: '基本信息', icon: User },
-  { key: 'security', label: '安全设置', icon: Lock },
-  { key: 'notifications', label: '通知偏好', icon: Bell },
+  { key: 'basic', label: computed(() => t('profile.basicInfo')), icon: User },
+  { key: 'security', label: computed(() => t('profile.security')), icon: Lock },
+  { key: 'notifications', label: computed(() => t('profile.notifications')), icon: Bell },
+  { key: 'preferences', label: computed(() => t('profile.preferences')), icon: Setting },
 ];
 
 onMounted(async () => {
@@ -37,21 +47,21 @@ const avatarUrl = computed(() =>
 const membershipLevel = computed(() => {
   const plan = subscriptionStore.currentPlan;
   const labels: Record<string, string> = {
-    free: '免费版',
-    pro: '专业版',
-    team: '团队版',
+    free: t('subscription.free'),
+    pro: t('subscription.pro'),
+    team: t('subscription.team'),
   };
-  return labels[plan] || '免费版';
+  return labels[plan] || t('subscription.free');
 });
 
 const membershipColor = computed(() => {
   const plan = subscriptionStore.currentPlan;
   const colors: Record<string, string> = {
-    free: '#909399',
-    pro: '#3B82F6',
-    team: '#F56C6C',
+    free: 'var(--text-tertiary)',
+    pro: 'var(--accent-purple)',
+    team: 'var(--color-danger)',
   };
-  return colors[plan] || '#909399';
+  return colors[plan] || 'var(--text-tertiary)';
 });
 
 function handleEdit() {
@@ -67,18 +77,83 @@ async function handleSave(data: { name: string }) {
     if (!userStore.user) return;
     await userApi.updateUser(userStore.user.id, { name: data.name });
     userStore.user.name = data.name;
-    ElMessage.success('保存成功');
+    ElMessage.success(t('profile.saveSuccess'));
     editMode.value = false;
-  } catch (error) {
-    ElMessage.error('保存失败');
+  } catch (error: unknown) {
+    ElMessage.error(t('profile.saveFailed'));
   }
+}
+
+// Password change
+const passwordForm = reactive({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+const changingPassword = ref(false);
+
+async function handleChangePassword() {
+  if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
+    ElMessage.error(t('profile.passwordMismatch'));
+    return;
+  }
+  if (passwordForm.newPassword.length < 8) {
+    ElMessage.error(t('profile.passwordTooShort'));
+    return;
+  }
+  changingPassword.value = true;
+  try {
+    await userApi.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+    ElMessage.success(t('profile.passwordChanged'));
+    passwordForm.currentPassword = '';
+    passwordForm.newPassword = '';
+    passwordForm.confirmNewPassword = '';
+  } catch (error: unknown) {
+    ElMessage.error(t('profile.passwordChangeFailed'));
+  } finally {
+    changingPassword.value = false;
+  }
+}
+
+// Preferences
+const themeChoice = ref(localStorage.getItem('theme') || 'dark');
+const langChoice = ref(currentLocale.value);
+
+function handleThemeChange(val: string | number | boolean | undefined) {
+  const value = String(val);
+  if (value === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(prefersDark ? 'dark' : 'light');
+    localStorage.setItem('theme', 'system');
+  } else {
+    setTheme(value as 'light' | 'dark');
+  }
+}
+
+function handleLangChange(val: string | number | boolean | undefined) {
+  setLocale(String(val) as 'zh-CN' | 'en-US');
+}
+
+// Data export
+function handleExportData() {
+  if (!userStore.user) return;
+  const data = {
+    name: userStore.user.name,
+    email: userStore.user.email,
+    createdAt: userStore.user.createdAt,
+    exportedAt: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `profile-export-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  ElMessage.success(t('profile.exportSuccess'));
 }
 </script>
 
 <template>
   <DashboardLayout>
-    <template #title>个人中心</template>
-    <template #subtitle>管理您的账户信息和偏好设置</template>
+    <template #title>{{ t('profile.title') }}</template>
+    <template #subtitle>{{ t('profile.subtitle') }}</template>
 
     <div v-if="userStore.user" class="profile-body">
       <aside class="profile-sidebar">
@@ -98,8 +173,8 @@ async function handleSave(data: { name: string }) {
 
           <div class="user-stats">
             <div class="stat-item">
-              <span class="stat-label">注册时间</span>
-              <span class="stat-value">{{ new Date(userStore.user.createdAt).toLocaleDateString('zh-CN') }}</span>
+              <span class="stat-label">{{ t('profile.registeredAt') }}</span>
+              <span class="stat-value">{{ formatRelativeTime(userStore.user.createdAt) }}</span>
             </div>
           </div>
         </div>
@@ -120,10 +195,15 @@ async function handleSave(data: { name: string }) {
       <main class="profile-main">
         <div v-if="activeSection === 'basic'" class="content-section">
           <div class="section-header">
-            <h2>基本信息</h2>
-            <el-button v-if="!editMode" type="primary" @click="handleEdit">
-              编辑资料
-            </el-button>
+            <h2>{{ t('profile.basicInfo') }}</h2>
+            <div class="section-header-actions">
+              <el-button @click="handleExportData">
+                {{ t('profile.exportData') }}
+              </el-button>
+              <el-button v-if="!editMode" type="primary" @click="handleEdit">
+                {{ t('profile.editProfile') }}
+              </el-button>
+            </div>
           </div>
 
           <div class="form-container">
@@ -138,21 +218,58 @@ async function handleSave(data: { name: string }) {
 
         <div v-else-if="activeSection === 'security'" class="content-section">
           <div class="section-header">
-            <h2>安全设置</h2>
+            <h2>{{ t('profile.security') }}</h2>
           </div>
-          <div class="placeholder-content">
-            <el-icon :size="48" color="var(--text-color-secondary)"><Lock /></el-icon>
-            <p>密码修改和安全设置功能即将推出</p>
+          <div class="form-container">
+            <el-form :model="passwordForm" label-position="top" @submit.prevent="handleChangePassword">
+              <el-form-item :label="t('profile.currentPassword')">
+                <el-input v-model="passwordForm.currentPassword" type="password" show-password />
+              </el-form-item>
+              <el-form-item :label="t('profile.newPassword')">
+                <el-input v-model="passwordForm.newPassword" type="password" show-password />
+              </el-form-item>
+              <el-form-item :label="t('profile.confirmNewPassword')">
+                <el-input v-model="passwordForm.confirmNewPassword" type="password" show-password />
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" native-type="submit" :loading="changingPassword">
+                  {{ t('profile.changePassword') }}
+                </el-button>
+              </el-form-item>
+            </el-form>
           </div>
         </div>
 
         <div v-else-if="activeSection === 'notifications'" class="content-section">
           <div class="section-header">
-            <h2>通知偏好</h2>
+            <h2>{{ t('profile.notifications') }}</h2>
           </div>
           <div class="placeholder-content">
-            <el-icon :size="48" color="var(--text-color-secondary)"><Bell /></el-icon>
-            <p>通知设置功能即将推出</p>
+            <el-icon :size="48" color="var(--text-secondary)"><Bell /></el-icon>
+            <p>{{ t('profile.notificationsComingSoon') }}</p>
+          </div>
+        </div>
+
+        <div v-else-if="activeSection === 'preferences'" class="content-section">
+          <div class="section-header">
+            <h2>{{ t('profile.preferences') }}</h2>
+          </div>
+          <div class="form-container">
+            <el-form label-position="top">
+              <el-form-item :label="t('profile.theme')">
+                <el-radio-group v-model="themeChoice" @change="handleThemeChange">
+                  <el-radio-button value="dark">{{ t('theme.dark') }}</el-radio-button>
+                  <el-radio-button value="light">{{ t('theme.light') }}</el-radio-button>
+                  <el-radio-button value="system">{{ t('theme.system') }}</el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item :label="t('profile.language')">
+                <el-radio-group v-model="langChoice" @change="handleLangChange">
+                  <el-radio-button value="zh-CN">中文</el-radio-button>
+                  <el-radio-button value="en-US">English</el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+            </el-form>
           </div>
         </div>
       </main>
@@ -173,6 +290,7 @@ async function handleSave(data: { name: string }) {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+  animation: fadeIn var(--duration-slow) var(--ease-out) both;
 }
 
 /* 左侧卡片区 */
@@ -187,21 +305,21 @@ async function handleSave(data: { name: string }) {
 
 /* 用户信息卡片 */
 .user-info-card {
-  background: var(--bg-color);
+  background: var(--surface-card);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text-primary) 8%, transparent);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   transition: all 0.3s ease;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-default);
 }
 
 .user-info-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: var(--border-color-light);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text-primary) 10%, transparent);
+  border-color: var(--border-subtle);
 }
 
 .avatar-wrapper {
@@ -217,12 +335,12 @@ async function handleSave(data: { name: string }) {
   font-size: 18px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .user-email {
   font-size: 13px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   margin: 0 0 12px 0;
   word-break: break-all;
 }
@@ -236,13 +354,13 @@ async function handleSave(data: { name: string }) {
   border-radius: 20px;
   font-size: 13px;
   font-weight: 600;
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  background: color-mix(in srgb, var(--accent-purple) 10%, transparent);
 }
 
 .user-stats {
   width: 100%;
   padding-top: 20px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-default);
 }
 
 .stat-item {
@@ -254,13 +372,13 @@ async function handleSave(data: { name: string }) {
 
 .stat-label {
   font-size: 13px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .stat-value {
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 /* 导航菜单 */
@@ -269,10 +387,10 @@ async function handleSave(data: { name: string }) {
   flex-direction: column;
   gap: 4px;
   padding: 12px;
-  background: var(--bg-color);
+  background: var(--surface-card);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border: 1px solid var(--border-default);
 }
 
 .nav-item {
@@ -284,19 +402,19 @@ async function handleSave(data: { name: string }) {
   background: transparent;
   border-radius: 8px;
   font-size: 14px;
-  color: var(--text-color-regular);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
 }
 
 .nav-item:hover {
-  background: var(--bg-color-page);
-  color: var(--color-primary);
+  background: var(--bg-base);
+  color: var(--accent-purple);
 }
 
 .nav-item.active {
-  background: var(--color-primary);
+  background: var(--accent-purple);
   color: white;
   font-weight: 500;
 }
@@ -308,27 +426,16 @@ async function handleSave(data: { name: string }) {
 
 /* 主内容区 */
 .profile-main {
-  background: var(--bg-color);
+  background: var(--surface-card);
   border-radius: 12px;
   padding: 32px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border: 1px solid var(--border-default);
   min-height: 600px;
 }
 
 .content-section {
   animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .section-header {
@@ -337,14 +444,20 @@ async function handleSave(data: { name: string }) {
   align-items: center;
   margin-bottom: 32px;
   padding-bottom: 16px;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 2px solid var(--border-default);
 }
 
 .section-header h2 {
   font-size: 20px;
   font-weight: 600;
   margin: 0;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
+}
+
+.section-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .form-container {
@@ -363,7 +476,7 @@ async function handleSave(data: { name: string }) {
 .placeholder-content p {
   margin-top: 16px;
   font-size: 15px;
-  color: #6B7280;
+  color: var(--text-secondary);
 }
 
 .loading-container {
