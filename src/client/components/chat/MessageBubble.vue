@@ -329,6 +329,22 @@ const handleDelete = () => {
   opacity: 1;
 }
 
+/* Show on focus-within (keyboard navigation) */
+.message-bubble:focus-within .message-time,
+.message-bubble:focus-within .message-actions {
+  opacity: 1;
+}
+
+/* On touch devices, always show actions */
+@media (hover: none) {
+  .message-actions {
+    opacity: 1;
+  }
+  .message-time {
+    opacity: 1;
+  }
+}
+
 .action-btn {
   display: flex;
   align-items: center;

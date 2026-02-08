@@ -462,7 +462,7 @@ const handleTouchEnd = async () => {
     try {
       // Load older messages
       if (props.currentChat) {
-        await chatStore.loadMessages(props.currentChat.id);
+        await chatStore.fetchMessages(props.currentChat.id);
         logger.info('Pull-to-refresh: loaded messages');
       }
     } catch (error: unknown) {
