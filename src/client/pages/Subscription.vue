@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { Check, CreditCard, Calendar, TrendCharts, User } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
+import { Check, CreditCard, Calendar, TrendCharts, User, ChatDotRound, Cpu, Picture } from '@element-plus/icons-vue';
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { useUsageStore } from '@client/stores/usage';
 import { useToast } from '@client/composables/useToast';
@@ -12,72 +13,73 @@ const route = useRoute();
 const subscriptionStore = useSubscriptionStore();
 const usageStore = useUsageStore();
 const toast = useToast();
+const { t, locale } = useI18n();
 const billingCycle = ref<'monthly' | 'yearly'>('monthly');
 
 const plans = computed(() => [
   {
     id: 'free',
-    name: '免费版',
+    name: t('subscription.free'),
     monthlyPrice: '¥0',
     yearlyPrice: '¥0',
     features: [
-      '100 条消息/月',
-      '50,000 LLM Tokens/月',
-      '10 张图片/月',
-      '基础对话功能',
-      '社区浏览',
+      t('subscription.freeMessages'),
+      t('subscription.freeTokens'),
+      t('subscription.freeImages'),
+      t('subscription.freeBasicChat'),
+      t('subscription.freeCommunity'),
     ],
     priceId: null,
   },
   {
     id: 'pro',
-    name: '专业版',
+    name: t('subscription.pro'),
     monthlyPrice: '¥29',
     yearlyPrice: '¥290',
     features: [
-      '10,000 条消息/月',
-      '1,000,000 LLM Tokens/月',
-      '500 张图片/月',
-      '优先响应速度',
-      '高级模型访问',
-      '角色分享',
-      '历史记录导出',
+      t('subscription.proMessages'),
+      t('subscription.proTokens'),
+      t('subscription.proImages'),
+      t('subscription.proPriority'),
+      t('subscription.proModels'),
+      t('subscription.proSharing'),
+      t('subscription.proExport'),
     ],
     priceId: billingCycle.value === 'monthly'
       ? subscriptionStore.config?.prices.proMonthly
       : subscriptionStore.config?.prices.proYearly,
     popular: true,
-    savings: '节省 2 个月费用',
+    savings: t('subscription.saveTwoMonths'),
   },
   {
     id: 'team',
-    name: '团队版',
+    name: t('subscription.team'),
     monthlyPrice: '¥99',
     yearlyPrice: '¥990',
     features: [
-      '100,000 条消息/月',
-      '10,000,000 LLM Tokens/月',
-      '5,000 张图片/月',
-      '10,000 API 调用/月',
-      '团队协作',
-      '自定义角色',
-      'API 访问',
-      '优先客服支持',
+      t('subscription.teamMessages'),
+      t('subscription.teamTokens'),
+      t('subscription.teamImages'),
+      t('subscription.teamApiCalls'),
+      t('subscription.teamCollaboration'),
+      t('subscription.teamCustomCharacters'),
+      t('subscription.teamApiAccess'),
+      t('subscription.teamSupport'),
     ],
     priceId: subscriptionStore.config?.prices.teamMonthly,
-    savings: '节省 2 个月费用',
+    savings: t('subscription.saveTwoMonths'),
   },
 ]);
 
 const statusText = computed(() => {
   const status = subscriptionStore.subscription?.status;
   const map: Record<string, string> = {
-    active: '活跃',
-    canceled: '已取消',
-    past_due: '逾期',
-    trialing: '试用中',
+    active: t('subscription.statusActive'),
+    canceled: t('subscription.statusCancelled'),
+    past_due: t('subscription.statusOverdue'),
+    trialing: t('subscription.statusTrial'),
   };
-  return map[status || ''] || '未知';
+  return map[status || ''] || t('subscription.statusUnknown');
 });
 
 const statusType = computed(() => {
@@ -94,16 +96,16 @@ const statusType = computed(() => {
 const currentPlanName = computed(() => {
   const plan = subscriptionStore.currentPlan;
   const names: Record<string, string> = {
-    free: '免费版',
-    pro: '专业版',
-    team: '团队版',
+    free: t('subscription.free'),
+    pro: t('subscription.pro'),
+    team: t('subscription.team'),
   };
-  return names[plan] || '免费版';
+  return names[plan] || t('subscription.free');
 });
 
 const expiryDate = computed(() => {
   if (!subscriptionStore.subscription?.currentPeriodEnd) return null;
-  return new Date(subscriptionStore.subscription.currentPeriodEnd).toLocaleDateString('zh-CN', {
+  return new Date(subscriptionStore.subscription.currentPeriodEnd).toLocaleDateString(locale.value, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -112,22 +114,22 @@ const expiryDate = computed(() => {
 
 const usageStats = computed(() => [
   {
-    label: '消息数',
+    label: t('subscription.messages'),
     value: usageStore.messagesQuota?.currentUsage || 0,
     total: usageStore.messagesQuota?.limit || 0,
-    icon: '💬',
+    icon: ChatDotRound,
   },
   {
-    label: 'LLM Tokens',
+    label: t('subscription.tokens'),
     value: usageStore.tokensQuota?.currentUsage || 0,
     total: usageStore.tokensQuota?.limit || 0,
-    icon: '🤖',
+    icon: Cpu,
   },
   {
-    label: '图片生成',
+    label: t('subscription.images'),
     value: usageStore.imagesQuota?.currentUsage || 0,
     total: usageStore.imagesQuota?.limit || 0,
-    icon: '🖼️',
+    icon: Picture,
   },
 ]);
 
@@ -139,9 +141,9 @@ onMounted(async () => {
   ]);
 
   if (route.query.success === 'true') {
-    toast.success('订阅成功', { message: '感谢您的支持' });
+    toast.success(t('subscription.subscribeSuccess'), { message: t('subscription.thankYou') });
   } else if (route.query.canceled === 'true') {
-    toast.info('订阅已取消');
+    toast.info(t('subscription.cancelled'));
   }
 });
 
@@ -150,7 +152,7 @@ async function handleSubscribe(priceId: string | null) {
   try {
     await subscriptionStore.startCheckout(priceId);
   } catch {
-    toast.error('启动支付失败', { message: '请稍后重试' });
+    toast.error(t('subscription.paymentFailed'), { message: t('common.retryLater') });
   }
 }
 
@@ -158,9 +160,26 @@ async function handleManage() {
   try {
     await subscriptionStore.openPortal();
   } catch {
-    toast.error('打开账单管理失败', { message: '请稍后重试' });
+    toast.error(t('subscription.billingFailed'), { message: t('common.retryLater') });
   }
 }
+
+const faqs = computed(() => [
+  { question: t('subscription.faqQ1'), answer: t('subscription.faqA1') },
+  { question: t('subscription.faqQ2'), answer: t('subscription.faqA2') },
+  { question: t('subscription.faqQ3'), answer: t('subscription.faqA3') },
+  { question: t('subscription.faqQ4'), answer: t('subscription.faqA4') },
+]);
+
+const comparisonData = computed(() => [
+  { feature: t('subscription.compMessages'), free: '50/day', pro: '500/day', team: t('subscription.unlimited') },
+  { feature: t('subscription.compTokens'), free: '100K', pro: '1M', team: '10M' },
+  { feature: t('subscription.compImages'), free: '10/day', pro: '100/day', team: t('subscription.unlimited') },
+  { feature: t('subscription.compModels'), free: t('subscription.compBasic'), pro: t('subscription.compAll'), team: t('subscription.compAll') },
+  { feature: t('subscription.compSharing'), free: '—', pro: '✓', team: '✓' },
+  { feature: t('subscription.compApi'), free: '—', pro: '—', team: '✓' },
+  { feature: t('subscription.compSupport'), free: t('subscription.compCommunity'), pro: t('subscription.compEmail'), team: t('subscription.compPriority') },
+]);
 
 function formatNumber(num: number): string {
   if (num >= 1000000) {
@@ -176,13 +195,13 @@ function formatNumber(num: number): string {
 
 <template>
   <DashboardLayout>
-    <template #title>订阅管理</template>
+    <template #title>{{ t('subscription.title') }}</template>
 
     <div class="content-wrapper">
       <section class="current-status-section">
         <div class="section-header">
-          <h2>当前订阅</h2>
-          <p>管理您的订阅计划和使用情况</p>
+          <h2>{{ t('subscription.currentPlan') }}</h2>
+          <p>{{ t('subscription.subtitle') }}</p>
         </div>
 
           <div class="status-cards">
@@ -194,21 +213,21 @@ function formatNumber(num: number): string {
 
               <div class="card-content">
                 <div class="status-row">
-                  <span class="label">状态</span>
+                  <span class="label">{{ t('subscription.status') }}</span>
                   <el-tag :type="statusType" size="large">{{ statusText }}</el-tag>
                 </div>
 
                 <div v-if="expiryDate" class="status-row">
                   <span class="label">
                     <el-icon><Calendar /></el-icon>
-                    到期时间
+                    {{ t('subscription.expiryDate') }}
                   </span>
                   <span class="value">{{ expiryDate }}</span>
                 </div>
 
                 <div v-if="subscriptionStore.subscription.cancelAtPeriodEnd" class="cancel-warning">
                   <el-alert type="warning" :closable="false" show-icon>
-                    订阅将在周期结束后取消
+                    {{ t('subscription.cancelNotice') }}
                   </el-alert>
                 </div>
 
@@ -220,7 +239,7 @@ function formatNumber(num: number): string {
                   :loading="subscriptionStore.loading"
                   class="manage-btn"
                 >
-                  管理订阅
+                  {{ t('subscription.managePlan') }}
                 </el-button>
               </div>
             </div>
@@ -229,14 +248,14 @@ function formatNumber(num: number): string {
             <div class="status-card usage-card">
               <div class="card-header">
                 <el-icon class="header-icon"><TrendCharts /></el-icon>
-                <span class="header-title">使用统计</span>
+                <span class="header-title">{{ t('subscription.usageStats') }}</span>
               </div>
 
               <div class="card-content">
                 <div class="usage-list">
                   <div v-for="stat in usageStats" :key="stat.label" class="usage-item">
                     <div class="usage-header">
-                      <span class="usage-icon">{{ stat.icon }}</span>
+                      <span class="usage-icon"><el-icon :size="20"><component :is="stat.icon" /></el-icon></span>
                       <span class="usage-label">{{ stat.label }}</span>
                     </div>
                     <div class="usage-progress">
@@ -258,13 +277,13 @@ function formatNumber(num: number): string {
         <!-- 订阅计划选择 -->
         <section class="plans-section">
           <div class="section-header">
-            <h2>选择订阅计划</h2>
-            <p>升级到更高级别的方案，解锁更多功能</p>
+            <h2>{{ t('subscription.choosePlan') }}</h2>
+            <p>{{ t('subscription.upgradeDescription') }}</p>
           </div>
 
           <!-- 计费周期切换 -->
           <div class="billing-toggle">
-            <span :class="{ active: billingCycle === 'monthly' }">月付</span>
+            <span :class="{ active: billingCycle === 'monthly' }">{{ t('subscription.monthly') }}</span>
             <el-switch
               v-model="billingCycle"
               active-value="yearly"
@@ -272,8 +291,8 @@ function formatNumber(num: number): string {
               size="large"
             />
             <span :class="{ active: billingCycle === 'yearly' }">
-              年付
-              <el-tag type="success" size="small" style="margin-left: 8px;">省 17%</el-tag>
+              {{ t('subscription.yearly') }}
+              <el-tag type="success" size="small" class="ml-sm">{{ t('subscription.save17') }}</el-tag>
             </span>
           </div>
 
@@ -284,13 +303,13 @@ function formatNumber(num: number): string {
               :key="plan.id"
               :class="['plan-card', { popular: plan.popular, current: subscriptionStore.currentPlan === plan.id }]"
             >
-              <div v-if="plan.popular" class="popular-badge">最受欢迎</div>
+              <div v-if="plan.popular" class="popular-badge">{{ t('subscription.mostPopular') }}</div>
 
               <div class="plan-header">
                 <h3>{{ plan.name }}</h3>
                 <div class="price">
                   <span class="amount">{{ billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice }}</span>
-                  <span class="period">{{ billingCycle === 'monthly' ? '/月' : '/年' }}</span>
+                  <span class="period">{{ billingCycle === 'monthly' ? t('subscription.perMonth') : t('subscription.perYear') }}</span>
                 </div>
                 <div v-if="billingCycle === 'yearly' && plan.savings" class="savings">
                   {{ plan.savings }}
@@ -312,13 +331,13 @@ function formatNumber(num: number): string {
                 :loading="subscriptionStore.loading"
                 class="subscribe-btn"
               >
-                {{ subscriptionStore.currentPlan === 'free' ? '立即订阅' : '升级方案' }}
+                {{ subscriptionStore.currentPlan === 'free' ? t('subscription.subscribeNow') : t('subscription.upgradePlan') }}
               </el-button>
               <el-button v-else-if="subscriptionStore.currentPlan === plan.id" disabled class="subscribe-btn">
-                当前方案
+                {{ t('subscription.currentPlanLabel') }}
               </el-button>
               <el-button v-else disabled class="subscribe-btn">
-                免费使用
+                {{ t('subscription.freeUse') }}
               </el-button>
             </div>
           </div>
@@ -328,6 +347,27 @@ function formatNumber(num: number): string {
         <section class="dashboard-section">
           <UsageDashboard />
         </section>
+
+        <!-- Feature Comparison -->
+        <div class="comparison-section">
+          <h2 class="section-title">{{ t('subscription.featureComparison') }}</h2>
+          <el-table :data="comparisonData" stripe class="comparison-table">
+            <el-table-column prop="feature" :label="t('subscription.feature')" min-width="180" />
+            <el-table-column prop="free" :label="t('subscription.free')" align="center" min-width="120" />
+            <el-table-column prop="pro" :label="t('subscription.pro')" align="center" min-width="120" />
+            <el-table-column prop="team" :label="t('subscription.team')" align="center" min-width="120" />
+          </el-table>
+        </div>
+
+        <!-- FAQ -->
+        <div class="faq-section">
+          <h2 class="section-title">{{ t('subscription.faq') }}</h2>
+          <el-collapse class="faq-collapse">
+            <el-collapse-item v-for="(faq, i) in faqs" :key="i" :title="faq.question" :name="i">
+              <p class="faq-answer">{{ faq.answer }}</p>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
     </div>
   </DashboardLayout>
 </template>
@@ -339,6 +379,7 @@ function formatNumber(num: number): string {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+  animation: fadeIn var(--duration-slow) var(--ease-out) both;
 }
 
 /* 区块标题 */
@@ -349,13 +390,13 @@ function formatNumber(num: number): string {
 .section-header h2 {
   font-size: 20px;
   font-weight: 700;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
   margin: 0 0 8px 0;
 }
 
 .section-header p {
   font-size: 14px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -371,16 +412,16 @@ function formatNumber(num: number): string {
 }
 
 .status-card {
-  background: var(--bg-color);
+  background: var(--surface-card);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transition: all 0.3s ease;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-default);
 }
 
 .status-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -401,17 +442,17 @@ function formatNumber(num: number): string {
 }
 
 .card-badge.free {
-  background: linear-gradient(135deg, var(--text-color-secondary), var(--text-color-placeholder));
+  background: linear-gradient(135deg, var(--text-secondary), var(--text-tertiary));
   color: white;
 }
 
 .card-badge.pro {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
   color: white;
 }
 
 .card-badge.team {
-  background: linear-gradient(135deg, var(--color-cta), var(--color-success));
+  background: linear-gradient(135deg, var(--color-success), var(--color-success));
   color: white;
 }
 
@@ -426,7 +467,7 @@ function formatNumber(num: number): string {
   align-items: center;
   justify-content: space-between;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-color-light);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .status-row:last-of-type {
@@ -439,13 +480,13 @@ function formatNumber(num: number): string {
   gap: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .status-row .value {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .cancel-warning {
@@ -455,13 +496,13 @@ function formatNumber(num: number): string {
 .manage-btn {
   width: 100%;
   margin-top: 8px;
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
 }
 
 .manage-btn:hover {
-  background: var(--color-secondary);
-  border-color: var(--color-secondary);
+  background: var(--accent-cyan);
+  border-color: var(--accent-cyan);
 }
 
 /* 使用量卡片 */
@@ -471,18 +512,18 @@ function formatNumber(num: number): string {
   gap: 8px;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 2px solid var(--border-color-light);
+  border-bottom: 2px solid var(--border-subtle);
 }
 
 .header-icon {
   font-size: 20px;
-  color: var(--color-primary);
+  color: var(--accent-purple);
 }
 
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .usage-list {
@@ -504,14 +545,16 @@ function formatNumber(num: number): string {
 }
 
 .usage-icon {
-  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent-purple);
 }
 
 .usage-label {
   flex: 1;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-color-regular);
+  color: var(--text-secondary);
 }
 
 .usage-progress {
@@ -522,21 +565,21 @@ function formatNumber(num: number): string {
 
 .progress-bar {
   height: 8px;
-  background: var(--border-color);
+  background: var(--border-default);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-cta));
+  background: linear-gradient(90deg, var(--accent-purple), var(--color-success));
   border-radius: 4px;
   transition: width 0.3s ease;
 }
 
 .usage-text {
   font-size: 12px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
 }
 
@@ -552,22 +595,26 @@ function formatNumber(num: number): string {
   gap: 16px;
   padding: 20px;
   margin-bottom: 32px;
-  background: var(--bg-color);
+  background: var(--surface-card);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-default);
 }
 
 .billing-toggle span {
   font-size: 15px;
   font-weight: 500;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   transition: all 0.2s;
 }
 
 .billing-toggle span.active {
-  color: var(--color-primary);
+  color: var(--accent-purple);
   font-weight: 600;
+}
+
+.ml-sm {
+  margin-left: 8px;
 }
 
 /* 计划卡片网格 */
@@ -579,11 +626,11 @@ function formatNumber(num: number): string {
 
 .plan-card {
   position: relative;
-  background: var(--bg-color);
-  border: 2px solid var(--border-color);
+  background: var(--surface-card);
+  border: 2px solid var(--border-default);
   border-radius: 16px;
   padding: 32px 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
@@ -591,17 +638,17 @@ function formatNumber(num: number): string {
 
 .plan-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-md);
 }
 
 .plan-card.popular {
-  border-color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 6%, var(--bg-color));
+  border-color: var(--accent-purple);
+  background: color-mix(in srgb, var(--accent-purple) 6%, var(--surface-card));
 }
 
 .plan-card.current {
-  border-color: var(--color-cta);
-  background: color-mix(in srgb, var(--color-cta) 6%, var(--bg-color));
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 6%, var(--surface-card));
 }
 
 .popular-badge {
@@ -609,20 +656,20 @@ function formatNumber(num: number): string {
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
   color: white;
   padding: 6px 20px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-purple) 40%, transparent);
 }
 
 .plan-header {
   text-align: center;
   padding-bottom: 24px;
-  border-bottom: 2px solid var(--border-color-light);
+  border-bottom: 2px solid var(--border-subtle);
   margin-bottom: 24px;
 }
 
@@ -630,7 +677,7 @@ function formatNumber(num: number): string {
   font-size: 20px;
   font-weight: 700;
   margin: 0 0 16px 0;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .price {
@@ -640,19 +687,19 @@ function formatNumber(num: number): string {
 .price .amount {
   font-size: 36px;
   font-weight: 800;
-  color: var(--color-primary);
+  color: var(--accent-purple);
 }
 
 .price .period {
   font-size: 14px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .savings {
   margin-top: 8px;
   font-size: 13px;
-  color: var(--color-cta);
+  color: var(--color-success);
   font-weight: 600;
 }
 
@@ -668,12 +715,12 @@ function formatNumber(num: number): string {
   align-items: center;
   gap: 10px;
   padding: 10px 0;
-  color: var(--text-color-regular);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 .features li .check-icon {
-  color: var(--color-cta);
+  color: var(--color-success);
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -685,26 +732,26 @@ function formatNumber(num: number): string {
   font-weight: 600;
   border-radius: 10px;
   transition: all 0.2s ease;
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
   color: white;
 }
 
 .subscribe-btn:hover {
-  background: var(--color-secondary);
-  border-color: var(--color-secondary);
+  background: var(--accent-cyan);
+  border-color: var(--accent-cyan);
   transform: translateY(-1px);
 }
 
 .popular-btn {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
   border: none;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-purple) 30%, transparent);
 }
 
 .popular-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-purple) 40%, transparent);
 }
 
 /* 仪表盘区域 */
@@ -758,5 +805,41 @@ function formatNumber(num: number): string {
   .billing-toggle {
     padding: 16px;
   }
+}
+
+.section-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.comparison-section {
+  margin-top: 48px;
+  padding: 0 24px;
+}
+
+.comparison-table {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.faq-section {
+  margin-top: 48px;
+  padding: 0 24px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.faq-collapse {
+  border: none;
+}
+
+.faq-answer {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
 }
 </style>
