@@ -1,10 +1,14 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Chat, Message, Character } from '@client/types';
+import type { Chat, Message, Character, MessageAttachment } from '@client/types';
 import { chatApi, ApiError, llmApi, characterApi } from '@client/services';
 import { WebSocketClient } from '@client/services/websocket';
 import { WSConnectionState } from '../../types/websocket';
 import { useCharacterIntelligenceStore } from './characterIntelligence';
+import { useDeviceSync } from '@client/composables/useDeviceSync';
+import { createLogger } from '@client/utils/logger';
+
+const logger = createLogger('Chat');
 
 export const useChatStore = defineStore('chat', () => {
   // State
@@ -91,7 +95,6 @@ export const useChatStore = defineStore('chat', () => {
 
     // 连接成功
     wsClient.on('connected', () => {
-      console.log('WebSocket connected');
       // 如果有当前聊天，加入聊天室
       if (currentChatId.value) {
         wsClient?.joinChat(currentChatId.value);
@@ -100,12 +103,12 @@ export const useChatStore = defineStore('chat', () => {
 
     // 断开连接
     wsClient.on('disconnected', () => {
-      console.log('WebSocket disconnected');
+      // silently ignore
     });
 
     // 接收用户消息（来自 WebSocket 广播，包含数据库真实 ID）
     wsClient.on('userMessage', (data: unknown) => {
-      const msgData = data as { messageId: string; chatId: string; content: string };
+      const msgData = data as { messageId: string; chatId: string; content: string; attachments?: MessageAttachment[] };
 
       // 查找并替换临时消息，或添加新消息（如果是其他客户端发送的）
       const tempIndex = messages.value.findIndex(
@@ -118,7 +121,6 @@ export const useChatStore = defineStore('chat', () => {
           ...messages.value[tempIndex],
           id: msgData.messageId,
         };
-        console.log('[Chat] Replaced temp message with real ID:', msgData.messageId);
       } else {
         // 新消息（可能来自其他客户端）
         const message: Message = {
@@ -126,6 +128,7 @@ export const useChatStore = defineStore('chat', () => {
           chatId: msgData.chatId,
           role: 'user',
           content: msgData.content,
+          attachments: msgData.attachments,
           createdAt: new Date().toISOString(),
         };
         messages.value.push(message);
@@ -163,7 +166,7 @@ export const useChatStore = defineStore('chat', () => {
     // 错误处理
     wsClient.on('error', (data: unknown) => {
       const errorData = data as { message: string };
-      console.error('WebSocket error:', errorData);
+      logger.error('WebSocket error', undefined, { errorData });
       error.value = errorData.message;
       sending.value = false;
       isStreaming.value = false;
@@ -188,6 +191,27 @@ export const useChatStore = defineStore('chat', () => {
     wsClient.on('intelligencePromptBuild', (data: unknown) => {
       const intelligenceStore = useCharacterIntelligenceStore();
       intelligenceStore.handlePromptBuild(data as Parameters<typeof intelligenceStore.handlePromptBuild>[0]);
+    });
+
+    // Sync events - forward to device sync composable
+    const { handleSyncMessage } = useDeviceSync();
+
+    wsClient.on('syncDeviceConnected', (data: unknown) => {
+      handleSyncMessage({ type: 'sync:device_connected', data: data as Record<string, unknown> });
+    });
+
+    wsClient.on('syncDeviceDisconnected', (data: unknown) => {
+      handleSyncMessage({ type: 'sync:device_disconnected', data: data as Record<string, unknown> });
+    });
+
+    wsClient.on('syncChatRead', (data: unknown) => {
+      const readData = data as { chatId: string; lastReadMessageId: string };
+      // Update unread count for the specified chat
+      const chatIndex = chats.value.findIndex(c => c.id === readData.chatId);
+      if (chatIndex !== -1) {
+        chats.value[chatIndex] = { ...chats.value[chatIndex], unreadCount: 0 };
+      }
+      handleSyncMessage({ type: 'sync:chat_read', data: data as Record<string, unknown> });
     });
 
     wsClient.connect();
@@ -241,7 +265,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function sendMessage(content: string): Promise<void> {
+  async function sendMessage(content: string, attachments?: MessageAttachment[]): Promise<void> {
     if (!currentChatId.value) {
       throw new Error('No active chat');
     }
@@ -257,25 +281,23 @@ export const useChatStore = defineStore('chat', () => {
         chatId: currentChatId.value,
         role: 'user',
         content,
+        attachments,
         createdAt: new Date().toISOString(),
       };
       messages.value.push(userMessage);
 
-      // 通过 WebSocket 发送
-      wsClient.sendMessage(currentChatId.value, content);
+      // 通过 WebSocket 发送 (包含附件)
+      wsClient.sendMessage(currentChatId.value, content, attachments);
     } else {
       // 降级到 HTTP API
       sending.value = true;
       error.value = null;
       try {
         // 1. 保存用户消息
-        console.log('[Chat] Sending user message...');
         const response = await chatApi.sendMessage(currentChatId.value, { role: 'user', content });
         messages.value.push(response.message);
-        console.log('[Chat] User message saved:', response.message.id);
 
         // 2. 调用 LLM 获取 AI 回复（流式）
-        console.log('[Chat] Starting LLM stream...');
         isStreaming.value = true;
         streamingMessage.value = '';
 
@@ -286,14 +308,12 @@ export const useChatStore = defineStore('chat', () => {
         if (currentCharacter.value) {
           const systemPrompt = buildSystemPrompt(currentCharacter.value);
           chatMessages.push({ role: 'system', content: systemPrompt });
-          console.log('[Chat] Added system prompt for character:', currentCharacter.value.name);
         }
 
         // 添加消息历史
         messages.value.forEach(m => {
           chatMessages.push({ role: m.role, content: m.content });
         });
-        console.log('[Chat] Message history:', chatMessages.length, 'messages (including system)');
 
         await llmApi.streamChatCompletion(
           {
@@ -303,12 +323,10 @@ export const useChatStore = defineStore('chat', () => {
           },
           // onChunk
           (chunk: string) => {
-            console.log('[Chat] LLM chunk received:', chunk.length, 'chars');
             streamingMessage.value += chunk;
           },
           // onDone
           async () => {
-            console.log('[Chat] LLM stream done, content length:', streamingMessage.value.length);
             // 保存 AI 回复到数据库
             if (streamingMessage.value && currentChatId.value) {
               try {
@@ -327,7 +345,7 @@ export const useChatStore = defineStore('chat', () => {
                   createdAt: new Date().toISOString(),
                 };
                 messages.value.push(tempMessage);
-                console.error('Failed to save AI message:', saveError);
+                logger.error('Failed to save AI message', saveError);
               }
             }
             streamingMessage.value = '';
@@ -336,7 +354,7 @@ export const useChatStore = defineStore('chat', () => {
           },
           // onError
           (err: Error) => {
-            console.error('LLM stream error:', err);
+            logger.error('LLM stream error', err);
             error.value = err.message;
             streamingMessage.value = '';
             isStreaming.value = false;
@@ -375,6 +393,25 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function renameChat(chatId: string, newTitle: string): Promise<Chat> {
+    error.value = null;
+    try {
+      const response = await chatApi.updateChat(chatId, { title: newTitle });
+      const index = chats.value.findIndex(c => c.id === chatId);
+      if (index !== -1) {
+        chats.value[index] = { ...chats.value[index], title: newTitle };
+      }
+      return response.chat;
+    } catch (e) {
+      if (e instanceof ApiError) {
+        error.value = e.message;
+      } else {
+        error.value = e instanceof Error ? e.message : 'Failed to rename chat';
+      }
+      throw e;
+    }
+  }
+
   async function deleteChat(chatId: string): Promise<void> {
     loading.value = true;
     error.value = null;
@@ -397,6 +434,18 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function deleteMessage(messageId: string): Promise<void> {
+    if (!currentChatId.value) return;
+
+    try {
+      await chatApi.deleteMessage(currentChatId.value, messageId);
+      messages.value = messages.value.filter(m => m.id !== messageId);
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to delete message';
+      throw e;
+    }
+  }
+
   async function setCurrentChat(chatId: string | null): Promise<void> {
     // 离开当前聊天室
     if (currentChatId.value && wsClient && wsConnected.value) {
@@ -414,9 +463,8 @@ export const useChatStore = defineStore('chat', () => {
       if (chat?.characterId) {
         try {
           currentCharacter.value = await characterApi.getCharacter(chat.characterId);
-          console.log('[Chat] Character loaded:', currentCharacter.value?.name);
         } catch (err) {
-          console.error('[Chat] Failed to load character:', err);
+          logger.error('Failed to load character', err);
         }
       }
 
@@ -454,6 +502,8 @@ export const useChatStore = defineStore('chat', () => {
     sendMessage,
     createChat,
     deleteChat,
+    deleteMessage,
+    renameChat,
     setCurrentChat,
     addMessage,
     clearMessages,

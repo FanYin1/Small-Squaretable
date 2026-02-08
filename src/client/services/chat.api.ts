@@ -122,6 +122,14 @@ export const chatApi = {
   },
 
   /**
+   * 更新聊天
+   */
+  updateChat: async (id: string, data: { title?: string }): Promise<{ chat: Chat }> => {
+    const response = await api.patch<BackendChat>(`/chats/${id}`, data);
+    return { chat: transformChat(response) };
+  },
+
+  /**
    * 删除聊天
    */
   deleteChat: (id: string) =>
@@ -155,4 +163,10 @@ export const chatApi = {
     const response = await api.post<BackendMessage>(`/chats/${chatId}/messages`, data);
     return { message: transformMessage(response) };
   },
+
+  /**
+   * 删除单条消息
+   */
+  deleteMessage: (chatId: string, messageId: string) =>
+    api.delete(`/chats/${chatId}/messages/${messageId}`),
 };

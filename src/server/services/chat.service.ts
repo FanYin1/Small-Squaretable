@@ -15,14 +15,24 @@ import { memoryService } from './memory.service';
 import { emotionService } from './emotion.service';
 import { websocketService } from './websocket.service';
 import { intelligenceDebugService } from './intelligence-debug.service';
+import { worldInfoEngine, type WorldInfoResult } from './worldinfo-engine.service';
+import { estimateTokens } from '../utils/tokens';
 import type { Character } from '../../db/schema/characters';
 
 export interface EnhancedPromptParams {
   character: Character;
   characterId: string;
   userId: string;
+  userName?: string;
   chatId: string;
   userMessage: string;
+  messages?: Array<{ role: string; content: string }>;
+  maxContext?: number;
+}
+
+export interface EnhancedPromptResult {
+  systemPrompt: string;
+  atDepthEntries: Array<{ depth: number; content: string }>;
 }
 
 export class ChatService {
@@ -116,10 +126,26 @@ export class ChatService {
     return await this.messageRepo.findByChatId(chatId, pagination);
   }
 
+  async deleteMessage(chatId: string, messageId: number, userId: string, tenantId: string): Promise<void> {
+    // Verify chat ownership
+    const chat = await this.chatRepo.findByIdAndTenant(chatId, tenantId);
+    if (!chat || chat.userId !== userId) {
+      throw new NotFoundError('Chat');
+    }
+
+    // Verify message belongs to this chat
+    const message = await this.messageRepo.findById(messageId);
+    if (!message || message.chatId !== chatId) {
+      throw new NotFoundError('Message');
+    }
+
+    await this.messageRepo.delete(messageId);
+  }
+
   /**
    * Build an enhanced system prompt with memories and emotion state
    */
-  async buildEnhancedSystemPrompt(params: EnhancedPromptParams): Promise<string> {
+  async buildEnhancedSystemPrompt(params: EnhancedPromptParams): Promise<EnhancedPromptResult> {
     const { character, characterId, userId, chatId, userMessage } = params;
     console.log('[Intelligence] Building enhanced prompt for chat:', chatId, 'character:', characterId);
     const promptStartTime = Date.now();
@@ -127,18 +153,79 @@ export class ChatService {
 
     // Base character prompt
     const cardData = (character.cardData as Record<string, string>) || {};
-    parts.push(`You are ${character.name}.`);
+
+    // Build default system prompt parts (used as {{original}} replacement)
+    const defaultPromptParts: string[] = [];
+    defaultPromptParts.push(`You are ${character.name}.`);
     if (character.description) {
-      parts.push(character.description);
+      defaultPromptParts.push(character.description);
     }
     if (cardData.personality) {
-      parts.push(`Personality: ${cardData.personality}`);
+      defaultPromptParts.push(`Personality: ${cardData.personality}`);
     }
     if (cardData.scenario) {
-      parts.push(`Scenario: ${cardData.scenario}`);
+      defaultPromptParts.push(`Scenario: ${cardData.scenario}`);
     }
+
+    // Apply {{char}} and {{user}} macro substitution
+    const userName = params.userName || 'User';
+    const applyMacros = (text: string): string =>
+      text.replace(/\{\{char\}\}/gi, character.name).replace(/\{\{user\}\}/gi, userName);
+
     if (cardData.system_prompt) {
-      parts.push(cardData.system_prompt);
+      let systemPrompt = cardData.system_prompt;
+      // Support {{original}} placeholder - replaces with the default system prompt
+      if (/\{\{original\}\}/i.test(systemPrompt)) {
+        systemPrompt = systemPrompt.replace(/\{\{original\}\}/gi, defaultPromptParts.join('\n'));
+      } else {
+        // No {{original}}, prepend default parts then append system_prompt
+        parts.push(...defaultPromptParts.map(applyMacros));
+      }
+      parts.push(applyMacros(systemPrompt));
+    } else {
+      parts.push(...defaultPromptParts.map(applyMacros));
+    }
+
+    // Example dialogue
+    if (cardData.mes_example) {
+      const exampleBlock = this.parseExampleMessages(cardData.mes_example, character.name, userName);
+      if (exampleBlock) {
+        parts.push(exampleBlock);
+      }
+    }
+
+    // Scan world book entries
+    let worldInfo: WorldInfoResult | null = null;
+    if (params.messages && params.messages.length > 0) {
+      try {
+        worldInfo = await worldInfoEngine.scan({
+          chat: params.messages as Message[],
+          characterId,
+          userId,
+          chatId,
+          maxContext: params.maxContext ?? 4096,
+        });
+      } catch (error) {
+        console.warn('[Intelligence] World info scan failed:', (error as Error).message);
+      }
+    }
+
+    // Record world info debug data
+    if (worldInfo?.debugInfo) {
+      intelligenceDebugService.recordWorldInfoScan(characterId, userId, chatId, {
+        scannedEntries: worldInfo.debugInfo.scannedEntries,
+        activatedCount: worldInfo.debugInfo.activatedCount,
+        budgetUsed: worldInfo.debugInfo.budgetUsed,
+        budgetLimit: worldInfo.debugInfo.budgetLimit,
+        scanTimeMs: worldInfo.debugInfo.scanTimeMs,
+        matches: worldInfo.debugInfo.matches,
+      });
+      intelligenceDebugService.recordLatency(characterId, userId, chatId, 'worldInfoScanLatency', worldInfo.debugInfo.scanTimeMs);
+    }
+
+    // Inject world info: before position
+    if (worldInfo?.before) {
+      parts.unshift(worldInfo.before);
     }
 
     // Retrieve relevant memories with timing (session-isolated)
@@ -162,9 +249,9 @@ export class ChatService {
         content: m.content,
         type: m.type,
         score: m.score ?? 0,
-        similarity: m.score ?? 0, // Use score as similarity proxy
-        importance: 0.5, // Default importance
-        recency: 0.5, // Default recency
+        similarity: m.similarity ?? 0,
+        importance: m.importanceScore ?? 0.5,
+        recency: m.recencyScore ?? 0.5,
       })),
       latencyMs: retrievalLatency,
     });
@@ -205,6 +292,11 @@ export class ChatService {
       }
     }
 
+    // Inject world info: EMTop position
+    if (worldInfo?.EMTop) {
+      parts.push(worldInfo.EMTop);
+    }
+
     // Get current emotion
     const emotion = await emotionService.getCurrentEmotion(characterId, userId, chatId);
     if (emotion) {
@@ -212,6 +304,37 @@ export class ChatService {
       parts.push(
         `当前情感: ${emotion.label}, Valence: ${emotion.valence.toFixed(2)}, Arousal: ${emotion.arousal.toFixed(2)}`
       );
+
+      // Emotion-specific behavior guidelines
+      const emotionGuidelines: Record<string, string> = {
+        angry: '回复更简短直接，可能提及不满的原因，语气较冲',
+        sad: '语气低沉，可能回忆过去的事情，表达需要安慰',
+        happy: '语气轻快积极，乐于分享和交流，可能开玩笑',
+        excited: '语气热情高涨，说话可能更快更多，充满活力',
+        loving: '语气温柔亲密，表达关心和爱意，用词更柔和',
+        calm: '语气平和稳定，回复从容不迫，思路清晰',
+        curious: '多提问，表现出对话题的兴趣，积极探索',
+        surprised: '表达惊讶，可能追问细节，语气中带有意外感',
+        confused: '表达困惑，可能请求澄清，语气不确定',
+        bored: '回复较简短，缺乏热情，可能试图转换话题',
+        fearful: '语气紧张不安，可能表达担忧，寻求安全感',
+        disgusted: '表达反感，可能回避某些话题，语气中带有排斥',
+      };
+
+      const guideline = emotionGuidelines[emotion.label];
+      if (guideline) {
+        parts.push(`情感表现指引: ${guideline}`);
+      }
+    }
+
+    // Inject world info: EMBottom position
+    if (worldInfo?.EMBottom) {
+      parts.push(worldInfo.EMBottom);
+    }
+
+    // Inject world info: ANTop position
+    if (worldInfo?.ANTop) {
+      parts.push(worldInfo.ANTop);
     }
 
     // Behavior guidelines
@@ -220,6 +343,29 @@ export class ChatService {
     parts.push('- 保持情感状态的一致性，情感变化应自然过渡');
     parts.push('- 可以主动提及相关记忆，但不要生硬');
     parts.push('Stay in character at all times.');
+
+    // Inject world info: ANBottom position
+    if (worldInfo?.ANBottom) {
+      parts.push(worldInfo.ANBottom);
+    }
+
+    // Inject world info: after position
+    if (worldInfo?.after) {
+      parts.push(worldInfo.after);
+    }
+
+    // Collect atDepth entries (world info + post_history_instructions)
+    const atDepthEntries: Array<{ depth: number; content: string }> = [
+      ...(worldInfo?.atDepth ?? []),
+    ];
+
+    // post_history_instructions: inject at depth in chat history (like SillyTavern's jailbreak/PHI)
+    if (cardData.post_history_instructions) {
+      const phi = applyMacros(cardData.post_history_instructions);
+      // Default depth 1 = just before the last message. Can be overridden via extensions.depth_prompt
+      const phiDepth = (character.cardData as any)?.extensions?.depth_prompt?.depth ?? 1;
+      atDepthEntries.push({ depth: phiDepth, content: phi });
+    }
 
     const fullPrompt = parts.join('\n');
     const promptBuildLatency = Date.now() - promptStartTime;
@@ -230,13 +376,16 @@ export class ChatService {
     // Emit WebSocket event for prompt build
     websocketService.emitPromptBuild(
       chatId,
-      fullPrompt.length, // Approximate token count (chars as proxy)
+      estimateTokens(fullPrompt),
       memories.length,
       !!emotion,
       promptBuildLatency
     );
 
-    return fullPrompt;
+    return {
+      systemPrompt: fullPrompt,
+      atDepthEntries,
+    };
   }
 
   /**
@@ -255,13 +404,24 @@ export class ChatService {
     // Update message counter in debug service
     intelligenceDebugService.incrementMessageCounter(characterId, userId, chatId);
 
-    // Extract memories every 1 message (immediate extraction)
-    if (count >= 1) {
+    // Extract memories every 5 messages (batch extraction to reduce LLM cost)
+    if (count >= 5) {
       this.messageCounters.set(key, 0);
       const recentMessages = messages.slice(-2); // Get last 2 messages (user + assistant)
       const extracted = await memoryService.extractMemories(characterId, userId, recentMessages);
 
+      // Memory-emotion interaction: boost importance based on current arousal
+      // High arousal moments create stronger memories
+      const currentEmotion = await emotionService.getCurrentEmotion(characterId, userId, chatId);
+      const arousalBoost = currentEmotion
+        ? Math.abs(currentEmotion.arousal - 0.3) // Distance from neutral arousal
+        : 0;
+
       for (const memory of extracted) {
+        // Apply arousal-based importance boost: importance *= (1 + |arousal - 0.3|)
+        if (arousalBoost > 0) {
+          memory.importance = Math.min(1, memory.importance * (1 + arousalBoost));
+        }
         await memoryService.storeMemory(characterId, userId, memory, chatId);
       }
 
@@ -274,6 +434,65 @@ export class ChatService {
         );
       }
     }
+  }
+
+  /**
+   * Parse SillyTavern-format example messages into a formatted dialogue block.
+   *
+   * Handles:
+   * - Splitting by <START> tags into separate example conversations
+   * - Replacing {{char}} with the actual character name
+   * - Replacing {{user}} with "User"
+   * - Lines without a speaker prefix are treated as continuation of the previous speaker
+   * - Empty/whitespace-only input returns empty string
+   * - Input without <START> tags is treated as a single example block
+   */
+  private parseExampleMessages(mesExample: string, charName: string, userName = 'User'): string {
+    if (!mesExample || !mesExample.trim()) {
+      return '';
+    }
+
+    // Split by <START> tags (case-insensitive, with optional surrounding whitespace)
+    const blocks = mesExample.split(/<START>/i)
+      .map(block => block.trim())
+      .filter(block => block.length > 0);
+
+    if (blocks.length === 0) {
+      return '';
+    }
+
+    const formattedBlocks: string[] = [];
+
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+      const lines = block.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+      if (lines.length === 0) {
+        continue;
+      }
+
+      const formattedLines: string[] = [];
+
+      for (const line of lines) {
+        // Replace {{char}} and {{user}} placeholders (case-insensitive)
+        let processed = line
+          .replace(/\{\{char\}\}/gi, charName)
+          .replace(/\{\{user\}\}/gi, userName);
+
+        formattedLines.push(processed);
+      }
+
+      if (formattedLines.length > 0) {
+        const conversationNumber = formattedBlocks.length + 1;
+        formattedBlocks.push(`[Example conversation ${conversationNumber}]\n${formattedLines.join('\n')}`);
+      }
+    }
+
+    if (formattedBlocks.length === 0) {
+      return '';
+    }
+
+    return `\n## Example Dialogue\n\n${formattedBlocks.join('\n\n')}`;
   }
 
   /**
@@ -291,6 +510,7 @@ export class ChatService {
     const previousEmotion = await emotionService.getCurrentEmotion(characterId, userId, chatId);
 
     // Analyze and update emotion
+    const emotionStartTime = Date.now();
     const result = await emotionService.analyzeAndUpdate({
       characterId,
       userId,
@@ -298,9 +518,10 @@ export class ChatService {
       text: messageContent,
       messageId,
     });
+    const emotionLatency = Date.now() - emotionStartTime;
 
     // Record emotion analysis latency
-    intelligenceDebugService.recordLatency(characterId, userId, chatId, 'emotionAnalysisLatency', 0);
+    intelligenceDebugService.recordLatency(characterId, userId, chatId, 'emotionAnalysisLatency', emotionLatency);
 
     // Emit WebSocket event for emotion change
     if (result) {

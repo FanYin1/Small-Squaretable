@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { chatService } from '../services/chat.service';
+import { chatRepository } from '../../db/repositories/chat.repository';
 import { authMiddleware } from '../middleware/auth';
 import { requireQuota } from '../middleware/feature-gate';
 import {
@@ -123,8 +124,23 @@ chatRoutes.post(
   requireQuota('messages'),
   zValidator('json', createMessageSchema),
   async (c) => {
+    const user = c.get('user');
     const chatId = c.req.param('id');
     const input = c.req.valid('json');
+
+    // IDOR fix: verify the chat belongs to the authenticated user
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== user.id) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
     const message = await chatService.addMessage(chatId, input);
 
     return c.json<ApiResponse>(
@@ -138,12 +154,55 @@ chatRoutes.post(
   }
 );
 
+// 删除单条消息
+chatRoutes.delete('/:id/messages/:messageId', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const chatId = c.req.param('id');
+  const messageId = parseInt(c.req.param('messageId'));
+
+  if (isNaN(messageId)) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid message ID' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400
+    );
+  }
+
+  await chatService.deleteMessage(chatId, messageId, user.id, user.tenantId);
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: { message: 'Message deleted successfully' },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200
+  );
+});
+
 // 获取聊天消息列表（游标分页）
 chatRoutes.get('/:id/messages', authMiddleware(), async (c) => {
+  const user = c.get('user');
   const chatId = c.req.param('id');
   const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!) : 20;
   const before = c.req.query('before') ? parseInt(c.req.query('before')!) : undefined;
   const after = c.req.query('after') ? parseInt(c.req.query('after')!) : undefined;
+
+  // IDOR fix: verify the chat belongs to the authenticated user
+  const chat = await chatRepository.findById(chatId);
+  if (!chat || chat.userId !== user.id) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Chat not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404
+    );
+  }
 
   const messages = await chatService.getMessages(chatId, {
     limit,

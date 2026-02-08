@@ -44,7 +44,9 @@
     "profile": "个人中心",
     "logout": "退出登录",
     "login": "登录",
-    "register": "注册"
+    "register": "注册",
+    "pinSidebar": "固定侧边栏",
+    "unpinSidebar": "取消固定侧边栏"
   },
   "theme": {
     "light": "浅色",
@@ -86,7 +88,16 @@
     "deleteFailed": "删除失败",
     "loadFailed": "加载失败",
     "createSuccess": "创建成功",
-    "createFailed": "创建失败"
+    "createFailed": "创建失败",
+    "attachImage": "添加图片",
+    "removeImage": "移除图片",
+    "uploadFailed": "上传失败",
+    "fileTooLarge": "文件大小超过限制",
+    "fileTypeNotSupported": "不支持的文件类型",
+    "uploading": "上传中...",
+    "imagePreview": "图片预览",
+    "deleteMessage": "删除消息",
+    "deleteMessageConfirm": "确定要删除这条消息吗？"
   },
   "market": {
     "title": "角色市场",
@@ -583,6 +594,17 @@
     "arousal": "激活度",
     "valence": "效价"
   },
+  "sync": {
+    "devices": "已连接设备",
+    "thisDevice": "当前设备",
+    "otherDevices": "其他 {count} 台设备在线",
+    "deviceConnected": "新设备已连接",
+    "deviceDisconnected": "设备已断开",
+    "desktop": "桌面端",
+    "mobile": "移动端",
+    "tablet": "平板端",
+    "unknown": "未知设备"
+  },
   "characterPublish": {
     "dialogTitle": "发布角色到市场",
     "upgradeRequired": "需要升级到 Pro 或 Team 套餐",
@@ -713,5 +735,12 @@
     "aboutTitle": "关于 Small-Squaretable",
     "aboutContent": "Small-Squaretable 是新一代 AI 角色平台，让您的想象力栩栩如生。\n\n我们的使命是创造最具吸引力和创造力的 AI 对话体验。我们将尖端语言模型与直观界面相结合，让您创建、自定义 AI 角色并与之聊天。\n\n功能特色：\n- 创建和自定义 AI 角色\n- 与高级 AI 实时聊天\n- 角色市场分享创作\n- 多语言支持\n\n由 Small-Squaretable 团队倾力打造。",
     "backToHome": "返回首页"
+  },
+  "pwa": {
+    "installPrompt": "安装应用以获得更好的体验",
+    "install": "安装",
+    "later": "稍后",
+    "updateAvailable": "新版本可用，点击更新",
+    "offlineReady": "应用已准备好离线使用"
   }
 }

@@ -44,7 +44,9 @@
     "profile": "Profile",
     "logout": "Logout",
     "login": "Login",
-    "register": "Register"
+    "register": "Register",
+    "pinSidebar": "Pin sidebar",
+    "unpinSidebar": "Unpin sidebar"
   },
   "theme": {
     "light": "Light",
@@ -86,7 +88,16 @@
     "deleteFailed": "Delete failed",
     "loadFailed": "Load failed",
     "createSuccess": "Created successfully",
-    "createFailed": "Create failed"
+    "createFailed": "Create failed",
+    "attachImage": "Attach Image",
+    "removeImage": "Remove Image",
+    "uploadFailed": "Upload failed",
+    "fileTooLarge": "File size exceeds limit",
+    "fileTypeNotSupported": "File type not supported",
+    "uploading": "Uploading...",
+    "imagePreview": "Image Preview",
+    "deleteMessage": "Delete Message",
+    "deleteMessageConfirm": "Are you sure you want to delete this message?"
   },
   "market": {
     "title": "Character Market",
@@ -583,6 +594,17 @@
     "arousal": "Arousal",
     "valence": "Valence"
   },
+  "sync": {
+    "devices": "Connected devices",
+    "thisDevice": "This device",
+    "otherDevices": "{count} other device(s) connected",
+    "deviceConnected": "New device connected",
+    "deviceDisconnected": "Device disconnected",
+    "desktop": "Desktop",
+    "mobile": "Mobile",
+    "tablet": "Tablet",
+    "unknown": "Unknown device"
+  },
   "characterPublish": {
     "dialogTitle": "Publish Character to Market",
     "upgradeRequired": "Requires Pro or Team plan",
@@ -713,5 +735,12 @@
     "aboutTitle": "About Small-Squaretable",
     "aboutContent": "Small-Squaretable is a next-generation AI character platform that brings your imagination to life.\n\nOur mission is to create the most engaging and creative AI conversation experience. We combine cutting-edge language models with an intuitive interface to let you create, customize, and chat with AI characters.\n\nFeatures:\n- Create and customize AI characters\n- Real-time chat with advanced AI\n- Character marketplace for sharing creations\n- Multi-language support\n\nBuilt with passion by the Small-Squaretable team.",
     "backToHome": "Back to Home"
+  },
+  "pwa": {
+    "installPrompt": "Install app for a better experience",
+    "install": "Install",
+    "later": "Later",
+    "updateAvailable": "New version available. Click to update.",
+    "offlineReady": "App ready for offline use"
   }
 }
