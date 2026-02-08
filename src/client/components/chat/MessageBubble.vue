@@ -10,8 +10,26 @@
     </el-avatar>
     <div class="message-body">
       <div class="message-content">
-        <div v-if="message.role === 'assistant'" class="markdown-content" v-html="renderedContent"></div>
-        <div v-else class="text-content">{{ message.content }}</div>
+        <template v-if="editing && message.role === 'user'">
+          <div class="edit-container">
+            <el-input
+              v-model="editContent"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 8 }"
+              @keydown.enter.ctrl="saveEdit"
+              @keydown.escape="cancelEdit"
+            />
+            <div class="edit-actions">
+              <el-button size="small" @click="cancelEdit">{{ t('common.cancel') }}</el-button>
+              <el-button size="small" type="primary" @click="saveEdit">{{ t('common.save') }}</el-button>
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <div v-if="message.role === 'assistant'" class="markdown-content" v-html="renderedContent"></div>
+          <div v-else class="text-content">{{ message.content }}</div>
+        </template>
+        <MessageImage :attachments="message.attachments" />
       </div>
       <div class="message-footer">
         <span class="message-time">{{ formattedTime }}</span>
@@ -51,13 +69,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Check, CopyDocument, Edit, RefreshRight, Delete } from '@element-plus/icons-vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { useDateTime } from '@client/composables';
 import { createLogger } from '@client/utils/logger';
+import MessageImage from './MessageImage.vue';
 import type { Message } from '@client/types';
 
 const logger = createLogger('MessageBubble');
@@ -68,6 +87,7 @@ interface Props {
   characterName?: string;
   userAvatar?: string;
   userName?: string;
+  editing?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -79,10 +99,29 @@ const emit = defineEmits<{
   (e: 'edit', messageId: string): void;
   (e: 'regenerate', messageId: string): void;
   (e: 'delete', messageId: string): void;
+  (e: 'save-edit', messageId: string, content: string): void;
+  (e: 'cancel-edit'): void;
 }>();
 const { t } = useI18n();
 const { formatRelativeTime } = useDateTime();
 const copied = ref(false);
+const editContent = ref('');
+
+watch(() => props.editing, (val) => {
+  if (val) {
+    editContent.value = props.message.content;
+  }
+});
+
+const saveEdit = () => {
+  if (editContent.value.trim()) {
+    emit('save-edit', props.message.id, editContent.value.trim());
+  }
+};
+
+const cancelEdit = () => {
+  emit('cancel-edit');
+};
 
 // Configure marked for safe rendering
 marked.setOptions({
@@ -312,5 +351,18 @@ const handleDelete = () => {
 
 .action-btn.delete-btn:hover {
   color: var(--color-danger);
+}
+
+.edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

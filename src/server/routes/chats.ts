@@ -14,6 +14,7 @@ import {
   createChatSchema,
   updateChatSchema,
   createMessageSchema,
+  updateMessageSchema,
 } from '../../types/chat';
 import { paginationSchema } from '../../types/api';
 import type { ApiResponse, PaginatedResponse } from '../../types/api';
@@ -182,6 +183,41 @@ chatRoutes.delete('/:id/messages/:messageId', authMiddleware(), async (c) => {
     200
   );
 });
+
+// 编辑消息
+chatRoutes.patch(
+  '/:id/messages/:messageId',
+  authMiddleware(),
+  zValidator('json', updateMessageSchema),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const messageId = parseInt(c.req.param('messageId'));
+    const { content } = c.req.valid('json');
+
+    if (isNaN(messageId)) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid message ID' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        400
+      );
+    }
+
+    const message = await chatService.editMessage(chatId, messageId, content, user.id, user.tenantId);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: message,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
 
 // 获取聊天消息列表（游标分页）
 chatRoutes.get('/:id/messages', authMiddleware(), async (c) => {

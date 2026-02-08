@@ -87,9 +87,12 @@
             :character-name="currentChat?.characterName"
             :user-avatar="userStore.user?.avatar"
             :user-name="userStore.user?.name"
+            :editing="editingMessageId === message.id"
             @delete="handleDeleteMessage"
             @edit="handleEditMessage"
             @regenerate="handleRegenerateMessage"
+            @save-edit="handleSaveEdit"
+            @cancel-edit="handleCancelEdit"
           />
         </template>
 
@@ -189,6 +192,7 @@ const messagesEnd = ref<HTMLElement | null>(null);
 
 const { formatRelativeTime } = useDateTime();
 const showScrollButton = ref(false);
+const editingMessageId = ref<string | null>(null);
 
 const handleScroll = () => {
   if (!messagesContainer.value) return;
@@ -343,9 +347,22 @@ const handleDeleteMessage = async (messageId: string) => {
   } catch { /* cancelled */ }
 };
 
-// Stubs for edit and regenerate (will be implemented in later tasks)
-const handleEditMessage = (_messageId: string) => {
-  // TODO: Task 2
+// Edit message handlers
+const handleEditMessage = (messageId: string) => {
+  editingMessageId.value = messageId;
+};
+
+const handleSaveEdit = async (messageId: string, content: string) => {
+  try {
+    await chatStore.editMessage(messageId, content);
+    editingMessageId.value = null;
+  } catch (error: unknown) {
+    logger.error('Failed to edit message', error);
+  }
+};
+
+const handleCancelEdit = () => {
+  editingMessageId.value = null;
 };
 
 const handleRegenerateMessage = (_messageId: string) => {

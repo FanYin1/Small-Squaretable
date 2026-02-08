@@ -51,7 +51,12 @@ export const createMessageSchema = z.object({
   attachments: z.array(attachmentSchema).max(10).optional(),
 });
 
+export const updateMessageSchema = z.object({
+  content: z.string().min(1).max(50000),
+});
+
 export type CreateChatInput = z.infer<typeof createChatSchema>;
 export type UpdateChatInput = z.infer<typeof updateChatSchema>;
 export type CreateMessageInput = z.infer<typeof createMessageSchema>;
+export type UpdateMessageInput = z.infer<typeof updateMessageSchema>;
 export type Attachment = z.infer<typeof attachmentSchema>;

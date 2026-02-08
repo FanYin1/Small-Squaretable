@@ -142,6 +142,30 @@ export class ChatService {
     await this.messageRepo.delete(messageId);
   }
 
+  async editMessage(
+    chatId: string,
+    messageId: number,
+    content: string,
+    userId: string,
+    tenantId: string
+  ): Promise<Message> {
+    const chat = await this.chatRepo.findByIdAndTenant(chatId, tenantId);
+    if (!chat || chat.userId !== userId) {
+      throw new NotFoundError('Chat');
+    }
+
+    const message = await this.messageRepo.findById(messageId);
+    if (!message || message.chatId !== chatId) {
+      throw new NotFoundError('Message');
+    }
+
+    const updated = await this.messageRepo.update(messageId, { content });
+    if (!updated) {
+      throw new NotFoundError('Message');
+    }
+    return updated;
+  }
+
   /**
    * Build an enhanced system prompt with memories and emotion state
    */

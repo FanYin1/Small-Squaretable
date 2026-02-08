@@ -169,4 +169,12 @@ export const chatApi = {
    */
   deleteMessage: (chatId: string, messageId: string) =>
     api.delete(`/chats/${chatId}/messages/${messageId}`),
+
+  /**
+   * 编辑消息
+   */
+  editMessage: async (chatId: string, messageId: string, content: string): Promise<{ message: Message }> => {
+    const response = await api.patch<BackendMessage>(`/chats/${chatId}/messages/${messageId}`, { content });
+    return { message: transformMessage(response) };
+  },
 };

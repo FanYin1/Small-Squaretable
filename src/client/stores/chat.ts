@@ -446,6 +446,21 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function editMessage(messageId: string, content: string): Promise<void> {
+    if (!currentChatId.value) return;
+
+    try {
+      await chatApi.editMessage(currentChatId.value, messageId, content);
+      const index = messages.value.findIndex(m => m.id === messageId);
+      if (index !== -1) {
+        messages.value[index] = { ...messages.value[index], content };
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to edit message';
+      throw e;
+    }
+  }
+
   async function setCurrentChat(chatId: string | null): Promise<void> {
     // 离开当前聊天室
     if (currentChatId.value && wsClient && wsConnected.value) {
@@ -503,6 +518,7 @@ export const useChatStore = defineStore('chat', () => {
     createChat,
     deleteChat,
     deleteMessage,
+    editMessage,
     renameChat,
     setCurrentChat,
     addMessage,

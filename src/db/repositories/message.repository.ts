@@ -1,4 +1,4 @@
-import { eq, desc, gt, lt, sql, asc } from 'drizzle-orm';
+import { eq, desc, gt, lt, sql, asc, and } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { messages, type Message, type NewMessage } from '../schema/chats';
@@ -11,15 +11,18 @@ export interface MessagePagination {
 
 export class MessageRepository extends BaseRepository {
   async findByChatId(chatId: string, pagination?: MessagePagination): Promise<Message[]> {
-    let query: any = this.db.select().from(messages).where(eq(messages.chatId, chatId));
+    const conditions = [eq(messages.chatId, chatId)];
+
+    if (pagination?.before) {
+      conditions.push(lt(messages.id, pagination.before));
+    }
+    if (pagination?.after) {
+      conditions.push(gt(messages.id, pagination.after));
+    }
+
+    let query = this.db.select().from(messages).where(and(...conditions));
 
     if (pagination) {
-      if (pagination.before) {
-        query = query.where(lt(messages.id, pagination.before));
-      }
-      if (pagination.after) {
-        query = query.where(gt(messages.id, pagination.after));
-      }
       query = query.limit(pagination.limit);
     }
 
@@ -29,6 +32,15 @@ export class MessageRepository extends BaseRepository {
 
   async findById(id: number): Promise<Message | null> {
     const result = await this.db.select().from(messages).where(eq(messages.id, id));
+    return result[0] ?? null;
+  }
+
+  async update(id: number, data: { content: string }): Promise<Message | null> {
+    const result = await this.db
+      .update(messages)
+      .set({ content: data.content })
+      .where(eq(messages.id, id))
+      .returning();
     return result[0] ?? null;
   }
 
