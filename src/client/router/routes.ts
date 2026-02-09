@@ -17,6 +17,7 @@ const loadPrivacy = () => import('../pages/legal/Privacy.vue');
 const loadAbout = () => import('../pages/legal/About.vue');
 const loadNotFound = () => import('../pages/NotFound.vue');
 const loadNotifications = () => import(/* webpackChunkName: "notifications" */ '../pages/Notifications.vue');
+const loadUserProfile = () => import(/* webpackChunkName: "user-profile" */ '../pages/UserProfile.vue');
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -159,6 +160,15 @@ export const routes: RouteRecordRaw[] = [
     component: loadNotifications,
     meta: {
       requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/user/:userId',
+    name: 'UserProfile',
+    component: loadUserProfile,
+    meta: {
+      requiresAuth: false,
       guestOnly: false,
     },
   },

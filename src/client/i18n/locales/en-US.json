@@ -770,7 +770,15 @@
     "edit": "Edit",
     "loadMore": "Load more",
     "sortNewest": "Newest",
-    "sortOldest": "Oldest"
+    "sortOldest": "Oldest",
+    "userProfile": "User Profile",
+    "characters": "Characters",
+    "favorites": "Favorites",
+    "noCharacters": "This user hasn't published any characters yet.",
+    "noFavorites": "No favorites to show.",
+    "noFavoritesOther": "This user's favorites are private.",
+    "userNotFound": "User not found",
+    "loadFailed": "Failed to load user profile"
   },
   "notification": {
     "title": "Notifications",

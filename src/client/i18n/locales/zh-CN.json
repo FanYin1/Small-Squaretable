@@ -770,7 +770,15 @@
     "edit": "编辑",
     "loadMore": "加载更多",
     "sortNewest": "最新",
-    "sortOldest": "最早"
+    "sortOldest": "最早",
+    "userProfile": "用户主页",
+    "characters": "角色",
+    "favorites": "收藏",
+    "noCharacters": "该用户还没有发布任何角色。",
+    "noFavorites": "暂无收藏内容。",
+    "noFavoritesOther": "该用户的收藏是私密的。",
+    "userNotFound": "用户未找到",
+    "loadFailed": "加载用户主页失败"
   },
   "notification": {
     "title": "通知",
