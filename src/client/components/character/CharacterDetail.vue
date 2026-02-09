@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ChatDotRound, Star, Download, Upload } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useCharacterStore } from '@client/stores';
@@ -8,7 +9,11 @@ import { useUserStore } from '@client/stores/user';
 import RatingComponent from '@client/components/rating/RatingComponent.vue';
 import { api } from '@client/services/api';
 import { downloadCharacterJson } from '@client/utils/sillytavern';
-import type { RatingInput } from '@/types/rating';
+import { createLogger } from '@client/utils/logger';
+import FavoriteButton from '@client/components/social/FavoriteButton.vue';
+import type { RatingInput, RatingResponseDto } from '@/types/rating';
+
+const logger = createLogger('CharacterDetail');
 
 const props = defineProps<{
   visible: boolean;
@@ -20,14 +25,20 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const { t, locale } = useI18n();
 const characterStore = useCharacterStore();
 const authStore = useUserStore();
 
 const character = computed(() => characterStore.currentCharacter);
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 
+// Responsive drawer size
+const isMobile = ref(window.innerWidth < 768);
+const drawerSize = computed(() => isMobile.value ? '100%' : '600px');
+function handleResize() { isMobile.value = window.innerWidth < 768; }
+
 // Rating state
-const ratings = ref<any>(null);
+const ratings = ref<RatingResponseDto | null>(null);
 const userRating = ref<RatingInput>({
   quality: 0,
   creativity: 0,
@@ -51,18 +62,23 @@ const overallRating = computed(() => {
 });
 
 onMounted(async () => {
+  window.addEventListener('resize', handleResize);
   await fetchRatings();
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 
 async function fetchRatings() {
   try {
-    const response = await api.get(`/characters/${props.characterId}/ratings`);
+    const response = await api.get<RatingResponseDto>(`/characters/${props.characterId}/ratings`);
     ratings.value = response;
-    if (response.userRating) {
+    if (response?.userRating) {
       userRating.value = response.userRating;
     }
   } catch (error) {
-    console.error('Failed to fetch ratings:', error);
+    logger.error('Failed to fetch ratings', error);
   }
 }
 
@@ -75,7 +91,7 @@ function handleStartChat() {
 
 async function handleImport() {
   if (!isAuthenticated.value) {
-    ElMessage.warning('请先登录');
+    ElMessage.warning(t('characterDetail.loginRequired'));
     return;
   }
 
@@ -84,9 +100,9 @@ async function handleImport() {
   importing.value = true;
   try {
     await api.post(`/characters/${character.value.id}/fork`);
-    ElMessage.success('角色已导入到我的角色');
-  } catch (error: any) {
-    ElMessage.error(error.message || '导入失败');
+    ElMessage.success(t('characterDetail.importSuccess'));
+  } catch (error: unknown) {
+    ElMessage.error(error instanceof Error ? error.message : t('characterDetail.importFailed'));
   } finally {
     importing.value = false;
   }
@@ -95,12 +111,12 @@ async function handleImport() {
 function handleExport() {
   if (!character.value) return;
   downloadCharacterJson(character.value);
-  ElMessage.success('角色已导出');
+  ElMessage.success(t('characterDetail.exportSuccess'));
 }
 
 function handleRateClick() {
   if (!isAuthenticated.value) {
-    ElMessage.warning('请先登录');
+    ElMessage.warning(t('characterDetail.loginRequired'));
     return;
   }
   showRatingDialog.value = true;
@@ -117,18 +133,18 @@ async function handleSubmitRating() {
     userRating.value.accuracy === 0 ||
     userRating.value.entertainment === 0
   ) {
-    ElMessage.warning('请为所有维度评分');
+    ElMessage.warning(t('characterDetail.rateAllDimensions'));
     return;
   }
 
   submittingRating.value = true;
   try {
     await api.post(`/characters/${character.value.id}/ratings`, userRating.value);
-    ElMessage.success('评分已提交');
+    ElMessage.success(t('characterDetail.ratingSubmitted'));
     showRatingDialog.value = false;
     await fetchRatings();
-  } catch (error: any) {
-    ElMessage.error(error.message || '提交失败');
+  } catch (error: unknown) {
+    ElMessage.error(error instanceof Error ? error.message : t('characterDetail.submitFailed'));
   } finally {
     submittingRating.value = false;
   }
@@ -142,8 +158,8 @@ function handleClose() {
 <template>
   <el-drawer
     :model-value="visible"
-    title="角色详情"
-    size="600px"
+    :title="t('characterDetail.title')"
+    :size="drawerSize"
     @close="handleClose"
   >
     <div v-if="character" class="detail-content">
@@ -166,19 +182,27 @@ function handleClose() {
           text
           @click="handleRateClick"
         >
-          {{ ratings?.userRating ? '修改评分' : '评分' }}
+          {{ ratings?.userRating ? t('characterDetail.editRating') : t('characterDetail.rate') }}
         </el-button>
       </div>
 
       <el-divider />
 
       <div class="detail-section">
-        <h3>描述</h3>
-        <p>{{ character.description || '暂无描述' }}</p>
+        <h3>{{ t('characterDetail.description') }}</h3>
+        <p>{{ character.description || t('characterDetail.noDescription') }}</p>
+      </div>
+
+      <!-- Creator Notes -->
+      <div v-if="character?.cardData?.creator_notes" class="creator-notes-section">
+        <h4>{{ t('characterDetail.creatorNotes') }}</h4>
+        <div class="creator-notes-content">
+          {{ character.cardData.creator_notes }}
+        </div>
       </div>
 
       <div v-if="character.tags && character.tags.length" class="detail-section">
-        <h3>标签</h3>
+        <h3>{{ t('characterDetail.tags') }}</h3>
         <div class="tags">
           <el-tag
             v-for="tag in character.tags"
@@ -192,10 +216,10 @@ function handleClose() {
 
       <!-- Rating Dimensions -->
       <div v-if="ratings" class="detail-section">
-        <h3>评分详情</h3>
+        <h3>{{ t('characterDetail.ratingDetails') }}</h3>
         <div class="rating-dimensions">
           <div class="dimension-item">
-            <span class="dimension-label">质量</span>
+            <span class="dimension-label">{{ t('characterDetail.quality') }}</span>
             <RatingComponent
               :model-value="parseFloat(ratings.dimensions.quality || '0')"
               readonly
@@ -204,7 +228,7 @@ function handleClose() {
             />
           </div>
           <div class="dimension-item">
-            <span class="dimension-label">创意</span>
+            <span class="dimension-label">{{ t('characterDetail.creativity') }}</span>
             <RatingComponent
               :model-value="parseFloat(ratings.dimensions.creativity || '0')"
               readonly
@@ -213,7 +237,7 @@ function handleClose() {
             />
           </div>
           <div class="dimension-item">
-            <span class="dimension-label">互动性</span>
+            <span class="dimension-label">{{ t('characterDetail.interactivity') }}</span>
             <RatingComponent
               :model-value="parseFloat(ratings.dimensions.interactivity || '0')"
               readonly
@@ -222,7 +246,7 @@ function handleClose() {
             />
           </div>
           <div class="dimension-item">
-            <span class="dimension-label">准确性</span>
+            <span class="dimension-label">{{ t('characterDetail.accuracy') }}</span>
             <RatingComponent
               :model-value="parseFloat(ratings.dimensions.accuracy || '0')"
               readonly
@@ -231,7 +255,7 @@ function handleClose() {
             />
           </div>
           <div class="dimension-item">
-            <span class="dimension-label">娱乐性</span>
+            <span class="dimension-label">{{ t('characterDetail.entertainment') }}</span>
             <RatingComponent
               :model-value="parseFloat(ratings.dimensions.entertainment || '0')"
               readonly
@@ -243,31 +267,32 @@ function handleClose() {
       </div>
 
       <div class="detail-section">
-        <h3>统计信息</h3>
+        <h3>{{ t('characterDetail.statistics') }}</h3>
         <div class="stats">
           <div class="stat-item">
-            <span class="stat-label">下载次数</span>
+            <span class="stat-label">{{ t('characterDetail.downloads') }}</span>
             <span class="stat-value">{{ character.downloadCount || 0 }}</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">浏览次数</span>
+            <span class="stat-label">{{ t('characterDetail.views') }}</span>
             <span class="stat-value">{{ character.viewCount || 0 }}</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">创建时间</span>
-            <span class="stat-value">{{ new Date(character.createdAt).toLocaleDateString('zh-CN') }}</span>
+            <span class="stat-label">{{ t('characterDetail.createdAt') }}</span>
+            <span class="stat-value">{{ new Date(character.createdAt).toLocaleDateString(locale) }}</span>
           </div>
         </div>
       </div>
 
       <div class="action-section">
+        <FavoriteButton :character-id="characterId" />
         <el-button
           type="primary"
           size="large"
           :icon="ChatDotRound"
           @click="handleStartChat"
         >
-          开始聊天
+          {{ t('market.startChat') }}
         </el-button>
         <el-button
           size="large"
@@ -275,14 +300,14 @@ function handleClose() {
           :loading="importing"
           @click="handleImport"
         >
-          导入到我的角色
+          {{ t('characterDetail.importToMine') }}
         </el-button>
         <el-button
           size="large"
           :icon="Upload"
           @click="handleExport"
         >
-          导出 JSON
+          {{ t('characterDetail.exportJson') }}
         </el-button>
       </div>
     </div>
@@ -292,40 +317,40 @@ function handleClose() {
     <!-- Rating Dialog -->
     <el-dialog
       v-model="showRatingDialog"
-      title="评分"
-      width="500px"
+      :title="t('characterDetail.rate')"
+      :width="isMobile ? '90vw' : '500px'"
     >
       <div class="rating-form">
         <div class="rating-item">
-          <label>质量</label>
+          <label>{{ t('characterDetail.quality') }}</label>
           <RatingComponent
             v-model="userRating.quality"
             :max="5"
           />
         </div>
         <div class="rating-item">
-          <label>创意</label>
+          <label>{{ t('characterDetail.creativity') }}</label>
           <RatingComponent
             v-model="userRating.creativity"
             :max="5"
           />
         </div>
         <div class="rating-item">
-          <label>互动性</label>
+          <label>{{ t('characterDetail.interactivity') }}</label>
           <RatingComponent
             v-model="userRating.interactivity"
             :max="5"
           />
         </div>
         <div class="rating-item">
-          <label>准确性</label>
+          <label>{{ t('characterDetail.accuracy') }}</label>
           <RatingComponent
             v-model="userRating.accuracy"
             :max="5"
           />
         </div>
         <div class="rating-item">
-          <label>娱乐性</label>
+          <label>{{ t('characterDetail.entertainment') }}</label>
           <RatingComponent
             v-model="userRating.entertainment"
             :max="5"
@@ -334,13 +359,13 @@ function handleClose() {
       </div>
 
       <template #footer>
-        <el-button @click="showRatingDialog = false">取消</el-button>
+        <el-button @click="showRatingDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button
           type="primary"
           :loading="submittingRating"
           @click="handleSubmitRating"
         >
-          提交
+          {{ t('characterDetail.submit') }}
         </el-button>
       </template>
     </el-dialog>
@@ -383,7 +408,28 @@ function handleClose() {
 .detail-section p {
   margin: 0;
   line-height: 1.6;
-  color: var(--el-text-color-regular);
+  color: var(--text-primary);
+}
+
+.creator-notes-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-surface);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent-purple);
+}
+
+.creator-notes-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.creator-notes-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
 }
 
 .tags {
@@ -406,7 +452,7 @@ function handleClose() {
 
 .dimension-label {
   font-size: 14px;
-  color: var(--el-text-color-regular);
+  color: var(--text-primary);
   min-width: 80px;
 }
 
@@ -421,7 +467,7 @@ function handleClose() {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .stat-item:last-child {
@@ -430,13 +476,13 @@ function handleClose() {
 
 .stat-label {
   font-size: 14px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .stat-value {
   font-size: 14px;
   font-weight: 500;
-  color: var(--el-text-color-primary);
+  color: var(--text-primary);
 }
 
 .action-section {

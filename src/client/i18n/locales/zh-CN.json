@@ -751,6 +751,27 @@
     "connectionError": "连接失败",
     "disconnected": "未连接"
   },
+  "social": {
+    "follow": "关注",
+    "following": "已关注",
+    "unfollow": "取消关注",
+    "followers": "粉丝",
+    "followings": "关注",
+    "favorite": "收藏",
+    "favorited": "已收藏",
+    "unfavorite": "取消收藏",
+    "comment": "评论",
+    "comments": "评论",
+    "reply": "回复",
+    "noComments": "暂无评论，来说点什么吧",
+    "writeComment": "写下你的评论...",
+    "send": "发送",
+    "delete": "删除",
+    "edit": "编辑",
+    "loadMore": "加载更多",
+    "sortNewest": "最新",
+    "sortOldest": "最早"
+  },
   "notification": {
     "title": "通知",
     "markAllRead": "全部已读",

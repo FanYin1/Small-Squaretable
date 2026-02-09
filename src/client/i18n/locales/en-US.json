@@ -751,6 +751,27 @@
     "connectionError": "Connection error",
     "disconnected": "Disconnected"
   },
+  "social": {
+    "follow": "Follow",
+    "following": "Following",
+    "unfollow": "Unfollow",
+    "followers": "Followers",
+    "followings": "Following",
+    "favorite": "Favorite",
+    "favorited": "Favorited",
+    "unfavorite": "Unfavorite",
+    "comment": "Comment",
+    "comments": "Comments",
+    "reply": "Reply",
+    "noComments": "No comments yet. Be the first!",
+    "writeComment": "Write a comment...",
+    "send": "Send",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loadMore": "Load more",
+    "sortNewest": "Newest",
+    "sortOldest": "Oldest"
+  },
   "notification": {
     "title": "Notifications",
     "markAllRead": "Mark all as read",
