@@ -274,3 +274,19 @@ export const webhookRateLimit = rateLimit({
   windowMs: 60 * 1000, // 100 webhooks per minute
   message: 'Too many webhook deliveries',
 });
+
+// API Key rate limiter - uses API key identifier as the rate limit key
+export const apiKeyRateLimit = rateLimit({
+  limit: 1000, // generous limit — actual per-key limits enforced at service level
+  windowMs: 60 * 1000,
+  keyGenerator: (c: any) => {
+    const apiKey = c.req.header('X-API-Key');
+    if (apiKey) return `apikey:${apiKey.slice(-8)}`;
+    const authHeader = c.req.header('Authorization');
+    if (authHeader?.startsWith('Bearer sk_live_')) {
+      return `apikey:${authHeader.slice(-8)}`;
+    }
+    return defaultKeyGenerator(c);
+  },
+  message: 'API key rate limit exceeded',
+});
