@@ -16,3 +16,4 @@ export * from './memories';
 export * from './worldbooks';
 export * from './webhooks';
 export * from './social';
+export * from './apiKeys';
