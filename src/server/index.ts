@@ -29,6 +29,7 @@ import { webhookRoutes } from './routes/webhooks';
 import { notificationRoutes } from './routes/notifications';
 import { socialRoutes } from './routes/social';
 import { developerRoutes } from './routes/developer';
+import { pluginRoutes } from './routes/plugins';
 import { WebhookWorker } from './workers/webhook.worker';
 import { webhookRepository } from '../db/repositories/webhook.repository';
 import { basicHealthCheck, livenessCheck, readinessCheck } from './services/health';
@@ -85,6 +86,8 @@ const publicPaths = [
   '/api/v1/characters/search',
   '/api/v1/characters/marketplace',
   '/api/v1/characters/:id',  // 公开访问角色详情
+  '/api/v1/plugins/marketplace',
+  '/api/v1/plugins/marketplace/:id',
 ];
 
 app.use('/api/v1/users/*', tenantMiddleware({ publicPaths }));
@@ -99,6 +102,7 @@ app.use('/api/v1/webhooks/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/notifications/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/social/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/developer/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/plugins/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -139,6 +143,7 @@ app.use('/api/v1/webhooks', csrfProtection());
 app.use('/api/v1/notifications', csrfProtection());
 app.use('/api/v1/social', csrfProtection());
 app.use('/api/v1/developer', csrfProtection());
+app.use('/api/v1/plugins', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
@@ -152,6 +157,7 @@ app.route('/api/v1/webhooks', webhookRoutes);
 app.route('/api/v1/notifications', notificationRoutes);
 app.route('/api/v1/social', socialRoutes);
 app.route('/api/v1/developer', developerRoutes);
+app.route('/api/v1/plugins', pluginRoutes);
 app.route('/api/v1', intelligenceRoutes);
 
 app.get('/api/v1', (c) => {
@@ -174,6 +180,7 @@ app.get('/api/v1', (c) => {
       notifications: '/api/v1/notifications',
       social: '/api/v1/social',
       developer: '/api/v1/developer',
+      plugins: '/api/v1/plugins',
       docs: '/api/v1/docs',
       ws: '/ws',
     },
@@ -238,6 +245,10 @@ if (process.env.NODE_ENV !== 'test') {
   // Start webhook delivery worker
   const webhookWorker = new WebhookWorker(webhookRepository);
   webhookWorker.start();
+
+  // TODO: Start plugin event bridge when plugin-bridge service is available
+  // import { pluginBridge } from './services/plugin-bridge';
+  // pluginBridge.start();
   console.log(`🚀 Server starting on http://${config.host}:${port}`);
 
   const serverInstance = serve({
