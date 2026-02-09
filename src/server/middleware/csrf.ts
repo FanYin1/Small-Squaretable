@@ -103,6 +103,13 @@ export function csrfProtection() {
 
     // Only check state-changing methods
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      // Skip CSRF for API key requests (stateless, no cookies/sessions)
+      const xApiKey = c.req.header('X-API-Key');
+      const authHeader = c.req.header('Authorization');
+      if (xApiKey || authHeader?.startsWith('Bearer sk_live_')) {
+        return next();
+      }
+
       const token = c.req.header('X-CSRF-Token');
       const sessionId = extractSessionId(c);
 

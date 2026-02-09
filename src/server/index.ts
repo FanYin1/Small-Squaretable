@@ -69,7 +69,7 @@ app.use('*', cors({
   origin: config.corsOrigins.split(',').map((o) => o.trim()),
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-ID'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Request-ID', 'X-API-Key'],
 }));
 
 // Apply rate limiting to API routes

@@ -54,6 +54,71 @@ export function authMiddleware() {
   });
 }
 
+/**
+ * Combined auth: tries API key first (X-API-Key or Bearer sk_live_...), then JWT.
+ * For API key auth, sets authMethod='apiKey' and apiKeyScopes.
+ * For JWT auth, sets authMethod='jwt'.
+ */
+export function combinedAuthMiddleware() {
+  return createMiddleware(async (c: Context, next) => {
+    // Check for API key
+    const xApiKey = c.req.header('X-API-Key');
+    const authHeader = c.req.header('Authorization');
+    const apiKey = xApiKey || (authHeader?.startsWith('Bearer sk_live_') ? authHeader.slice(7) : null);
+
+    if (apiKey) {
+      const { apiKeyService } = await import('../services/apiKey.service');
+      const { userId, tenantId, scopes } = await apiKeyService.validateApiKey(apiKey);
+      const user = await userRepository.findById(userId);
+
+      if (!user || !user.isActive) {
+        throw new UnauthorizedError('User not found or inactive');
+      }
+
+      c.set('user', {
+        id: user.id,
+        tenantId: user.tenantId,
+        email: user.email,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      });
+      c.set('tenantId', tenantId);
+      c.set('apiKeyScopes', scopes);
+      c.set('authMethod', 'apiKey');
+      return next();
+    }
+
+    // Fall through to JWT
+    const token = extractTokenFromHeader(authHeader);
+    if (!token) {
+      throw new UnauthorizedError('Missing authentication token');
+    }
+
+    try {
+      const payload = await verifyAccessToken(token);
+      const user = await userRepository.findById(payload.userId);
+
+      if (!user || !user.isActive) {
+        throw new UnauthorizedError('User not found or inactive');
+      }
+
+      c.set('user', {
+        id: user.id,
+        tenantId: user.tenantId,
+        email: user.email,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      });
+      c.set('tenantId', user.tenantId);
+      c.set('authMethod', 'jwt');
+      return next();
+    } catch (error) {
+      if (error instanceof UnauthorizedError) throw error;
+      throw new UnauthorizedError('Invalid authentication token');
+    }
+  });
+}
+
 export function optionalAuthMiddleware() {
   return createMiddleware(async (c: Context, next) => {
     const authHeader = c.req.header('Authorization');
