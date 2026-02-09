@@ -11,6 +11,7 @@ import { api } from '@client/services/api';
 import { downloadCharacterJson } from '@client/utils/sillytavern';
 import { createLogger } from '@client/utils/logger';
 import FavoriteButton from '@client/components/social/FavoriteButton.vue';
+import CommentSection from '@client/components/social/CommentSection.vue';
 import type { RatingInput, RatingResponseDto } from '@/types/rating';
 
 const logger = createLogger('CharacterDetail');
@@ -283,6 +284,10 @@ function handleClose() {
           </div>
         </div>
       </div>
+
+      <!-- Comments -->
+      <el-divider />
+      <CommentSection :character-id="characterId" />
 
       <div class="action-section">
         <FavoriteButton :character-id="characterId" />
