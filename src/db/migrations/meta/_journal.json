@@ -78,6 +78,13 @@
       "when": 1770622424164,
       "tag": "0010_curious_inhumans",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1770630881000,
+      "tag": "0011_serious_khan",
+      "breakpoints": true
     }
   ]
 }
