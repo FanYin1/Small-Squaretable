@@ -13,7 +13,12 @@ import {
   type WSChatControlMessage,
   type WSTypingMessage,
   type WSPingMessage,
+  type WSChatReadMessage,
+  type WSAttachment,
 } from '../../types/websocket';
+import { createLogger } from '@client/utils/logger';
+
+const logger = createLogger('WebSocket');
 
 type EventHandler = (data?: unknown) => void;
 
@@ -37,7 +42,7 @@ export class WebSocketClient {
   }
 
   /**
-   * 连接到 WebSocket 服务器
+   * 连接到 WebSocket 服务器 (uses ticket-based auth)
    */
   connect(): void {
     if (this.state === WSConnectionState.CONNECTED || this.state === WSConnectionState.CONNECTING) {
@@ -47,10 +52,36 @@ export class WebSocketClient {
     this.state = WSConnectionState.CONNECTING;
     this.emit('stateChange', this.state);
 
-    const url = `${this.config.url}?token=${encodeURIComponent(this.config.token)}`;
-    console.log('[WebSocket Client] Connecting to:', url);
+    // Fetch a short-lived ticket, then connect with it
+    this.fetchTicketAndConnect();
+  }
 
+  /**
+   * Fetch a WebSocket ticket from the server and establish connection
+   */
+  private async fetchTicketAndConnect(): Promise<void> {
     try {
+      const response = await fetch('/api/v1/auth/ws-ticket', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to get WebSocket ticket: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const ticket = data.data?.ticket;
+
+      if (!ticket) {
+        throw new Error('No ticket in response');
+      }
+
+      const url = `${this.config.url}?ticket=${encodeURIComponent(ticket)}`;
+
       this.ws = new WebSocket(url);
 
       this.ws.onopen = this.handleOpen.bind(this);
@@ -58,7 +89,7 @@ export class WebSocketClient {
       this.ws.onerror = this.handleError.bind(this);
       this.ws.onmessage = this.handleMessage.bind(this);
     } catch (error) {
-      console.error('[WebSocket Client] Failed to create WebSocket:', error);
+      logger.error('Failed to connect', error);
       this.state = WSConnectionState.ERROR;
       this.emit('stateChange', this.state);
       this.scheduleReconnect();
@@ -85,7 +116,7 @@ export class WebSocketClient {
   /**
    * 发送用户消息
    */
-  sendMessage(chatId: string, content: string, messageId?: string): void {
+  sendMessage(chatId: string, content: string, attachments?: WSAttachment[], messageId?: string): void {
     const message: WSUserMessage = {
       type: WSMessageType.USER_MESSAGE,
       timestamp: new Date().toISOString(),
@@ -93,6 +124,7 @@ export class WebSocketClient {
         chatId,
         content,
         messageId,
+        attachments,
       },
     };
 
@@ -139,6 +171,19 @@ export class WebSocketClient {
   }
 
   /**
+   * 发送聊天已读回执
+   */
+  sendChatRead(chatId: string, lastReadMessageId: string): void {
+    const message: WSChatReadMessage = {
+      type: WSMessageType.CHAT_READ,
+      timestamp: new Date().toISOString(),
+      data: { chatId, lastReadMessageId },
+    };
+
+    this.send(message);
+  }
+
+  /**
    * 获取连接状态
    */
   getState(): WSConnectionState {
@@ -170,14 +215,14 @@ export class WebSocketClient {
    */
   private send(message: WSMessageUnion): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('WebSocket is not connected');
+      logger.warn('WebSocket is not connected');
       return;
     }
 
     try {
       this.ws.send(JSON.stringify(message));
     } catch (error) {
-      console.error('Failed to send message:', error);
+      logger.error('Failed to send message', error);
     }
   }
 
@@ -185,7 +230,6 @@ export class WebSocketClient {
    * 处理连接打开
    */
   private handleOpen(): void {
-    console.log('[WebSocket Client] Connected successfully');
     this.state = WSConnectionState.CONNECTED;
     this.reconnectAttempts = 0;
     this.emit('stateChange', this.state);
@@ -196,7 +240,6 @@ export class WebSocketClient {
    * 处理连接关闭
    */
   private handleClose(event: CloseEvent): void {
-    console.log('[WebSocket Client] Closed:', event.code, event.reason);
     this.stopHeartbeat();
 
     if (this.state !== WSConnectionState.DISCONNECTED) {
@@ -211,7 +254,7 @@ export class WebSocketClient {
    * 处理错误
    */
   private handleError(event: Event): void {
-    console.error('[WebSocket Client] Error:', event);
+    logger.error('Error', event);
     this.state = WSConnectionState.ERROR;
     this.emit('stateChange', this.state);
     this.emit('error', { code: 'CONNECTION_ERROR', message: 'WebSocket connection error' });
@@ -274,11 +317,41 @@ export class WebSocketClient {
           this.emit('intelligencePromptBuild', message.data);
           break;
 
+        // Sync events (多设备同步)
+        case WSMessageType.DEVICE_CONNECTED:
+          this.emit('syncDeviceConnected', message.data);
+          break;
+
+        case WSMessageType.DEVICE_DISCONNECTED:
+          this.emit('syncDeviceDisconnected', message.data);
+          break;
+
+        case WSMessageType.CHAT_READ:
+          this.emit('syncChatRead', message.data);
+          break;
+
+        case WSMessageType.SYNC_EVENT:
+          this.emit('syncEvent', message.data);
+          break;
+
+        case WSMessageType.SYNC_DEVICES:
+          this.emit('syncDevices', message.data);
+          break;
+
+        // Social notification events
+        case WSMessageType.SOCIAL_NOTIFICATION:
+          this.emit('social:notification', message.data);
+          break;
+
+        case WSMessageType.SOCIAL_UNREAD_COUNT:
+          this.emit('social:unread_count', message.data);
+          break;
+
         default:
-          console.warn('Unknown message type:', message.type);
+          logger.warn('Unknown message type', { type: message.type });
       }
     } catch (error) {
-      console.error('Failed to parse message:', error);
+      logger.error('Failed to parse message', error);
     }
   }
 
@@ -292,7 +365,7 @@ export class WebSocketClient {
         try {
           handler(data);
         } catch (error) {
-          console.error('Error in event handler:', error);
+          logger.error('Error in event handler', error);
         }
       });
     }
@@ -303,7 +376,7 @@ export class WebSocketClient {
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
-      console.error('Max reconnect attempts reached');
+      logger.error('Max reconnect attempts reached');
       this.state = WSConnectionState.ERROR;
       this.emit('stateChange', this.state);
       return;
@@ -311,8 +384,6 @@ export class WebSocketClient {
 
     this.reconnectAttempts++;
     const delay = this.config.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1);
-
-    console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     this.reconnectTimer = setTimeout(() => {
       this.connect();

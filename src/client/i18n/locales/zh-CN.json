@@ -750,5 +750,15 @@
     "reconnecting": "正在重连...",
     "connectionError": "连接失败",
     "disconnected": "未连接"
+  },
+  "notification": {
+    "title": "通知",
+    "markAllRead": "全部已读",
+    "viewAll": "查看全部",
+    "empty": "暂无通知",
+    "follow": "{actor} 关注了你",
+    "favorite": "{actor} 收藏了你的角色",
+    "comment": "{actor} 评论了你的角色",
+    "reply": "{actor} 回复了你的评论"
   }
 }

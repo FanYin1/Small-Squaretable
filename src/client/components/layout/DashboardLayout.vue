@@ -6,6 +6,7 @@ import UserMenu from './UserMenu.vue';
 import BottomTabBar from './BottomTabBar.vue';
 import DeviceIndicator from './DeviceIndicator.vue';
 import ConnectionIndicator from './ConnectionIndicator.vue';
+import NotificationBell from './NotificationBell.vue';
 
 const mobileSidebarVisible = ref(false);
 
@@ -49,6 +50,7 @@ const closeMobileSidebar = () => {
         <div class="top-bar-user">
           <ConnectionIndicator />
           <DeviceIndicator />
+          <NotificationBell />
           <UserMenu />
         </div>
       </header>
