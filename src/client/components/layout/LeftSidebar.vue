@@ -15,6 +15,7 @@ import {
   Lock,
   Unlock,
   SwitchButton,
+  Key,
 } from '@element-plus/icons-vue';
 import { useTheme, useLocale } from '@client/composables';
 import { useUserStore } from '@client/stores';
@@ -61,6 +62,7 @@ const navItems: NavItem[] = [
   { key: 'characters', i18nKey: 'nav.myCharacters', icon: User, name: 'MyCharacters', authRequired: true },
   { key: 'worldbooks', i18nKey: 'nav.worldBooks', icon: Notebook, name: 'WorldBooks', authRequired: true },
   { key: 'subscription', i18nKey: 'nav.subscription', icon: TrendCharts, name: 'Subscription', authRequired: true },
+  { key: 'developer', i18nKey: 'nav.developer', icon: Key, name: 'DeveloperSettings', authRequired: true },
   { key: 'settings', i18nKey: 'nav.settings', icon: Setting, name: 'Profile', authRequired: true },
 ];
 
@@ -153,7 +155,7 @@ const handleMouseLeave = () => { if (!pinned.value) hovered.value = false; };
   position: fixed;
   left: 0;
   top: 0;
-  bottom: 0;
+  bottom: -1px;
   width: var(--sidebar-width);
   background: var(--sidebar-bg);
   transition: width 0.3s ease;
