@@ -30,6 +30,7 @@ import { notificationRoutes } from './routes/notifications';
 import { socialRoutes } from './routes/social';
 import { developerRoutes } from './routes/developer';
 import { pluginRoutes } from './routes/plugins';
+import { pluginBridge } from './services/plugin-bridge';
 import { WebhookWorker } from './workers/webhook.worker';
 import { webhookRepository } from '../db/repositories/webhook.repository';
 import { basicHealthCheck, livenessCheck, readinessCheck } from './services/health';
@@ -246,9 +247,8 @@ if (process.env.NODE_ENV !== 'test') {
   const webhookWorker = new WebhookWorker(webhookRepository);
   webhookWorker.start();
 
-  // TODO: Start plugin event bridge when plugin-bridge service is available
-  // import { pluginBridge } from './services/plugin-bridge';
-  // pluginBridge.start();
+  // Start plugin event bridge
+  pluginBridge.start();
   console.log(`🚀 Server starting on http://${config.host}:${port}`);
 
   const serverInstance = serve({
