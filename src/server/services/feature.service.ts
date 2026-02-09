@@ -16,13 +16,15 @@ export type FeatureName =
   | 'priority_support'
   | 'team_collaboration'
   | 'api_access'
-  | 'custom_domain';
+  | 'custom_domain'
+  | 'plugin_marketplace';
 
 export interface PlanLimits {
   messages: number;
   llm_tokens: number;
   images: number;
   api_calls: number;
+  plugin_installs: number;
 }
 
 const PLAN_FEATURES: Record<PlanType, FeatureName[]> = {
@@ -33,6 +35,7 @@ const PLAN_FEATURES: Record<PlanType, FeatureName[]> = {
     'character_share',
     'advanced_models',
     'priority_support',
+    'plugin_marketplace',
   ],
   team: [
     'basic_chat',
@@ -43,6 +46,7 @@ const PLAN_FEATURES: Record<PlanType, FeatureName[]> = {
     'team_collaboration',
     'api_access',
     'custom_domain',
+    'plugin_marketplace',
   ],
 };
 
@@ -52,18 +56,21 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
     llm_tokens: 50000,
     images: 10,
     api_calls: 0,
+    plugin_installs: 0,
   },
   pro: {
     messages: 10000,
     llm_tokens: 1000000,
     images: 500,
     api_calls: 1000,
+    plugin_installs: 5,
   },
   team: {
     messages: 100000,
     llm_tokens: 10000000,
     images: 5000,
     api_calls: 10000,
+    plugin_installs: 20,
   },
 };
 

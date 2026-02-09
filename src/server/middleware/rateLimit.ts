@@ -290,3 +290,15 @@ export const apiKeyRateLimit = rateLimit({
   },
   message: 'API key rate limit exceeded',
 });
+
+// Plugin execution rate limiter - 100 executions per minute per user
+export const pluginExecutionRateLimit = rateLimit({
+  limit: isTestEnv ? 500 : 100,
+  windowMs: 60 * 1000,
+  keyGenerator: (c: any) => {
+    const user = c.get('user');
+    if (user?.id) return `plugin:${user.id}`;
+    return `plugin:${defaultKeyGenerator(c)}`;
+  },
+  message: 'Plugin execution rate limit exceeded. Please try again later.',
+});
