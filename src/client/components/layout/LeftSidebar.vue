@@ -16,6 +16,7 @@ import {
   Unlock,
   SwitchButton,
   Key,
+  Connection,
 } from '@element-plus/icons-vue';
 import { useTheme, useLocale } from '@client/composables';
 import { useUserStore } from '@client/stores';
@@ -63,6 +64,7 @@ const navItems: NavItem[] = [
   { key: 'worldbooks', i18nKey: 'nav.worldBooks', icon: Notebook, name: 'WorldBooks', authRequired: true },
   { key: 'subscription', i18nKey: 'nav.subscription', icon: TrendCharts, name: 'Subscription', authRequired: true },
   { key: 'developer', i18nKey: 'nav.developer', icon: Key, name: 'DeveloperSettings', authRequired: true },
+  { key: 'plugins', i18nKey: 'nav.plugins', icon: Connection, name: 'PluginMarketplace', authRequired: true },
   { key: 'settings', i18nKey: 'nav.settings', icon: Setting, name: 'Profile', authRequired: true },
 ];
 

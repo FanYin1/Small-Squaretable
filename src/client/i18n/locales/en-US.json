@@ -46,6 +46,7 @@
     "login": "Login",
     "register": "Register",
     "developer": "Developer",
+    "plugins": "Plugins",
     "pinSidebar": "Pin sidebar",
     "unpinSidebar": "Unpin sidebar"
   },
@@ -817,5 +818,29 @@
     "favorite": "{actor} favorited your character",
     "comment": "{actor} commented on your character",
     "reply": "{actor} replied to your comment"
+  },
+  "plugins": {
+    "title": "Plugin Marketplace",
+    "marketplace": "Marketplace",
+    "myPlugins": "My Plugins",
+    "searchPlaceholder": "Search plugins...",
+    "sortPopular": "Popular",
+    "sortNewest": "Newest",
+    "sortName": "Name",
+    "install": "Install",
+    "installed": "Installed",
+    "uninstall": "Uninstall",
+    "configure": "Configure",
+    "toggleEnabled": "Toggle plugin enabled",
+    "installCount": "{count} installs",
+    "installSuccess": "Plugin installed successfully",
+    "installFailed": "Failed to install plugin",
+    "uninstallSuccess": "Plugin uninstalled",
+    "uninstallFailed": "Failed to uninstall plugin",
+    "uninstallConfirm": "Are you sure you want to uninstall {name}?",
+    "configTitle": "Configure {name}",
+    "configSaved": "Configuration saved",
+    "configFailed": "Failed to save configuration",
+    "noInstalled": "No plugins installed yet. Browse the marketplace to get started."
   }
 }

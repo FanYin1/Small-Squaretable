@@ -19,6 +19,7 @@ const loadNotFound = () => import('../pages/NotFound.vue');
 const loadNotifications = () => import(/* webpackChunkName: "notifications" */ '../pages/Notifications.vue');
 const loadUserProfile = () => import(/* webpackChunkName: "user-profile" */ '../pages/UserProfile.vue');
 const loadDeveloperSettings = () => import(/* webpackChunkName: "developer" */ '../pages/DeveloperSettings.vue');
+const loadPluginMarketplace = () => import(/* webpackChunkName: "plugins" */ '../pages/PluginMarketplace.vue');
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -179,6 +180,15 @@ export const routes: RouteRecordRaw[] = [
     component: loadUserProfile,
     meta: {
       requiresAuth: false,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/plugins',
+    name: 'PluginMarketplace',
+    component: loadPluginMarketplace,
+    meta: {
+      requiresAuth: true,
       guestOnly: false,
     },
   },
