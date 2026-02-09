@@ -16,3 +16,4 @@ export * from './worldbook.api';
 export * from './upload.api';
 export * from './social.api';
 export * from './notification.api';
+export * from './developer.api';
