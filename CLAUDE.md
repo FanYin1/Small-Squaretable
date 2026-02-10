@@ -7,8 +7,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 2 Complete (Community & Ecosystem)
-**Last Updated**: 2026-02-09
+**Status**: Iteration 3 Complete (Data Intelligence & Recommendation)
+**Last Updated**: 2026-02-10
 
 ---
 
@@ -24,6 +24,10 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 | Payment | Stripe |
 | Storage | Local filesystem + sharp (thumbnails) |
 | PWA | vite-plugin-pwa + Workbox |
+| Event Pipeline | Kafka 3.7 (KRaft) |
+| Stream Processing | Apache Flink 1.19 (Java 17) |
+| Analytics DB | ClickHouse 24.3 |
+| Charts | ECharts + vue-echarts |
 | Testing | Vitest (Unit) + Playwright (E2E) |
 
 ---
@@ -39,6 +43,7 @@ Small-Squaretable/
 │   │   │   ├── chat/           # Chat window + message + image components
 │   │   │   ├── debug/          # Intelligence + WorldInfo debug panels
 │   │   │   ├── worldbook/      # World book management UI
+│   │   │   ├── analytics/      # Analytics dashboard charts (ECharts)
 │   │   │   └── layout/         # Layout (PwaInstallPrompt, DeviceIndicator, NotificationBell)
 │   │   ├── pages/              # Page Components
 │   │   ├── router/             # Vue Router
@@ -55,8 +60,10 @@ Small-Squaretable/
 │   │   ├── schema/             # Drizzle Schema
 │   │   ├── repositories/       # Data Access Layer
 │   │   └── migrations/         # DB Migrations
-│   ├── core/                   # Shared Core (redis, config)
+│   ├── core/                   # Shared Core (redis, kafka, clickhouse, config)
 │   └── types/                  # TypeScript Types
+├── flink-jobs/                 # Apache Flink Stream Processing (Java 17)
+├── clickhouse/                 # ClickHouse Schema (init.sql)
 ├── ml-service/                 # ML Microservice (embedding + sentiment)
 ├── e2e/                        # Playwright E2E Tests
 ├── k8s/                        # Kubernetes Configs
@@ -198,6 +205,17 @@ npm run build            # Production build
 | POST | `/api/v1/plugins/installs/:id/disable` | Disable plugin |
 | POST | `/api/v1/plugins/execute` | Execute plugin event |
 
+### Analytics (数据分析)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/analytics/events` | Ingest batch events (→ Kafka) |
+| GET | `/api/v1/analytics/overview` | North star metrics (WAU, messages) |
+| GET | `/api/v1/analytics/retention` | Cohort retention matrix |
+| GET | `/api/v1/analytics/funnel` | Conversion funnel |
+| GET | `/api/v1/analytics/realtime` | Real-time metrics (Redis) |
+| GET | `/api/v1/analytics/characters/top` | Character rankings |
+| GET | `/api/v1/analytics/segments` | User segment distribution |
+
 ---
 
 ## Key Files
@@ -226,6 +244,9 @@ npm run build            # Production build
 - `src/server/services/plugin.service.ts` - Plugin lifecycle management
 - `src/server/services/plugin-sandbox.ts` - Worker Thread sandbox isolation
 - `src/server/services/plugin-bridge.ts` - EventBus-to-plugin dispatch
+- `src/server/services/kafka-bridge.service.ts` - EventBus → Kafka bridge
+- `src/server/services/analytics-query.service.ts` - ClickHouse analytics queries
+- `src/server/services/feature-store.service.ts` - Redis Feature Store reads
 
 ### Frontend Stores
 - `src/client/stores/user.ts` - User state
@@ -235,6 +256,7 @@ npm run build            # Production build
 - `src/client/stores/social.ts` - Follow/favorite/comment state
 - `src/client/stores/notification.ts` - Notification state
 - `src/client/stores/plugin.ts` - Plugin marketplace/install state
+- `src/client/stores/analytics.ts` - Analytics dashboard state
 
 ### Debug Components (调试面板)
 - `src/client/components/debug/IntelligenceDebugPanel.vue` - Main debug container
@@ -243,6 +265,63 @@ npm run build            # Production build
 - `src/client/components/debug/EmotionTimeline.vue` - Emotion timeline chart
 - `src/client/components/debug/ExtractionLog.vue` - Memory extraction log
 - `src/client/components/debug/PerformanceMetrics.vue` - Performance metrics
+
+### Analytics Dashboard
+- `src/client/pages/analytics/AnalyticsDashboard.vue` - Tab container (Executive/Product)
+- `src/client/pages/analytics/ExecutiveOverview.vue` - North star + retention + funnel
+- `src/client/pages/analytics/ProductMetrics.vue` - Realtime + rankings + segments
+- `src/client/components/analytics/MetricCard.vue` - Metric display with trend
+- `src/client/components/analytics/TrendChart.vue` - ECharts line chart
+- `src/client/components/analytics/FunnelChart.vue` - ECharts funnel chart
+- `src/client/components/analytics/RetentionHeatmap.vue` - ECharts heatmap
+- `src/client/components/analytics/RankingTable.vue` - Character rankings table
+
+### Flink Jobs (Java 17)
+- `flink-jobs/src/main/java/.../jobs/MetricsAggregatorJob.java` - Raw events + realtime metrics
+- `flink-jobs/src/main/java/.../jobs/SessionAggregatorJob.java` - Session windows + active users
+- `flink-jobs/src/main/java/.../jobs/UserProfilerJob.java` - User profiling → Redis
+- `flink-jobs/src/main/java/.../jobs/ContentAnalyzerJob.java` - Character stats + trending
+- `flink-jobs/src/main/java/.../jobs/RecommendationTrackerJob.java` - A/B test tracking
+- `flink-jobs/src/main/java/.../functions/PiiFilter.java` - PII stripping MapFunction
+
+---
+
+## Iteration 3: Data Intelligence & Recommendation (2026-02-10) ✅
+
+### Event Pipeline (M1) ✅
+- **Kafka**: KRaft mode, 5 topics (`events.user`, `events.chat`, `events.character`, `events.recommendation`, `events.system`)
+- **EventBus → Kafka Bridge**: Wildcard listener routes events to Kafka topics, filters webhook/plugin events
+- **Frontend SDK**: `analytics.sdk.ts` with batch event ingestion, session tracking, auto-flush
+- **Ingestion Endpoint**: `POST /analytics/events` → Kafka via `sendBatch()`
+
+### Stream Processing (M2) ✅
+- **Flink Project**: Java 17, Gradle 8.5, Shadow JAR, BaseEvent schema + deserializer
+- **MetricsAggregator**: Raw events → ClickHouse ODS, 1-min/1-hour windows → Redis realtime metrics
+- **SessionAggregator**: 30-min session windows → ClickHouse `ods_sessions`, active user count → Redis
+
+### Data Warehouse (M3) ✅
+- **ClickHouse Schema**: 4-layer architecture (ODS → DWD → DWS → ADS)
+  - ODS: `ods_events`, `ods_sessions`
+  - DWD: `dwd_chat_events`, `dwd_recommendation_events`
+  - DWS: `dws_user_hourly`, `dws_character_daily`, `dws_recommendation_hourly` (materialized views)
+  - ADS: `ads_north_star` (weekly active users + messages)
+
+### Feature Store & Profiling (M5) ✅
+- **UserProfiler**: Sliding window (1h/5min), engagement scores, activity levels, interest tags → Redis
+- **ContentAnalyzer**: 1-hour windows, character stats, trending scores → Redis + ClickHouse
+- **RecommendationTracker**: 5-min windows, A/B test events → ClickHouse `dwd_recommendation_events`
+- **Feature Store Service**: Read-only service for Redis Feature Store keys (`fs:user:*`, `fs:char:*`, `fs:global:*`)
+
+### Privacy (M7) ✅
+- **PII Filter**: Flink MapFunction — SHA-256 email hashing, IP/phone/content removal, immutable event copies
+
+### Analytics Dashboard (M8) ✅
+- **Query Service**: 6 ClickHouse queries (north star, retention, funnel, top characters, segments) + Redis realtime
+- **API Routes**: 6 GET endpoints with `authMiddleware()` + `requireFeature('analytics_dashboard')` + plan-based access (Pro: overview+realtime, Team: all)
+- **Frontend Store**: Pinia composition store with per-section loading, `fetchAll()` parallel fetch
+- **Dashboard Pages**: `AnalyticsDashboard.vue` (tab container), `ExecutiveOverview.vue`, `ProductMetrics.vue`
+- **Chart Components**: `MetricCard`, `TrendChart` (line), `FunnelChart`, `RetentionHeatmap`, `RankingTable`
+- **E2E Tests**: 10 Playwright tests (team access, free user gate, unauthenticated redirect, error handling)
 
 ---
 
@@ -360,6 +439,13 @@ STRIPE_WEBHOOK_SECRET=whsec_xxx
 
 # ML Service
 ML_SERVICE_URL=http://localhost:3001
+
+# Kafka
+KAFKA_BROKERS=localhost:9092
+
+# ClickHouse
+CLICKHOUSE_URL=http://localhost:8123
+CLICKHOUSE_DATABASE=analytics
 
 # Sentry (optional)
 SENTRY_DSN=https://xxx@sentry.io/xxx
