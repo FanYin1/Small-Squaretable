@@ -2,7 +2,7 @@
 
 **项目**: SillyTavern SaaS 转换
 **版本**: 0.1.0
-**最后更新**: 2026-02-09
+**最后更新**: 2026-02-10
 
 ---
 
@@ -18,9 +18,10 @@ Phase 6: 测试与优化        ████████████████
 Phase 7: 生产部署          ████████████████████ 100% ✅
 迭代 1: 高级功能           ████████████████████ 100% ✅
 迭代 2: 社区与生态         ████████████████████ 100% ✅
+迭代 3: 数据智能           ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 2 完成
+**整体完成度**: 迭代 3 完成
 
 ---
 
@@ -127,11 +128,35 @@ Phase 7: 生产部署          ████████████████�
   - 13 个 API 端点 + 插件市场页面
   - 97 个插件相关测试
 
-### 迭代 3: 数据智能
-- 用户画像与分群
-- 推荐算法
-- A/B 测试框架
-- 数据分析仪表盘
+### 迭代 3: 数据智能与推荐系统 ✅ (2026-02-10)
+- ✅ **M1: 事件管道**
+  - Kafka 3.7 (KRaft 模式), 5 个 Topic
+  - EventBus → Kafka 桥接服务 (通配符路由、事件过滤)
+  - 前端 Analytics SDK (批量采集、会话追踪、自动刷新)
+  - 事件摄入端点 `POST /analytics/events` → Kafka
+- ✅ **M2: 流处理 (Flink 1.19)**
+  - Java 17 项目脚手架 (Gradle 8.5, Shadow JAR)
+  - MetricsAggregator: 原始事件 → ClickHouse ODS, 1分钟/1小时窗口 → Redis 实时指标
+  - SessionAggregator: 30分钟会话窗口 → ClickHouse `ods_sessions`, 活跃用户计数 → Redis
+- ✅ **M3: 数据仓库 (ClickHouse 24.3)**
+  - 四层架构: ODS → DWD → DWS → ADS
+  - ODS: `ods_events`, `ods_sessions`
+  - DWD: `dwd_chat_events`, `dwd_recommendation_events`
+  - DWS: `dws_user_hourly`, `dws_character_daily`, `dws_recommendation_hourly` (物化视图)
+  - ADS: `ads_north_star` (周活跃用户 + 消息数)
+- ✅ **M5: 特征存储与用户画像**
+  - UserProfiler: 滑动窗口 (1h/5min), 参与度评分、活跃等级、兴趣标签 → Redis
+  - ContentAnalyzer: 1小时窗口, 角色统计、热门评分 → Redis + ClickHouse
+  - RecommendationTracker: 5分钟窗口, A/B 测试事件 → ClickHouse
+  - Feature Store 读取服务 (Redis keys: `fs:user:*`, `fs:char:*`, `fs:global:*`)
+- ✅ **M7: 隐私保护**
+  - PII 过滤器: Flink MapFunction — SHA-256 邮箱哈希、IP/电话/内容字段移除、不可变事件副本
+- ✅ **M8: 分析仪表盘**
+  - ClickHouse 查询服务 (北极星指标、留存矩阵、转化漏斗、角色排名、用户分群)
+  - 6 个 GET API 端点 + 功能门控 (Pro: 概览+实时, Team: 全部)
+  - Pinia 状态管理 + API 服务
+  - ECharts 可视化: 趋势图、漏斗图、留存热力图、排名表
+  - 10 个 Playwright E2E 测试
 
 ---
 
@@ -139,10 +164,12 @@ Phase 7: 生产部署          ████████████████�
 
 | 指标 | 数值 |
 |------|------|
-| 单元测试 | 1274 通过 (97.6%) |
-| E2E 测试 | 107/119 通过 (90%) |
-| API 端点 | 80+ |
-| 数据库表 | 16 张 |
+| 单元测试 | 1274+ 通过 (含 53 个 Iter3 新增) |
+| E2E 测试 | 117/129 通过 (含 10 个分析仪表盘) |
+| API 端点 | 90+ |
+| 数据库表 | 16 张 (PostgreSQL) + 8 张 (ClickHouse) |
+| Flink 作业 | 6 个 (Java 17) |
+| Kafka Topics | 5 个 |
 
 ---
 
@@ -157,5 +184,6 @@ Phase 7: 生产部署          ████████████████�
 2026-02-06  智能系统调试面板 + 系统集成修复
 2026-02-07  世界书系统 + 智能系统改进 (18 项)
 2026-02-08  多模态图片 + PWA + 多设备同步 + UX 改进 + 前端大修
-2026-02-09  迭代 2 完成 (EventBus/Webhooks + 社交 + 开发者API + 插件系统) ← 当前
+2026-02-09  迭代 2 完成 (EventBus/Webhooks + 社交 + 开发者API + 插件系统)
+2026-02-10  迭代 3 完成 (Kafka + Flink + ClickHouse + 分析仪表盘) ← 当前
 ```
