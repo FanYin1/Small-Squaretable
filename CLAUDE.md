@@ -7,8 +7,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Phase 7 Complete - Production Ready
-**Last Updated**: 2026-02-06
+**Status**: Iteration 2 Complete (Community & Ecosystem)
+**Last Updated**: 2026-02-09
 
 ---
 
@@ -22,6 +22,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 | Cache | Redis |
 | Auth | JWT (Access + Refresh Token) |
 | Payment | Stripe |
+| Storage | Local filesystem + sharp (thumbnails) |
+| PWA | vite-plugin-pwa + Workbox |
 | Testing | Vitest (Unit) + Playwright (E2E) |
 
 ---
@@ -33,6 +35,11 @@ Small-Squaretable/
 ├── src/
 │   ├── client/                 # Vue 3 Frontend
 │   │   ├── components/         # UI Components
+│   │   │   ├── character/      # Character card components
+│   │   │   ├── chat/           # Chat window + message + image components
+│   │   │   ├── debug/          # Intelligence + WorldInfo debug panels
+│   │   │   ├── worldbook/      # World book management UI
+│   │   │   └── layout/         # Layout (PwaInstallPrompt, DeviceIndicator, NotificationBell)
 │   │   ├── pages/              # Page Components
 │   │   ├── router/             # Vue Router
 │   │   ├── stores/             # Pinia Stores
@@ -42,13 +49,15 @@ Small-Squaretable/
 │   ├── server/                 # Hono.js Backend
 │   │   ├── routes/             # API Routes
 │   │   ├── services/           # Business Logic
-│   │   └── middleware/         # Middleware (auth, csrf, security, rateLimit)
+│   │   ├── middleware/         # Middleware (auth, csrf, security, rateLimit)
+│   │   └── workers/            # Worker Threads (plugin sandbox)
 │   ├── db/                     # Database
 │   │   ├── schema/             # Drizzle Schema
 │   │   ├── repositories/       # Data Access Layer
 │   │   └── migrations/         # DB Migrations
 │   ├── core/                   # Shared Core (redis, config)
 │   └── types/                  # TypeScript Types
+├── ml-service/                 # ML Microservice (embedding + sentiment)
 ├── e2e/                        # Playwright E2E Tests
 ├── k8s/                        # Kubernetes Configs
 ├── scripts/                    # Utility Scripts
@@ -101,6 +110,7 @@ npm run build            # Production build
 | PATCH | `/api/v1/characters/:id` | Update character |
 | DELETE | `/api/v1/characters/:id` | Delete character |
 | GET | `/api/v1/characters/search` | Search characters |
+| GET | `/api/v1/characters/marketplace` | Browse marketplace |
 
 ### Chats
 | Method | Endpoint | Description |
@@ -109,7 +119,9 @@ npm run build            # Production build
 | POST | `/api/v1/chats` | Create chat |
 | GET | `/api/v1/chats/:id` | Get chat |
 | POST | `/api/v1/chats/:id/messages` | Send message |
-| GET | `/api/v1/chats/:id/messages` | Get messages |
+| GET | `/api/v1/chats/:id/messages` | Get messages (cursor-based) |
+| PATCH | `/api/v1/chats/:id/messages/:messageId` | Edit message |
+| DELETE | `/api/v1/chats/:id/messages/:messageId` | Delete message |
 
 ### Intelligence (智能角色系统)
 | Method | Endpoint | Description |
@@ -130,6 +142,62 @@ npm run build            # Production build
 | GET | `/health/live` | Liveness probe |
 | GET | `/health/ready` | Readiness probe |
 
+### Social (社交功能)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/social/follow/:userId` | Follow user |
+| DELETE | `/api/v1/social/follow/:userId` | Unfollow user |
+| GET | `/api/v1/social/followers` | List followers |
+| GET | `/api/v1/social/following` | List following |
+| POST | `/api/v1/social/favorites/:characterId` | Favorite character |
+| DELETE | `/api/v1/social/favorites/:characterId` | Unfavorite character |
+| GET | `/api/v1/social/favorites` | List favorites |
+| POST | `/api/v1/social/comments` | Create comment |
+| GET | `/api/v1/social/comments/:characterId` | List comments |
+
+### Webhooks
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/webhooks` | Create webhook |
+| GET | `/api/v1/webhooks` | List webhooks |
+| PATCH | `/api/v1/webhooks/:id` | Update webhook |
+| DELETE | `/api/v1/webhooks/:id` | Delete webhook |
+| GET | `/api/v1/webhooks/:id/deliveries` | List deliveries |
+
+### Developer API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/developer/api-keys` | Create API key |
+| GET | `/api/v1/developer/api-keys` | List API keys |
+| DELETE | `/api/v1/developer/api-keys/:id` | Revoke API key |
+| GET | `/api/v1/developer/api-keys/:id/usage` | Get key usage stats |
+
+### Notifications
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/notifications` | List notifications |
+| GET | `/api/v1/notifications/unread-count` | Get unread count |
+| PATCH | `/api/v1/notifications/:id/read` | Mark as read |
+| POST | `/api/v1/notifications/mark-all-read` | Mark all as read |
+
+### Plugins (插件系统)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/plugins` | Create plugin (author) |
+| GET | `/api/v1/plugins/mine` | List my plugins |
+| PATCH | `/api/v1/plugins/:id` | Update plugin |
+| DELETE | `/api/v1/plugins/:id` | Delete plugin |
+| POST | `/api/v1/plugins/:id/publish` | Publish plugin |
+| GET | `/api/v1/plugins/marketplace` | Browse marketplace |
+| GET | `/api/v1/plugins/marketplace/:id` | Get plugin details |
+| POST | `/api/v1/plugins/installs` | Install plugin |
+| GET | `/api/v1/plugins/installs` | List installed plugins |
+| PATCH | `/api/v1/plugins/installs/:id` | Update install config |
+| DELETE | `/api/v1/plugins/installs/:id` | Uninstall plugin |
+| POST | `/api/v1/plugins/installs/:id/enable` | Enable plugin |
+| POST | `/api/v1/plugins/installs/:id/disable` | Disable plugin |
+| POST | `/api/v1/plugins/execute` | Execute plugin event |
+
 ---
 
 ## Key Files
@@ -148,14 +216,25 @@ npm run build            # Production build
 - `src/server/services/embedding.service.ts` - Text embedding (MiniLM)
 - `src/server/services/memory.service.ts` - Character memory management
 - `src/server/services/emotion.service.ts` - 2D emotion state machine
-- `src/server/services/intelligence-debug.service.ts` - Debug state tracking
-- `src/server/services/websocket.service.ts` - WebSocket + Intelligence events
+- `src/server/services/storage.service.ts` - File storage + thumbnail generation
+- `src/server/services/sync.service.ts` - Multi-device sync
+- `src/server/services/event-bus.service.ts` - Internal event bus (pub/sub)
+- `src/server/services/webhook.service.ts` - Webhook delivery
+- `src/server/services/social.service.ts` - Follow/favorite/comment
+- `src/server/services/notification.service.ts` - Notification management
+- `src/server/services/api-key.service.ts` - Developer API key management
+- `src/server/services/plugin.service.ts` - Plugin lifecycle management
+- `src/server/services/plugin-sandbox.ts` - Worker Thread sandbox isolation
+- `src/server/services/plugin-bridge.ts` - EventBus-to-plugin dispatch
 
 ### Frontend Stores
 - `src/client/stores/user.ts` - User state
 - `src/client/stores/chat.ts` - Chat state (WebSocket + HTTP)
 - `src/client/stores/ui.ts` - UI state
 - `src/client/stores/characterIntelligence.ts` - Memory/Emotion/Debug state
+- `src/client/stores/social.ts` - Follow/favorite/comment state
+- `src/client/stores/notification.ts` - Notification state
+- `src/client/stores/plugin.ts` - Plugin marketplace/install state
 
 ### Debug Components (调试面板)
 - `src/client/components/debug/IntelligenceDebugPanel.vue` - Main debug container
@@ -167,88 +246,75 @@ npm run build            # Production build
 
 ---
 
-## Recent Updates (2026-02-06)
+## Iteration 2: Community & Ecosystem (2026-02-09) ✅
 
-### Intelligence System Integration (智能系统集成)
-- **Critical Fix**: Memory and emotion system now properly integrated into WebSocket message flow
-- **Changes**:
-  - `src/server/routes/websocket.ts` - Added intelligence system calls in `handleUserMessage`
-  - Memory retrieval and emotion injection into system prompt
-  - Emotion state updates after user and assistant messages
-  - Memory extraction after each message exchange
-- **Memory Extraction**: Changed from every 10 messages to every 1 message (immediate extraction)
+### Phase A: EventBus + Webhooks ✅
+- **EventBus**: Internal pub/sub with wildcard support (`src/server/services/event-bus.service.ts`)
+- **Webhook System**: DB-backed webhook subscriptions, HMAC-SHA256 signed delivery, retry with exponential backoff
+- **Worker**: Background webhook delivery worker (`src/server/workers/webhook.worker.ts`)
+- **Events**: `character.created`, `character.updated`, `chat.message.created`, `user.subscription.changed`, etc.
 
-### Bug Fixes
-1. **Auto-scroll Issue**
-   - **Problem**: Chat window scrolled to top instead of bottom after receiving messages
-   - **Fix**: Changed `scrollIntoView` to `scrollTo` in `ChatWindow.vue`
+### Phase B: Social Features ✅
+- **Follow System**: Follow/unfollow users, follower/following lists with pagination
+- **Favorites**: Favorite/unfavorite characters, favorites list
+- **Comments**: Threaded comments on characters with pagination
+- **Notifications**: In-app notification system with unread count, mark-read, WebSocket push
+- **Frontend**: NotificationBell component, social pages, i18n (en-US + zh-CN)
 
-2. **Session Persistence**
-   - **Problem**: Messages lost on page refresh
-   - **Fix**: Added localStorage persistence for last selected chat in `Chat.vue`
+### Phase C: Developer API Portal ✅
+- **API Keys**: Create/list/revoke API keys with scoped permissions
+- **Auth Integration**: API key auth middleware alongside JWT
+- **Rate Limiting**: Per-key rate limiting (separate from user rate limits)
+- **Frontend**: DeveloperSettings page with key management UI
 
-3. **Token Expiration**
-   - **Problem**: Login expired too quickly (15 minutes)
-   - **Fix**: Extended access token to 6 hours in `src/core/jwt.ts`
-
-4. **Debug Panel API Response**
-   - **Problem**: Debug components couldn't parse API responses correctly
-   - **Fix**: Fixed response parsing in 5 debug components (removed extra `.data.data` nesting)
-
-### Intelligence Debug Panel (智能系统调试面板)
-- **Feature**: Real-time monitoring panel for memory and emotion system
-- **Components**:
-  - SystemPromptViewer - View actual system prompt with token counts
-  - MemoryRetrievalLog - Track memory retrieval with score breakdown
-  - EmotionTimeline - SVG chart showing valence/arousal over time
-  - ExtractionLog - Monitor memory extraction with message counter
-  - PerformanceMetrics - Track latency metrics and model status
-- **WebSocket Events**: `intelligence:emotion_change`, `intelligence:memory_retrieval`, `intelligence:memory_extraction`, `intelligence:prompt_build`
-- **Access**: Click the chart icon (📊) in Chat page header
-
-### ML Models
-- **Embedding Model**: `Xenova/paraphrase-multilingual-MiniLM-L12-v2` - 多语言支持 (中英文等 50+ 语言)
-- **Sentiment Model**: `Xenova/bert-base-multilingual-uncased-sentiment` - 多语言情感分析 (1-5 星评分)
-- **Cache Directory**: `./models`
-- **输出**: 情感分析返回 1-5 星评分，嵌入维度 384
-
-### ML Microservice (2026-02-06)
-- **Location**: `ml-service/`
-- **Port**: 3001 (configurable via `ML_SERVICE_PORT`)
-- **Purpose**: 独立的 ML 处理服务，对用户透明
-- **Endpoints**:
-  - `GET /health` - 健康检查
-  - `POST /embed` - 文本嵌入
-  - `POST /embed/batch` - 批量嵌入
-  - `POST /sentiment` - 情感分析
-- **启动**: `npm run dev:ml` 或 `cd ml-service && npm start`
-- **架构**: 主服务通过 HTTP 调用 ML 服务，用户无感知
-- **代理支持**: 自动检测 `HTTP_PROXY`/`HTTPS_PROXY` 环境变量，使用 `undici` ProxyAgent 配置全局代理
-- **依赖**: `@xenova/transformers`, `undici`
-
-### Session Isolation (会话隔离)
-- **Memory**: 记忆按 `chatId` 隔离，每个会话独立存储和检索
-- **Emotion**: 情感状态按 `chatId` 隔离，每个会话独立追踪
-- **UI**: 情感/记忆/调试按钮位于 ChatWindow header 右侧，绑定当前会话
-- **Database Indexes**:
-  - `idx_character_emotions_unique_chat` - 带 chatId 的唯一约束
-  - `idx_character_emotions_unique_no_chat` - 无 chatId 的唯一约束
+### Phase D: Plugin System ✅
+- **Architecture**: Plugins run in isolated Node.js Worker Threads (64MB memory, 30s timeout)
+- **Sandbox**: `PluginSandbox` with WorkerFactory DI, frozen globals, `new Function()` execution
+- **Bridge**: `PluginBridge` listens to EventBus, dispatches to sandboxes (pipeline for `chat.message.before`)
+- **KV Store**: Per-plugin per-user key-value storage via postMessage bridge, backed by PostgreSQL
+- **Feature Gate**: `plugin_marketplace` feature (Free: 0, Pro: 5, Team: 20 installs)
+- **DB**: 3 tables (`plugins`, `pluginInstalls`, `pluginKvStore`) + migration `0011_serious_khan.sql`
+- **API**: 13 endpoints (author CRUD, marketplace, install management, execution)
+- **Frontend**: Plugin marketplace page with browse/install/config UI, Pinia store
+- **Tests**: 97 plugin-related tests (33 repo + 21 sandbox + 24 service + 12 bridge + 7 integration)
 
 ---
 
-## Recent Fixes (2026-02-05)
+## Iteration 1: Advanced Features (2026-02-07 ~ 2026-02-08) ✅
 
-### 1. SillyTavern V2 Character Card Import
-- **Problem**: V2 format has data nested in `data` block
-- **Fix**: Added `isV2Format()` and `normalizeSillyTavernData()` in `src/client/utils/sillytavern.ts`
+### Intelligence System (智能角色系统) ✅
+- pgvector 向量搜索 + 混合检索
+- 2D Valence-Arousal 情感模型 with exponential decay
+- MiniLM 本地嵌入 + 情感分析 (ML microservice on port 3001)
+- Dynamic importance scoring, semantic dedup, LRU eviction
+- Session isolation (memory + emotion per chatId)
+- Debug panel (SystemPrompt, Memory, Emotion, Extraction, Performance)
 
-### 2. Character Select Display
-- **Problem**: Selected character name not showing in el-select
-- **Fix**: Added CSS to force text color in `src/client/pages/Chat.vue`
+### World Book System (世界书系统) ✅
+- Four-tier scope: Chat > Persona > Character > Global
+- Hybrid trigger: Keyword + Semantic matching
+- 7 injection positions, timing control (sticky/cooldown/delay/probability)
+- SillyTavern format import/export, token budget management
 
-### 3. WebSocket Message Storage
-- **Problem**: Messages lost on refresh (temp IDs not replaced)
-- **Fix**: Updated `userMessage` handler in `src/client/stores/chat.ts` to replace temp messages with real DB IDs
+### Multimodal Image Support ✅
+- Local file storage with tenant isolation, 10MB limit, MIME whitelist
+- sharp thumbnail generation (300x300 webp)
+- Image paste, drag-drop, upload progress in chat
+
+### PWA Optimization ✅
+- Workbox service worker: precaching + runtime caching
+- A2HS install prompt with 7-day dismissal
+- Offline fallback page, touch optimizations
+
+### Multi-Device Sync ✅
+- Device tracking, broadcast to user's devices
+- Read receipt sync, device indicator in header
+
+### UX Improvements ✅
+- Message edit/delete/regenerate
+- Pull-to-refresh, mobile message actions
+- WebSocket connection indicator
+- Cursor-based message pagination with infinite scroll
 
 ---
 
@@ -264,7 +330,8 @@ npm run build            # Production build
 ### Testing
 - Unit tests: `*.spec.ts` files alongside source
 - E2E tests: `e2e/` directory
-- Test pass rate: 99% unit, 92% E2E
+- Unit tests: 1274 passing (97.6%), 14 skipped
+- E2E tests: 107/119 passed (90%), 8 flaky, 4 skipped
 
 ### Security
 - CSRF protection enabled
