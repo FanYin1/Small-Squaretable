@@ -1,0 +1,39 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group = 'com.squaretable'
+version = '1.0.0'
+sourceCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+def flinkVersion = '1.19.0'
+
+dependencies {
+    implementation "org.apache.flink:flink-streaming-java:${flinkVersion}"
+    implementation "org.apache.flink:flink-connector-kafka:3.1.0-1.19"
+    implementation "org.apache.flink:flink-connector-jdbc:3.1.2-1.19"
+    implementation "org.apache.flink:flink-statebackend-rocksdb:${flinkVersion}"
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'redis.clients:jedis:5.1.0'
+    implementation 'ru.yandex.clickhouse:clickhouse-jdbc:0.6.0'
+
+    compileOnly "org.apache.flink:flink-java:${flinkVersion}"
+
+    testImplementation "org.apache.flink:flink-test-utils:${flinkVersion}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+shadowJar {
+    archiveBaseName.set('flink-jobs')
+    archiveClassifier.set('all')
+    mergeServiceFiles()
+}
+
+test {
+    useJUnitPlatform()
+}

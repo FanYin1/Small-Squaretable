@@ -166,6 +166,54 @@ services:
       timeout: 5s
       retries: 5
 
+  # Flink JobManager
+  flink-jobmanager:
+    build:
+      context: ./flink-jobs
+      dockerfile: Dockerfile
+    container_name: small-squaretable-flink-jm
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        state.backend: rocksdb
+        state.checkpoints.dir: file:///opt/flink/checkpoints
+        state.savepoints.dir: file:///opt/flink/savepoints
+    ports:
+      - "8081:8081"
+    volumes:
+      - flink-checkpoints:/opt/flink/checkpoints
+      - flink-savepoints:/opt/flink/savepoints
+    networks:
+      - app-network
+    depends_on:
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Flink TaskManager
+  flink-taskmanager:
+    build:
+      context: ./flink-jobs
+      dockerfile: Dockerfile
+    container_name: small-squaretable-flink-tm
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        state.backend: rocksdb
+        state.checkpoints.dir: file:///opt/flink/checkpoints
+    volumes:
+      - flink-checkpoints:/opt/flink/checkpoints
+    networks:
+      - app-network
+    depends_on:
+      - flink-jobmanager
+    restart: unless-stopped
+
   # Database migration job (runs once on startup)
   db-migrate:
     build:
@@ -194,6 +242,10 @@ volumes:
   kafka-data:
     driver: local
   clickhouse-data:
+    driver: local
+  flink-checkpoints:
+    driver: local
+  flink-savepoints:
     driver: local
   uploads:
     driver: local
