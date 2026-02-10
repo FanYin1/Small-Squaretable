@@ -37,6 +37,10 @@ const configSchema = z.object({
   // Kafka
   kafkaBrokers: z.string().default('localhost:9092'),
   kafkaClientId: z.string().default('small-squaretable'),
+
+  // ClickHouse
+  clickhouseUrl: z.string().default('http://localhost:8123'),
+  clickhouseDatabase: z.string().default('analytics'),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -64,6 +68,8 @@ export function loadConfig(): Config {
     s3SecretKey: process.env.S3_SECRET_KEY,
     kafkaBrokers: process.env.KAFKA_BROKERS,
     kafkaClientId: process.env.KAFKA_CLIENT_ID,
+    clickhouseUrl: process.env.CLICKHOUSE_URL,
+    clickhouseDatabase: process.env.CLICKHOUSE_DATABASE,
   };
 
   try {

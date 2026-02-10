@@ -29,6 +29,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@clickhouse/client": "^1.17.0",
     "@element-plus/icons-vue": "^2.3.2",
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.7.6",
