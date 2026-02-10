@@ -33,6 +33,10 @@ const configSchema = z.object({
   s3Region: z.string().optional(),
   s3AccessKey: z.string().optional(),
   s3SecretKey: z.string().optional(),
+
+  // Kafka
+  kafkaBrokers: z.string().default('localhost:9092'),
+  kafkaClientId: z.string().default('small-squaretable'),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -58,6 +62,8 @@ export function loadConfig(): Config {
     s3Region: process.env.S3_REGION,
     s3AccessKey: process.env.S3_ACCESS_KEY,
     s3SecretKey: process.env.S3_SECRET_KEY,
+    kafkaBrokers: process.env.KAFKA_BROKERS,
+    kafkaClientId: process.env.KAFKA_CLIENT_ID,
   };
 
   try {
