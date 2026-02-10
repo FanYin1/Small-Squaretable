@@ -31,6 +31,7 @@ import { socialRoutes } from './routes/social';
 import { developerRoutes } from './routes/developer';
 import { pluginRoutes } from './routes/plugins';
 import { pluginBridge } from './services/plugin-bridge';
+import { kafkaBridge } from './services/kafka-bridge.service';
 import { WebhookWorker } from './workers/webhook.worker';
 import { webhookRepository } from '../db/repositories/webhook.repository';
 import { basicHealthCheck, livenessCheck, readinessCheck } from './services/health';
@@ -249,6 +250,14 @@ if (process.env.NODE_ENV !== 'test') {
 
   // Start plugin event bridge
   pluginBridge.start();
+
+  // Start Kafka event bridge
+  kafkaBridge.start().then(() => {
+    console.log('📊 Kafka bridge started');
+  }).catch((err) => {
+    console.error('Failed to start Kafka bridge:', err);
+  });
+
   console.log(`🚀 Server starting on http://${config.host}:${port}`);
 
   const serverInstance = serve({
