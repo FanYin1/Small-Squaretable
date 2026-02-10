@@ -17,7 +17,8 @@ export type FeatureName =
   | 'team_collaboration'
   | 'api_access'
   | 'custom_domain'
-  | 'plugin_marketplace';
+  | 'plugin_marketplace'
+  | 'analytics_dashboard';
 
 export interface PlanLimits {
   messages: number;
@@ -36,6 +37,7 @@ const PLAN_FEATURES: Record<PlanType, FeatureName[]> = {
     'advanced_models',
     'priority_support',
     'plugin_marketplace',
+    'analytics_dashboard',
   ],
   team: [
     'basic_chat',
@@ -47,6 +49,7 @@ const PLAN_FEATURES: Record<PlanType, FeatureName[]> = {
     'api_access',
     'custom_domain',
     'plugin_marketplace',
+    'analytics_dashboard',
   ],
 };
 
