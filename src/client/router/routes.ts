@@ -20,6 +20,7 @@ const loadNotifications = () => import(/* webpackChunkName: "notifications" */ '
 const loadUserProfile = () => import(/* webpackChunkName: "user-profile" */ '../pages/UserProfile.vue');
 const loadDeveloperSettings = () => import(/* webpackChunkName: "developer" */ '../pages/DeveloperSettings.vue');
 const loadPluginMarketplace = () => import(/* webpackChunkName: "plugins" */ '../pages/PluginMarketplace.vue');
+const loadAnalytics = () => import(/* webpackChunkName: "analytics" */ '../pages/analytics/AnalyticsDashboard.vue');
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -187,6 +188,15 @@ export const routes: RouteRecordRaw[] = [
     path: '/plugins',
     name: 'PluginMarketplace',
     component: loadPluginMarketplace,
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/analytics',
+    name: 'Analytics',
+    component: loadAnalytics,
     meta: {
       requiresAuth: true,
       guestOnly: false,
