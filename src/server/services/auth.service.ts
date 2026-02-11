@@ -43,6 +43,17 @@ export class AuthService {
       displayName: input.displayName ?? null,
     });
 
+    // Generate email verification token
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyHash = crypto.createHash('sha256').update(verifyToken).digest('hex');
+    await userRepository.update(user.id, { emailVerificationToken: verifyHash } as any);
+
+    // Send verification email (fire-and-forget, don't block registration)
+    sendEmail(user.email, 'email-verification', {
+      name: input.displayName || 'there',
+      link: `${config.appUrl}/auth/verify-email?token=${verifyToken}`,
+    }).catch(() => {});
+
     const tokens = await this.generateTokens(user.id, user.tenantId, user.email, user.role ?? 'user');
     await this.storeRefreshToken(user.id, tokens.refreshToken);
 
@@ -134,6 +145,37 @@ export class AuthService {
 
     // Invalidate all refresh tokens for this user
     await redis.del(`${REFRESH_TOKEN_PREFIX}${record.userId}`);
+  }
+
+  async verifyEmail(token: string): Promise<void> {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await userRepository.findByVerificationToken(tokenHash);
+    if (!user) {
+      throw new BadRequestError('Invalid or expired verification token');
+    }
+    await userRepository.update(user.id, {
+      emailVerified: true,
+      emailVerificationToken: null,
+    } as any);
+  }
+
+  async resendVerification(userId: string): Promise<void> {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new BadRequestError('User not found');
+    }
+    if (user.emailVerified) {
+      throw new BadRequestError('Email is already verified');
+    }
+
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const verifyHash = crypto.createHash('sha256').update(verifyToken).digest('hex');
+    await userRepository.update(user.id, { emailVerificationToken: verifyHash } as any);
+
+    await sendEmail(user.email, 'email-verification', {
+      name: user.displayName || 'there',
+      link: `${config.appUrl}/auth/verify-email?token=${verifyToken}`,
+    });
   }
 
   private async generateTokens(userId: string, tenantId: string, email: string, role: 'user' | 'moderator' | 'admin' = 'user'): Promise<AuthTokens> {

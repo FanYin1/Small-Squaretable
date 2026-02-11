@@ -44,6 +44,14 @@ export class UserRepository extends BaseRepository {
       .where(eq(users.id, id));
   }
 
+  async findByVerificationToken(tokenHash: string): Promise<User | null> {
+    const result = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.emailVerificationToken, tokenHash));
+    return result[0] ?? null;
+  }
+
   async updatePassword(id: string, passwordHash: string): Promise<void> {
     await this.db
       .update(users)

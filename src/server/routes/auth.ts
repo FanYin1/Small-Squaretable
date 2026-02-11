@@ -9,7 +9,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authService } from '../services/auth.service';
 import { authMiddleware } from '../middleware/auth';
-import { passwordResetRateLimit } from '../middleware/rateLimit';
+import { passwordResetRateLimit, emailVerificationRateLimit } from '../middleware/rateLimit';
 import { registerSchema, loginSchema, refreshTokenSchema } from '../../types/auth';
 import type { ApiResponse } from '../../types/api';
 
@@ -121,6 +121,43 @@ authRoutes.post(
     return c.json<ApiResponse>({
       success: true,
       data: { message: 'Password has been reset successfully.' },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  },
+);
+
+// Verify email with token (public)
+const verifyEmailSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+});
+
+authRoutes.get(
+  '/verify-email',
+  zValidator('query', verifyEmailSchema),
+  async (c) => {
+    const { token } = c.req.valid('query');
+    await authService.verifyEmail(token);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { message: 'Email verified successfully.' },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  },
+);
+
+// Resend verification email (requires auth)
+authRoutes.post(
+  '/resend-verification',
+  authMiddleware(),
+  emailVerificationRateLimit,
+  async (c) => {
+    const user = c.get('user');
+    await authService.resendVerification(user.id);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { message: 'Verification email sent.' },
       meta: { timestamp: new Date().toISOString() },
     });
   },

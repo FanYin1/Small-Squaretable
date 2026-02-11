@@ -247,6 +247,18 @@ export const passwordResetRateLimit = rateLimit({
   message: 'Too many password reset attempts, please try again later',
 });
 
+// Email verification resend rate limiter
+export const emailVerificationRateLimit = rateLimit({
+  limit: 3,
+  windowMs: 60 * 60 * 1000, // 3 requests per hour
+  keyGenerator: (c: any) => {
+    const user = c.get('user');
+    if (user?.id) return `email-verify:${user.id}`;
+    return `email-verify:${defaultKeyGenerator(c)}`;
+  },
+  message: 'Too many verification email requests, please try again later',
+});
+
 // General API rate limiter
 export const apiRateLimit = rateLimit({
   limit: 100,
