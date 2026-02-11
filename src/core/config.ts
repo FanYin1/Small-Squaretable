@@ -41,6 +41,16 @@ const configSchema = z.object({
   // ClickHouse
   clickhouseUrl: z.string().default('http://localhost:8123'),
   clickhouseDatabase: z.string().default('analytics'),
+
+  // Email (SMTP)
+  smtpHost: z.string().default('localhost'),
+  smtpPort: z.coerce.number().default(587),
+  smtpUser: z.string().default(''),
+  smtpPass: z.string().default(''),
+  smtpFrom: z.string().default('Small Squaretable <noreply@localhost>'),
+
+  // App URL (used in email links)
+  appUrl: z.string().default('http://localhost:5173'),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -70,6 +80,12 @@ export function loadConfig(): Config {
     kafkaClientId: process.env.KAFKA_CLIENT_ID,
     clickhouseUrl: process.env.CLICKHOUSE_URL,
     clickhouseDatabase: process.env.CLICKHOUSE_DATABASE,
+    smtpHost: process.env.SMTP_HOST,
+    smtpPort: process.env.SMTP_PORT,
+    smtpUser: process.env.SMTP_USER,
+    smtpPass: process.env.SMTP_PASS,
+    smtpFrom: process.env.SMTP_FROM,
+    appUrl: process.env.APP_URL,
   };
 
   try {
