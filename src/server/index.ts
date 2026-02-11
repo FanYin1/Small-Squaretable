@@ -33,6 +33,7 @@ import { pluginRoutes } from './routes/plugins';
 import { analyticsRoutes } from './routes/analytics';
 import { oauthRoutes } from './routes/oauth';
 import { mfaRoutes } from './routes/mfa';
+import { reportRoutes } from './routes/reports';
 import { pluginBridge } from './services/plugin-bridge';
 import { kafkaBridge } from './services/kafka-bridge.service';
 import { WebhookWorker } from './workers/webhook.worker';
@@ -110,6 +111,7 @@ app.use('/api/v1/social/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/developer/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/plugins/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/analytics/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/reports/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -154,6 +156,7 @@ app.use('/api/v1/social', csrfProtection());
 app.use('/api/v1/developer', csrfProtection());
 app.use('/api/v1/plugins', csrfProtection());
 app.use('/api/v1/analytics', csrfProtection());
+app.use('/api/v1/reports', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
@@ -169,6 +172,7 @@ app.route('/api/v1/social', socialRoutes);
 app.route('/api/v1/developer', developerRoutes);
 app.route('/api/v1/plugins', pluginRoutes);
 app.route('/api/v1/analytics', analyticsRoutes);
+app.route('/api/v1/reports', reportRoutes);
 app.route('/api/v1', intelligenceRoutes);
 
 app.get('/api/v1', (c) => {
@@ -193,6 +197,7 @@ app.get('/api/v1', (c) => {
       developer: '/api/v1/developer',
       plugins: '/api/v1/plugins',
       analytics: '/api/v1/analytics',
+      reports: '/api/v1/reports',
       docs: '/api/v1/docs',
       ws: '/ws',
     },

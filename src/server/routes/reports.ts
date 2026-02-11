@@ -1,0 +1,47 @@
+/**
+ * Reports Routes
+ *
+ * User-facing endpoint for submitting content reports.
+ */
+
+import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import { authMiddleware } from '../middleware/auth';
+import { moderationService } from '../services/moderation.service';
+import type { ApiResponse } from '../../types/api';
+
+export const reportRoutes = new Hono();
+
+const submitReportSchema = z.object({
+  targetType: z.enum(['character', 'comment', 'user']),
+  targetId: z.string().uuid(),
+  reason: z.string().min(1).max(2000),
+});
+
+// POST / — Submit a report (requires auth)
+reportRoutes.post(
+  '/',
+  authMiddleware(),
+  zValidator('json', submitReportSchema),
+  async (c) => {
+    const user = c.get('user');
+    const { targetType, targetId, reason } = c.req.valid('json');
+
+    const report = await moderationService.submitReport(
+      user.id,
+      targetType,
+      targetId,
+      reason,
+    );
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: report,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      201,
+    );
+  },
+);

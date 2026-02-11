@@ -21,3 +21,5 @@ export * from './plugins';
 export * from './password-reset-tokens';
 export * from './oauth-accounts';
 export * from './backup-codes';
+export * from './reports';
+export * from './moderation-actions';
