@@ -46,6 +46,7 @@ vi.mock('../middleware/rateLimit', () => {
     webhookRateLimit: passthrough,
     apiKeyRateLimit: passthrough,
     pluginExecutionRateLimit: passthrough,
+    emailVerificationRateLimit: passthrough,
   };
 });
 
