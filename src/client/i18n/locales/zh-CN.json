@@ -244,7 +244,12 @@
     "emailVerifiedDesc": "您的邮箱已成功验证，现在可以登录了。",
     "verificationFailed": "验证失败",
     "missingVerificationToken": "缺少验证令牌，请检查您的邮件链接。",
-    "goToLogin": "前往登录"
+    "goToLogin": "前往登录",
+    "continueWithGoogle": "使用 Google 继续",
+    "continueWithGitHub": "使用 GitHub 继续",
+    "oauthLoggingIn": "正在登录...",
+    "oauthFailed": "OAuth 登录失败，请重试。",
+    "oauthNoCode": "缺少授权码，请重试。"
   },
   "home": {
     "heroBadge": "AI 驱动的智能对话",

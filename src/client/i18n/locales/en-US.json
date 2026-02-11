@@ -244,7 +244,12 @@
     "emailVerifiedDesc": "Your email has been verified successfully. You can now log in.",
     "verificationFailed": "Verification Failed",
     "missingVerificationToken": "No verification token provided. Please check your email link.",
-    "goToLogin": "Go to Login"
+    "goToLogin": "Go to Login",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithGitHub": "Continue with GitHub",
+    "oauthLoggingIn": "Signing you in...",
+    "oauthFailed": "OAuth login failed. Please try again.",
+    "oauthNoCode": "Missing authorization code. Please try again."
   },
   "home": {
     "heroBadge": "AI-Powered Intelligent Conversations",

@@ -144,4 +144,12 @@ export const authApi = {
    */
   resendVerification: () =>
     api.post('/auth/resend-verification'),
+
+  /**
+   * OAuth 授权码交换
+   */
+  oauthExchange: async (code: string): Promise<LoginResponse> => {
+    const response = await api.post<BackendAuthResponse>('/auth/oauth/exchange', { code });
+    return transformAuthResponse(response);
+  },
 };

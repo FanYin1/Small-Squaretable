@@ -9,6 +9,7 @@ const loadRegister = () => import(/* webpackPrefetch: true */ '../pages/auth/Reg
 const loadForgotPassword = () => import('../pages/auth/ForgotPassword.vue');
 const loadResetPassword = () => import('../pages/auth/ResetPassword.vue');
 const loadVerifyEmail = () => import('../pages/auth/VerifyEmail.vue');
+const loadOAuthCallback = () => import('../pages/auth/OAuthCallback.vue');
 const loadChat = () => import(/* webpackChunkName: "chat" */ '../pages/Chat.vue');
 const loadMarket = () => import(/* webpackPrefetch: true */ '../pages/Market.vue');
 const loadMyCharacters = () => import(/* webpackChunkName: "characters" */ '../pages/MyCharacters.vue');
@@ -92,6 +93,15 @@ export const routes: RouteRecordRaw[] = [
     path: '/auth/verify-email',
     name: 'VerifyEmail',
     component: loadVerifyEmail,
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+    },
+  },
+  {
+    path: '/auth/oauth-callback',
+    name: 'OAuthCallback',
+    component: loadOAuthCallback,
     meta: {
       requiresAuth: false,
       guestOnly: true,
