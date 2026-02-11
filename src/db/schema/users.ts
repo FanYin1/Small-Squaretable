@@ -4,8 +4,10 @@
  * 存储用户认证信息和基本资料
  */
 
-import { pgTable, uuid, varchar, timestamp, boolean, integer, index } from 'drizzle-orm/pg-core';
+import { pgTable, pgEnum, uuid, varchar, timestamp, boolean, integer, index } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
+
+export const userRoleEnum = pgEnum('user_role', ['user', 'moderator', 'admin']);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -16,6 +18,7 @@ export const users = pgTable('users', {
   passwordHash: varchar('password_hash', { length: 255 }),
   displayName: varchar('display_name', { length: 100 }),
   avatarUrl: varchar('avatar_url', { length: 500 }),
+  role: userRoleEnum('role').default('user').notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   emailVerified: boolean('email_verified').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

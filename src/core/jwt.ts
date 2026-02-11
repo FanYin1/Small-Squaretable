@@ -14,6 +14,7 @@ export interface AccessTokenPayload {
   userId: string;
   tenantId: string;
   email: string;
+  role: 'user' | 'moderator' | 'admin';
 }
 
 export interface RefreshTokenPayload {
@@ -28,6 +29,7 @@ export async function generateAccessToken(payload: AccessTokenPayload): Promise<
     userId: payload.userId,
     tenantId: payload.tenantId,
     email: payload.email,
+    role: payload.role,
     type: 'access',
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -58,6 +60,7 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenPaylo
     userId: payload.userId as string,
     tenantId: payload.tenantId as string,
     email: payload.email as string,
+    role: (payload.role as 'user' | 'moderator' | 'admin') || 'user',
   };
 }
 

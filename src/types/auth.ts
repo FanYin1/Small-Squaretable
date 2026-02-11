@@ -35,6 +35,7 @@ export interface AuthUser {
   email: string;
   displayName: string | null;
   avatarUrl: string | null;
+  role: 'user' | 'moderator' | 'admin';
 }
 
 export interface AuthContext {

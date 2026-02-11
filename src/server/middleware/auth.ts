@@ -41,6 +41,7 @@ export function authMiddleware() {
         email: user.email,
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
+        role: user.role ?? 'user',
       });
       c.set('tenantId', user.tenantId);
 
@@ -81,6 +82,7 @@ export function combinedAuthMiddleware() {
         email: user.email,
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
+        role: user.role ?? 'user',
       });
       c.set('tenantId', tenantId);
       c.set('apiKeyScopes', scopes);
@@ -108,6 +110,7 @@ export function combinedAuthMiddleware() {
         email: user.email,
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
+        role: user.role ?? 'user',
       });
       c.set('tenantId', user.tenantId);
       c.set('authMethod', 'jwt');
@@ -136,6 +139,7 @@ export function optionalAuthMiddleware() {
             email: user.email,
             displayName: user.displayName,
             avatarUrl: user.avatarUrl,
+            role: user.role ?? 'user',
           });
           c.set('tenantId', user.tenantId);
         }

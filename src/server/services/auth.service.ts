@@ -40,7 +40,7 @@ export class AuthService {
       displayName: input.displayName ?? null,
     });
 
-    const tokens = await this.generateTokens(user.id, user.tenantId, user.email);
+    const tokens = await this.generateTokens(user.id, user.tenantId, user.email, user.role ?? 'user');
     await this.storeRefreshToken(user.id, tokens.refreshToken);
 
     return {
@@ -66,7 +66,7 @@ export class AuthService {
 
     await userRepository.updateLastLogin(user.id);
 
-    const tokens = await this.generateTokens(user.id, user.tenantId, user.email);
+    const tokens = await this.generateTokens(user.id, user.tenantId, user.email, user.role ?? 'user');
     await this.storeRefreshToken(user.id, tokens.refreshToken);
 
     return {
@@ -88,7 +88,7 @@ export class AuthService {
       throw new UnauthorizedError('User not found or inactive');
     }
 
-    const tokens = await this.generateTokens(user.id, user.tenantId, user.email);
+    const tokens = await this.generateTokens(user.id, user.tenantId, user.email, user.role ?? 'user');
     await this.storeRefreshToken(user.id, tokens.refreshToken);
 
     return tokens;
@@ -98,9 +98,9 @@ export class AuthService {
     await redis.del(`${REFRESH_TOKEN_PREFIX}${userId}`);
   }
 
-  private async generateTokens(userId: string, tenantId: string, email: string): Promise<AuthTokens> {
+  private async generateTokens(userId: string, tenantId: string, email: string, role: 'user' | 'moderator' | 'admin' = 'user'): Promise<AuthTokens> {
     const [accessToken, refreshToken] = await Promise.all([
-      generateAccessToken({ userId, tenantId, email }),
+      generateAccessToken({ userId, tenantId, email, role }),
       generateRefreshToken(userId),
     ]);
 
@@ -127,6 +127,7 @@ export class AuthService {
       email: user.email,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      role: user.role ?? 'user',
     };
   }
 }
