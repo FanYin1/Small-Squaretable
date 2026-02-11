@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { User } from '@client/types';
 import { authApi, ApiError, csrfTokenManager } from '@client/services';
+import type { LoginResponse, MfaRequiredResponse } from '@client/services';
 
 export const useUserStore = defineStore('user', () => {
   // State
@@ -11,30 +12,69 @@ export const useUserStore = defineStore('user', () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
+  // MFA state
+  const mfaRequired = ref(false);
+  const mfaToken = ref<string | null>(null);
+
   // Getters
   const isAuthenticated = computed(() => !!token.value && !!user.value);
 
+  // Helper: store tokens from a successful auth response
+  function storeAuthTokens(response: LoginResponse): void {
+    user.value = response.user;
+    token.value = response.token;
+    refreshToken.value = response.refreshToken;
+    localStorage.setItem('token', response.token);
+    localStorage.setItem('refreshToken', response.refreshToken);
+    localStorage.setItem('tenantId', response.user.tenantId);
+    // Clear MFA state
+    mfaRequired.value = false;
+    mfaToken.value = null;
+  }
+
   // Actions
-  async function login(email: string, password: string): Promise<void> {
+  async function login(email: string, password: string): Promise<{ requiresMfa?: boolean }> {
     loading.value = true;
     error.value = null;
+    mfaRequired.value = false;
+    mfaToken.value = null;
     try {
       const response = await authApi.login({ email, password });
 
-      // 保存用户信息和令牌
-      user.value = response.user;
-      token.value = response.token;
-      refreshToken.value = response.refreshToken;
+      if ('requiresMfa' in response && response.requiresMfa) {
+        mfaRequired.value = true;
+        mfaToken.value = (response as MfaRequiredResponse).mfaToken;
+        return { requiresMfa: true };
+      }
 
-      // 持久化到 localStorage
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('refreshToken', response.refreshToken);
-      localStorage.setItem('tenantId', response.user.tenantId);
+      storeAuthTokens(response as LoginResponse);
+      return {};
     } catch (e) {
       if (e instanceof ApiError) {
         error.value = e.message;
       } else {
         error.value = e instanceof Error ? e.message : 'Login failed';
+      }
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  async function completeMfaChallenge(code: string): Promise<void> {
+    if (!mfaToken.value) {
+      throw new Error('No MFA token available');
+    }
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await authApi.mfaChallenge(mfaToken.value, code);
+      storeAuthTokens(response);
+    } catch (e) {
+      if (e instanceof ApiError) {
+        error.value = e.message;
+      } else {
+        error.value = e instanceof Error ? e.message : 'MFA verification failed';
       }
       throw e;
     } finally {
@@ -169,7 +209,10 @@ export const useUserStore = defineStore('user', () => {
     loading,
     error,
     isAuthenticated,
+    mfaRequired,
+    mfaToken,
     login,
+    completeMfaChallenge,
     register,
     logout,
     refreshAccessToken,

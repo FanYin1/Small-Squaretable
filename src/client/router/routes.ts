@@ -25,6 +25,7 @@ const loadUserProfile = () => import(/* webpackChunkName: "user-profile" */ '../
 const loadDeveloperSettings = () => import(/* webpackChunkName: "developer" */ '../pages/DeveloperSettings.vue');
 const loadPluginMarketplace = () => import(/* webpackChunkName: "plugins" */ '../pages/PluginMarketplace.vue');
 const loadAnalytics = () => import(/* webpackChunkName: "analytics" */ '../pages/analytics/AnalyticsDashboard.vue');
+const loadSecuritySettings = () => import(/* webpackChunkName: "security" */ '../pages/SecuritySettings.vue');
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -147,6 +148,15 @@ export const routes: RouteRecordRaw[] = [
     path: '/profile',
     name: 'Profile',
     component: loadProfile,
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/security',
+    name: 'SecuritySettings',
+    component: loadSecuritySettings,
     meta: {
       requiresAuth: true,
       guestOnly: false,

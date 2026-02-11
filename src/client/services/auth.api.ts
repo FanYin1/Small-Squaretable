@@ -18,6 +18,24 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+export interface MfaRequiredResponse {
+  requiresMfa: true;
+  mfaToken: string;
+}
+
+export interface MfaSetupResponse {
+  qrDataUrl: string;
+  secret: string;
+}
+
+export interface MfaVerifySetupResponse {
+  backupCodes: string[];
+}
+
+export interface MfaBackupCodesResponse {
+  backupCodes: string[];
+}
+
 export interface RegisterRequest {
   email: string;
   password: string;
@@ -58,6 +76,12 @@ interface BackendAuthResponse {
   };
 }
 
+// Backend MFA challenge response
+interface BackendMfaRequiredResponse {
+  requiresMfa: true;
+  mfaToken: string;
+}
+
 // Transform backend user to frontend format
 function transformUser(backendUser: BackendUser): User {
   return {
@@ -81,11 +105,14 @@ function transformAuthResponse(response: BackendAuthResponse): LoginResponse | R
 
 export const authApi = {
   /**
-   * 用户登录
+   * 用户登录 - may return MFA challenge
    */
-  login: async (data: LoginRequest): Promise<LoginResponse> => {
-    const response = await api.post<BackendAuthResponse>('/auth/login', data);
-    return transformAuthResponse(response);
+  login: async (data: LoginRequest): Promise<LoginResponse | MfaRequiredResponse> => {
+    const response = await api.post<BackendAuthResponse | BackendMfaRequiredResponse>('/auth/login', data);
+    if ('requiresMfa' in response && response.requiresMfa) {
+      return { requiresMfa: true, mfaToken: response.mfaToken };
+    }
+    return transformAuthResponse(response as BackendAuthResponse);
   },
 
   /**
@@ -152,4 +179,36 @@ export const authApi = {
     const response = await api.post<BackendAuthResponse>('/auth/oauth/exchange', { code });
     return transformAuthResponse(response);
   },
+
+  /**
+   * MFA: Start setup (get QR code + secret)
+   */
+  mfaSetup: () =>
+    api.post<MfaSetupResponse>('/auth/mfa/setup'),
+
+  /**
+   * MFA: Verify setup with TOTP code
+   */
+  mfaVerifySetup: (code: string) =>
+    api.post<MfaVerifySetupResponse>('/auth/mfa/verify-setup', { code }),
+
+  /**
+   * MFA: Disable 2FA with TOTP code
+   */
+  mfaDisable: (code: string) =>
+    api.post('/auth/mfa/disable', { code }),
+
+  /**
+   * MFA: Complete login challenge with TOTP/backup code
+   */
+  mfaChallenge: async (mfaToken: string, code: string): Promise<LoginResponse> => {
+    const response = await api.post<BackendAuthResponse>('/auth/mfa/challenge', { mfaToken, code });
+    return transformAuthResponse(response);
+  },
+
+  /**
+   * MFA: Regenerate backup codes
+   */
+  mfaRegenerateBackupCodes: () =>
+    api.post<MfaBackupCodesResponse>('/auth/mfa/backup-codes'),
 };

@@ -6,6 +6,7 @@ import { useUserStore } from '@client/stores/user';
 import { useToast } from '@client/composables/useToast';
 import { User, Lock, View, Hide } from '@element-plus/icons-vue';
 import type { FormInstance, FormRules } from 'element-plus';
+import MfaChallenge from '@client/components/MfaChallenge.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -29,6 +30,11 @@ const showPassword = ref(false);
 // Loading state
 const loading = ref(false);
 
+// MFA state
+const showMfaDialog = ref(false);
+const mfaLoading = ref(false);
+const mfaError = ref<string | null>(null);
+
 // Form validation rules
 const rules: FormRules = {
   email: [
@@ -50,7 +56,14 @@ const handleLogin = async (formEl: FormInstance | undefined) => {
 
     loading.value = true;
     try {
-      await userStore.login(loginForm.email, loginForm.password);
+      const result = await userStore.login(loginForm.email, loginForm.password);
+
+      if (result.requiresMfa) {
+        // Show MFA challenge dialog
+        showMfaDialog.value = true;
+        mfaError.value = null;
+        return;
+      }
 
       toast.success(t('auth.loginSuccess'));
 
@@ -65,6 +78,29 @@ const handleLogin = async (formEl: FormInstance | undefined) => {
       loading.value = false;
     }
   });
+};
+
+// Handle MFA challenge submission
+const handleMfaSubmit = async (code: string) => {
+  mfaLoading.value = true;
+  mfaError.value = null;
+  try {
+    await userStore.completeMfaChallenge(code);
+    showMfaDialog.value = false;
+    toast.success(t('auth.loginSuccess'));
+    const redirect = (route.query.redirect as string) || '/';
+    router.push(redirect);
+  } catch {
+    mfaError.value = userStore.error || t('mfa.invalidCode');
+  } finally {
+    mfaLoading.value = false;
+  }
+};
+
+// Handle MFA dialog cancel
+const handleMfaCancel = () => {
+  showMfaDialog.value = false;
+  mfaError.value = null;
 };
 
 // Navigate to register
@@ -184,6 +220,15 @@ const loginWithOAuth = (provider: string) => {
         </div>
       </el-card>
     </div>
+
+    <!-- MFA Challenge Dialog -->
+    <MfaChallenge
+      :visible="showMfaDialog"
+      :loading="mfaLoading"
+      :error="mfaError"
+      @submit="handleMfaSubmit"
+      @cancel="handleMfaCancel"
+    />
   </div>
 </template>
 
