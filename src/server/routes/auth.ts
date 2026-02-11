@@ -40,9 +40,17 @@ authRoutes.post(
     const input = c.req.valid('json');
     const result = await authService.login(input);
 
+    if (result.requiresMfa) {
+      return c.json<ApiResponse>({
+        success: true,
+        data: { requiresMfa: true, mfaToken: result.mfaToken },
+        meta: { timestamp: new Date().toISOString() },
+      });
+    }
+
     return c.json<ApiResponse>({
       success: true,
-      data: result,
+      data: { user: result.user, tokens: result.tokens },
       meta: { timestamp: new Date().toISOString() },
     });
   }

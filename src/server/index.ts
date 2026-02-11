@@ -32,6 +32,7 @@ import { developerRoutes } from './routes/developer';
 import { pluginRoutes } from './routes/plugins';
 import { analyticsRoutes } from './routes/analytics';
 import { oauthRoutes } from './routes/oauth';
+import { mfaRoutes } from './routes/mfa';
 import { pluginBridge } from './services/plugin-bridge';
 import { kafkaBridge } from './services/kafka-bridge.service';
 import { WebhookWorker } from './workers/webhook.worker';
@@ -136,6 +137,7 @@ app.get('/api/v1/csrf-token', getCsrfToken);
 // Auth endpoints (login/register don't need CSRF as they're public)
 app.route('/api/v1/auth', authRoutes);
 app.route('/api/v1/auth/oauth', oauthRoutes);
+app.route('/api/v1/auth/mfa', mfaRoutes);
 
 // Protected routes with CSRF
 app.use('/api/v1/users', csrfProtection());

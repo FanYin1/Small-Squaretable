@@ -21,6 +21,10 @@ const SALT_ROUNDS = 12;
 const REFRESH_TOKEN_PREFIX = 'refresh_token:';
 const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
 
+export type LoginResult =
+  | { requiresMfa: false; user: AuthUser; tokens: AuthTokens }
+  | { requiresMfa: true; mfaToken: string };
+
 export class AuthService {
   async register(input: RegisterInput): Promise<{ user: AuthUser; tokens: AuthTokens }> {
     const existingUser = await userRepository.findByEmail(input.email);
@@ -63,7 +67,7 @@ export class AuthService {
     };
   }
 
-  async login(input: LoginInput): Promise<{ user: AuthUser; tokens: AuthTokens }> {
+  async login(input: LoginInput): Promise<LoginResult> {
     const user = await userRepository.findByEmail(input.email);
     if (!user || !user.passwordHash) {
       throw new UnauthorizedError('Invalid email or password');
@@ -78,12 +82,20 @@ export class AuthService {
       throw new UnauthorizedError('Account is deactivated');
     }
 
+    // If TOTP is enabled, return MFA challenge instead of tokens
+    if (user.totpEnabled) {
+      const mfaToken = crypto.randomBytes(32).toString('hex');
+      await redis.set(`mfa:${mfaToken}`, user.id, { EX: 300 });
+      return { requiresMfa: true, mfaToken };
+    }
+
     await userRepository.updateLastLogin(user.id);
 
     const tokens = await this.generateTokens(user.id, user.tenantId, user.email, user.role ?? 'user');
     await this.storeRefreshToken(user.id, tokens.refreshToken);
 
     return {
+      requiresMfa: false,
       user: this.toAuthUser(user),
       tokens,
     };

@@ -22,6 +22,8 @@ export const users = pgTable('users', {
   isActive: boolean('is_active').default(true).notNull(),
   emailVerified: boolean('email_verified').default(false).notNull(),
   emailVerificationToken: varchar('email_verification_token', { length: 64 }),
+  totpSecret: varchar('totp_secret', { length: 255 }),
+  totpEnabled: boolean('totp_enabled').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
