@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { User, Lock, Bell, Medal, Setting } from '@element-plus/icons-vue';
+import { useRouter } from 'vue-router';
 import { useUserStore } from '@client/stores';
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { userApi } from '@client/services';
@@ -17,6 +18,7 @@ const { t } = useI18n();
 const { formatRelativeTime } = useDateTime();
 const { setTheme } = useTheme();
 const { currentLocale, setLocale } = useLocale();
+const router = useRouter();
 
 const userStore = useUserStore();
 const subscriptionStore = useSubscriptionStore();
@@ -188,6 +190,13 @@ function handleExportData() {
           >
             <el-icon><component :is="item.icon" /></el-icon>
             <span>{{ item.label }}</span>
+          </button>
+          <button
+            class="nav-item"
+            @click="router.push({ name: 'AccountSettings' })"
+          >
+            <el-icon><Setting /></el-icon>
+            <span>{{ t('accountSettings.navLink') }}</span>
           </button>
         </nav>
       </aside>

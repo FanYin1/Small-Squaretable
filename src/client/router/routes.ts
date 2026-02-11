@@ -26,6 +26,7 @@ const loadDeveloperSettings = () => import(/* webpackChunkName: "developer" */ '
 const loadPluginMarketplace = () => import(/* webpackChunkName: "plugins" */ '../pages/PluginMarketplace.vue');
 const loadAnalytics = () => import(/* webpackChunkName: "analytics" */ '../pages/analytics/AnalyticsDashboard.vue');
 const loadSecuritySettings = () => import(/* webpackChunkName: "security" */ '../pages/SecuritySettings.vue');
+const loadAccountSettings = () => import(/* webpackChunkName: "account" */ '../pages/AccountSettings.vue');
 const loadAdminLayout = () => import(/* webpackChunkName: "admin" */ '../pages/admin/AdminLayout.vue');
 const loadAdminUsers = () => import(/* webpackChunkName: "admin" */ '../pages/admin/UserManagement.vue');
 const loadAdminContent = () => import(/* webpackChunkName: "admin" */ '../pages/admin/ContentModeration.vue');
@@ -161,6 +162,15 @@ export const routes: RouteRecordRaw[] = [
     path: '/security',
     name: 'SecuritySettings',
     component: loadSecuritySettings,
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/account',
+    name: 'AccountSettings',
+    component: loadAccountSettings,
     meta: {
       requiresAuth: true,
       guestOnly: false,
