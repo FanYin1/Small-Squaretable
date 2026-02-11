@@ -27,6 +27,7 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  deletionRequestedAt: timestamp('deletion_requested_at', { withTimezone: true }),
   followerCount: integer('follower_count').default(0).notNull(),
   followingCount: integer('following_count').default(0).notNull(),
 }, (table) => ({

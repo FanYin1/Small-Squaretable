@@ -1,11 +1,14 @@
 /**
- * GDPR Data Export Service
+ * GDPR Service
  *
- * Orchestrates collection of all user data and packages it into a ZIP archive
- * for GDPR Right of Access (Article 15) compliance.
+ * Handles GDPR compliance:
+ * - Right of Access (Article 15): Data export as ZIP
+ * - Right to Erasure (Article 17): Account deletion with 30-day grace period
  */
 
 import archiver from 'archiver';
+import bcrypt from 'bcrypt';
+import { eq, lt, isNotNull, and } from 'drizzle-orm';
 import { userRepository } from '../../db/repositories/user.repository';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { chatRepository } from '../../db/repositories/chat.repository';
@@ -17,6 +20,13 @@ import { followRepository } from '../../db/repositories/follow.repository';
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
 import { apiKeyRepository } from '../../db/repositories/apiKey.repository';
 import { pluginRepository } from '../../db/repositories/plugin.repository';
+import { auditService } from './audit.service';
+import { redis } from '../../core/redis';
+import { sendEmail } from '../../core/email';
+import { UnauthorizedError, NotFoundError, BadRequestError } from '../../core/errors';
+import { db } from '../../db';
+import { users } from '../../db/schema/users';
+import { auditLogs } from '../../db/schema/audit-logs';
 
 /** Fields to strip from user profile before export */
 const SENSITIVE_USER_FIELDS = [
@@ -45,6 +55,11 @@ function sanitizeApiKey(key: Record<string, unknown>): Record<string, unknown> {
   delete sanitized.keyPrefix;
   return sanitized;
 }
+
+/** Grace period before permanent deletion (30 days in ms) */
+const DELETION_GRACE_PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
+
+const REFRESH_TOKEN_PREFIX = 'refresh_token:';
 
 export const gdprService = {
   /**
@@ -122,5 +137,175 @@ export const gdprService = {
 
       archive.finalize();
     });
+  },
+
+  /**
+   * Request account deletion. Sets 30-day grace period.
+   * User can cancel during grace period.
+   */
+  async requestDeletion(
+    userId: string,
+    tenantId: string,
+    password: string,
+  ): Promise<{ scheduledAt: Date }> {
+    const user = await userRepository.findById(userId);
+    if (!user || !user.passwordHash) {
+      throw new NotFoundError('User');
+    }
+
+    // Verify password
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) {
+      throw new UnauthorizedError('Invalid password');
+    }
+
+    // Check if already requested
+    if (user.deletionRequestedAt) {
+      const scheduledAt = new Date(user.deletionRequestedAt.getTime() + DELETION_GRACE_PERIOD_MS);
+      return { scheduledAt };
+    }
+
+    const now = new Date();
+    const scheduledAt = new Date(now.getTime() + DELETION_GRACE_PERIOD_MS);
+
+    // Set deletionRequestedAt
+    await userRepository.update(userId, { deletionRequestedAt: now } as any);
+
+    // Send confirmation email (fire-and-forget)
+    sendEmail(user.email, 'account-deletion-requested', {
+      name: user.displayName || 'there',
+      scheduledDate: scheduledAt.toISOString(),
+    }).catch(() => {});
+
+    // Audit log
+    auditService.log({
+      tenantId,
+      actorId: userId,
+      action: 'account_delete_request',
+      targetType: 'user',
+      targetId: userId,
+      metadata: { scheduledAt: scheduledAt.toISOString() },
+    });
+
+    return { scheduledAt };
+  },
+
+  /**
+   * Cancel pending deletion request.
+   */
+  async cancelDeletion(userId: string, tenantId: string): Promise<void> {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User');
+    }
+
+    if (!user.deletionRequestedAt) {
+      throw new BadRequestError('No pending deletion request');
+    }
+
+    // Clear deletionRequestedAt
+    await userRepository.update(userId, { deletionRequestedAt: null } as any);
+
+    // Audit log
+    auditService.log({
+      tenantId,
+      actorId: userId,
+      action: 'account_delete_cancel',
+      targetType: 'user',
+      targetId: userId,
+    });
+  },
+
+  /**
+   * Get deletion status for a user.
+   */
+  async getDeletionStatus(userId: string): Promise<{
+    pending: boolean;
+    requestedAt: Date | null;
+    scheduledAt: Date | null;
+  }> {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User');
+    }
+
+    if (!user.deletionRequestedAt) {
+      return { pending: false, requestedAt: null, scheduledAt: null };
+    }
+
+    const scheduledAt = new Date(user.deletionRequestedAt.getTime() + DELETION_GRACE_PERIOD_MS);
+    return {
+      pending: true,
+      requestedAt: user.deletionRequestedAt,
+      scheduledAt,
+    };
+  },
+
+  /**
+   * Execute hard deletion (called by scheduled job or admin).
+   * - Anonymize audit logs (replace actorId with 'deleted-user')
+   * - Cancel Stripe subscription if active
+   * - Revoke all tokens from Redis
+   * - Delete the user record (FK cascade handles child records)
+   */
+  async executeDeletion(userId: string): Promise<void> {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User');
+    }
+
+    // 1. Anonymize audit logs
+    await db
+      .update(auditLogs)
+      .set({ actorId: 'deleted-user' })
+      .where(eq(auditLogs.actorId, userId));
+
+    // 2. Cancel Stripe subscription if active
+    const subscription = await subscriptionRepository.findByTenantId(user.tenantId);
+    if (subscription && subscription.stripeSubscriptionId) {
+      // Mark as canceled in our DB (actual Stripe cancellation would be via Stripe API)
+      await subscriptionRepository.update(subscription.id, {
+        status: 'canceled',
+        cancelAtPeriodEnd: true,
+      } as any);
+    }
+
+    // 3. Delete Redis keys (refresh tokens, sessions)
+    await redis.del(`${REFRESH_TOKEN_PREFIX}${userId}`);
+
+    // 4. Delete user record (FK cascade handles characters, chats, messages, etc.)
+    await userRepository.delete(userId);
+  },
+
+  /**
+   * Process all users past their 30-day grace period.
+   * Called periodically (e.g., daily cron or on server start).
+   */
+  async processExpiredDeletions(): Promise<number> {
+    const cutoff = new Date(Date.now() - DELETION_GRACE_PERIOD_MS);
+
+    // Find users where deletionRequestedAt < cutoff
+    const expiredUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          isNotNull(users.deletionRequestedAt),
+          lt(users.deletionRequestedAt, cutoff),
+        ),
+      );
+
+    let count = 0;
+    for (const { id } of expiredUsers) {
+      try {
+        await gdprService.executeDeletion(id);
+        count++;
+      } catch {
+        // Log but continue processing other users
+        console.error(`[GDPR] Failed to delete user ${id}`);
+      }
+    }
+
+    return count;
   },
 };
