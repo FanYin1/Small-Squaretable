@@ -18,3 +18,4 @@ export * from './social.api';
 export * from './notification.api';
 export * from './developer.api';
 export * from './plugin.api';
+export * from './admin.api';

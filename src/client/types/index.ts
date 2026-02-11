@@ -4,6 +4,7 @@ export interface User {
   name: string;
   avatar?: string;
   tenantId: string;
+  role?: 'user' | 'moderator' | 'admin';
   createdAt: string;
 }
 

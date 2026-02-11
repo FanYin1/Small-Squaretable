@@ -907,5 +907,66 @@
     "verifying": "Verifying...",
     "useBackupCode": "Use a backup code",
     "useTotpCode": "Use authenticator code"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "nav": {
+      "users": "Users",
+      "content": "Content Moderation",
+      "system": "System",
+      "auditLogs": "Audit Logs"
+    },
+    "users": {
+      "title": "User Management",
+      "email": "Email",
+      "displayName": "Display Name",
+      "role": "Role",
+      "status": "Status",
+      "createdAt": "Created",
+      "actions": "Actions",
+      "active": "Active",
+      "suspended": "Suspended",
+      "searchPlaceholder": "Search by email or name...",
+      "changeRole": "Change Role",
+      "changeRoleConfirm": "Change role of {name} to {role}?",
+      "roleChanged": "User role updated",
+      "suspend": "Suspend",
+      "suspendConfirm": "Suspend user {name}? They will not be able to log in.",
+      "unsuspend": "Unsuspend",
+      "unsuspended": "User unsuspended",
+      "forceReset": "Reset Password",
+      "forceResetConfirm": "Force password reset for {name}?",
+      "resetSent": "Password reset initiated"
+    },
+    "content": {
+      "title": "Content Moderation",
+      "reporter": "Reporter",
+      "targetType": "Target Type",
+      "targetId": "Target ID",
+      "reason": "Reason",
+      "description": "Description",
+      "status": "Status",
+      "resolution": "Resolution",
+      "createdAt": "Reported",
+      "pending": "Pending",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed",
+      "all": "All",
+      "action_approve": "Approve",
+      "action_reject": "Reject",
+      "action_dismiss": "Dismiss",
+      "resolveConfirm": "Are you sure you want to {action} this report?",
+      "resolved": "Report resolved"
+    },
+    "system": {
+      "title": "System Dashboard",
+      "totalUsers": "Total Users",
+      "activeUsers30d": "Active Users (30d)",
+      "totalCharacters": "Total Characters",
+      "pendingReports": "Pending Reports",
+      "subscriptionBreakdown": "Subscription Breakdown",
+      "recentSignups": "Recent Signups",
+      "last7days": "in the last 7 days"
+    }
   }
 }

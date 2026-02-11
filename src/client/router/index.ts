@@ -9,6 +9,19 @@ const router = createRouter({
   routes,
 });
 
+// Role hierarchy: admin > moderator > user
+const ROLE_HIERARCHY: Record<string, number> = {
+  user: 0,
+  moderator: 1,
+  admin: 2,
+};
+
+function hasRequiredRole(userRole: string | undefined, requiredRole: string): boolean {
+  const userLevel = ROLE_HIERARCHY[userRole || 'user'] ?? 0;
+  const requiredLevel = ROLE_HIERARCHY[requiredRole] ?? 0;
+  return userLevel >= requiredLevel;
+}
+
 // Navigation guard for authentication
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
@@ -31,6 +44,18 @@ router.beforeEach((to, from, next) => {
   } else if (to.meta.guestOnly && isAuthenticated) {
     // Redirect to dashboard if route is guest-only and user is authenticated
     next({ name: 'Dashboard' });
+  } else if (to.meta.requiresRole && isAuthenticated) {
+    // Check role-based access for the most specific matched route
+    const requiredRole = to.matched
+      .filter(record => record.meta.requiresRole)
+      .map(record => record.meta.requiresRole as string)
+      .pop();
+    if (requiredRole && !hasRequiredRole(userStore.user?.role, requiredRole)) {
+      // Insufficient role, redirect to dashboard
+      next({ name: 'Dashboard' });
+    } else {
+      next();
+    }
   } else {
     // Allow navigation
     next();

@@ -907,5 +907,66 @@
     "verifying": "验证中...",
     "useBackupCode": "使用备用码",
     "useTotpCode": "使用验证器代码"
+  },
+  "admin": {
+    "title": "管理面板",
+    "nav": {
+      "users": "用户管理",
+      "content": "内容审核",
+      "system": "系统概览",
+      "auditLogs": "审计日志"
+    },
+    "users": {
+      "title": "用户管理",
+      "email": "邮箱",
+      "displayName": "显示名称",
+      "role": "角色",
+      "status": "状态",
+      "createdAt": "创建时间",
+      "actions": "操作",
+      "active": "活跃",
+      "suspended": "已停用",
+      "searchPlaceholder": "按邮箱或名称搜索...",
+      "changeRole": "更改角色",
+      "changeRoleConfirm": "将 {name} 的角色更改为 {role}？",
+      "roleChanged": "用户角色已更新",
+      "suspend": "停用",
+      "suspendConfirm": "停用用户 {name}？该用户将无法登录。",
+      "unsuspend": "恢复",
+      "unsuspended": "用户已恢复",
+      "forceReset": "重置密码",
+      "forceResetConfirm": "强制重置 {name} 的密码？",
+      "resetSent": "密码重置已发起"
+    },
+    "content": {
+      "title": "内容审核",
+      "reporter": "举报人",
+      "targetType": "目标类型",
+      "targetId": "目标ID",
+      "reason": "原因",
+      "description": "描述",
+      "status": "状态",
+      "resolution": "处理结果",
+      "createdAt": "举报时间",
+      "pending": "待处理",
+      "resolved": "已处理",
+      "dismissed": "已驳回",
+      "all": "全部",
+      "action_approve": "通过",
+      "action_reject": "拒绝",
+      "action_dismiss": "驳回",
+      "resolveConfirm": "确定要{action}此举报吗？",
+      "resolved": "举报已处理"
+    },
+    "system": {
+      "title": "系统概览",
+      "totalUsers": "总用户数",
+      "activeUsers30d": "活跃用户 (30天)",
+      "totalCharacters": "总角色数",
+      "pendingReports": "待处理举报",
+      "subscriptionBreakdown": "订阅分布",
+      "recentSignups": "近期注册",
+      "last7days": "最近7天"
+    }
   }
 }

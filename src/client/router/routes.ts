@@ -26,6 +26,10 @@ const loadDeveloperSettings = () => import(/* webpackChunkName: "developer" */ '
 const loadPluginMarketplace = () => import(/* webpackChunkName: "plugins" */ '../pages/PluginMarketplace.vue');
 const loadAnalytics = () => import(/* webpackChunkName: "analytics" */ '../pages/analytics/AnalyticsDashboard.vue');
 const loadSecuritySettings = () => import(/* webpackChunkName: "security" */ '../pages/SecuritySettings.vue');
+const loadAdminLayout = () => import(/* webpackChunkName: "admin" */ '../pages/admin/AdminLayout.vue');
+const loadAdminUsers = () => import(/* webpackChunkName: "admin" */ '../pages/admin/UserManagement.vue');
+const loadAdminContent = () => import(/* webpackChunkName: "admin" */ '../pages/admin/ContentModeration.vue');
+const loadAdminSystem = () => import(/* webpackChunkName: "admin" */ '../pages/admin/SystemDashboard.vue');
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -251,6 +255,56 @@ export const routes: RouteRecordRaw[] = [
       requiresAuth: true,
       guestOnly: false,
     },
+  },
+  {
+    path: '/admin',
+    component: loadAdminLayout,
+    meta: {
+      requiresAuth: true,
+      requiresRole: 'moderator',
+    },
+    children: [
+      {
+        path: '',
+        redirect: '/admin/content',
+      },
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: loadAdminUsers,
+        meta: {
+          requiresAuth: true,
+          requiresRole: 'admin',
+        },
+      },
+      {
+        path: 'content',
+        name: 'AdminContent',
+        component: loadAdminContent,
+        meta: {
+          requiresAuth: true,
+          requiresRole: 'moderator',
+        },
+      },
+      {
+        path: 'system',
+        name: 'AdminSystem',
+        component: loadAdminSystem,
+        meta: {
+          requiresAuth: true,
+          requiresRole: 'admin',
+        },
+      },
+      {
+        path: 'audit-logs',
+        name: 'AdminAuditLogs',
+        component: loadAdminSystem,
+        meta: {
+          requiresAuth: true,
+          requiresRole: 'admin',
+        },
+      },
+    ],
   },
   {
     path: '/:pathMatch(.*)*',

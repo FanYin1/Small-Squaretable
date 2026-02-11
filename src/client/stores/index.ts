@@ -6,3 +6,4 @@ export { useSubscriptionStore } from './subscription';
 export { useCharacterIntelligenceStore } from './characterIntelligence';
 export { useNotificationStore } from './notification';
 export { useDeveloperStore } from './developer';
+export { useAdminStore } from './admin';
