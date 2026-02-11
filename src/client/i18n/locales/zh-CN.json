@@ -952,7 +952,8 @@
       "users": "用户管理",
       "content": "内容审核",
       "system": "系统概览",
-      "auditLogs": "审计日志"
+      "auditLogs": "审计日志",
+      "gdpr": "GDPR 请求"
     },
     "users": {
       "title": "用户管理",

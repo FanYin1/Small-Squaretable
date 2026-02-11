@@ -952,7 +952,8 @@
       "users": "Users",
       "content": "Content Moderation",
       "system": "System",
-      "auditLogs": "Audit Logs"
+      "auditLogs": "Audit Logs",
+      "gdpr": "GDPR Requests"
     },
     "users": {
       "title": "User Management",
