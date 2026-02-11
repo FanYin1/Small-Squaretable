@@ -23,3 +23,4 @@ export * from './oauth-accounts';
 export * from './backup-codes';
 export * from './reports';
 export * from './moderation-actions';
+export * from './audit-logs';
