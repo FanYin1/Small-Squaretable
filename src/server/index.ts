@@ -31,6 +31,7 @@ import { socialRoutes } from './routes/social';
 import { developerRoutes } from './routes/developer';
 import { pluginRoutes } from './routes/plugins';
 import { analyticsRoutes } from './routes/analytics';
+import { oauthRoutes } from './routes/oauth';
 import { pluginBridge } from './services/plugin-bridge';
 import { kafkaBridge } from './services/kafka-bridge.service';
 import { WebhookWorker } from './workers/webhook.worker';
@@ -86,6 +87,7 @@ app.use('/api/v1/*', apiRateLimit);
 const publicPaths = [
   '/health',
   '/api/v1/auth',
+  '/api/v1/auth/oauth',
   '/api/v1/characters/search',
   '/api/v1/characters/marketplace',
   '/api/v1/characters/:id',  // 公开访问角色详情
@@ -133,6 +135,7 @@ app.get('/api/v1/csrf-token', getCsrfToken);
 // Apply CSRF protection to state-changing routes
 // Auth endpoints (login/register don't need CSRF as they're public)
 app.route('/api/v1/auth', authRoutes);
+app.route('/api/v1/auth/oauth', oauthRoutes);
 
 // Protected routes with CSRF
 app.use('/api/v1/users', csrfProtection());

@@ -19,3 +19,4 @@ export * from './social';
 export * from './apiKeys';
 export * from './plugins';
 export * from './password-reset-tokens';
+export * from './oauth-accounts';

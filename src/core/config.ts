@@ -51,6 +51,13 @@ const configSchema = z.object({
 
   // App URL (used in email links)
   appUrl: z.string().default('http://localhost:5173'),
+
+  // OAuth
+  googleClientId: z.string().default(''),
+  googleClientSecret: z.string().default(''),
+  githubClientId: z.string().default(''),
+  githubClientSecret: z.string().default(''),
+  oauthCallbackBase: z.string().default('http://localhost:3000/api/v1/auth/oauth'),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -86,6 +93,11 @@ export function loadConfig(): Config {
     smtpPass: process.env.SMTP_PASS,
     smtpFrom: process.env.SMTP_FROM,
     appUrl: process.env.APP_URL,
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    githubClientId: process.env.GITHUB_CLIENT_ID,
+    githubClientSecret: process.env.GITHUB_CLIENT_SECRET,
+    oauthCallbackBase: process.env.OAUTH_CALLBACK_BASE,
   };
 
   try {
