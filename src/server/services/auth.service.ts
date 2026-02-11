@@ -5,12 +5,15 @@
  */
 
 import bcrypt from 'bcrypt';
-import { randomUUID } from 'crypto';
+import crypto, { randomUUID } from 'crypto';
 import { userRepository } from '../../db/repositories/user.repository';
 import { tenantRepository } from '../../db/repositories/tenant.repository';
+import { passwordResetRepository } from '../../db/repositories/password-reset.repository';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../core/jwt';
 import { redis } from '../../core/redis';
-import { UnauthorizedError, ValidationError } from '../../core/errors';
+import { UnauthorizedError, ValidationError, BadRequestError } from '../../core/errors';
+import { sendEmail } from '../../core/email';
+import { config } from '../../core/config';
 import type { RegisterInput, LoginInput, AuthTokens, AuthUser } from '../../types/auth';
 import type { User } from '../../db/schema/users';
 
@@ -96,6 +99,41 @@ export class AuthService {
 
   async logout(userId: string): Promise<void> {
     await redis.del(`${REFRESH_TOKEN_PREFIX}${userId}`);
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await userRepository.findByEmail(email);
+    if (!user) return; // Silent — don't reveal if email exists
+
+    // Delete any existing tokens for this user
+    await passwordResetRepository.deleteByUserId(user.id);
+
+    // Generate random token, hash it, store hash
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await passwordResetRepository.create(user.id, tokenHash, expiresAt);
+
+    // Send email with unhashed token in link
+    await sendEmail(user.email, 'password-reset', {
+      name: user.displayName || 'there',
+      link: `${config.appUrl}/auth/reset-password?token=${token}`,
+    });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const record = await passwordResetRepository.findByTokenHash(tokenHash);
+
+    if (!record) throw new BadRequestError('Invalid or expired reset token');
+
+    const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await userRepository.updatePassword(record.userId, hash);
+    await passwordResetRepository.markUsed(record.id);
+
+    // Invalidate all refresh tokens for this user
+    await redis.del(`${REFRESH_TOKEN_PREFIX}${record.userId}`);
   }
 
   private async generateTokens(userId: string, tenantId: string, email: string, role: 'user' | 'moderator' | 'admin' = 'user'): Promise<AuthTokens> {

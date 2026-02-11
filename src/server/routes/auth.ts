@@ -6,8 +6,10 @@
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import { authService } from '../services/auth.service';
 import { authMiddleware } from '../middleware/auth';
+import { passwordResetRateLimit } from '../middleware/rateLimit';
 import { registerSchema, loginSchema, refreshTokenSchema } from '../../types/auth';
 import type { ApiResponse } from '../../types/api';
 
@@ -81,3 +83,45 @@ authRoutes.get('/me', authMiddleware(), async (c) => {
     meta: { timestamp: new Date().toISOString() },
   });
 });
+
+// Forgot password — always returns 200 to prevent email enumeration
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email format'),
+});
+
+authRoutes.post(
+  '/forgot-password',
+  passwordResetRateLimit,
+  zValidator('json', forgotPasswordSchema),
+  async (c) => {
+    const { email } = c.req.valid('json');
+    await authService.forgotPassword(email);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { message: 'If that email is registered, a reset link has been sent.' },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  },
+);
+
+// Reset password with token
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+authRoutes.post(
+  '/reset-password',
+  zValidator('json', resetPasswordSchema),
+  async (c) => {
+    const { token, password } = c.req.valid('json');
+    await authService.resetPassword(token, password);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { message: 'Password has been reset successfully.' },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  },
+);
