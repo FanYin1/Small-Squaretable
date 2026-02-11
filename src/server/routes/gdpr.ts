@@ -4,6 +4,7 @@
  * User-facing endpoints for GDPR compliance:
  * - Data export (Right of Access)
  * - Account deletion (Right to Erasure)
+ * - Consent management (analytics, marketing, cookies)
  * Mounted at /api/v1/account.
  */
 
@@ -13,6 +14,7 @@ import { authMiddleware } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
 import { gdprService } from '../services/gdpr.service';
 import { auditService } from '../services/audit.service';
+import { consentRepository } from '../../db/repositories/consent.repository';
 
 export const gdprRoutes = new Hono();
 
@@ -106,4 +108,83 @@ gdprRoutes.get('/delete/status', authMiddleware(), async (c) => {
   const status = await gdprService.getDeletionStatus(user.id);
 
   return c.json(status);
+});
+
+// --- Consent Management ---
+
+const VALID_CONSENT_TYPES = ['analytics', 'marketing', 'cookies'] as const;
+
+const updateConsentsSchema = z.object({
+  analytics: z.boolean().optional(),
+  marketing: z.boolean().optional(),
+  cookies: z.boolean().optional(),
+}).refine(
+  (data) => data.analytics !== undefined || data.marketing !== undefined || data.cookies !== undefined,
+  { message: 'At least one consent type must be provided' },
+);
+
+// GET /consents — Get all consent preferences
+gdprRoutes.get('/consents', authMiddleware(), async (c) => {
+  const user = c.get('user');
+
+  const consents = await consentRepository.findByUserId(user.id);
+
+  // Build a map with defaults for missing types
+  const consentMap: Record<string, { granted: boolean; updatedAt: string | null }> = {};
+  for (const type of VALID_CONSENT_TYPES) {
+    const found = consents.find((consent) => consent.consentType === type);
+    consentMap[type] = {
+      granted: found?.granted ?? false,
+      updatedAt: found?.updatedAt?.toISOString() ?? null,
+    };
+  }
+
+  return c.json({
+    success: true,
+    data: { consents: consentMap },
+  });
+});
+
+// PUT /consents — Update consent preferences
+gdprRoutes.put('/consents', authMiddleware(), async (c) => {
+  const user = c.get('user');
+
+  const body = await c.req.json();
+  const parsed = updateConsentsSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: parsed.error.errors[0].message },
+    }, 400);
+  }
+
+  const updates = parsed.data;
+  const results: Record<string, { granted: boolean; updatedAt: string }> = {};
+
+  for (const type of VALID_CONSENT_TYPES) {
+    const value = updates[type];
+    if (value !== undefined) {
+      const consent = await consentRepository.upsert(user.id, type, value);
+      results[type] = {
+        granted: consent.granted,
+        updatedAt: consent.updatedAt.toISOString(),
+      };
+    }
+  }
+
+  // Audit log
+  auditService.log({
+    tenantId: c.get('tenantId'),
+    actorId: user.id,
+    actorIp: c.req.header('x-forwarded-for')?.split(',')[0] || c.req.header('x-real-ip'),
+    action: 'consent_updated',
+    targetType: 'user',
+    targetId: user.id,
+    metadata: { updates },
+  });
+
+  return c.json({
+    success: true,
+    data: { consents: results },
+  });
 });
