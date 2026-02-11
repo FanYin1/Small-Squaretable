@@ -9,6 +9,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth';
 import { moderationService } from '../services/moderation.service';
+import { auditService } from '../services/audit.service';
 import type { ApiResponse } from '../../types/api';
 
 export const reportRoutes = new Hono();
@@ -34,6 +35,16 @@ reportRoutes.post(
       targetId,
       reason,
     );
+
+    // Audit report submission
+    const actorIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+    auditService.log({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      actorIp,
+      action: 'report_submit',
+      metadata: { targetType, targetId },
+    });
 
     return c.json<ApiResponse>(
       {

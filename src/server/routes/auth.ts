@@ -73,7 +73,7 @@ authRoutes.post(
 
 authRoutes.post('/logout', authMiddleware(), async (c) => {
   const user = c.get('user');
-  await authService.logout(user.id);
+  await authService.logout(user.id, user.tenantId);
 
   return c.json<ApiResponse>({
     success: true,

@@ -89,6 +89,64 @@ export class AuditRepository extends BaseRepository {
     };
   }
 
+  async findAll(
+    filters?: AuditLogFilters,
+    pagination?: AuditPaginationParams,
+  ): Promise<PaginatedResponse<AuditLog>> {
+    const page = pagination?.page ?? 1;
+    const limit = pagination?.limit ?? 20;
+    const offset = (page - 1) * limit;
+
+    const conditions: ReturnType<typeof eq>[] = [];
+
+    if (filters?.actorId) {
+      conditions.push(eq(auditLogs.actorId, filters.actorId));
+    }
+    if (filters?.action) {
+      conditions.push(eq(auditLogs.action, filters.action));
+    }
+    if (filters?.targetType) {
+      conditions.push(eq(auditLogs.targetType, filters.targetType));
+    }
+    if (filters?.dateFrom) {
+      conditions.push(gte(auditLogs.createdAt, filters.dateFrom));
+    }
+    if (filters?.dateTo) {
+      conditions.push(lte(auditLogs.createdAt, filters.dateTo));
+    }
+
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [items, [{ count }]] = await Promise.all([
+      this.db
+        .select()
+        .from(auditLogs)
+        .where(where)
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(limit)
+        .offset(offset),
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(auditLogs)
+        .where(where),
+    ]);
+
+    const total = count;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
   async deleteOlderThan(tenantId: string, date: Date): Promise<number> {
     const result = await this.db
       .delete(auditLogs)

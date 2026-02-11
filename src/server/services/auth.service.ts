@@ -14,6 +14,7 @@ import { redis } from '../../core/redis';
 import { UnauthorizedError, ValidationError, BadRequestError } from '../../core/errors';
 import { sendEmail } from '../../core/email';
 import { config } from '../../core/config';
+import { auditService } from './audit.service';
 import type { RegisterInput, LoginInput, AuthTokens, AuthUser } from '../../types/auth';
 import type { User } from '../../db/schema/users';
 
@@ -75,6 +76,7 @@ export class AuthService {
 
     const isValidPassword = await bcrypt.compare(input.password, user.passwordHash);
     if (!isValidPassword) {
+      auditService.log({ tenantId: user.tenantId, actorId: input.email, action: 'login_failed' });
       throw new UnauthorizedError('Invalid email or password');
     }
 
@@ -93,6 +95,8 @@ export class AuthService {
 
     const tokens = await this.generateTokens(user.id, user.tenantId, user.email, user.role ?? 'user');
     await this.storeRefreshToken(user.id, tokens.refreshToken);
+
+    auditService.log({ tenantId: user.tenantId, actorId: user.id, action: 'login' });
 
     return {
       requiresMfa: false,
@@ -120,8 +124,11 @@ export class AuthService {
     return tokens;
   }
 
-  async logout(userId: string): Promise<void> {
+  async logout(userId: string, tenantId?: string): Promise<void> {
     await redis.del(`${REFRESH_TOKEN_PREFIX}${userId}`);
+    if (tenantId) {
+      auditService.log({ tenantId, actorId: userId, action: 'logout' });
+    }
   }
 
   async forgotPassword(email: string): Promise<void> {
@@ -154,6 +161,12 @@ export class AuthService {
     const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await userRepository.updatePassword(record.userId, hash);
     await passwordResetRepository.markUsed(record.id);
+
+    // Audit the password change
+    const user = await userRepository.findById(record.userId);
+    if (user) {
+      auditService.log({ tenantId: user.tenantId, actorId: record.userId, action: 'password_change' });
+    }
 
     // Invalidate all refresh tokens for this user
     await redis.del(`${REFRESH_TOKEN_PREFIX}${record.userId}`);

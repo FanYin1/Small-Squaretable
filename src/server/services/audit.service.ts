@@ -51,6 +51,16 @@ export const auditService = {
   },
 
   /**
+   * Query audit logs across all tenants with optional filters and pagination (admin use).
+   */
+  async findAll(
+    filters?: AuditLogFilters,
+    pagination?: AuditPaginationParams,
+  ): Promise<PaginatedResponse<AuditLog>> {
+    return auditRepository.findAll(filters, pagination);
+  },
+
+  /**
    * Delete audit logs older than the given date for retention cleanup.
    */
   async deleteOlderThan(tenantId: string, date: Date): Promise<number> {

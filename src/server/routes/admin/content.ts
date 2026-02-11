@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { authMiddleware } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { moderationService } from '../../services/moderation.service';
+import { auditService } from '../../services/audit.service';
 import { reportRepository } from '../../../db/repositories/report.repository';
 import { NotFoundError } from '../../../core/errors';
 import { paginationSchema } from '../../../types/api';
@@ -68,6 +69,16 @@ adminContentRoutes.post(
     const { status, action } = c.req.valid('json');
 
     await moderationService.resolveReport(reportId, user.id, status, action);
+
+    // Audit content moderation
+    const actorIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+    auditService.log({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      actorIp,
+      action: 'content_moderate',
+      metadata: { reportId, status },
+    });
 
     return c.json<ApiResponse>({
       success: true,

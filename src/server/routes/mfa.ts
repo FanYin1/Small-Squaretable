@@ -9,6 +9,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth';
 import { totpService } from '../services/totp.service';
+import { auditService } from '../services/audit.service';
 import { userRepository } from '../../db/repositories/user.repository';
 import { backupCodeRepository } from '../../db/repositories/backup-code.repository';
 import { redis } from '../../core/redis';
@@ -77,6 +78,13 @@ mfaRoutes.post(
     // Enable TOTP
     await userRepository.update(user.id, { totpEnabled: true } as any);
 
+    // Audit MFA enable
+    auditService.log({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      action: 'mfa_enable',
+    });
+
     // Generate backup codes
     await backupCodeRepository.deleteByUserId(user.id);
     const { plainCodes, hashedCodes } = await totpService.generateBackupCodes();
@@ -117,6 +125,13 @@ mfaRoutes.post(
       totpSecret: null,
     } as any);
     await backupCodeRepository.deleteByUserId(user.id);
+
+    // Audit MFA disable
+    auditService.log({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      action: 'mfa_disable',
+    });
 
     return c.json<ApiResponse>({
       success: true,

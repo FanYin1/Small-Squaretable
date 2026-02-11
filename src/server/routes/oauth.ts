@@ -11,6 +11,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { oauthService } from '../services/oauth.service';
+import { auditService } from '../services/audit.service';
 import { redis } from '../../core/redis';
 import { config } from '../../core/config';
 import type { ApiResponse } from '../../types/api';
@@ -71,6 +72,16 @@ oauthRoutes.get('/:provider/callback', async (c) => {
   try {
     const profile = await oauthService.handleCallback(provider, code, codeVerifier);
     const result = await oauthService.authenticateWithOAuth(profile);
+
+    // Audit OAuth link
+    const actorIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+    auditService.log({
+      tenantId: result.user.tenantId,
+      actorId: result.user.id,
+      actorIp,
+      action: 'oauth_link',
+      metadata: { provider },
+    });
 
     // Generate a short-lived auth code and store the result in Redis
     const authCode = crypto.randomBytes(32).toString('hex');

@@ -13,6 +13,7 @@ import { userRepository } from '../../../db/repositories/user.repository';
 import { subscriptionRepository } from '../../../db/repositories/subscription.repository';
 import { oauthRepository } from '../../../db/repositories/oauth.repository';
 import { authService } from '../../services/auth.service';
+import { auditService } from '../../services/audit.service';
 import { NotFoundError, BadRequestError } from '../../../core/errors';
 import { paginationSchema } from '../../../types/api';
 import type { ApiResponse } from '../../../types/api';
@@ -154,6 +155,18 @@ adminUserRoutes.patch(
 
     const updated = await userRepository.update(userId, { role } as any);
 
+    // Audit role change
+    const actorIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+    auditService.log({
+      tenantId: currentUser.tenantId,
+      actorId: currentUser.id,
+      actorIp,
+      action: 'role_change',
+      targetType: 'user',
+      targetId: userId,
+      metadata: { oldRole: user.role, newRole: role },
+    });
+
     return c.json<ApiResponse>({
       success: true,
       data: { id: updated!.id, role: updated!.role },
@@ -181,6 +194,17 @@ adminUserRoutes.post('/:id/suspend', async (c) => {
 
   await userRepository.update(userId, { isActive: false } as any);
 
+  // Audit user suspend
+  const actorIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+  auditService.log({
+    tenantId: currentUser.tenantId,
+    actorId: currentUser.id,
+    actorIp,
+    action: 'user_suspend',
+    targetType: 'user',
+    targetId: userId,
+  });
+
   return c.json<ApiResponse>({
     success: true,
     data: { id: userId, isActive: false },
@@ -202,6 +226,18 @@ adminUserRoutes.post('/:id/unsuspend', async (c) => {
 
   await userRepository.update(userId, { isActive: true } as any);
 
+  // Audit user unsuspend
+  const currentUser = c.get('user');
+  const actorIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+  auditService.log({
+    tenantId: currentUser.tenantId,
+    actorId: currentUser.id,
+    actorIp,
+    action: 'user_unsuspend',
+    targetType: 'user',
+    targetId: userId,
+  });
+
   return c.json<ApiResponse>({
     success: true,
     data: { id: userId, isActive: true },
@@ -218,6 +254,18 @@ adminUserRoutes.post('/:id/force-password-reset', async (c) => {
   }
 
   await authService.forgotPassword(user.email);
+
+  // Audit force password reset
+  const currentUser = c.get('user');
+  const actorIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+  auditService.log({
+    tenantId: currentUser.tenantId,
+    actorId: currentUser.id,
+    actorIp,
+    action: 'password_reset',
+    targetType: 'user',
+    targetId: userId,
+  });
 
   return c.json<ApiResponse>({
     success: true,
