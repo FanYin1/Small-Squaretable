@@ -7,8 +7,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 3 Complete (Data Intelligence & Recommendation)
-**Last Updated**: 2026-02-10
+**Status**: Iteration 4 Complete (Platform Hardening)
+**Last Updated**: 2026-02-11
 
 ---
 
@@ -20,7 +20,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 | Backend | Hono.js + Node.js |
 | Database | PostgreSQL + Drizzle ORM |
 | Cache | Redis |
-| Auth | JWT (Access + Refresh Token) |
+| Auth | JWT (Access + Refresh Token) + OAuth2 (Google, GitHub) + TOTP 2FA |
+| Email | Nodemailer (SMTP/SES) |
 | Payment | Stripe |
 | Storage | Local filesystem + sharp (thumbnails) |
 | PWA | vite-plugin-pwa + Workbox |
@@ -216,6 +217,47 @@ npm run build            # Production build
 | GET | `/api/v1/analytics/characters/top` | Character rankings |
 | GET | `/api/v1/analytics/segments` | User segment distribution |
 
+### Auth (Extended - Iteration 4)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/forgot-password` | Request password reset |
+| POST | `/api/v1/auth/reset-password` | Reset password with token |
+| GET | `/api/v1/auth/verify-email` | Verify email with token |
+| POST | `/api/v1/auth/resend-verification` | Resend verification email |
+| GET | `/api/v1/auth/oauth/:provider` | OAuth redirect |
+| GET | `/api/v1/auth/oauth/:provider/callback` | OAuth callback |
+| POST | `/api/v1/auth/oauth/exchange` | Exchange OAuth code for JWT |
+| POST | `/api/v1/auth/mfa/setup` | Start 2FA setup |
+| POST | `/api/v1/auth/mfa/verify-setup` | Confirm 2FA setup |
+| POST | `/api/v1/auth/mfa/disable` | Disable 2FA |
+| POST | `/api/v1/auth/mfa/challenge` | MFA login challenge |
+| GET | `/api/v1/auth/mfa/backup-codes` | Regenerate backup codes |
+
+### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/admin/users` | List users (admin) |
+| GET | `/api/v1/admin/users/:id` | Get user details (admin) |
+| PATCH | `/api/v1/admin/users/:id/role` | Change user role (admin) |
+| POST | `/api/v1/admin/users/:id/suspend` | Suspend user (admin) |
+| POST | `/api/v1/admin/users/:id/unsuspend` | Unsuspend user (admin) |
+| GET | `/api/v1/admin/content/reports` | List reports (moderator) |
+| POST | `/api/v1/admin/content/reports/:id/resolve` | Resolve report (moderator) |
+| GET | `/api/v1/admin/system/stats` | System stats (admin) |
+| GET | `/api/v1/admin/audit-logs` | Audit logs (admin) |
+| GET | `/api/v1/admin/gdpr/requests` | GDPR requests (admin) |
+
+### GDPR / Account
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/account/export` | Export user data (ZIP) |
+| POST | `/api/v1/account/delete` | Request account deletion |
+| POST | `/api/v1/account/delete/cancel` | Cancel deletion |
+| GET | `/api/v1/account/delete/status` | Deletion status |
+| GET | `/api/v1/account/consents` | Get consent preferences |
+| PUT | `/api/v1/account/consents` | Update consents |
+| POST | `/api/v1/reports` | Submit a report |
+
 ---
 
 ## Key Files
@@ -283,6 +325,52 @@ npm run build            # Production build
 - `flink-jobs/src/main/java/.../jobs/ContentAnalyzerJob.java` - Character stats + trending
 - `flink-jobs/src/main/java/.../jobs/RecommendationTrackerJob.java` - A/B test tracking
 - `flink-jobs/src/main/java/.../functions/PiiFilter.java` - PII stripping MapFunction
+
+---
+
+## Iteration 4: Platform Hardening (2026-02-11) ✅
+
+### Email Service (M1) ✅
+- **Nodemailer**: SMTP/SES transport with pluggable config
+- **Templates**: email-verification, password-reset, welcome (inline HTML)
+- **Password Reset**: SHA-256 hashed tokens, 1-hour expiry, anti-enumeration (always 200)
+- **Email Verification**: On register, verify-email endpoint, resend with rate limiting
+- **Frontend**: ForgotPassword, ResetPassword, VerifyEmail pages
+
+### OAuth/SSO (M2) ✅
+- **Arctic Library**: Google (PKCE) + GitHub OAuth2 providers
+- **Account Linking**: Auto-link by email match, or create new user
+- **Security**: State parameter (CSRF), PKCE code verifier, Redis-backed auth codes (30s TTL)
+- **Frontend**: OAuth buttons on Login/Register, OAuthCallback page
+
+### Two-Factor Authentication (M3) ✅
+- **TOTP**: otpauth library, QR code setup, ±1 window drift tolerance
+- **Backup Codes**: 10 codes, bcrypt hashed, single-use
+- **Encryption**: AES-256-GCM for TOTP secrets (key derived from JWT secret)
+- **Login Flow**: MFA challenge with 5-minute mfaToken in Redis
+- **Frontend**: SecuritySettings page (setup wizard), MfaChallenge dialog
+
+### Admin Panel + RBAC (M4) ✅
+- **Roles**: user / moderator / admin with hierarchy
+- **Middleware**: `requireRole()` with hierarchical access control
+- **Reports**: User-submitted reports (character/comment/user targets)
+- **Moderation**: Moderation actions log, resolve/dismiss reports
+- **Admin API**: User management (list/search/role/suspend), content moderation, system stats
+- **Frontend**: AdminLayout with sidebar, UserManagement, ContentModeration, SystemDashboard
+
+### Audit Logging (M5) ✅
+- **Schema**: `audit_logs` table with 4 indexes (tenant, actor, action, createdAt)
+- **Service**: Fire-and-forget async writes, IP SHA-256 hashing
+- **Integration**: Auth (login/logout/password), OAuth, MFA, admin actions, reports
+- **Admin Viewer**: Paginated + filterable audit log endpoint
+
+### GDPR/CCPA Compliance (M6) ✅
+- **Data Export**: ZIP archive with 10 data categories, sensitive field exclusion
+- **Account Deletion**: 30-day grace period, cancellable, hard-delete with audit anonymization
+- **Consent Management**: analytics/marketing/cookies toggles, upsert with unique constraint
+- **Admin Oversight**: GDPR request list, force-process deletion
+- **Frontend**: AccountSettings page (export, deletion, privacy preferences)
+- **E2E Tests**: 8 Playwright smoke tests
 
 ---
 
@@ -449,6 +537,21 @@ CLICKHOUSE_DATABASE=analytics
 
 # Sentry (optional)
 SENTRY_DSN=https://xxx@sentry.io/xxx
+
+# Email (SMTP)
+SMTP_HOST=localhost
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=Small Squaretable <noreply@localhost>
+APP_URL=http://localhost:5173
+
+# OAuth
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+OAUTH_CALLBACK_BASE=http://localhost:3000/api/v1/auth/oauth
 ```
 
 ---
