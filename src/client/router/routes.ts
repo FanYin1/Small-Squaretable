@@ -6,6 +6,9 @@ const loadHome = () => import(/* webpackPrefetch: true */ '../pages/Home.vue');
 const loadDashboard = () => import(/* webpackPrefetch: true */ '../pages/Dashboard.vue');
 const loadLogin = () => import(/* webpackPrefetch: true */ '../pages/auth/Login.vue');
 const loadRegister = () => import(/* webpackPrefetch: true */ '../pages/auth/Register.vue');
+const loadForgotPassword = () => import('../pages/auth/ForgotPassword.vue');
+const loadResetPassword = () => import('../pages/auth/ResetPassword.vue');
+const loadVerifyEmail = () => import('../pages/auth/VerifyEmail.vue');
 const loadChat = () => import(/* webpackChunkName: "chat" */ '../pages/Chat.vue');
 const loadMarket = () => import(/* webpackPrefetch: true */ '../pages/Market.vue');
 const loadMyCharacters = () => import(/* webpackChunkName: "characters" */ '../pages/MyCharacters.vue');
@@ -66,6 +69,33 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/register',
     redirect: '/auth/register',
+  },
+  {
+    path: '/auth/forgot-password',
+    name: 'ForgotPassword',
+    component: loadForgotPassword,
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+    },
+  },
+  {
+    path: '/auth/reset-password',
+    name: 'ResetPassword',
+    component: loadResetPassword,
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+    },
+  },
+  {
+    path: '/auth/verify-email',
+    name: 'VerifyEmail',
+    component: loadVerifyEmail,
+    meta: {
+      requiresAuth: false,
+      guestOnly: true,
+    },
   },
   {
     path: '/chat',

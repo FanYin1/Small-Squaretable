@@ -128,11 +128,14 @@ const goToRegister = () => {
               <el-checkbox v-model="loginForm.rememberMe">
                 {{ t('auth.rememberMe') }}
               </el-checkbox>
-              <el-tooltip :content="t('auth.forgotPasswordComingSoon')" placement="top">
-                <el-link type="primary" :underline="false" class="forgot-link">
-                  {{ t('auth.forgotPassword') }}
-                </el-link>
-              </el-tooltip>
+              <el-link
+                type="primary"
+                :underline="false"
+                class="forgot-link"
+                @click="router.push({ name: 'ForgotPassword' })"
+              >
+                {{ t('auth.forgotPassword') }}
+              </el-link>
             </div>
           </el-form-item>
 
@@ -324,7 +327,7 @@ const goToRegister = () => {
 }
 
 .forgot-link {
-  cursor: help;
+  cursor: pointer;
 }
 
 /* Responsive Design */

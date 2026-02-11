@@ -120,4 +120,28 @@ export const authApi = {
     const response = await api.get<{ user: BackendUser }>('/auth/me');
     return { user: transformUser(response.user) };
   },
+
+  /**
+   * 忘记密码 - 发送重置邮件
+   */
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
+
+  /**
+   * 重置密码
+   */
+  resetPassword: (token: string, password: string) =>
+    api.post('/auth/reset-password', { token, password }),
+
+  /**
+   * 验证邮箱
+   */
+  verifyEmail: (token: string) =>
+    api.get(`/auth/verify-email?token=${token}`),
+
+  /**
+   * 重新发送验证邮件
+   */
+  resendVerification: () =>
+    api.post('/auth/resend-verification'),
 };
