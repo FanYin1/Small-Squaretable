@@ -1,14 +1,66 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Refresh, User, UserFilled, Files, Warning } from '@element-plus/icons-vue';
+import { Refresh, User, UserFilled, Files, Warning, Timer } from '@element-plus/icons-vue';
 import { useAdminStore } from '@client/stores/admin';
+import { api } from '@client/services/api';
+
+interface JobStatus {
+  name: string;
+  intervalMs: number;
+  lastRunAt: string | null;
+  lastStatus: 'success' | 'error' | 'pending';
+  lastError: string | null;
+  runCount: number;
+}
 
 const { t } = useI18n();
 const adminStore = useAdminStore();
 
+const jobs = ref<JobStatus[]>([]);
+const loadingJobs = ref(false);
+const runningJob = ref<string | null>(null);
+
+function formatInterval(ms: number): string {
+  if (ms >= 86400000) return `${Math.round(ms / 86400000)}d`;
+  if (ms >= 3600000) return `${Math.round(ms / 3600000)}h`;
+  if (ms >= 60000) return `${Math.round(ms / 60000)}m`;
+  return `${Math.round(ms / 1000)}s`;
+}
+
+function statusTagType(status: string): '' | 'success' | 'danger' | 'info' {
+  if (status === 'success') return 'success';
+  if (status === 'error') return 'danger';
+  return 'info';
+}
+
+async function fetchJobs() {
+  loadingJobs.value = true;
+  try {
+    const res = await api.get<{ data: JobStatus[] }>('/api/v1/admin/jobs');
+    jobs.value = (res as any).data ?? [];
+  } catch {
+    jobs.value = [];
+  } finally {
+    loadingJobs.value = false;
+  }
+}
+
+async function runJob(name: string) {
+  runningJob.value = name;
+  try {
+    await api.post(`/api/v1/admin/jobs/${encodeURIComponent(name)}/run`);
+    await fetchJobs();
+  } catch {
+    // silent
+  } finally {
+    runningJob.value = null;
+  }
+}
+
 function refresh() {
   adminStore.fetchSystemStats();
+  fetchJobs();
 }
 
 onMounted(() => refresh());
@@ -115,6 +167,49 @@ onMounted(() => refresh());
         </div>
       </el-card>
     </div>
+
+    <!-- Scheduled Jobs Section -->
+    <el-card shadow="hover" class="jobs-card" v-loading="loadingJobs">
+      <template #header>
+        <div class="jobs-header">
+          <span class="detail-card-title">
+            <el-icon :size="18" style="vertical-align: middle; margin-right: 6px;"><Timer /></el-icon>
+            {{ t('admin.system.scheduledJobs') }}
+          </span>
+        </div>
+      </template>
+      <el-table :data="jobs" stripe style="width: 100%">
+        <el-table-column prop="name" :label="t('admin.system.jobName')" min-width="180" />
+        <el-table-column :label="t('admin.system.jobInterval')" width="100">
+          <template #default="{ row }">{{ formatInterval(row.intervalMs) }}</template>
+        </el-table-column>
+        <el-table-column :label="t('admin.system.jobLastRun')" width="180">
+          <template #default="{ row }">
+            {{ row.lastRunAt ? new Date(row.lastRunAt).toLocaleString() : t('admin.system.jobNeverRun') }}
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('admin.system.jobStatus')" width="100">
+          <template #default="{ row }">
+            <el-tag :type="statusTagType(row.lastStatus)" size="small">
+              {{ t(`admin.system.job${row.lastStatus.charAt(0).toUpperCase() + row.lastStatus.slice(1)}`) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="runCount" :label="t('admin.system.jobRunCount')" width="100" />
+        <el-table-column :label="t('admin.system.jobRunNow')" width="120" align="center">
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              type="primary"
+              :loading="runningJob === row.name"
+              @click="runJob(row.name)"
+            >
+              {{ t('admin.system.jobRunNow') }}
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
   </div>
 </template>
 
@@ -198,6 +293,16 @@ onMounted(() => refresh());
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 16px;
+}
+
+.jobs-card {
+  margin-top: 24px;
+}
+
+.jobs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .detail-card-title {

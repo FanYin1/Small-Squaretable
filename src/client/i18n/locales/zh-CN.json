@@ -1019,7 +1019,20 @@
       "pendingReports": "待处理举报",
       "subscriptionBreakdown": "订阅分布",
       "recentSignups": "近期注册",
-      "last7days": "最近7天"
+      "last7days": "最近7天",
+      "scheduledJobs": "定时任务",
+      "jobName": "任务名称",
+      "jobInterval": "执行间隔",
+      "jobLastRun": "上次执行",
+      "jobStatus": "状态",
+      "jobRunCount": "执行次数",
+      "jobRunNow": "立即执行",
+      "jobRunSuccess": "任务已触发",
+      "jobRunFailed": "触发任务失败",
+      "jobNeverRun": "从未执行",
+      "jobSuccess": "成功",
+      "jobError": "错误",
+      "jobPending": "待执行"
     },
     "auditLogs": {
       "title": "审计日志",
