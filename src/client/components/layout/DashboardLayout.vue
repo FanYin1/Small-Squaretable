@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Fold } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
+import { Fold, Moon, Sunny } from '@element-plus/icons-vue';
 import LeftSidebar from './LeftSidebar.vue';
 import UserMenu from './UserMenu.vue';
 import BottomTabBar from './BottomTabBar.vue';
 import DeviceIndicator from './DeviceIndicator.vue';
 import ConnectionIndicator from './ConnectionIndicator.vue';
 import NotificationBell from './NotificationBell.vue';
+import { useTheme } from '@client/composables';
+
+const { locale, t } = useI18n();
+const { isDark, toggleTheme } = useTheme();
 
 const mobileSidebarVisible = ref(false);
 
@@ -16,6 +21,11 @@ const toggleMobileSidebar = () => {
 
 const closeMobileSidebar = () => {
   mobileSidebarVisible.value = false;
+};
+
+const switchLanguage = (lang: string) => {
+  locale.value = lang;
+  localStorage.setItem('locale', lang);
 };
 </script>
 
@@ -48,6 +58,33 @@ const closeMobileSidebar = () => {
         </div>
 
         <div class="top-bar-user">
+          <button
+            class="theme-toggle-btn"
+            :aria-label="t('settings.theme')"
+            @click="toggleTheme"
+          >
+            <el-icon :size="18">
+              <Moon v-if="!isDark" />
+              <Sunny v-else />
+            </el-icon>
+          </button>
+
+          <el-dropdown trigger="click" @command="switchLanguage">
+            <button class="lang-switch-btn" :aria-label="t('settings.language')">
+              <span class="lang-label">{{ locale === 'zh-CN' ? '中' : 'EN' }}</span>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="en-US" :class="{ 'is-active': locale === 'en-US' }">
+                  {{ t('settings.languageEn') }}
+                </el-dropdown-item>
+                <el-dropdown-item command="zh-CN" :class="{ 'is-active': locale === 'zh-CN' }">
+                  {{ t('settings.languageZh') }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
           <ConnectionIndicator />
           <DeviceIndicator />
           <NotificationBell />
@@ -196,5 +233,34 @@ const closeMobileSidebar = () => {
   .mobile-menu-btn {
     display: flex;
   }
+}
+
+.theme-toggle-btn,
+.lang-switch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover,
+.lang-switch-btn:hover {
+  background: var(--bg-base);
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+}
+
+.lang-label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
 }
 </style>

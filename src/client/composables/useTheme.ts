@@ -1,30 +1,25 @@
-import { computed } from 'vue';
-import { useUiStore } from '@client/stores';
+import { ref, watchEffect, computed } from 'vue';
+
+const STORAGE_KEY = 'theme-preference';
+
+const theme = ref<'light' | 'dark'>(
+  (localStorage.getItem(STORAGE_KEY) as 'light' | 'dark') || 'light'
+);
 
 export function useTheme() {
-  const uiStore = useUiStore();
+  const isDark = computed(() => theme.value === 'dark');
 
-  const theme = computed(() => uiStore.theme);
-  const isDark = computed(() => uiStore.theme === 'dark');
+  watchEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme.value);
+    localStorage.setItem(STORAGE_KEY, theme.value);
+  });
 
   function setTheme(newTheme: 'light' | 'dark') {
-    uiStore.setTheme(newTheme);
+    theme.value = newTheme;
   }
 
   function toggleTheme() {
-    uiStore.toggleTheme();
-  }
-
-  // 初始化主题
-  function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      setTheme(savedTheme);
-    } else {
-      // 检测系统主题
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setTheme(prefersDark ? 'dark' : 'light');
-    }
+    theme.value = theme.value === 'light' ? 'dark' : 'light';
   }
 
   return {
@@ -32,6 +27,5 @@ export function useTheme() {
     isDark,
     setTheme,
     toggleTheme,
-    initTheme,
   };
 }

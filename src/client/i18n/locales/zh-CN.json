@@ -56,6 +56,14 @@
     "system": "跟随系统",
     "toggle": "切换主题"
   },
+  "settings": {
+    "theme": "主题",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "language": "语言",
+    "languageEn": "English",
+    "languageZh": "中文"
+  },
   "chat": {
     "title": "会话",
     "newChat": "新建会话",

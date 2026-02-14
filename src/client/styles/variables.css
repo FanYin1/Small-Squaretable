@@ -97,7 +97,8 @@
 }
 
 /* ========== 暗色主题 ========== */
-.dark {
+.dark,
+[data-theme="dark"] {
   /* 背景色 */
   --bg-color: #1d1e1f;
   --bg-color-page: #141414;

@@ -56,6 +56,14 @@
     "system": "System",
     "toggle": "Toggle theme"
   },
+  "settings": {
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "language": "Language",
+    "languageEn": "English",
+    "languageZh": "中文"
+  },
   "chat": {
     "title": "Chats",
     "newChat": "New Chat",
