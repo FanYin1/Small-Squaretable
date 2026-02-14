@@ -154,7 +154,8 @@
       "historical": "历史",
       "modern": "现代",
       "relevance": "相关度"
-    }
+    },
+    "trending": "热门角色"
   },
   "dashboard": {
     "welcome": "欢迎回来，{name}",
@@ -179,7 +180,9 @@
     "thu": "周四",
     "fri": "周五",
     "sat": "周六",
-    "sun": "周日"
+    "sun": "周日",
+    "forYou": "为你推荐",
+    "trending": "热门推荐"
   },
   "auth": {
     "login": "登录",
@@ -953,6 +956,9 @@
     "cookiesDesc": "允许非必要 Cookie 用于个性化体验",
     "consentsSaved": "隐私偏好已更新",
     "consentsFailed": "更新偏好失败"
+  },
+  "recommendations": {
+    "seeAll": "查看全部"
   },
   "admin": {
     "title": "管理面板",

@@ -6,7 +6,11 @@ import { ChatDotRound, Star, TrendCharts, Clock, User, MessageBox, Promotion } f
 import { useUserStore } from '@client/stores';
 import { useToast, useDateTime } from '@client/composables';
 import { api } from '@client/services/api';
+import { recommendationApi } from '@client/services/recommendation.api';
+import { characterApi } from '@client/services/character.api';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
+import RecommendationCarousel from '@client/components/recommendation/RecommendationCarousel.vue';
+import type { Character } from '@client/types';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -22,6 +26,10 @@ const dashboardData = ref({
 });
 
 const loading = ref(false);
+
+// Recommendation state
+const recLoading = ref(false);
+const recCharacters = ref<Character[]>([]);
 
 const activityData = ref([
   { day: 'Mon', count: 12 },
@@ -82,6 +90,7 @@ const areaPath = computed(() => {
 
 onMounted(async () => {
   await fetchDashboardData();
+  fetchRecommendations();
 });
 
 async function fetchDashboardData() {
@@ -103,6 +112,37 @@ async function fetchDashboardData() {
   } finally {
     loading.value = false;
   }
+}
+
+async function fetchRecommendations() {
+  recLoading.value = true;
+  try {
+    const recs = await recommendationApi.getPersonalized(10);
+    const items = Array.isArray(recs) ? recs : [];
+    if (items.length === 0) {
+      recLoading.value = false;
+      return;
+    }
+    const characters = await Promise.all(
+      items.map(async (rec) => {
+        try {
+          return await characterApi.getCharacter(rec.characterId);
+        } catch {
+          return null;
+        }
+      })
+    );
+    recCharacters.value = characters.filter((c): c is Character => c !== null);
+  } catch {
+    // Recommendations are non-critical, fail silently
+  } finally {
+    recLoading.value = false;
+  }
+}
+
+function handleRecClick(characterId: string) {
+  recommendationApi.sendFeedback({ characterId, action: 'click' }).catch(() => {});
+  router.push({ name: 'CharacterDetail', params: { id: characterId } });
 }
 
 const handleStartChat = () => {
@@ -150,6 +190,14 @@ const handleViewSubscription = () => {
         <h2 class="welcome-title">{{ $t('dashboard.welcome', { name: userStore.user?.name }) }}</h2>
         <p class="welcome-subtitle">{{ $t('dashboard.continueChat') }}</p>
       </div>
+
+      <RecommendationCarousel
+        v-if="recLoading || recCharacters.length > 0"
+        :title="$t('dashboard.forYou')"
+        :characters="recCharacters"
+        :loading="recLoading"
+        @click="handleRecClick"
+      />
 
       <div class="quick-actions" role="navigation" aria-label="Quick actions">
         <div class="quick-action-card" role="button" tabindex="0" @click="handleChatClick(dashboardData.recentChats[0]?.id)" @keydown.enter="handleChatClick(dashboardData.recentChats[0]?.id)" v-if="dashboardData.recentChats.length > 0">

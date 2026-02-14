@@ -20,3 +20,4 @@ export * from './developer.api';
 export * from './plugin.api';
 export * from './admin.api';
 export * from './gdpr.api';
+export * from './recommendation.api';

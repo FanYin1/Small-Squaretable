@@ -154,7 +154,8 @@
       "historical": "Historical",
       "modern": "Modern",
       "relevance": "Relevance"
-    }
+    },
+    "trending": "Trending Now"
   },
   "dashboard": {
     "welcome": "Welcome back, {name}",
@@ -179,7 +180,9 @@
     "thu": "Thu",
     "fri": "Fri",
     "sat": "Sat",
-    "sun": "Sun"
+    "sun": "Sun",
+    "forYou": "For You",
+    "trending": "Trending"
   },
   "auth": {
     "login": "Login",
@@ -953,6 +956,9 @@
     "cookiesDesc": "Allow non-essential cookies for personalization",
     "consentsSaved": "Privacy preferences updated",
     "consentsFailed": "Failed to update preferences"
+  },
+  "recommendations": {
+    "seeAll": "See All"
   },
   "admin": {
     "title": "Admin Panel",

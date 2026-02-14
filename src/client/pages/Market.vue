@@ -1,17 +1,25 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from '@client/composables/useToast';
 import { useCharacterSearch } from '@client/composables/useCharacterSearch';
+import { recommendationApi } from '@client/services/recommendation.api';
+import { characterApi } from '@client/services/character.api';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import SearchCombo from '@client/components/market/SearchCombo.vue';
 import FilterToolbar from '@client/components/market/FilterToolbar.vue';
 import EmptyState from '@client/components/market/EmptyState.vue';
 import CharacterCard from '@client/components/character/CharacterCard.vue';
 import SkeletonCard from '@client/components/ui/SkeletonCard.vue';
+import RecommendationCarousel from '@client/components/recommendation/RecommendationCarousel.vue';
+import type { Character } from '@client/types';
 
 const toast = useToast();
 const router = useRouter();
+
+// Trending state
+const trendingLoading = ref(false);
+const trendingCharacters = ref<Character[]>([]);
 
 const {
   searchQuery,
@@ -31,7 +39,39 @@ const {
 
 onMounted(async () => {
   await loadCharacters();
+  fetchTrending();
 });
+
+async function fetchTrending() {
+  trendingLoading.value = true;
+  try {
+    const recs = await recommendationApi.getTrending(10);
+    const items = Array.isArray(recs) ? recs : [];
+    if (items.length === 0) {
+      trendingLoading.value = false;
+      return;
+    }
+    const characters = await Promise.all(
+      items.map(async (rec) => {
+        try {
+          return await characterApi.getCharacter(rec.characterId);
+        } catch {
+          return null;
+        }
+      })
+    );
+    trendingCharacters.value = characters.filter((c): c is Character => c !== null);
+  } catch {
+    // Trending is non-critical, fail silently
+  } finally {
+    trendingLoading.value = false;
+  }
+}
+
+function handleTrendingClick(characterId: string) {
+  recommendationApi.sendFeedback({ characterId, action: 'click' }).catch(() => {});
+  router.push({ name: 'CharacterDetail', params: { id: characterId } });
+}
 
 async function loadCharacters() {
   try {
@@ -85,6 +125,14 @@ function handleCardClick(characterId: string) {
     </template>
 
     <div class="market-content">
+      <RecommendationCarousel
+        v-if="!searchQuery && (trendingLoading || trendingCharacters.length > 0)"
+        :title="$t('market.trending')"
+        :characters="trendingCharacters"
+        :loading="trendingLoading"
+        @click="handleTrendingClick"
+      />
+
       <FilterToolbar
         v-model:selected-category="selectedCategory"
         v-model:selected-tags="selectedTags"
