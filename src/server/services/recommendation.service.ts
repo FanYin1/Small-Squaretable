@@ -8,6 +8,7 @@
 import { featureStoreService } from './feature-store.service';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { getRedisClient } from '../../core/redis';
+import { experimentService } from './experiment.service';
 
 export interface RecommendationItem {
   characterId: string;
@@ -51,9 +52,23 @@ export class RecommendationService {
     limit = 20,
     weights: PersonalizationWeights = DEFAULT_WEIGHTS,
   ): Promise<RecommendationItem[]> {
-    // Check cache first
+    // Check for A/B experiment override on weights
+    let effectiveWeights = weights;
+    let variantSuffix = '';
+
+    const expConfig = await experimentService.getVariantConfig(userId, 'recommendation-weights');
+    if (expConfig) {
+      const expTrending = Number(expConfig.trending);
+      const expCollaborative = Number(expConfig.collaborative);
+      if (!isNaN(expTrending) && !isNaN(expCollaborative)) {
+        effectiveWeights = { trending: expTrending, collaborative: expCollaborative };
+        variantSuffix = `:${expConfig.variant}`;
+      }
+    }
+
+    // Check cache first (include variant in key to avoid cross-variant collisions)
     const redis = await getRedisClient();
-    const cacheKey = `${CACHE_PREFIX}${userId}`;
+    const cacheKey = `${CACHE_PREFIX}${userId}${variantSuffix}`;
     const cached = await redis.get(cacheKey);
     if (cached) {
       return JSON.parse(cached) as RecommendationItem[];
@@ -75,7 +90,7 @@ export class RecommendationService {
     for (const item of trending) {
       if (recentSet.has(item.characterId)) continue;
       scoreMap.set(item.characterId, {
-        score: item.score * weights.trending,
+        score: item.score * effectiveWeights.trending,
         source: 'trending',
       });
     }
@@ -87,7 +102,7 @@ export class RecommendationService {
       for (const char of tagMatches) {
         if (recentSet.has(char.id)) continue;
         const existing = scoreMap.get(char.id);
-        const collabScore = this.computeTagOverlap(char.tags ?? [], tags, interests) * weights.collaborative;
+        const collabScore = this.computeTagOverlap(char.tags ?? [], tags, interests) * effectiveWeights.collaborative;
         if (existing) {
           // Blend: keep higher source, sum scores
           scoreMap.set(char.id, {
