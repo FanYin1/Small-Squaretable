@@ -42,6 +42,12 @@ vi.mock('../../db/repositories/character.repository', () => ({
   },
 }));
 
+vi.mock('./experiment.service', () => ({
+  experimentService: {
+    getVariantConfig: vi.fn().mockResolvedValue(null),
+  },
+}));
+
 import { RecommendationService } from './recommendation.service';
 
 describe('RecommendationService', () => {
