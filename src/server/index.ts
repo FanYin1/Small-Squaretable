@@ -36,6 +36,7 @@ import { mfaRoutes } from './routes/mfa';
 import { reportRoutes } from './routes/reports';
 import { adminRoutes } from './routes/admin';
 import { gdprRoutes } from './routes/gdpr';
+import { recommendationRoutes } from './routes/recommendations';
 import { pluginBridge } from './services/plugin-bridge';
 import { kafkaBridge } from './services/kafka-bridge.service';
 import { WebhookWorker } from './workers/webhook.worker';
@@ -97,6 +98,8 @@ const publicPaths = [
   '/api/v1/characters/:id',  // 公开访问角色详情
   '/api/v1/plugins/marketplace',
   '/api/v1/plugins/marketplace/:id',
+  '/api/v1/recommendations/trending',
+  '/api/v1/recommendations/similar',
 ];
 
 app.use('/api/v1/users/*', tenantMiddleware({ publicPaths }));
@@ -116,6 +119,7 @@ app.use('/api/v1/analytics/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/reports/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/admin/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/account/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/recommendations/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -163,6 +167,7 @@ app.use('/api/v1/analytics', csrfProtection());
 app.use('/api/v1/reports', csrfProtection());
 app.use('/api/v1/admin', csrfProtection());
 app.use('/api/v1/account', csrfProtection());
+app.use('/api/v1/recommendations', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
@@ -181,6 +186,7 @@ app.route('/api/v1/analytics', analyticsRoutes);
 app.route('/api/v1/reports', reportRoutes);
 app.route('/api/v1/admin', adminRoutes);
 app.route('/api/v1/account', gdprRoutes);
+app.route('/api/v1/recommendations', recommendationRoutes);
 app.route('/api/v1', intelligenceRoutes);
 
 app.get('/api/v1', (c) => {
@@ -208,6 +214,7 @@ app.get('/api/v1', (c) => {
       reports: '/api/v1/reports',
       admin: '/api/v1/admin',
       account: '/api/v1/account',
+      recommendations: '/api/v1/recommendations',
       docs: '/api/v1/docs',
       ws: '/ws',
     },
