@@ -14,6 +14,7 @@ import { embeddingService } from '../services/embedding.service';
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:3001';
 import { characterRepository } from '../../db/repositories/character.repository';
+import { messageRepository } from '../../db/repositories/message.repository';
 import { memoryQuerySchema, extractMemoriesSchema, updateEmotionSchema } from '../../types/intelligence';
 import type { ApiResponse } from '../../types/api';
 
@@ -101,11 +102,28 @@ intelligenceRoutes.post(
     const characterId = c.req.param('characterId');
     const { chatId } = c.req.valid('json');
 
-    // This would need to fetch messages from the chat and extract memories
-    // For now, return a placeholder response
+    // Fetch recent messages from the chat
+    const chatMessages = await messageRepository.findByChatId(chatId, { limit: 50 });
+
+    if (chatMessages.length === 0) {
+      return c.json<ApiResponse>({
+        success: true,
+        data: { extracted: 0, memories: [] },
+        meta: { timestamp: new Date().toISOString() },
+      });
+    }
+
+    // Extract memories via LLM
+    const facts = await memoryService.extractMemories(characterId, user.id, chatMessages);
+
+    // Store each extracted memory
+    for (const fact of facts) {
+      await memoryService.storeMemory(characterId, user.id, fact, chatId);
+    }
+
     return c.json<ApiResponse>({
       success: true,
-      data: { message: 'Memory extraction initiated', characterId, chatId, userId: user.id },
+      data: { extracted: facts.length, memories: facts },
       meta: { timestamp: new Date().toISOString() },
     });
   }
