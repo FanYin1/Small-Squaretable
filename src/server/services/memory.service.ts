@@ -79,9 +79,8 @@ export class MemoryService {
     const limit = MEMORY_LIMITS[subscriptionTier] ?? MEMORY_LIMITS.free;
 
     if (currentCount >= limit) {
-      // TODO: Implement LRU eviction
-      console.warn(`Memory limit reached for character ${characterId}, user ${userId}`);
-      return;
+      // LRU eviction: delete the oldest memory to make room
+      await memoryRepository.deleteOldest(characterId, userId, 1);
     }
 
     // Create memory record

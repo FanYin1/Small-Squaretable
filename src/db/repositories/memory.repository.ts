@@ -4,7 +4,7 @@
  * Data access layer for character memories and vectors
  */
 
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, asc, desc, inArray, sql } from 'drizzle-orm';
 import { db } from '../index';
 import { characterMemories, characterMemoryVectors } from '../schema/memories';
 import type { CharacterMemory, NewCharacterMemory, NewCharacterMemoryVector } from '../schema/memories';
@@ -138,6 +138,28 @@ class MemoryRepository {
       .from(characterMemories)
       .where(and(...conditions));
     return Number(result[0]?.count ?? 0);
+  }
+
+  async deleteOldest(characterId: string, userId: string, count: number): Promise<number> {
+    // Select the oldest memories by lastAccessed (ascending)
+    const oldest = await db
+      .select({ id: characterMemories.id })
+      .from(characterMemories)
+      .where(
+        and(
+          eq(characterMemories.characterId, characterId),
+          eq(characterMemories.userId, userId),
+        )
+      )
+      .orderBy(asc(characterMemories.lastAccessed))
+      .limit(count);
+
+    if (oldest.length === 0) return 0;
+
+    const ids = oldest.map((m) => m.id);
+    await db.delete(characterMemories).where(inArray(characterMemories.id, ids));
+
+    return ids.length;
   }
 }
 

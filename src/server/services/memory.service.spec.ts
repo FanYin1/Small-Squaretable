@@ -12,6 +12,7 @@ vi.mock('../../db/repositories/memory.repository', () => ({
     delete: vi.fn(),
     deleteAllForCharacterUser: vi.fn(),
     countByCharacterUser: vi.fn(),
+    deleteOldest: vi.fn(),
   },
 }));
 
@@ -115,8 +116,13 @@ describe('MemoryService', () => {
       expect(embeddingService.embed).toHaveBeenCalledWith('User is a programmer');
     });
 
-    it('should not store memory when limit is reached', async () => {
+    it('should evict oldest memory when limit is reached', async () => {
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(100);
+      vi.mocked(memoryRepository.deleteOldest).mockResolvedValue(1);
+      vi.mocked(memoryRepository.create).mockResolvedValue({
+        id: 'mem-new',
+        content: 'User is a programmer',
+      } as any);
 
       await service.storeMemory('char-1', 'user-1', {
         type: 'fact',
@@ -124,31 +130,42 @@ describe('MemoryService', () => {
         importance: 0.8,
       });
 
-      expect(memoryRepository.create).not.toHaveBeenCalled();
-      expect(memoryRepository.createVector).not.toHaveBeenCalled();
+      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1);
+      expect(memoryRepository.create).toHaveBeenCalled();
+      expect(memoryRepository.createVector).toHaveBeenCalled();
     });
 
     it('should respect subscription tier limits', async () => {
+      vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(150);
+      vi.mocked(memoryRepository.deleteOldest).mockResolvedValue(1);
+      vi.mocked(memoryRepository.create).mockResolvedValue({
+        id: 'mem-1',
+        content: 'Test',
+      } as any);
+
+      // Free tier (100 limit) - should evict then store
+      await service.storeMemory('char-1', 'user-1', {
+        type: 'fact',
+        content: 'Test',
+        importance: 0.5,
+      }, undefined, 'free');
+      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1);
+      expect(memoryRepository.create).toHaveBeenCalled();
+
+      vi.clearAllMocks();
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(150);
       vi.mocked(memoryRepository.create).mockResolvedValue({
         id: 'mem-1',
         content: 'Test',
       } as any);
 
-      // Free tier (100 limit) - should not store
-      await service.storeMemory('char-1', 'user-1', {
-        type: 'fact',
-        content: 'Test',
-        importance: 0.5,
-      }, undefined, 'free');
-      expect(memoryRepository.create).not.toHaveBeenCalled();
-
-      // Pro tier (500 limit) - should store
+      // Pro tier (500 limit) - under limit, should store without eviction
       await service.storeMemory('char-1', 'user-1', {
         type: 'fact',
         content: 'Test',
         importance: 0.5,
       }, undefined, 'pro');
+      expect(memoryRepository.deleteOldest).not.toHaveBeenCalled();
       expect(memoryRepository.create).toHaveBeenCalled();
     });
 
@@ -202,6 +219,70 @@ describe('MemoryService', () => {
           sourceChatId: 'chat-123',
         })
       );
+    });
+
+    it('should NOT evict when under limit', async () => {
+      vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(50);
+      vi.mocked(memoryRepository.create).mockResolvedValue({
+        id: 'mem-1',
+        content: 'Test',
+      } as any);
+
+      await service.storeMemory('char-1', 'user-1', {
+        type: 'fact',
+        content: 'Test',
+        importance: 0.5,
+      });
+
+      expect(memoryRepository.deleteOldest).not.toHaveBeenCalled();
+      expect(memoryRepository.create).toHaveBeenCalled();
+    });
+
+    it('should use correct tier limit for pro (500)', async () => {
+      vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(500);
+      vi.mocked(memoryRepository.deleteOldest).mockResolvedValue(1);
+      vi.mocked(memoryRepository.create).mockResolvedValue({
+        id: 'mem-1',
+        content: 'Test',
+      } as any);
+
+      await service.storeMemory('char-1', 'user-1', {
+        type: 'fact',
+        content: 'Test',
+        importance: 0.5,
+      }, undefined, 'pro');
+
+      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1);
+      expect(memoryRepository.create).toHaveBeenCalled();
+    });
+
+    it('should still create memory after eviction', async () => {
+      vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(100);
+      vi.mocked(memoryRepository.deleteOldest).mockResolvedValue(1);
+      vi.mocked(memoryRepository.create).mockResolvedValue({
+        id: 'mem-new',
+        content: 'New memory after eviction',
+      } as any);
+
+      await service.storeMemory('char-1', 'user-1', {
+        type: 'preference',
+        content: 'New memory after eviction',
+        importance: 0.9,
+      });
+
+      // Verify eviction happened first, then creation
+      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1);
+      expect(memoryRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          characterId: 'char-1',
+          userId: 'user-1',
+          type: 'preference',
+          content: 'New memory after eviction',
+          importance: '0.9',
+        })
+      );
+      expect(memoryRepository.createVector).toHaveBeenCalled();
+      expect(embeddingService.embed).toHaveBeenCalledWith('New memory after eviction');
     });
   });
 
@@ -294,7 +375,7 @@ describe('MemoryService', () => {
   describe('clearAllMemories', () => {
     it('should delete all memories for character and user', async () => {
       await service.clearAllMemories('char-1', 'user-1');
-      expect(memoryRepository.deleteAllForCharacterUser).toHaveBeenCalledWith('char-1', 'user-1');
+      expect(memoryRepository.deleteAllForCharacterUser).toHaveBeenCalledWith('char-1', 'user-1', undefined);
     });
   });
 
@@ -305,7 +386,7 @@ describe('MemoryService', () => {
 
       const result = await service.getMemories('char-1', 'user-1');
 
-      expect(memoryRepository.findByCharacterAndUser).toHaveBeenCalledWith('char-1', 'user-1', 100);
+      expect(memoryRepository.findByCharacterAndUser).toHaveBeenCalledWith('char-1', 'user-1', 100, undefined);
       expect(result).toEqual(mockMemories);
     });
 
@@ -314,7 +395,7 @@ describe('MemoryService', () => {
 
       await service.getMemories('char-1', 'user-1', 50);
 
-      expect(memoryRepository.findByCharacterAndUser).toHaveBeenCalledWith('char-1', 'user-1', 50);
+      expect(memoryRepository.findByCharacterAndUser).toHaveBeenCalledWith('char-1', 'user-1', 50, undefined);
     });
   });
 
@@ -325,7 +406,7 @@ describe('MemoryService', () => {
       const result = await service.getMemoryCount('char-1', 'user-1');
 
       expect(result).toBe(42);
-      expect(memoryRepository.countByCharacterUser).toHaveBeenCalledWith('char-1', 'user-1');
+      expect(memoryRepository.countByCharacterUser).toHaveBeenCalledWith('char-1', 'user-1', undefined);
     });
   });
 });
