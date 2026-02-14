@@ -7,8 +7,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 4 Complete (Platform Hardening)
-**Last Updated**: 2026-02-11
+**Status**: Iteration 5 Complete (Technical Debt + Recommendations)
+**Last Updated**: 2026-02-15
 
 ---
 
@@ -258,6 +258,26 @@ npm run build            # Production build
 | PUT | `/api/v1/account/consents` | Update consents |
 | POST | `/api/v1/reports` | Submit a report |
 
+### Recommendations (Iteration 5)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/recommendations` | Personalized recommendations (auth) |
+| GET | `/api/v1/recommendations/trending` | Trending characters (public) |
+| GET | `/api/v1/recommendations/similar/:id` | Similar characters (public) |
+| POST | `/api/v1/recommendations/feedback` | Submit recommendation feedback (auth) |
+
+### Admin (Extended - Iteration 5)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/admin/experiments` | List experiments |
+| POST | `/api/v1/admin/experiments` | Create experiment |
+| PATCH | `/api/v1/admin/experiments/:id` | Update experiment |
+| POST | `/api/v1/admin/experiments/:id/start` | Start experiment |
+| POST | `/api/v1/admin/experiments/:id/stop` | Stop experiment |
+| GET | `/api/v1/admin/experiments/:id/results` | Get experiment results |
+| GET | `/api/v1/admin/jobs` | List scheduled jobs |
+| POST | `/api/v1/admin/jobs/:name/run` | Trigger job manually |
+
 ---
 
 ## Key Files
@@ -289,6 +309,11 @@ npm run build            # Production build
 - `src/server/services/kafka-bridge.service.ts` - EventBus → Kafka bridge
 - `src/server/services/analytics-query.service.ts` - ClickHouse analytics queries
 - `src/server/services/feature-store.service.ts` - Redis Feature Store reads
+- `src/server/services/recommendation.service.ts` - Recommendation engine (trending/collaborative/content-based)
+- `src/server/services/experiment.service.ts` - A/B experiment variant assignment
+- `src/server/services/experiment-analysis.service.ts` - ClickHouse experiment analytics
+- `src/server/services/scheduler.service.ts` - Scheduled job runner
+- `src/server/jobs/index.ts` - Registered scheduled jobs (GDPR, audit, token, webhook cleanup)
 
 ### Frontend Stores
 - `src/client/stores/user.ts` - User state
@@ -325,6 +350,37 @@ npm run build            # Production build
 - `flink-jobs/src/main/java/.../jobs/ContentAnalyzerJob.java` - Character stats + trending
 - `flink-jobs/src/main/java/.../jobs/RecommendationTrackerJob.java` - A/B test tracking
 - `flink-jobs/src/main/java/.../functions/PiiFilter.java` - PII stripping MapFunction
+
+---
+
+## Iteration 5: Technical Debt + Recommendations (2026-02-15) ✅
+
+### Fix Placeholders & Missing Pages (M1) ✅
+- **LRU Memory Eviction**: Replaced `console.warn` placeholder with real `deleteOldest` eviction (tier limits: free:100, pro:500, team:2000)
+- **Favorites Count**: Replaced `favorites: 0` stub with real `countByUser` query
+- **Extract Memories**: Replaced placeholder with real implementation (fetch messages → extract → store)
+- **Missing Pages**: WorldBooks.vue, CharacterDetail.vue, Terms/Privacy/About legal pages
+- **Admin Audit Logs**: Dedicated AuditLogs.vue page (was using SystemDashboard)
+- **Theme + Language**: `useTheme` composable with dark mode toggle, language switcher in header
+
+### Recommendation Engine (M2) ✅
+- **RecommendationService**: 3 strategies — trending (feature store), collaborative (tag-based), content-based (Jaccard overlap)
+- **Personalization**: Blends trending + collaborative with configurable weights, Redis cache (15-min TTL)
+- **API Routes**: GET / (personalized), GET /trending, GET /similar/:id, POST /feedback
+- **Frontend**: RecommendationCarousel component, integrated in Dashboard + Market pages
+
+### A/B Testing Framework (M3) ✅
+- **Schema**: `experiments` table with `experimentStatusEnum` (draft/running/completed), typed `variants` jsonb
+- **Experiment Service**: Deterministic variant assignment (MD5 hash), Redis-cached config (1h TTL)
+- **Analysis**: ClickHouse queries for per-variant metrics (impressions, clicks, CTR)
+- **Admin UI**: Experiments.vue with create/start/stop/results
+- **Integration**: Recommendation weights overridable via experiment variants
+
+### Scheduled Jobs & Cleanup (M4) ✅
+- **Scheduler Service**: `setInterval`-based job scheduler with register/start/stop/runNow
+- **4 Jobs**: GDPR deletion (1h), audit retention 90d (24h), token cleanup (6h), webhook cleanup (24h)
+- **Admin UI**: Jobs section in SystemDashboard with status + "Run Now" buttons
+- **E2E Tests**: 5 smoke tests for recommendations + experiments + jobs
 
 ---
 
@@ -497,7 +553,7 @@ npm run build            # Production build
 ### Testing
 - Unit tests: `*.spec.ts` files alongside source
 - E2E tests: `e2e/` directory
-- Unit tests: 1274 passing (97.6%), 14 skipped
+- Unit tests: 1530+ passing (includes 113 Iter5 tests across 13 files)
 - E2E tests: 107/119 passed (90%), 8 flaky, 4 skipped
 
 ### Security
