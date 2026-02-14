@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useToast } from '@client/composables/useToast';
 import { useCharacterSearch } from '@client/composables/useCharacterSearch';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
@@ -10,6 +11,7 @@ import CharacterCard from '@client/components/character/CharacterCard.vue';
 import SkeletonCard from '@client/components/ui/SkeletonCard.vue';
 
 const toast = useToast();
+const router = useRouter();
 
 const {
   searchQuery,
@@ -68,8 +70,7 @@ function handleBrowseAll() {
 }
 
 function handleCardClick(characterId: string) {
-  // TODO: 打开角色详情
-  console.log('Character clicked:', characterId);
+  router.push({ name: 'CharacterDetail', params: { id: characterId } });
 }
 </script>
 

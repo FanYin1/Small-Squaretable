@@ -20,6 +20,7 @@ const loadTerms = () => import('../pages/legal/Terms.vue');
 const loadPrivacy = () => import('../pages/legal/Privacy.vue');
 const loadAbout = () => import('../pages/legal/About.vue');
 const loadNotFound = () => import('../pages/NotFound.vue');
+const loadCharacterDetail = () => import(/* webpackChunkName: "character-detail" */ '../pages/CharacterDetail.vue');
 const loadNotifications = () => import(/* webpackChunkName: "notifications" */ '../pages/Notifications.vue');
 const loadUserProfile = () => import(/* webpackChunkName: "user-profile" */ '../pages/UserProfile.vue');
 const loadDeveloperSettings = () => import(/* webpackChunkName: "developer" */ '../pages/DeveloperSettings.vue');
@@ -315,6 +316,15 @@ export const routes: RouteRecordRaw[] = [
         },
       },
     ],
+  },
+  {
+    path: '/characters/:id',
+    name: 'CharacterDetail',
+    component: loadCharacterDetail,
+    meta: {
+      requiresAuth: false,
+      guestOnly: false,
+    },
   },
   {
     path: '/:pathMatch(.*)*',
