@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { User, Document, DataBoard, List, Delete } from '@element-plus/icons-vue';
+import { User, Document, DataBoard, List, Delete, TrendCharts } from '@element-plus/icons-vue';
 import { useUserStore } from '@client/stores/user';
 
 const { t } = useI18n();
@@ -21,6 +21,7 @@ const menuItems = computed(() => {
       { path: '/admin/system', icon: DataBoard, label: t('admin.nav.system') },
       { path: '/admin/audit-logs', icon: List, label: t('admin.nav.auditLogs') },
       { path: '/admin/gdpr', icon: Delete, label: t('admin.nav.gdpr') },
+      { path: '/admin/experiments', icon: TrendCharts, label: t('admin.nav.experiments') },
     );
   }
   return items;
