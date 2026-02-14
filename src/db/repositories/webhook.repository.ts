@@ -4,7 +4,7 @@
  * 处理 Webhook 端点和投递记录的数据访问
  */
 
-import { eq, and, sql, or, lte } from 'drizzle-orm';
+import { eq, and, sql, or, lte, lt } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import {
@@ -135,6 +135,15 @@ export class WebhookRepository extends BaseRepository {
       .where(eq(webhookDeliveries.endpointId, endpointId));
 
     return { items, total: count };
+  }
+  // ── Cleanup ──
+
+  async deleteOldDeliveries(before: Date): Promise<number> {
+    const result = await this.db
+      .delete(webhookDeliveries)
+      .where(lt(webhookDeliveries.createdAt, before))
+      .returning();
+    return result.length;
   }
 }
 

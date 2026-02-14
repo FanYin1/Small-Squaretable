@@ -5,7 +5,7 @@
  * Tokens are stored as SHA-256 hashes; lookup is by hash.
  */
 
-import { eq, and, isNull, gt } from 'drizzle-orm';
+import { eq, and, isNull, gt, lt } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import {
@@ -63,6 +63,17 @@ export class PasswordResetRepository extends BaseRepository {
     await this.db
       .delete(passwordResetTokens)
       .where(eq(passwordResetTokens.userId, userId));
+  }
+
+  /**
+   * Delete all expired tokens (housekeeping).
+   */
+  async deleteExpired(): Promise<number> {
+    const result = await this.db
+      .delete(passwordResetTokens)
+      .where(lt(passwordResetTokens.expiresAt, new Date()))
+      .returning();
+    return result.length;
   }
 }
 

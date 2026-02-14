@@ -39,6 +39,8 @@ import { gdprRoutes } from './routes/gdpr';
 import { recommendationRoutes } from './routes/recommendations';
 import { pluginBridge } from './services/plugin-bridge';
 import { kafkaBridge } from './services/kafka-bridge.service';
+import { scheduler } from './services/scheduler.service';
+import { registerJobs } from './jobs';
 import { WebhookWorker } from './workers/webhook.worker';
 import { webhookRepository } from '../db/repositories/webhook.repository';
 import { basicHealthCheck, livenessCheck, readinessCheck } from './services/health';
@@ -290,6 +292,11 @@ if (process.env.NODE_ENV !== 'test') {
     console.error('Failed to start Kafka bridge:', err);
   });
 
+  // Register and start scheduled jobs
+  registerJobs(scheduler);
+  scheduler.start();
+  console.log('⏰ Scheduler started');
+
   console.log(`🚀 Server starting on http://${config.host}:${port}`);
 
   const serverInstance = serve({
@@ -305,6 +312,7 @@ if (process.env.NODE_ENV !== 'test') {
   // 优雅关闭
   process.on('SIGTERM', async () => {
     appLogger.info('SIGTERM received, closing server...');
+    scheduler.stop();
     websocketHandler.close();
     await closeSentry();
     process.exit(0);
@@ -312,6 +320,7 @@ if (process.env.NODE_ENV !== 'test') {
 
   process.on('SIGINT', async () => {
     appLogger.info('SIGINT received, closing server...');
+    scheduler.stop();
     websocketHandler.close();
     await closeSentry();
     process.exit(0);
