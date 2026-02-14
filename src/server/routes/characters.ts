@@ -24,6 +24,7 @@ import type { Character } from '../../db/schema/characters';
 import type { RatingResponseDto } from '../../types/rating';
 import { worldBookRepository } from '../../db/repositories/worldbook.repository';
 import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.repository';
+import { favoriteRepository } from '../../db/repositories/favorite.repository';
 import { eventBus } from '../services/event-bus.service';
 
 /**
@@ -206,14 +207,17 @@ characterRoutes.get(
 // 获取角色统计 - 必须在 /:id 之前
 characterRoutes.get('/stats', authMiddleware(), async (c) => {
   const user = c.get('user');
-  const result = await characterService.getByTenantId(user.tenantId, { page: 1, limit: 1000 });
+  const [result, favoritesCount] = await Promise.all([
+    characterService.getByTenantId(user.tenantId, { page: 1, limit: 1000 }),
+    favoriteRepository.countByUser(user.id),
+  ]);
 
   return c.json<ApiResponse>(
     {
       success: true,
       data: {
         total: result.pagination.total,
-        favorites: 0, // TODO: implement favorites
+        favorites: favoritesCount,
       },
       meta: { timestamp: new Date().toISOString() },
     },

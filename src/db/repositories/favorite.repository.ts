@@ -135,6 +135,17 @@ export class FavoriteRepository extends BaseRepository {
   }
 
   /**
+   * Count the total number of favorites for a user.
+   */
+  async countByUser(userId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(favorites)
+      .where(eq(favorites.userId, userId));
+    return row?.count ?? 0;
+  }
+
+  /**
    * Get the favoriteCount for a character directly from the characters table.
    */
   async getFavoriteCount(characterId: string): Promise<number> {
