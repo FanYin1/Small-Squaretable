@@ -1006,6 +1006,19 @@
       "subscriptionBreakdown": "Subscription Breakdown",
       "recentSignups": "Recent Signups",
       "last7days": "in the last 7 days"
+    },
+    "auditLogs": {
+      "title": "Audit Logs",
+      "timestamp": "Timestamp",
+      "actor": "Actor",
+      "action": "Action",
+      "targetType": "Target Type",
+      "targetId": "Target ID",
+      "ip": "IP Hash",
+      "filterAction": "Filter by action",
+      "filterDate": "Date range",
+      "filterActor": "Search actor ID or email...",
+      "noLogs": "No audit logs found"
     }
   }
 }

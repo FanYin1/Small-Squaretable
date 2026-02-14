@@ -32,6 +32,7 @@ const loadAdminLayout = () => import(/* webpackChunkName: "admin" */ '../pages/a
 const loadAdminUsers = () => import(/* webpackChunkName: "admin" */ '../pages/admin/UserManagement.vue');
 const loadAdminContent = () => import(/* webpackChunkName: "admin" */ '../pages/admin/ContentModeration.vue');
 const loadAdminSystem = () => import(/* webpackChunkName: "admin" */ '../pages/admin/SystemDashboard.vue');
+const loadAdminAuditLogs = () => import(/* webpackChunkName: "admin" */ '../pages/admin/AuditLogs.vue');
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -309,7 +310,7 @@ export const routes: RouteRecordRaw[] = [
       {
         path: 'audit-logs',
         name: 'AdminAuditLogs',
-        component: loadAdminSystem,
+        component: loadAdminAuditLogs,
         meta: {
           requiresAuth: true,
           requiresRole: 'admin',
