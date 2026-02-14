@@ -198,6 +198,24 @@ export class CharacterRepository extends BaseRepository {
   }
 
   /**
+   * Find public characters matching any of the given tags
+   */
+  async findPublicByTags(tags: string[], limit: number): Promise<Character[]> {
+    if (tags.length === 0) return [];
+
+    return await this.db
+      .select()
+      .from(characters)
+      .where(
+        and(
+          eq(characters.isPublic, true),
+          sql`${characters.tags} && ARRAY[${sql.join(tags.map(t => sql`${t}`), sql`, `)}]::text[]`
+        )
+      )
+      .limit(limit);
+  }
+
+  /**
    * Get characters with their ratings in a single query (avoids N+1)
    */
   async findPublicWithRatings(pagination?: PaginationParams): Promise<Character[]> {
