@@ -78,6 +78,32 @@ tags:
     description: Health check endpoints
   - name: WebSocket
     description: Real-time communication
+  - name: MFA
+    description: Two-factor authentication
+  - name: OAuth
+    description: OAuth2 social login
+  - name: Intelligence
+    description: Character memory and emotion system
+  - name: Social
+    description: Follow, favorites, and comments
+  - name: Notifications
+    description: In-app notifications
+  - name: Webhooks
+    description: Webhook endpoint management
+  - name: Developer
+    description: API key management
+  - name: Plugins
+    description: Plugin lifecycle and marketplace
+  - name: Analytics
+    description: Data analytics dashboard
+  - name: Recommendations
+    description: Character recommendations
+  - name: GDPR
+    description: Data privacy and consent
+  - name: Reports
+    description: Content reporting
+  - name: Admin
+    description: Administration panel
 
 paths:
   # ============================================================
@@ -253,6 +279,106 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Request password reset
+      description: Sends a password reset email. Always returns 200 to prevent email enumeration.
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+      responses:
+        '200':
+          description: Reset email sent (if account exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '429':
+          description: Rate limited
+
+  /api/v1/auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password with token
+      description: Resets password using a token from the reset email
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/auth/verify-email:
+    get:
+      tags:
+        - Authentication
+      summary: Verify email address
+      description: Verifies email using token from verification email
+      operationId: verifyEmail
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/auth/resend-verification:
+    post:
+      tags:
+        - Authentication
+      summary: Resend verification email
+      description: Resends the email verification link. Rate limited.
+      operationId: resendVerification
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Rate limited
 
   # ============================================================
   # User Endpoints
@@ -1344,6 +1470,20 @@ components:
               format: date-time
             requestId:
               type: string
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - token
+        - password
+      properties:
+        token:
+          type: string
+          description: Password reset token from email
+        password:
+          type: string
+          minLength: 8
+          description: New password (minimum 8 characters)
 
     HealthCheckResponse:
       type: object
