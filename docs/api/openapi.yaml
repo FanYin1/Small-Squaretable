@@ -3486,6 +3486,448 @@ paths:
         '403':
           description: Admin role required
 
+  /api/v1/admin/content/reports:
+    get:
+      tags:
+        - Admin
+      summary: List content reports
+      description: Returns pending content reports. Requires moderator role.
+      operationId: adminListReports
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Report list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          reports:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Report'
+                          total:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Moderator role required
+
+  /api/v1/admin/content/reports/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get report details
+      description: Returns detailed information about a content report. Requires moderator role.
+      operationId: adminGetReport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Moderator role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/content/reports/{id}/resolve:
+    post:
+      tags:
+        - Admin
+      summary: Resolve a report
+      description: Resolves or dismisses a content report. Requires moderator role.
+      operationId: adminResolveReport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveReportRequest'
+      responses:
+        '200':
+          description: Report resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Moderator role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/content/hide/{targetType}/{targetId}:
+    post:
+      tags:
+        - Admin
+      summary: Hide content
+      description: Hides a character or comment from public view. Requires moderator role.
+      operationId: adminHideContent
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: targetType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - character
+              - comment
+        - name: targetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Content hidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Moderator role required
+
+  /api/v1/admin/content/unhide/{targetType}/{targetId}:
+    post:
+      tags:
+        - Admin
+      summary: Unhide content
+      description: Restores hidden content to public view. Requires moderator role.
+      operationId: adminUnhideContent
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: targetType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - character
+              - comment
+        - name: targetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Content unhidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Moderator role required
+
+  /api/v1/admin/experiments:
+    get:
+      tags:
+        - Admin
+      summary: List experiments
+      description: Returns all A/B test experiments for the tenant. Requires admin role.
+      operationId: adminListExperiments
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Experiment list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Experiment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+
+    post:
+      tags:
+        - Admin
+      summary: Create experiment
+      description: Creates a new A/B test experiment. Requires admin role.
+      operationId: adminCreateExperiment
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExperimentRequest'
+      responses:
+        '201':
+          description: Experiment created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Experiment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+
+  /api/v1/admin/experiments/{id}:
+    patch:
+      tags:
+        - Admin
+      summary: Update experiment
+      description: Updates an experiment's name, description, status, or variants. Setting status to 'running' sets startedAt, 'completed' sets endedAt. Requires admin role.
+      operationId: adminUpdateExperiment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExperimentRequest'
+      responses:
+        '200':
+          description: Experiment updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Experiment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/experiments/{id}/results:
+    get:
+      tags:
+        - Admin
+      summary: Get experiment results
+      description: Returns per-variant metrics (impressions, clicks, CTR) from ClickHouse. Requires admin role.
+      operationId: adminGetExperimentResults
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Experiment results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ExperimentResults'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/gdpr/requests:
+    get:
+      tags:
+        - Admin
+      summary: List GDPR deletion requests
+      description: Returns pending account deletion requests. Requires admin role.
+      operationId: adminListGdprRequests
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: GDPR request list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          requests:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/GdprDeletionRequest'
+                          total:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+
+  /api/v1/admin/gdpr/requests/{id}/process:
+    post:
+      tags:
+        - Admin
+      summary: Force-process deletion
+      description: Immediately processes a pending account deletion request. Requires admin role.
+      operationId: adminProcessGdprRequest
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Deletion processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/jobs:
+    get:
+      tags:
+        - Admin
+      summary: List scheduled jobs
+      description: Returns all registered scheduled jobs and their status. Requires admin role.
+      operationId: adminListJobs
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Job list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ScheduledJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+
+  /api/v1/admin/jobs/{name}/run:
+    post:
+      tags:
+        - Admin
+      summary: Trigger job manually
+      description: Manually triggers a scheduled job. Requires admin role.
+      operationId: adminRunJob
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job triggered
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ScheduledJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ============================================================
   # User Endpoints
   # ============================================================
@@ -5535,6 +5977,172 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    ResolveReportRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - resolved
+            - dismissed
+        action:
+          type: string
+          description: Action taken (e.g., content_hidden, user_warned)
+        reason:
+          type: string
+          description: Moderator's reason
+
+    Experiment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+            - draft
+            - running
+            - completed
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExperimentVariant'
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ExperimentVariant:
+      type: object
+      properties:
+        name:
+          type: string
+        weight:
+          type: integer
+          minimum: 1
+        config:
+          type: object
+
+    CreateExperimentRequest:
+      type: object
+      required:
+        - name
+        - variants
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExperimentVariant'
+          minItems: 1
+
+    UpdateExperimentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+            - draft
+            - running
+            - completed
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExperimentVariant'
+          minItems: 1
+
+    ExperimentResults:
+      type: object
+      properties:
+        experimentId:
+          type: string
+          format: uuid
+        variants:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              impressions:
+                type: integer
+              clicks:
+                type: integer
+              ctr:
+                type: number
+                description: Click-through rate
+
+    GdprDeletionRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - processing
+            - completed
+        scheduledAt:
+          type: string
+          format: date-time
+        requestedAt:
+          type: string
+          format: date-time
+
+    ScheduledJob:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        intervalMs:
+          type: integer
+          description: Run interval in milliseconds
+        lastRunAt:
+          type: string
+          format: date-time
+          nullable: true
+        nextRunAt:
+          type: string
+          format: date-time
+          nullable: true
+        isRunning:
+          type: boolean
 
     HealthCheckResponse:
       type: object
