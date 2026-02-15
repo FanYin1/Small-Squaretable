@@ -2588,6 +2588,268 @@ paths:
           description: Rate limited
 
   # ============================================================
+  # Analytics Endpoints
+  # ============================================================
+  /api/v1/analytics/events:
+    post:
+      tags:
+        - Analytics
+      summary: Ingest batch events
+      description: Accepts a batch of analytics events and forwards them to Kafka for stream processing.
+      operationId: ingestEvents
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchEventsRequest'
+      responses:
+        '202':
+          description: Events accepted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          accepted:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Rate limited (50 events/min)
+
+  /api/v1/analytics/overview:
+    get:
+      tags:
+        - Analytics
+      summary: North star metrics
+      description: Returns weekly active users, message counts, and trend data. Requires Pro or Team plan.
+      operationId: getAnalyticsOverview
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: weeks
+          in: query
+          schema:
+            type: integer
+            default: 12
+            minimum: 1
+            maximum: 52
+      responses:
+        '200':
+          description: North star metrics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/NorthStarMetrics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Plan upgrade required
+
+  /api/v1/analytics/retention:
+    get:
+      tags:
+        - Analytics
+      summary: Cohort retention matrix
+      description: Returns a weekly cohort retention matrix. Requires Team plan.
+      operationId: getRetention
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: cohortWeeks
+          in: query
+          schema:
+            type: integer
+            default: 8
+            minimum: 2
+            maximum: 24
+      responses:
+        '200':
+          description: Retention matrix
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RetentionMatrix'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Team plan required
+
+  /api/v1/analytics/funnel:
+    get:
+      tags:
+        - Analytics
+      summary: Conversion funnel
+      description: Returns conversion funnel data (signup → first chat → subscription). Requires Team plan.
+      operationId: getFunnel
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+            minimum: 7
+            maximum: 90
+      responses:
+        '200':
+          description: Funnel data
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          steps:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/FunnelStep'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Team plan required
+<!-- ANALYTICS_PATHS_PLACEHOLDER_2 -->
+
+  /api/v1/analytics/realtime:
+    get:
+      tags:
+        - Analytics
+      summary: Real-time metrics
+      description: Returns real-time metrics from Redis (active users, messages per minute). Requires Pro or Team plan.
+      operationId: getRealtimeMetrics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Real-time metrics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RealtimeMetrics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Plan upgrade required
+
+  /api/v1/analytics/characters/top:
+    get:
+      tags:
+        - Analytics
+      summary: Character rankings
+      description: Returns top characters by usage metrics. Requires Team plan.
+      operationId: getTopCharacters
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Character rankings
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          characters:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                characterId:
+                                  type: string
+                                  format: uuid
+                                name:
+                                  type: string
+                                chatCount:
+                                  type: integer
+                                messageCount:
+                                  type: integer
+                                avgRating:
+                                  type: number
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Team plan required
+<!-- ANALYTICS_PATHS_PLACEHOLDER_3 -->
+
+  /api/v1/analytics/segments:
+    get:
+      tags:
+        - Analytics
+      summary: User segment distribution
+      description: Returns user segment distribution (power users, casual, dormant, etc.). Requires Team plan.
+      operationId: getSegments
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Segment distribution
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          segments:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                count:
+                                  type: integer
+                                percentage:
+                                  type: number
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Team plan required
+
+  # ============================================================
   # User Endpoints
   # ============================================================
   /api/v1/users/me:
@@ -4294,6 +4556,117 @@ components:
         payload:
           type: object
           description: Event payload data
+
+    BatchEventsRequest:
+      type: object
+      required:
+        - events
+        - context
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsEvent'
+          minItems: 1
+          maxItems: 100
+        context:
+          $ref: '#/components/schemas/EventContext'
+
+    AnalyticsEvent:
+      type: object
+      required:
+        - eventType
+      properties:
+        eventType:
+          type: string
+          description: "Event type (e.g., page_view, chat_start, message_sent)"
+        properties:
+          type: object
+          description: Event-specific properties
+        timestamp:
+          type: string
+          format: date-time
+
+    EventContext:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        platform:
+          type: string
+          enum:
+            - web
+            - mobile
+            - desktop
+        userAgent:
+          type: string
+        locale:
+          type: string
+
+    NorthStarMetrics:
+      type: object
+      properties:
+        weeklyActiveUsers:
+          type: integer
+        totalMessages:
+          type: integer
+        avgSessionDuration:
+          type: number
+          description: Average session duration in seconds
+        trends:
+          type: array
+          items:
+            type: object
+            properties:
+              week:
+                type: string
+              wau:
+                type: integer
+              messages:
+                type: integer
+
+    RetentionMatrix:
+      type: object
+      properties:
+        cohorts:
+          type: array
+          items:
+            type: object
+            properties:
+              cohortWeek:
+                type: string
+              userCount:
+                type: integer
+              retention:
+                type: array
+                items:
+                  type: number
+                  description: Retention rate (0-1) for each subsequent week
+
+    FunnelStep:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "Step name (e.g., signup, first_chat, subscription)"
+        count:
+          type: integer
+        conversionRate:
+          type: number
+          description: Conversion rate from previous step (0-1)
+
+    RealtimeMetrics:
+      type: object
+      properties:
+        activeUsers:
+          type: integer
+        messagesPerMinute:
+          type: number
+        activeChats:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
 
     HealthCheckResponse:
       type: object
