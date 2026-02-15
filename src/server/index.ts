@@ -7,6 +7,7 @@ import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { config } from '@/core/config';
+import { closeRedis } from '../core/redis';
 import { logger as appLogger, getLogConfig } from './services/logger.service';
 import { initializeSentry, closeSentry } from './services/sentry.service';
 import { errorHandler } from './middleware/error-handler';
@@ -310,21 +311,43 @@ if (process.env.NODE_ENV !== 'test') {
   websocketHandler.initialize(serverInstance);
 
   // 优雅关闭
-  process.on('SIGTERM', async () => {
-    appLogger.info('SIGTERM received, closing server...');
-    scheduler.stop();
-    websocketHandler.close();
-    await closeSentry();
-    process.exit(0);
-  });
+  async function gracefulShutdown(signal: string) {
+    appLogger.info(`${signal} received, starting graceful shutdown...`);
 
-  process.on('SIGINT', async () => {
-    appLogger.info('SIGINT received, closing server...');
-    scheduler.stop();
-    websocketHandler.close();
-    await closeSentry();
-    process.exit(0);
-  });
+    const forceExitTimer = setTimeout(() => {
+      appLogger.error('Graceful shutdown timed out, forcing exit');
+      process.exit(1);
+    }, 10_000);
+    forceExitTimer.unref();
+
+    try {
+      // 1. Stop accepting new work
+      scheduler.stop();
+      webhookWorker.stop();
+      pluginBridge.stop();
+
+      // 2. Close external connections
+      await kafkaBridge.disconnect().catch((e: unknown) =>
+        appLogger.warn('Kafka disconnect error', { error: String(e) })
+      );
+      websocketHandler.close();
+
+      // 3. Close data stores
+      await closeRedis().catch((e: unknown) =>
+        appLogger.warn('Redis close error', { error: String(e) })
+      );
+      await closeSentry();
+
+      appLogger.info('Graceful shutdown complete');
+      process.exit(0);
+    } catch (error) {
+      appLogger.error('Error during shutdown', error as Error);
+      process.exit(1);
+    }
+  }
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 }
 
 export { app };
