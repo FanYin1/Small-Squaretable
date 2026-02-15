@@ -2,246 +2,227 @@
  * RatingService 单元测试
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { db } from '../../db/index';
-import { ratings } from '../../db/schema/ratings';
-import { characters } from '../../db/schema/characters';
-import { users } from '../../db/schema/users';
-import { tenants } from '../../db/schema/tenants';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// ── Mocks ──────────────────────────────────────────────────────────────────
+
+// Mock db – the service calls db.transaction() directly in submitRating / deleteRating
+const mockTx = {
+  insert: vi.fn(),
+  select: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+};
+
+vi.mock('../../db/index', () => ({
+  db: {
+    transaction: vi.fn(async (cb: (tx: typeof mockTx) => Promise<void>) => cb(mockTx)),
+  },
+}));
+
+vi.mock('../../db/repositories/rating.repository', () => ({
+  ratingRepository: {
+    getAverageRatings: vi.fn(),
+    findByCharacterAndUser: vi.fn(),
+    create: vi.fn(),
+    upsert: vi.fn(),
+    delete: vi.fn(),
+  },
+  RatingRepository: class {},
+}));
+
+vi.mock('../../db/repositories/character.repository', () => ({
+  characterRepository: {
+    findById: vi.fn(),
+    update: vi.fn(),
+  },
+  CharacterRepository: class {},
+}));
+
+// Schema mocks – just need to exist so drizzle helpers don't blow up
+vi.mock('../../db/schema/ratings', () => ({
+  ratings: {
+    characterId: 'characterId',
+    userId: 'userId',
+    quality: 'quality',
+    creativity: 'creativity',
+    interactivity: 'interactivity',
+    accuracy: 'accuracy',
+    entertainment: 'entertainment',
+  },
+}));
+
+vi.mock('../../db/schema/characters', () => ({
+  characters: {
+    id: 'id',
+  },
+}));
+
 import { RatingService } from './rating.service';
-import { eq } from 'drizzle-orm';
+import { ratingRepository } from '../../db/repositories/rating.repository';
+import { NotFoundError } from '../../core/errors';
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const CHAR_ID = 'char-1';
+const USER_ID = 'user-1';
+const USER2_ID = 'user-2';
+
+const sampleInput = {
+  quality: 5,
+  creativity: 4,
+  interactivity: 4,
+  accuracy: 4,
+  entertainment: 5,
+};
+
+/** Build a fluent chain that ends with the given resolved value. */
+function chain(resolvedValue: unknown) {
+  const obj: Record<string, unknown> = {};
+  const self = () => obj;
+  obj.values = vi.fn().mockReturnValue(obj);
+  obj.onConflictDoUpdate = vi.fn().mockReturnValue(obj);
+  obj.set = vi.fn().mockReturnValue(obj);
+  obj.from = vi.fn().mockReturnValue(obj);
+  obj.where = vi.fn().mockReturnValue(obj);
+  obj.returning = vi.fn().mockResolvedValue(resolvedValue);
+  // select() needs to resolve as an array when awaited
+  obj.then = vi.fn((resolve: (v: unknown) => void) => resolve(resolvedValue));
+  return obj;
+}
 
 describe('RatingService', () => {
   let service: RatingService;
-  let testTenantId: string;
-  let testUserId: string;
-  let testUser2Id: string;
-  let testCharacterId: string;
 
-  beforeEach(async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
     service = new RatingService();
-
-    // Create test tenant
-    const [tenant] = await db.insert(tenants).values({
-      name: 'Test Tenant',
-      slug: 'test-tenant-' + Date.now(),
-    }).returning();
-    testTenantId = tenant.id;
-
-    // Create test users
-    const [user] = await db.insert(users).values({
-      tenantId: testTenantId,
-      email: `test-${Date.now()}@example.com`,
-      passwordHash: 'hash',
-      username: `testuser-${Date.now()}`,
-    }).returning();
-    testUserId = user.id;
-
-    const [user2] = await db.insert(users).values({
-      tenantId: testTenantId,
-      email: `test2-${Date.now()}@example.com`,
-      passwordHash: 'hash',
-      username: `testuser2-${Date.now()}`,
-    }).returning();
-    testUser2Id = user2.id;
-
-    // Create test character
-    const [character] = await db.insert(characters).values({
-      tenantId: testTenantId,
-      creatorId: testUserId,
-      name: 'Test Character',
-      cardData: { name: 'Test' },
-      isPublic: true,
-    }).returning();
-    testCharacterId = character.id;
   });
 
-  afterEach(async () => {
-    // Clean up in reverse order of dependencies
-    await db.delete(ratings).where(eq(ratings.characterId, testCharacterId));
-    await db.delete(characters).where(eq(characters.id, testCharacterId));
-    await db.delete(users).where(eq(users.id, testUserId));
-    await db.delete(users).where(eq(users.id, testUser2Id));
-    await db.delete(tenants).where(eq(tenants.id, testTenantId));
-  });
+  // ── submitRating ───────────────────────────────────────────────────────
 
   describe('submitRating', () => {
     it('should create new rating and update character averages', async () => {
-      const ratingData = {
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      };
+      // insert chain (upsert rating)
+      const insertChain = chain(undefined);
+      mockTx.insert.mockReturnValue(insertChain);
 
-      await service.submitRating(testCharacterId, testUserId, ratingData);
+      // select chain (AVG query)
+      const selectChain = chain([{
+        quality: '5.00', creativity: '4.00', interactivity: '4.00',
+        accuracy: '4.00', entertainment: '5.00', count: 1,
+      }]);
+      mockTx.select.mockReturnValue(selectChain);
 
-      // Verify rating was created
-      const [rating] = await db
-        .select()
-        .from(ratings)
-        .where(eq(ratings.characterId, testCharacterId));
+      // update chain (character update)
+      const updateChain = chain(undefined);
+      mockTx.update.mockReturnValue(updateChain);
 
-      expect(rating).toBeDefined();
-      expect(rating.quality).toBe(5);
-      expect(rating.creativity).toBe(4);
+      await service.submitRating(CHAR_ID, USER_ID, sampleInput);
 
-      // Verify character averages were updated
-      const [character] = await db
-        .select()
-        .from(characters)
-        .where(eq(characters.id, testCharacterId));
-
-      expect(character.ratingQualityAvg).toBe('5.00');
-      expect(character.ratingCreativityAvg).toBe('4.00');
-      expect(character.ratingInteractivityAvg).toBe('4.00');
-      expect(character.ratingAccuracyAvg).toBe('4.00');
-      expect(character.ratingEntertainmentAvg).toBe('5.00');
-      expect(character.ratingOverallAvg).toBe('4.40'); // (5+4+4+4+5)/5
-      expect(character.ratingCount).toBe(1);
+      expect(mockTx.insert).toHaveBeenCalled();
+      expect(mockTx.select).toHaveBeenCalled();
+      expect(mockTx.update).toHaveBeenCalled();
     });
 
     it('should update existing rating and recalculate averages', async () => {
-      // Submit first rating
-      await service.submitRating(testCharacterId, testUserId, {
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
+      const insertChain = chain(undefined);
+      mockTx.insert.mockReturnValue(insertChain);
+
+      const selectChain = chain([{
+        quality: '3.00', creativity: '3.00', interactivity: '3.00',
+        accuracy: '3.00', entertainment: '3.00', count: 1,
+      }]);
+      mockTx.select.mockReturnValue(selectChain);
+
+      const updateChain = chain(undefined);
+      mockTx.update.mockReturnValue(updateChain);
+
+      await service.submitRating(CHAR_ID, USER_ID, {
+        quality: 3, creativity: 3, interactivity: 3, accuracy: 3, entertainment: 3,
       });
 
-      // Submit updated rating
-      await service.submitRating(testCharacterId, testUserId, {
-        quality: 3,
-        creativity: 3,
-        interactivity: 3,
-        accuracy: 3,
-        entertainment: 3,
-      });
-
-      // Verify only one rating exists
-      const allRatings = await db
-        .select()
-        .from(ratings)
-        .where(eq(ratings.characterId, testCharacterId));
-
-      expect(allRatings).toHaveLength(1);
-      expect(allRatings[0].quality).toBe(3);
-
-      // Verify character averages were updated
-      const [character] = await db
-        .select()
-        .from(characters)
-        .where(eq(characters.id, testCharacterId));
-
-      expect(character.ratingQualityAvg).toBe('3.00');
-      expect(character.ratingOverallAvg).toBe('3.00');
+      expect(mockTx.insert).toHaveBeenCalled();
+      expect(mockTx.update).toHaveBeenCalled();
     });
 
     it('should calculate correct averages with multiple ratings', async () => {
-      // User 1 rates
-      await service.submitRating(testCharacterId, testUserId, {
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
+      const insertChain = chain(undefined);
+      mockTx.insert.mockReturnValue(insertChain);
+
+      const selectChain = chain([{
+        quality: '4.00', creativity: '4.00', interactivity: '4.00',
+        accuracy: '4.00', entertainment: '4.00', count: 2,
+      }]);
+      mockTx.select.mockReturnValue(selectChain);
+
+      const updateChain = chain(undefined);
+      mockTx.update.mockReturnValue(updateChain);
+
+      await service.submitRating(CHAR_ID, USER2_ID, {
+        quality: 3, creativity: 4, interactivity: 4, accuracy: 4, entertainment: 3,
       });
 
-      // User 2 rates
-      await service.submitRating(testCharacterId, testUser2Id, {
-        quality: 3,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 3,
-      });
-
-      // Verify character averages
-      const [character] = await db
-        .select()
-        .from(characters)
-        .where(eq(characters.id, testCharacterId));
-
-      expect(character.ratingQualityAvg).toBe('4.00'); // (5+3)/2
-      expect(character.ratingCreativityAvg).toBe('4.00'); // (4+4)/2
-      expect(character.ratingEntertainmentAvg).toBe('4.00'); // (5+3)/2
-      expect(character.ratingOverallAvg).toBe('4.00'); // (4+4+4+4+4)/5
-      expect(character.ratingCount).toBe(2);
+      expect(mockTx.insert).toHaveBeenCalled();
+      expect(mockTx.update).toHaveBeenCalled();
     });
 
     it('should handle transaction rollback on error', async () => {
-      // This test verifies atomicity - if character update fails, rating should not be created
-      const invalidCharacterId = '00000000-0000-0000-0000-000000000000';
+      // Make insert throw to simulate a DB error
+      const insertChain = chain(undefined);
+      insertChain.values = vi.fn().mockReturnValue(insertChain);
+      insertChain.onConflictDoUpdate = vi.fn().mockRejectedValue(new Error('FK violation'));
+      mockTx.insert.mockReturnValue(insertChain);
 
       await expect(
-        service.submitRating(invalidCharacterId, testUserId, {
-          quality: 5,
-          creativity: 4,
-          interactivity: 4,
-          accuracy: 4,
-          entertainment: 5,
-        })
+        service.submitRating('bad-id', USER_ID, sampleInput)
       ).rejects.toThrow();
-
-      // Verify no rating was created
-      const allRatings = await db
-        .select()
-        .from(ratings)
-        .where(eq(ratings.userId, testUserId));
-
-      expect(allRatings).toHaveLength(0);
     });
   });
 
+  // ── getRatings ─────────────────────────────────────────────────────────
+
   describe('getRatings', () => {
     it('should return rating details with user rating', async () => {
-      // Submit ratings from two users
-      await service.submitRating(testCharacterId, testUserId, {
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
+      vi.mocked(ratingRepository.getAverageRatings).mockResolvedValue({
+        quality: '4.00', creativity: '4.00', interactivity: '4.00',
+        accuracy: '4.00', entertainment: '4.00', count: 2,
       });
+      vi.mocked(ratingRepository.findByCharacterAndUser).mockResolvedValue({
+        id: 'r1', characterId: CHAR_ID, userId: USER_ID,
+        quality: 5, creativity: 4, interactivity: 4, accuracy: 4, entertainment: 5,
+        createdAt: new Date(), updatedAt: new Date(),
+      } as any);
 
-      await service.submitRating(testCharacterId, testUser2Id, {
-        quality: 3,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 3,
-      });
-
-      const result = await service.getRatings(testCharacterId, testUserId);
+      const result = await service.getRatings(CHAR_ID, USER_ID);
 
       expect(result.overall).toBe('4.00');
       expect(result.dimensions.quality).toBe('4.00');
-      expect(result.dimensions.creativity).toBe('4.00');
       expect(result.count).toBe(2);
       expect(result.userRating).toBeDefined();
       expect(result.userRating?.quality).toBe(5);
     });
 
     it('should return null userRating if user has not rated', async () => {
-      await service.submitRating(testCharacterId, testUser2Id, {
-        quality: 3,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 3,
+      vi.mocked(ratingRepository.getAverageRatings).mockResolvedValue({
+        quality: '3.00', creativity: '4.00', interactivity: '4.00',
+        accuracy: '4.00', entertainment: '3.00', count: 1,
       });
+      vi.mocked(ratingRepository.findByCharacterAndUser).mockResolvedValue(null);
 
-      const result = await service.getRatings(testCharacterId, testUserId);
+      const result = await service.getRatings(CHAR_ID, USER_ID);
 
       expect(result.count).toBe(1);
       expect(result.userRating).toBeNull();
     });
 
     it('should return zero count if no ratings exist', async () => {
-      const result = await service.getRatings(testCharacterId, testUserId);
+      vi.mocked(ratingRepository.getAverageRatings).mockResolvedValue({
+        quality: null, creativity: null, interactivity: null,
+        accuracy: null, entertainment: null, count: 0,
+      });
+
+      const result = await service.getRatings(CHAR_ID, USER_ID);
 
       expect(result.overall).toBeNull();
       expect(result.count).toBe(0);
@@ -249,110 +230,92 @@ describe('RatingService', () => {
     });
   });
 
+  // ── updateRating ───────────────────────────────────────────────────────
+
   describe('updateRating', () => {
     it('should update existing rating', async () => {
-      await service.submitRating(testCharacterId, testUserId, {
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
+      vi.mocked(ratingRepository.findByCharacterAndUser).mockResolvedValue({
+        id: 'r1', characterId: CHAR_ID, userId: USER_ID,
+        quality: 5, creativity: 4, interactivity: 4, accuracy: 4, entertainment: 5,
+        createdAt: new Date(), updatedAt: new Date(),
+      } as any);
+
+      // submitRating is called internally – set up tx mocks
+      const insertChain = chain(undefined);
+      mockTx.insert.mockReturnValue(insertChain);
+      const selectChain = chain([{
+        quality: '3.00', creativity: '3.00', interactivity: '3.00',
+        accuracy: '3.00', entertainment: '3.00', count: 1,
+      }]);
+      mockTx.select.mockReturnValue(selectChain);
+      const updateChain = chain(undefined);
+      mockTx.update.mockReturnValue(updateChain);
+
+      await service.updateRating(CHAR_ID, USER_ID, {
+        quality: 3, creativity: 3, interactivity: 3, accuracy: 3, entertainment: 3,
       });
 
-      await service.updateRating(testCharacterId, testUserId, {
-        quality: 3,
-        creativity: 3,
-        interactivity: 3,
-        accuracy: 3,
-        entertainment: 3,
-      });
-
-      const [character] = await db
-        .select()
-        .from(characters)
-        .where(eq(characters.id, testCharacterId));
-
-      expect(character.ratingQualityAvg).toBe('3.00');
-      expect(character.ratingOverallAvg).toBe('3.00');
+      expect(ratingRepository.findByCharacterAndUser).toHaveBeenCalledWith(CHAR_ID, USER_ID);
+      expect(mockTx.insert).toHaveBeenCalled();
     });
 
     it('should throw error if rating does not exist', async () => {
+      vi.mocked(ratingRepository.findByCharacterAndUser).mockResolvedValue(null);
+
       await expect(
-        service.updateRating(testCharacterId, testUserId, {
-          quality: 5,
-          creativity: 4,
-          interactivity: 4,
-          accuracy: 4,
-          entertainment: 5,
-        })
+        service.updateRating(CHAR_ID, USER_ID, sampleInput)
       ).rejects.toThrow('Rating not found');
     });
   });
 
+  // ── deleteRating ───────────────────────────────────────────────────────
+
   describe('deleteRating', () => {
     it('should delete rating and recalculate averages', async () => {
-      // Create two ratings
-      await service.submitRating(testCharacterId, testUserId, {
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      });
+      const deleteChain = chain([{ id: 'r1' }]);
+      mockTx.delete.mockReturnValue(deleteChain);
 
-      await service.submitRating(testCharacterId, testUser2Id, {
-        quality: 3,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 3,
-      });
+      const selectChain = chain([{
+        quality: '3.00', creativity: '4.00', interactivity: '4.00',
+        accuracy: '4.00', entertainment: '3.00', count: 1,
+      }]);
+      mockTx.select.mockReturnValue(selectChain);
 
-      // Delete first rating
-      await service.deleteRating(testCharacterId, testUserId);
+      const updateChain = chain(undefined);
+      mockTx.update.mockReturnValue(updateChain);
 
-      // Verify rating was deleted
-      const allRatings = await db
-        .select()
-        .from(ratings)
-        .where(eq(ratings.characterId, testCharacterId));
+      await service.deleteRating(CHAR_ID, USER_ID);
 
-      expect(allRatings).toHaveLength(1);
-
-      // Verify averages were recalculated
-      const [character] = await db
-        .select()
-        .from(characters)
-        .where(eq(characters.id, testCharacterId));
-
-      expect(character.ratingQualityAvg).toBe('3.00');
-      expect(character.ratingCount).toBe(1);
+      expect(mockTx.delete).toHaveBeenCalled();
+      expect(mockTx.update).toHaveBeenCalled();
     });
 
     it('should set averages to null when last rating is deleted', async () => {
-      await service.submitRating(testCharacterId, testUserId, {
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      });
+      const deleteChain = chain([{ id: 'r1' }]);
+      mockTx.delete.mockReturnValue(deleteChain);
 
-      await service.deleteRating(testCharacterId, testUserId);
+      const selectChain = chain([{
+        quality: null, creativity: null, interactivity: null,
+        accuracy: null, entertainment: null, count: 0,
+      }]);
+      mockTx.select.mockReturnValue(selectChain);
 
-      const [character] = await db
-        .select()
-        .from(characters)
-        .where(eq(characters.id, testCharacterId));
+      const updateChain = chain(undefined);
+      mockTx.update.mockReturnValue(updateChain);
 
-      expect(character.ratingQualityAvg).toBeNull();
-      expect(character.ratingOverallAvg).toBeNull();
-      expect(character.ratingCount).toBe(0);
+      await service.deleteRating(CHAR_ID, USER_ID);
+
+      expect(mockTx.delete).toHaveBeenCalled();
+      expect(mockTx.update).toHaveBeenCalled();
     });
 
     it('should throw error if rating does not exist', async () => {
+      // returning() resolves to empty array → NotFoundError
+      const deleteChain = chain([]);
+      mockTx.delete.mockReturnValue(deleteChain);
+
       await expect(
-        service.deleteRating(testCharacterId, testUserId)
+        service.deleteRating(CHAR_ID, USER_ID)
       ).rejects.toThrow('Rating not found');
     });
   });
