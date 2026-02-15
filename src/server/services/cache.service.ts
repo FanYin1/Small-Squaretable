@@ -72,9 +72,15 @@ export class CacheService {
   async deletePattern(pattern: string): Promise<void> {
     try {
       const client = await getRedisClient();
-      const keys = await client.keys(pattern);
-      if (keys.length > 0) {
-        await client.del(keys);
+      const batch: string[] = [];
+      for await (const key of client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+        batch.push(key);
+        if (batch.length >= 100) {
+          await client.del(batch.splice(0));
+        }
+      }
+      if (batch.length > 0) {
+        await client.del(batch);
       }
     } catch (error) {
       logger.error('Cache delete pattern error', error as Error);
