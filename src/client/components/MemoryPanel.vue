@@ -2,25 +2,25 @@
 <template>
   <div class="memory-panel">
     <div class="memory-panel__header">
-      <span class="memory-panel__title">角色记忆</span>
-      <span class="memory-panel__count">{{ memoryCount }} 条</span>
+      <span class="memory-panel__title">{{ $t('memory.title') }}</span>
+      <span class="memory-panel__count">{{ memoryCount }} {{ $t('memory.count') }}</span>
     </div>
 
     <!-- Type Filter -->
     <div class="memory-panel__filters">
       <el-radio-group v-model="selectedType" size="small">
-        <el-radio-button label="">全部</el-radio-button>
-        <el-radio-button label="fact">事实</el-radio-button>
-        <el-radio-button label="preference">偏好</el-radio-button>
-        <el-radio-button label="relationship">关系</el-radio-button>
-        <el-radio-button label="event">事件</el-radio-button>
+        <el-radio-button label="">{{ $t('memory.filterAll') }}</el-radio-button>
+        <el-radio-button label="fact">{{ $t('memory.typeFact') }}</el-radio-button>
+        <el-radio-button label="preference">{{ $t('memory.typePreference') }}</el-radio-button>
+        <el-radio-button label="relationship">{{ $t('memory.typeRelationship') }}</el-radio-button>
+        <el-radio-button label="event">{{ $t('memory.typeEvent') }}</el-radio-button>
       </el-radio-group>
     </div>
 
     <!-- Memory List -->
     <div class="memory-panel__list" v-loading="isLoading">
       <div v-if="filteredMemories.length === 0" class="memory-panel__empty">
-        <el-empty description="暂无记忆" :image-size="60" />
+        <el-empty :description="$t('memory.empty')" :image-size="60" />
       </div>
 
       <div
@@ -44,8 +44,8 @@
           {{ memory.content }}
         </div>
         <div class="memory-panel__item-meta">
-          <span>重要度: {{ formatImportance(memory.importance) }}</span>
-          <span>访问: {{ memory.accessCount }}次</span>
+          <span>{{ $t('memory.importance') }} {{ formatImportance(memory.importance) }}</span>
+          <span>{{ $t('memory.accessCount', { n: memory.accessCount }) }}</span>
         </div>
       </div>
     </div>
@@ -53,14 +53,14 @@
     <!-- Actions -->
     <div class="memory-panel__actions">
       <el-popconfirm
-        title="确定要清除所有记忆吗？"
-        confirm-button-text="确定"
-        cancel-button-text="取消"
+        :title="$t('memory.clearConfirm')"
+        :confirm-button-text="$t('common.confirm')"
+        :cancel-button-text="$t('common.cancel')"
         @confirm="handleClearAll"
       >
         <template #reference>
           <el-button type="danger" size="small" :disabled="memoryCount === 0">
-            清除全部
+            {{ $t('memory.clearAll') }}
           </el-button>
         </template>
       </el-popconfirm>
@@ -70,6 +70,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Delete } from '@element-plus/icons-vue';
 import { useCharacterIntelligenceStore } from '../stores/characterIntelligence';
 import { storeToRefs } from 'pinia';
@@ -81,6 +82,7 @@ const props = defineProps<{
   chatId?: string;
 }>();
 
+const { t } = useI18n();
 const store = useCharacterIntelligenceStore();
 const { memories, isLoading } = storeToRefs(store);
 const { success: showSuccess, error: showError } = useToast();
@@ -94,15 +96,15 @@ const filteredMemories = computed(() => {
   return memories.value.filter(m => m.type === selectedType.value);
 });
 
-const TYPE_CONFIG: Record<MemoryType, { label: string; tagType: 'primary' | 'success' | 'warning' | 'danger' }> = {
-  fact: { label: '事实', tagType: 'primary' },
-  preference: { label: '偏好', tagType: 'success' },
-  relationship: { label: '关系', tagType: 'warning' },
-  event: { label: '事件', tagType: 'danger' },
+const TYPE_CONFIG: Record<MemoryType, { labelKey: string; tagType: 'primary' | 'success' | 'warning' | 'danger' }> = {
+  fact: { labelKey: 'memory.typeFact', tagType: 'primary' },
+  preference: { labelKey: 'memory.typePreference', tagType: 'success' },
+  relationship: { labelKey: 'memory.typeRelationship', tagType: 'warning' },
+  event: { labelKey: 'memory.typeEvent', tagType: 'danger' },
 };
 
 function getTypeLabel(type: MemoryType): string {
-  return TYPE_CONFIG[type]?.label ?? type;
+  return TYPE_CONFIG[type] ? t(TYPE_CONFIG[type].labelKey) : type;
 }
 
 function getTypeTagType(type: MemoryType): 'primary' | 'success' | 'warning' | 'danger' {
@@ -117,18 +119,18 @@ function formatImportance(importance: number | string | null): string {
 async function handleDelete(memoryId: string) {
   try {
     await store.deleteMemory(props.characterId, memoryId, props.chatId);
-    showSuccess('记忆已删除');
+    showSuccess(t('memory.deleteSuccess'));
   } catch (e) {
-    showError('删除失败');
+    showError(t('memory.deleteError'));
   }
 }
 
 async function handleClearAll() {
   try {
     await store.clearAllMemories(props.characterId, props.chatId);
-    showSuccess('所有记忆已清除');
+    showSuccess(t('memory.clearSuccess'));
   } catch (e) {
-    showError('清除失败');
+    showError(t('memory.clearError'));
   }
 }
 </script>
