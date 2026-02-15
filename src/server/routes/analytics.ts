@@ -96,12 +96,12 @@ analyticsRoutes.post(
         meta: { timestamp: new Date().toISOString() },
       }, 202);
     } catch (error) {
-      analyticsLogger.error('Failed to ingest events', error as Error);
+      analyticsLogger.error('Failed to ingest analytics events to Kafka', error as Error);
       return c.json({
-        success: true,
-        data: { accepted: events.length, note: 'queued' },
+        success: false,
+        error: { code: 'INGESTION_FAILED', message: 'Failed to queue events' },
         meta: { timestamp: new Date().toISOString() },
-      }, 202);
+      }, 500);
     }
   }
 );

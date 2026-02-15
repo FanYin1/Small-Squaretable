@@ -6,6 +6,7 @@
  */
 
 import { getClickHouseClient } from '../../core/clickhouse';
+import { logger } from './logger.service';
 
 export interface VariantMetrics {
   variant: string;
@@ -43,8 +44,8 @@ export class ExperimentAnalysisService {
         format: 'JSONEachRow',
       });
       return resultSet.json<VariantMetrics>();
-    } catch {
-      // ClickHouse unavailable — return empty results
+    } catch (error) {
+      logger.error('Failed to query experiment results from ClickHouse', error as Error, { experimentId });
       return [];
     }
   }
