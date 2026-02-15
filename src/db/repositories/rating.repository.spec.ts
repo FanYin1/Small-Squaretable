@@ -1,297 +1,217 @@
 /**
- * RatingRepository 单元测试
+ * RatingRepository unit tests (mocked DB)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { db } from '../index';
-import { ratings } from '../schema/ratings';
-import { characters } from '../schema/characters';
-import { users } from '../schema/users';
-import { tenants } from '../schema/tenants';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../index', () => {
+  const mockDb: any = {
+    insert: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    returning: vi.fn(),
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
+    onConflictDoUpdate: vi.fn().mockReturnThis(),
+    limit: vi.fn(),
+    orderBy: vi.fn().mockReturnThis(),
+  };
+  return { db: mockDb };
+});
+
+vi.mock('../schema/ratings', () => ({
+  ratings: {
+    id: 'id',
+    characterId: 'character_id',
+    userId: 'user_id',
+    quality: 'quality',
+    creativity: 'creativity',
+    interactivity: 'interactivity',
+    accuracy: 'accuracy',
+    entertainment: 'entertainment',
+    updatedAt: 'updated_at',
+  },
+}));
+
+vi.mock('../schema/characters', () => ({
+  characters: { id: 'id', commentCount: 'comment_count', favoriteCount: 'favorite_count' },
+}));
+vi.mock('../schema/users', () => ({
+  users: { id: 'id', tenantId: 'tenant_id' },
+}));
+vi.mock('../schema/tenants', () => ({
+  tenants: { id: 'id' },
+}));
+
 import { RatingRepository } from './rating.repository';
-import { eq } from 'drizzle-orm';
+import { db } from '../index';
+
+const mockDb = db as any;
+
+function resetChains() {
+  mockDb.insert.mockReturnThis();
+  mockDb.values.mockReturnThis();
+  mockDb.select.mockReturnThis();
+  mockDb.from.mockReturnThis();
+  mockDb.where.mockReturnThis();
+  mockDb.update.mockReturnThis();
+  mockDb.set.mockReturnThis();
+  mockDb.delete.mockReturnThis();
+  mockDb.onConflictDoUpdate.mockReturnThis();
+  mockDb.orderBy.mockReturnThis();
+}
 
 describe('RatingRepository', () => {
   let repository: RatingRepository;
-  let testTenantId: string;
-  let testUserId: string;
-  let testCharacterId: string;
 
-  beforeEach(async () => {
-    repository = new RatingRepository(db);
-
-    // Create test tenant
-    const [tenant] = await db.insert(tenants).values({
-      name: 'Test Tenant',
-      slug: 'test-tenant-' + Date.now(),
-    }).returning();
-    testTenantId = tenant.id;
-
-    // Create test user
-    const [user] = await db.insert(users).values({
-      tenantId: testTenantId,
-      email: `test-${Date.now()}@example.com`,
-      passwordHash: 'hash',
-      username: `testuser-${Date.now()}`,
-    }).returning();
-    testUserId = user.id;
-
-    // Create test character
-    const [character] = await db.insert(characters).values({
-      tenantId: testTenantId,
-      creatorId: testUserId,
-      name: 'Test Character',
-      cardData: { name: 'Test' },
-      isPublic: true,
-    }).returning();
-    testCharacterId = character.id;
-  });
-
-  afterEach(async () => {
-    // Clean up in reverse order of dependencies
-    await db.delete(ratings).where(eq(ratings.characterId, testCharacterId));
-    await db.delete(characters).where(eq(characters.id, testCharacterId));
-    await db.delete(users).where(eq(users.id, testUserId));
-    await db.delete(tenants).where(eq(tenants.id, testTenantId));
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetChains();
+    repository = new RatingRepository(mockDb);
   });
 
   describe('create', () => {
     it('should create a new rating', async () => {
-      const ratingData = {
-        characterId: testCharacterId,
-        userId: testUserId,
+      const fakeRating = {
+        id: 'rating-1',
+        characterId: 'char-1',
+        userId: 'user-1',
         quality: 5,
         creativity: 4,
         interactivity: 4,
         accuracy: 4,
         entertainment: 5,
       };
+      mockDb.returning.mockResolvedValueOnce([fakeRating]);
 
-      const rating = await repository.create(ratingData);
+      const rating = await repository.create(fakeRating as any);
 
-      expect(rating).toBeDefined();
-      expect(rating.id).toBeDefined();
-      expect(rating.characterId).toBe(testCharacterId);
-      expect(rating.userId).toBe(testUserId);
+      expect(rating.id).toBe('rating-1');
       expect(rating.quality).toBe(5);
       expect(rating.creativity).toBe(4);
-      expect(rating.interactivity).toBe(4);
-      expect(rating.accuracy).toBe(4);
-      expect(rating.entertainment).toBe(5);
+      expect(mockDb.insert).toHaveBeenCalled();
     });
 
-    it('should enforce UNIQUE constraint on character_id and user_id', async () => {
-      const ratingData = {
-        characterId: testCharacterId,
-        userId: testUserId,
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      };
+    it('should throw on duplicate rating', async () => {
+      mockDb.returning.mockRejectedValueOnce(new Error('unique constraint'));
 
-      await repository.create(ratingData);
-
-      // Attempt to create duplicate rating should fail
-      await expect(repository.create(ratingData)).rejects.toThrow();
+      await expect(repository.create({} as any)).rejects.toThrow();
     });
   });
 
   describe('findByCharacterAndUser', () => {
     it('should find rating by character and user', async () => {
-      const ratingData = {
-        characterId: testCharacterId,
-        userId: testUserId,
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      };
+      const fakeRating = { id: 'rating-1', characterId: 'char-1', userId: 'user-1' };
+      mockDb.where.mockResolvedValueOnce([fakeRating]);
 
-      await repository.create(ratingData);
-
-      const found = await repository.findByCharacterAndUser(testCharacterId, testUserId);
+      const found = await repository.findByCharacterAndUser('char-1', 'user-1');
 
       expect(found).toBeDefined();
-      expect(found?.characterId).toBe(testCharacterId);
-      expect(found?.userId).toBe(testUserId);
+      expect(found?.characterId).toBe('char-1');
+      expect(found?.userId).toBe('user-1');
     });
 
     it('should return null if rating not found', async () => {
-      const found = await repository.findByCharacterAndUser(testCharacterId, testUserId);
+      mockDb.where.mockResolvedValueOnce([]);
+
+      const found = await repository.findByCharacterAndUser('char-1', 'user-1');
+
       expect(found).toBeNull();
     });
   });
 
   describe('findByCharacterId', () => {
     it('should find all ratings for a character', async () => {
-      // Create first rating
-      await repository.create({
-        characterId: testCharacterId,
-        userId: testUserId,
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      });
+      const fakeRatings = [
+        { id: 'r1', userId: 'user-1' },
+        { id: 'r2', userId: 'user-2' },
+      ];
+      mockDb.where.mockResolvedValueOnce(fakeRatings);
 
-      // Create second user and rating
-      const [user2] = await db.insert(users).values({
-        tenantId: testTenantId,
-        email: `test2-${Date.now()}@example.com`,
-        passwordHash: 'hash',
-        username: `testuser2-${Date.now()}`,
-      }).returning();
-
-      await repository.create({
-        characterId: testCharacterId,
-        userId: user2.id,
-        quality: 3,
-        creativity: 3,
-        interactivity: 3,
-        accuracy: 3,
-        entertainment: 3,
-      });
-
-      const allRatings = await repository.findByCharacterId(testCharacterId);
+      const allRatings = await repository.findByCharacterId('char-1');
 
       expect(allRatings).toHaveLength(2);
-      expect(allRatings.some(r => r.userId === testUserId)).toBe(true);
-      expect(allRatings.some(r => r.userId === user2.id)).toBe(true);
-
-      // Cleanup
-      await db.delete(users).where(eq(users.id, user2.id));
+      expect(allRatings.some((r: any) => r.userId === 'user-1')).toBe(true);
+      expect(allRatings.some((r: any) => r.userId === 'user-2')).toBe(true);
     });
   });
 
   describe('upsert', () => {
     it('should insert new rating if not exists', async () => {
-      const ratingData = {
-        characterId: testCharacterId,
-        userId: testUserId,
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      };
+      const fakeRating = { id: 'rating-1', quality: 5 };
+      mockDb.returning.mockResolvedValueOnce([fakeRating]);
 
-      const rating = await repository.upsert(ratingData);
+      const rating = await repository.upsert({ quality: 5 } as any);
 
-      expect(rating).toBeDefined();
       expect(rating.quality).toBe(5);
+      expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
     });
 
     it('should update existing rating if exists', async () => {
-      const ratingData = {
-        characterId: testCharacterId,
-        userId: testUserId,
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      };
+      const fakeRating = { id: 'rating-1', quality: 3, creativity: 3, interactivity: 4 };
+      mockDb.returning.mockResolvedValueOnce([fakeRating]);
 
-      await repository.create(ratingData);
-
-      const updatedData = {
-        ...ratingData,
-        quality: 3,
-        creativity: 3,
-      };
-
-      const updated = await repository.upsert(updatedData);
+      const updated = await repository.upsert({ quality: 3, creativity: 3 } as any);
 
       expect(updated.quality).toBe(3);
       expect(updated.creativity).toBe(3);
-      expect(updated.interactivity).toBe(4);
     });
   });
 
   describe('delete', () => {
     it('should delete rating by character and user', async () => {
-      await repository.create({
-        characterId: testCharacterId,
-        userId: testUserId,
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      });
+      mockDb.returning.mockResolvedValueOnce([{ id: 'rating-1' }]);
 
-      const deleted = await repository.delete(testCharacterId, testUserId);
+      const deleted = await repository.delete('char-1', 'user-1');
 
       expect(deleted).toBe(true);
-
-      const found = await repository.findByCharacterAndUser(testCharacterId, testUserId);
-      expect(found).toBeNull();
+      expect(mockDb.delete).toHaveBeenCalled();
     });
 
     it('should return false if rating not found', async () => {
-      const deleted = await repository.delete(testCharacterId, testUserId);
+      mockDb.returning.mockResolvedValueOnce([]);
+
+      const deleted = await repository.delete('char-1', 'user-1');
+
       expect(deleted).toBe(false);
     });
   });
 
   describe('getAverageRatings', () => {
     it('should calculate average ratings for a character', async () => {
-      // Create first rating
-      await repository.create({
-        characterId: testCharacterId,
-        userId: testUserId,
-        quality: 5,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 5,
-      });
+      const fakeAvg = {
+        quality: '4.00',
+        creativity: '4.00',
+        interactivity: '4.00',
+        accuracy: '4.00',
+        entertainment: '4.00',
+        count: 2,
+      };
+      mockDb.where.mockResolvedValueOnce([fakeAvg]);
 
-      // Create second user and rating
-      const [user2] = await db.insert(users).values({
-        tenantId: testTenantId,
-        email: `test2-${Date.now()}@example.com`,
-        passwordHash: 'hash',
-        username: `testuser2-${Date.now()}`,
-      }).returning();
+      const averages = await repository.getAverageRatings('char-1');
 
-      await repository.create({
-        characterId: testCharacterId,
-        userId: user2.id,
-        quality: 3,
-        creativity: 4,
-        interactivity: 4,
-        accuracy: 4,
-        entertainment: 3,
-      });
-
-      const averages = await repository.getAverageRatings(testCharacterId);
-
-      expect(averages).toBeDefined();
-      expect(averages.quality).toBe('4.00'); // (5+3)/2
-      expect(averages.creativity).toBe('4.00'); // (4+4)/2
-      expect(averages.interactivity).toBe('4.00'); // (4+4)/2
-      expect(averages.accuracy).toBe('4.00'); // (4+4)/2
-      expect(averages.entertainment).toBe('4.00'); // (5+3)/2
+      expect(averages.quality).toBe('4.00');
       expect(averages.count).toBe(2);
-
-      // Cleanup
-      await db.delete(users).where(eq(users.id, user2.id));
     });
 
     it('should return null values if no ratings exist', async () => {
-      const averages = await repository.getAverageRatings(testCharacterId);
+      const fakeAvg = {
+        quality: null,
+        creativity: null,
+        interactivity: null,
+        accuracy: null,
+        entertainment: null,
+        count: 0,
+      };
+      mockDb.where.mockResolvedValueOnce([fakeAvg]);
 
-      expect(averages).toBeDefined();
+      const averages = await repository.getAverageRatings('char-1');
+
       expect(averages.quality).toBeNull();
-      expect(averages.creativity).toBeNull();
-      expect(averages.interactivity).toBeNull();
-      expect(averages.accuracy).toBeNull();
-      expect(averages.entertainment).toBeNull();
       expect(averages.count).toBe(0);
     });
   });

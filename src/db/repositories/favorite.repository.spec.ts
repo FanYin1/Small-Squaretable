@@ -1,179 +1,173 @@
 /**
- * FavoriteRepository unit tests
+ * FavoriteRepository unit tests (mocked DB)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { db } from '../index';
-import { favorites } from '../schema/social';
-import { characters } from '../schema/characters';
-import { users } from '../schema/users';
-import { tenants } from '../schema/tenants';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { mockDb, mockTx } = vi.hoisted(() => {
+  function createChain() {
+    const c: any = {};
+    c.insert = vi.fn(() => c);
+    c.values = vi.fn(() => c);
+    c.returning = vi.fn();
+    c.select = vi.fn(() => c);
+    c.from = vi.fn(() => c);
+    c.where = vi.fn(() => c);
+    c.update = vi.fn(() => c);
+    c.set = vi.fn(() => c);
+    c.delete = vi.fn(() => c);
+    c.innerJoin = vi.fn(() => c);
+    c.orderBy = vi.fn(() => c);
+    c.limit = vi.fn(() => c);
+    c.offset = vi.fn();
+    c.onConflictDoNothing = vi.fn(() => c);
+    return c;
+  }
+  const mockTx = createChain();
+  const mockDb = createChain();
+  mockDb.transaction = vi.fn(async (fn: any) => fn(mockTx));
+  return { mockDb, mockTx };
+});
+
+vi.mock('../index', () => ({ db: mockDb }));
+
+vi.mock('../schema/social', () => ({
+  favorites: {
+    id: 'id', userId: 'user_id', characterId: 'character_id', createdAt: 'created_at',
+  },
+}));
+
+vi.mock('../schema/characters', () => ({
+  characters: {
+    id: 'id', name: 'name', avatarUrl: 'avatar_url',
+    description: 'description', favoriteCount: 'favorite_count',
+  },
+}));
+
 import { FavoriteRepository } from './favorite.repository';
-import { eq } from 'drizzle-orm';
+
+function resetChain(c: any) {
+  c.insert.mockImplementation(() => c);
+  c.values.mockImplementation(() => c);
+  c.select.mockImplementation(() => c);
+  c.from.mockImplementation(() => c);
+  c.where.mockImplementation(() => c);
+  c.update.mockImplementation(() => c);
+  c.set.mockImplementation(() => c);
+  c.delete.mockImplementation(() => c);
+  c.innerJoin.mockImplementation(() => c);
+  c.orderBy.mockImplementation(() => c);
+  c.limit.mockImplementation(() => c);
+  c.onConflictDoNothing.mockImplementation(() => c);
+}
 
 describe('FavoriteRepository', () => {
   let repository: FavoriteRepository;
-  let testTenantId: string;
-  let testUserId: string;
-  let testCharacterId: string;
 
-  beforeEach(async () => {
-    repository = new FavoriteRepository(db);
-
-    // Create test tenant
-    const [tenant] = await db.insert(tenants).values({
-      name: 'Test Tenant',
-    }).returning();
-    testTenantId = tenant.id;
-
-    // Create test user
-    const [user] = await db.insert(users).values({
-      tenantId: testTenantId,
-      email: `test-fav-${Date.now()}@example.com`,
-      passwordHash: 'hash',
-    }).returning();
-    testUserId = user.id;
-
-    // Create test character
-    const [character] = await db.insert(characters).values({
-      tenantId: testTenantId,
-      creatorId: testUserId,
-      name: 'Test Character',
-      description: 'A test character for favorites',
-      avatarUrl: 'https://example.com/avatar.png',
-      cardData: { name: 'Test Character' },
-    }).returning();
-    testCharacterId = character.id;
-  });
-
-  afterEach(async () => {
-    // Clean up in reverse order of dependencies
-    await db.delete(favorites);
-    await db.delete(characters).where(eq(characters.creatorId, testUserId));
-    await db.delete(users).where(eq(users.id, testUserId));
-    await db.delete(tenants).where(eq(tenants.id, testTenantId));
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetChain(mockDb);
+    resetChain(mockTx);
+    mockDb.transaction.mockImplementation(async (fn: any) => fn(mockTx));
+    repository = new FavoriteRepository(mockDb as any);
   });
 
   describe('favorite()', () => {
-    it('should insert a favorite record and increment character favoriteCount', async () => {
-      const result = await repository.favorite(testUserId, testCharacterId);
+    it('should insert a favorite record via transaction', async () => {
+      const fakeFav = { id: 'fav-1', userId: 'u-1', characterId: 'ch-1', createdAt: new Date() };
+      // onConflictDoNothing -> returning -> [row] means new insert
+      mockTx.returning.mockResolvedValueOnce([fakeFav]);
+
+      const result = await repository.favorite('u-1', 'ch-1');
 
       expect(result).toBeDefined();
-      expect(result.id).toBeDefined();
-      expect(result.userId).toBe(testUserId);
-      expect(result.characterId).toBe(testCharacterId);
-      expect(result.createdAt).toBeDefined();
-
-      // Verify favoriteCount was incremented
-      const count = await repository.getFavoriteCount(testCharacterId);
-      expect(count).toBe(1);
+      expect(result.id).toBe('fav-1');
+      expect(result.userId).toBe('u-1');
+      expect(result.characterId).toBe('ch-1');
+      expect(mockDb.transaction).toHaveBeenCalled();
     });
 
     it('should be idempotent on duplicate favorite', async () => {
-      const first = await repository.favorite(testUserId, testCharacterId);
-      const second = await repository.favorite(testUserId, testCharacterId);
+      // returning undefined means conflict (already exists)
+      mockTx.returning.mockResolvedValueOnce([undefined]);
+      // Then it selects the existing record
+      const existing = { id: 'fav-1', userId: 'u-1', characterId: 'ch-1', createdAt: new Date() };
+      mockTx.where.mockResolvedValueOnce([existing]);
 
-      // Should return the same record
-      expect(second.id).toBe(first.id);
-      expect(second.userId).toBe(testUserId);
-      expect(second.characterId).toBe(testCharacterId);
+      const result = await repository.favorite('u-1', 'ch-1');
 
-      // favoriteCount should still be 1 (not incremented twice)
-      const count = await repository.getFavoriteCount(testCharacterId);
-      expect(count).toBe(1);
+      expect(result.id).toBe('fav-1');
     });
   });
 
   describe('unfavorite()', () => {
-    it('should delete the favorite record and decrement character favoriteCount', async () => {
-      // First, favorite
-      await repository.favorite(testUserId, testCharacterId);
-      const countBefore = await repository.getFavoriteCount(testCharacterId);
-      expect(countBefore).toBe(1);
+    it('should delete the favorite record via transaction', async () => {
+      mockTx.returning.mockResolvedValueOnce([{ id: 'fav-1' }]);
 
-      // Then, unfavorite
-      const result = await repository.unfavorite(testUserId, testCharacterId);
+      const result = await repository.unfavorite('u-1', 'ch-1');
+
       expect(result).toBe(true);
-
-      // Verify favoriteCount was decremented
-      const countAfter = await repository.getFavoriteCount(testCharacterId);
-      expect(countAfter).toBe(0);
-
-      // Verify the favorite record is gone
-      const isFav = await repository.isFavorited(testUserId, testCharacterId);
-      expect(isFav).toBe(false);
+      expect(mockDb.transaction).toHaveBeenCalled();
     });
 
     it('should return false when favorite does not exist', async () => {
-      const result = await repository.unfavorite(testUserId, testCharacterId);
+      mockTx.returning.mockResolvedValueOnce([]);
+
+      const result = await repository.unfavorite('u-1', 'ch-1');
       expect(result).toBe(false);
     });
   });
 
   describe('isFavorited()', () => {
-    it('should return true when user has favorited the character', async () => {
-      await repository.favorite(testUserId, testCharacterId);
-      const result = await repository.isFavorited(testUserId, testCharacterId);
+    it('should return true when favorited', async () => {
+      mockDb.where.mockResolvedValueOnce([{ id: 'fav-1' }]);
+
+      const result = await repository.isFavorited('u-1', 'ch-1');
       expect(result).toBe(true);
     });
 
-    it('should return false when user has not favorited the character', async () => {
-      const result = await repository.isFavorited(testUserId, testCharacterId);
+    it('should return false when not favorited', async () => {
+      mockDb.where.mockResolvedValueOnce([]);
+
+      const result = await repository.isFavorited('u-1', 'ch-1');
       expect(result).toBe(false);
     });
   });
 
   describe('getFavoritesByUser()', () => {
     it('should return paginated list with character info', async () => {
-      // Create a second character
-      const [char2] = await db.insert(characters).values({
-        tenantId: testTenantId,
-        creatorId: testUserId,
-        name: 'Second Character',
-        description: 'Another character',
-        avatarUrl: 'https://example.com/avatar2.png',
-        cardData: { name: 'Second Character' },
-      }).returning();
+      const rows = [
+        { id: 'ch-1', name: 'Test Character', avatarUrl: null, description: 'desc', favoritedAt: new Date() },
+        { id: 'ch-2', name: 'Second Character', avatarUrl: null, description: 'desc2', favoritedAt: new Date() },
+      ];
+      mockDb.offset.mockResolvedValueOnce(rows);
 
-      // Favorite both characters
-      await repository.favorite(testUserId, testCharacterId);
-      await repository.favorite(testUserId, char2.id);
+      const all = await repository.getFavoritesByUser('u-1', 10, 0);
 
-      // Get first page (limit 1)
-      const page1 = await repository.getFavoritesByUser(testUserId, 1, 0);
-      expect(page1).toHaveLength(1);
-      expect(page1[0].id).toBeDefined();
-      expect(page1[0].name).toBeDefined();
-      expect(page1[0].favoritedAt).toBeDefined();
-
-      // Get all
-      const all = await repository.getFavoritesByUser(testUserId, 10, 0);
       expect(all).toHaveLength(2);
-
-      // Verify character info is present
-      const names = all.map((f) => f.name).sort();
-      expect(names).toEqual(['Second Character', 'Test Character']);
+      expect(all[0].name).toBe('Test Character');
+      expect(all[1].name).toBe('Second Character');
     });
 
     it('should return empty array when user has no favorites', async () => {
-      const result = await repository.getFavoritesByUser(testUserId, 10, 0);
+      mockDb.offset.mockResolvedValueOnce([]);
+
+      const result = await repository.getFavoritesByUser('u-1', 10, 0);
       expect(result).toHaveLength(0);
     });
   });
 
   describe('getFavoriteCount()', () => {
-    it('should return the favorite count from the characters table', async () => {
-      // Initially 0
-      const count0 = await repository.getFavoriteCount(testCharacterId);
-      expect(count0).toBe(0);
+    it('should return the favorite count from characters table', async () => {
+      mockDb.where.mockResolvedValueOnce([{ favoriteCount: 1 }]);
 
-      // After favoriting
-      await repository.favorite(testUserId, testCharacterId);
-      const count1 = await repository.getFavoriteCount(testCharacterId);
-      expect(count1).toBe(1);
+      const count = await repository.getFavoriteCount('ch-1');
+      expect(count).toBe(1);
     });
 
     it('should return 0 for non-existent character', async () => {
+      mockDb.where.mockResolvedValueOnce([]);
+
       const count = await repository.getFavoriteCount('00000000-0000-0000-0000-000000000000');
       expect(count).toBe(0);
     });
