@@ -6,6 +6,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SchedulerService } from '../services/scheduler.service';
 import { registerJobs } from './index';
 
+const { mockJobsLoggerInfo } = vi.hoisted(() => ({
+  mockJobsLoggerInfo: vi.fn(),
+}));
+
+vi.mock('../services/logger.service', () => ({
+  logger: {
+    child: () => ({
+      info: mockJobsLoggerInfo,
+      warn: vi.fn(),
+      error: vi.fn(),
+    }),
+  },
+}));
+
 // Mock dependencies
 vi.mock('../services/gdpr.service', () => ({
   gdprService: {
@@ -82,11 +96,9 @@ describe('registerJobs', () => {
 
   it('gdpr-deletion logs when count > 0', async () => {
     vi.mocked(gdprService.processExpiredDeletions).mockResolvedValueOnce(3);
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     registerJobs(scheduler);
     await scheduler.runNow('gdpr-deletion');
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('[Job:gdpr-deletion]'));
-    consoleSpy.mockRestore();
+    expect(mockJobsLoggerInfo).toHaveBeenCalledWith('Deleted expired accounts', { job: 'gdpr-deletion', count: 3 });
   });
 
   it('jobs have correct intervals', () => {
