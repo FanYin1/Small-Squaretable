@@ -43,7 +43,8 @@ describe('JWT Module', () => {
     it('should throw on expired token', async () => {
       vi.useFakeTimers();
       const token = await generateAccessToken(mockPayload);
-      vi.advanceTimersByTime(16 * 60 * 1000); // 16 minutes
+      // Access token expiry is 6h, advance past that
+      vi.advanceTimersByTime(7 * 60 * 60 * 1000); // 7 hours
       await expect(verifyAccessToken(token)).rejects.toThrow();
       vi.useRealTimers();
     });
