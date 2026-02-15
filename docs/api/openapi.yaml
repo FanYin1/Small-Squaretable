@@ -596,6 +596,359 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 
   # ============================================================
+  # Intelligence Endpoints (Character Memory & Emotion)
+  # ============================================================
+  /api/v1/characters/{characterId}/intelligence/memories:
+    get:
+      tags:
+        - Intelligence
+      summary: List character memories
+      description: Returns memories for a character, optionally filtered by query or chat session.
+      operationId: listMemories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: Search query for semantic memory retrieval
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: chatId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter memories by chat session
+      responses:
+        '200':
+          description: Memory list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          memories:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Memory'
+                          total:
+                            type: integer
+                          limit:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - Intelligence
+      summary: Clear all memories
+      description: Deletes all memories for a character, optionally scoped to a chat session.
+      operationId: clearMemories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: chatId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Memories cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/characters/{characterId}/intelligence/memories/{memoryId}:
+    delete:
+      tags:
+        - Intelligence
+      summary: Delete a specific memory
+      description: Deletes a single memory by ID.
+      operationId: deleteMemory
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: memoryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Memory deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/characters/{characterId}/intelligence/extract-memories:
+    post:
+      tags:
+        - Intelligence
+      summary: Extract memories from chat
+      description: Analyzes recent chat messages and extracts important facts as memories.
+      operationId: extractMemories
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtractMemoriesRequest'
+      responses:
+        '200':
+          description: Memories extracted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          extracted:
+                            type: integer
+                            description: Number of memories extracted
+                          memories:
+                            type: array
+                            items:
+                              type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/characters/{characterId}/intelligence/emotion:
+    get:
+      tags:
+        - Intelligence
+      summary: Get current emotion state
+      description: Returns the current 2D valence-arousal emotion state and history for a character.
+      operationId: getEmotion
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: chatId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Emotion state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EmotionState'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags:
+        - Intelligence
+      summary: Update emotion manually
+      description: Manually sets the valence-arousal emotion state for a character.
+      operationId: updateEmotion
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: chatId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmotionUpdateRequest'
+      responses:
+        '200':
+          description: Emotion updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EmotionState'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - Intelligence
+      summary: Reset emotion state
+      description: Resets the emotion state to neutral (0, 0).
+      operationId: resetEmotion
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Emotion reset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/characters/{characterId}/intelligence/debug:
+    get:
+      tags:
+        - Intelligence
+      summary: Get debug state
+      description: Returns the full intelligence debug state including memory retrieval logs, emotion timeline, and performance metrics.
+      operationId: getDebugState
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: chatId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Debug state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/IntelligenceDebugState'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/characters/{characterId}/intelligence/system-prompt:
+    get:
+      tags:
+        - Intelligence
+      summary: Get system prompt details
+      description: Returns the constructed system prompt with all injected context (memories, emotion, world info).
+      operationId: getSystemPrompt
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: chatId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: System prompt details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          prompt:
+                            type: string
+                          sections:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                content:
+                                  type: string
+                                tokenCount:
+                                  type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
   # User Endpoints
   # ============================================================
   /api/v1/users/me:
@@ -1751,6 +2104,111 @@ components:
           items:
             type: string
           description: 10 single-use backup codes
+
+    Memory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        characterId:
+          type: string
+          format: uuid
+        content:
+          type: string
+        importance:
+          type: number
+          format: float
+          description: Importance score (0-1)
+        accessCount:
+          type: integer
+        lastAccessedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    ExtractMemoriesRequest:
+      type: object
+      required:
+        - chatId
+      properties:
+        chatId:
+          type: string
+          format: uuid
+
+    EmotionState:
+      type: object
+      properties:
+        current:
+          type: object
+          properties:
+            valence:
+              type: number
+              format: float
+              description: Pleasure dimension (-1 to 1)
+            arousal:
+              type: number
+              format: float
+              description: Energy dimension (-1 to 1)
+            label:
+              type: string
+              description: Human-readable emotion label
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              valence:
+                type: number
+              arousal:
+                type: number
+              timestamp:
+                type: string
+                format: date-time
+
+    EmotionUpdateRequest:
+      type: object
+      required:
+        - valence
+        - arousal
+      properties:
+        valence:
+          type: number
+          format: float
+          minimum: -1
+          maximum: 1
+        arousal:
+          type: number
+          format: float
+          minimum: -1
+          maximum: 1
+
+    IntelligenceDebugState:
+      type: object
+      properties:
+        memoryRetrievalLog:
+          type: array
+          items:
+            type: object
+        emotionTimeline:
+          type: array
+          items:
+            type: object
+        extractionLog:
+          type: array
+          items:
+            type: object
+        performanceMetrics:
+          type: object
+          properties:
+            memoryRetrievalMs:
+              type: number
+            emotionComputeMs:
+              type: number
+            totalInjectionMs:
+              type: number
 
     HealthCheckResponse:
       type: object
