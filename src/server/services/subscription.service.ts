@@ -1,9 +1,10 @@
 import Stripe from 'stripe';
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
 import { NotFoundError, ValidationError } from '../../core/errors';
+import { config } from '../../core/config';
 import type { Subscription } from '../../db/schema/subscriptions';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = new Stripe(config.stripeSecretKey, {
   apiVersion: '2026-01-28.clover',
 });
 
@@ -11,9 +12,9 @@ export type PlanType = 'free' | 'pro' | 'team';
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing';
 
 const PRICE_TO_PLAN: Record<string, PlanType> = {
-  [process.env.STRIPE_PRICE_PRO_MONTHLY!]: 'pro',
-  [process.env.STRIPE_PRICE_PRO_YEARLY!]: 'pro',
-  [process.env.STRIPE_PRICE_TEAM_MONTHLY!]: 'team',
+  [config.stripeProMonthlyPrice]: 'pro',
+  [config.stripeProYearlyPrice]: 'pro',
+  [config.stripeTeamMonthlyPrice]: 'team',
 };
 
 export class SubscriptionService {
@@ -89,7 +90,7 @@ export class SubscriptionService {
   }
 
   async handleWebhook(payload: string, signature: string): Promise<void> {
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+    const webhookSecret = config.stripeWebhookSecret;
     let event: Stripe.Event;
 
     try {

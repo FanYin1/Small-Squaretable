@@ -58,6 +58,13 @@ const configSchema = z.object({
   githubClientId: z.string().default(''),
   githubClientSecret: z.string().default(''),
   oauthCallbackBase: z.string().default('http://localhost:3000/api/v1/auth/oauth'),
+
+  // Stripe
+  stripeSecretKey: z.string().default(''),
+  stripeWebhookSecret: z.string().default(''),
+  stripeProMonthlyPrice: z.string().default(''),
+  stripeProYearlyPrice: z.string().default(''),
+  stripeTeamMonthlyPrice: z.string().default(''),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -98,6 +105,11 @@ export function loadConfig(): Config {
     githubClientId: process.env.GITHUB_CLIENT_ID,
     githubClientSecret: process.env.GITHUB_CLIENT_SECRET,
     oauthCallbackBase: process.env.OAUTH_CALLBACK_BASE,
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    stripeProMonthlyPrice: process.env.STRIPE_PRICE_PRO_MONTHLY,
+    stripeProYearlyPrice: process.env.STRIPE_PRICE_PRO_YEARLY,
+    stripeTeamMonthlyPrice: process.env.STRIPE_PRICE_TEAM_MONTHLY,
   };
 
   try {
