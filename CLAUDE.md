@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 5 Complete (Technical Debt + Recommendations)
+**Status**: Iteration 6 Complete (Production Readiness)
 **Last Updated**: 2026-02-15
 
 ---
@@ -353,6 +353,34 @@ npm run build            # Production build
 
 ---
 
+## Iteration 6: Production Readiness (2026-02-15) ✅
+
+### Code Cleanup (M1) ✅
+- **PLACEHOLDER Removal**: Removed 6 PLACEHOLDER comments from Experiments.vue and AuditLogs.vue
+- **Dead Click Handler**: Wired MyCharacters card click to navigate to CharacterDetail page
+- **Date Filter Fix**: AuditLogs loadLogs() now passes dateRange to API call
+- **i18n Keys**: Added 17 admin.experiments.* keys to en-US and zh-CN locales
+
+### Structured Logging (M2) ✅
+- **Core Services**: Replaced console.log/error in index.ts, cache.service.ts, embedding.service.ts, memory.service.ts
+- **All Server Files**: Replaced 53 console.log/error/warn across 18 server files with child loggers
+- **Silent Catches**: Added error logging to experiment-analysis.service.ts empty catch, fixed analytics 202→500 on Kafka failure
+- **Circular Dep**: core/redis.ts uses structured JSON console.error (cannot import logger)
+
+### Performance Fixes (M3) ✅
+- **N+1 Query**: Batch updateAccessTimeBatch() replaces per-memory loop in memory.service.ts
+- **Redis SCAN**: cache.service.ts deletePattern uses scanIterator instead of KEYS
+- **Social Caching**: 60s TTL cache-aside on GET /followers, /following, /favorites with mutation invalidation
+
+### Production Infrastructure (M4) ✅
+- **Redis Rate Limiting**: RedisRateLimitStore with INCR+EXPIRE, auto-select Redis in production
+- **Graceful Shutdown**: Ordered teardown (scheduler→workers→connections→stores) with 10s timeout
+- **Stripe Config**: 5 Stripe fields in Zod config schema, removed process.env! assertions
+- **Configurable Limits**: memoryLimitFree/Pro/Team, cacheTtlDefault, recommendationCacheTtl via env vars
+- **Specific Rate Limiters**: socialComment (10/min), report (5/hr), export (3/hr), analyticsIngestion (50/min)
+
+---
+
 ## Iteration 5: Technical Debt + Recommendations (2026-02-15) ✅
 
 ### Fix Placeholders & Missing Pages (M1) ✅
@@ -553,7 +581,7 @@ npm run build            # Production build
 ### Testing
 - Unit tests: `*.spec.ts` files alongside source
 - E2E tests: `e2e/` directory
-- Unit tests: 1530+ passing (includes 113 Iter5 tests across 13 files)
+- Unit tests: 1540+ passing (includes 7 Iter6 regression fixes)
 - E2E tests: 107/119 passed (90%), 8 flaky, 4 skipped
 
 ### Security
