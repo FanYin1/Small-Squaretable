@@ -6,6 +6,9 @@
 
 import { randomBytes } from 'crypto';
 import type { WebhookRepository } from '../../db/repositories/webhook.repository';
+import { logger } from './logger.service';
+
+const webhookLogger = logger.child({ module: 'webhook' });
 import type { WebhookEndpoint, WebhookDelivery } from '../../db/schema/webhooks';
 import type { CreateWebhookInput, UpdateWebhookInput, WebhookPayload } from '../../types/webhook';
 import type { EventBus, WildcardHandler } from './event-bus.service';
@@ -43,7 +46,7 @@ export class WebhookService {
         )
       );
     } catch (error) {
-      console.error(`[WebhookService] Failed to process event "${event}":`, error);
+      webhookLogger.error(`Failed to process event "${event}"`, error as Error);
     }
   }
 

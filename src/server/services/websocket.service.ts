@@ -8,6 +8,9 @@ import type { WebSocket } from 'ws';
 import { nanoid } from 'nanoid';
 import type { WSClientInfo, WSMessageUnion } from '../../types/websocket';
 import { WSMessageType } from '../../types/websocket';
+import { logger } from './logger.service';
+
+const wsServiceLogger = logger.child({ module: 'websocket-service' });
 
 export class WebSocketService {
   private clients: Map<string, { ws: WebSocket; info: WSClientInfo }> = new Map();
@@ -118,7 +121,7 @@ export class WebSocketService {
     try {
       client.ws.send(JSON.stringify(message));
     } catch (error) {
-      console.error(`Failed to send message to client ${clientId}:`, error);
+      wsServiceLogger.error(`Failed to send message to client ${clientId}`, error as Error);
     }
   }
 

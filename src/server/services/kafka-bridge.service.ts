@@ -7,6 +7,9 @@
 import { randomUUID } from 'crypto';
 import type { EventBus, WildcardHandler } from './event-bus.service';
 import { getKafkaProducer, TOPICS } from '../../core/kafka';
+import { logger } from './logger.service';
+
+const kafkaLogger = logger.child({ module: 'kafka-bridge' });
 
 const EVENT_ROUTE_MAP: Record<string, string> = {
   'chat.': TOPICS.CHAT,
@@ -21,7 +24,7 @@ export class KafkaBridgeService {
 
   async start(): Promise<void> {
     this.eventBus.on('*', this.handleEvent.bind(this) as WildcardHandler);
-    console.log('[KafkaBridge] Started');
+    kafkaLogger.info('Kafka bridge started');
   }
 
   private async handleEvent(event: string, payload: Record<string, unknown>): Promise<void> {
@@ -45,7 +48,7 @@ export class KafkaBridgeService {
         messages: [{ key, value: JSON.stringify(message) }],
       });
     } catch (error) {
-      console.error(`[KafkaBridge] Failed to send event "${event}":`, error);
+      kafkaLogger.error(`Failed to send event "${event}"`, error as Error);
     }
   }
 

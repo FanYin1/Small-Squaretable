@@ -1,5 +1,8 @@
 import type { Context, Next } from 'hono';
 import { usageService } from '../services/usage.service';
+import { logger } from '../services/logger.service';
+
+const usageLogger = logger.child({ module: 'usage-tracking' });
 
 /**
  * 用量追踪中间件 - 追踪消息用量
@@ -16,7 +19,7 @@ export const trackMessageUsage = async (c: Context, next: Next) => {
       await usageService.trackUsage(user.tenantId, 'messages', 1);
     } catch (error) {
       // 记录错误但不影响主流程
-      console.error('Failed to track message usage:', error);
+      usageLogger.error('Failed to track message usage', error as Error);
     }
   }
 };
@@ -32,7 +35,7 @@ export const trackApiCallUsage = async (c: Context, next: Next) => {
     try {
       await usageService.trackUsage(user.tenantId, 'api_calls', 1);
     } catch (error) {
-      console.error('Failed to track API call usage:', error);
+      usageLogger.error('Failed to track API call usage', error as Error);
     }
   }
 };
@@ -51,7 +54,7 @@ export const trackTokenUsage = (tokenCount: number) => {
       try {
         await usageService.trackUsage(user.tenantId, 'llm_tokens', tokenCount);
       } catch (error) {
-        console.error('Failed to track token usage:', error);
+        usageLogger.error('Failed to track token usage', error as Error);
       }
     }
   };
@@ -68,7 +71,7 @@ export const trackImageUsage = async (c: Context, next: Next) => {
     try {
       await usageService.trackUsage(user.tenantId, 'images', 1);
     } catch (error) {
-      console.error('Failed to track image usage:', error);
+      usageLogger.error('Failed to track image usage', error as Error);
     }
   }
 };

@@ -7,6 +7,9 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { characterService } from '../services/character.service';
+import { logger } from '../services/logger.service';
+
+const charLogger = logger.child({ module: 'characters' });
 import { searchService } from '../services/search.service';
 import { ratingService } from '../services/rating.service';
 import { cacheService } from '../services/cache.service';
@@ -130,9 +133,9 @@ async function createCharacterWorldBook(
 
     return worldBook;
   } catch (error) {
-    console.warn(
-      `[characters] Failed to create world book for character ${characterId}:`,
-      error
+    charLogger.warn(
+      `Failed to create world book for character ${characterId}`,
+      error as Error
     );
     return null;
   }
@@ -334,7 +337,7 @@ characterRoutes.get(
         200
       );
     } catch (error) {
-      console.error('Search error:', error);
+      charLogger.error('Search error', error as Error);
       return c.json<ApiResponse>(
         {
           success: false,

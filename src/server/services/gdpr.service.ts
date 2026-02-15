@@ -9,6 +9,9 @@
 import archiver from 'archiver';
 import bcrypt from 'bcrypt';
 import { eq, lt, isNotNull, and } from 'drizzle-orm';
+import { logger } from './logger.service';
+
+const gdprLogger = logger.child({ module: 'gdpr' });
 import { userRepository } from '../../db/repositories/user.repository';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { chatRepository } from '../../db/repositories/chat.repository';
@@ -302,7 +305,7 @@ export const gdprService = {
         count++;
       } catch {
         // Log but continue processing other users
-        console.error(`[GDPR] Failed to delete user ${id}`);
+        gdprLogger.error(`Failed to delete user ${id}`);
       }
     }
 

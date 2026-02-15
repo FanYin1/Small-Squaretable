@@ -10,6 +10,9 @@
 import type { EventBus, WildcardHandler } from './event-bus.service';
 import type { PluginService } from './plugin.service';
 import { PLUGIN_EVENTS } from '../../types/plugin';
+import { logger } from './logger.service';
+
+const bridgeLogger = logger.child({ module: 'plugin-bridge' });
 
 const PIPELINE_EVENTS = ['chat.message.before'] as const;
 
@@ -46,12 +49,12 @@ export class PluginBridge {
         return await this.processPipeline(userId, event, payload);
       } else {
         this.pluginService.executeEvent(userId, event, payload).catch((err) => {
-          console.error(`[PluginBridge] Error dispatching event "${event}":`, err);
+          bridgeLogger.error(`Error dispatching event "${event}"`, err as Error);
         });
         return payload;
       }
     } catch (error) {
-      console.error(`[PluginBridge] Error handling event "${event}":`, error);
+      bridgeLogger.error(`Error handling event "${event}"`, error as Error);
       return payload;
     }
   }

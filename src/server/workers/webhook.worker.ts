@@ -8,6 +8,9 @@
 import { createHmac } from 'crypto';
 import type { WebhookRepository } from '../../db/repositories/webhook.repository';
 import type { WebhookDelivery } from '../../db/schema/webhooks';
+import { logger } from '../services/logger.service';
+
+const workerLogger = logger.child({ module: 'webhook-worker' });
 
 /** 重试延迟 (毫秒): 30s, 2m, 15m, 1h, 6h */
 const RETRY_DELAYS = [30_000, 120_000, 900_000, 3_600_000, 21_600_000];
@@ -23,14 +26,14 @@ export class WebhookWorker {
   start(intervalMs = 5000): void {
     if (this.timer) return;
     this.timer = setInterval(() => this.poll(), intervalMs);
-    console.log('[WebhookWorker] Started');
+    workerLogger.info('Webhook worker started');
   }
 
   stop(): void {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
-      console.log('[WebhookWorker] Stopped');
+      workerLogger.info('Webhook worker stopped');
     }
   }
 
@@ -44,7 +47,7 @@ export class WebhookWorker {
         await this.deliver(delivery);
       }
     } catch (error) {
-      console.error('[WebhookWorker] Poll error:', error);
+      workerLogger.error('Poll error', error as Error);
     } finally {
       this.processing = false;
     }

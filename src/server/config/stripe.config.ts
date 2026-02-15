@@ -6,6 +6,9 @@
 
 import 'dotenv/config';
 import { z } from 'zod';
+import { logger } from '../services/logger.service';
+
+const stripeLogger = logger.child({ module: 'stripe-config' });
 
 const stripeConfigSchema = z.object({
   apiKey: z.string().min(1, 'STRIPE_SECRET_KEY is required'),
@@ -39,9 +42,9 @@ export function loadStripeConfig(): StripeConfig {
     return stripeConfigSchema.parse(rawConfig);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('Stripe configuration validation failed:');
+      stripeLogger.error('Stripe configuration validation failed');
       error.errors.forEach((err) => {
-        console.error(`  - ${err.path.join('.')}: ${err.message}`);
+        stripeLogger.error(`  - ${err.path.join('.')}: ${err.message}`);
       });
     }
     throw new Error('Invalid Stripe configuration');

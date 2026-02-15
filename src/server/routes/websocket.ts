@@ -7,6 +7,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
 import { verifyAccessToken } from '../../core/jwt';
+import { logger } from '../services/logger.service';
+
+const wsLogger = logger.child({ module: 'websocket' });
 import { websocketService } from '../services/websocket.service';
 import { llmService } from '../services/llm.service';
 import { getDefaultModel } from '../config/llm.config';
@@ -45,14 +48,14 @@ export class WebSocketHandler {
     // 启动心跳检查
     this.startHeartbeat();
 
-    console.log('✅ WebSocket server initialized on /ws');
+    wsLogger.info('WebSocket server initialized on /ws');
   }
 
   /**
    * 处理新连接
    */
   private async handleConnection(ws: WebSocket, request: { url: string; headers: { host: string } }): Promise<void> {
-    console.log('[WebSocket] New connection attempt from:', request.headers.host);
+    wsLogger.info('New connection attempt', { host: request.headers.host });
     const url = new URL(request.url, `http://${request.headers.host}`);
     const token = url.searchParams.get('token');
 
@@ -80,7 +83,7 @@ export class WebSocketHandler {
       // 设置消息处理器
       ws.on('message', (data: Buffer) => {
         this.handleMessage(clientId, data).catch((err) => {
-          console.error('Error handling message:', err);
+          wsLogger.error('Error handling message', err as Error);
           this.sendError(ws, 'MESSAGE_ERROR', 'Failed to process message');
         });
       });
@@ -92,7 +95,7 @@ export class WebSocketHandler {
 
       // 设置错误处理器
       ws.on('error', (err) => {
-        console.error('WebSocket error:', err);
+        wsLogger.error('WebSocket error', err as Error);
         websocketService.unregisterClient(clientId);
       });
     } catch (err) {
@@ -107,11 +110,11 @@ export class WebSocketHandler {
   private async handleMessage(clientId: string, data: Buffer): Promise<void> {
     try {
       const message: WSMessageUnion = JSON.parse(data.toString());
-      console.log('[WebSocket] Received message type:', message.type);
+      wsLogger.debug('Received message', { type: message.type });
 
       switch (message.type) {
         case WSMessageType.USER_MESSAGE:
-          console.log('[WebSocket] Processing USER_MESSAGE');
+          wsLogger.debug('Processing USER_MESSAGE');
           await this.handleUserMessage(clientId, message as WSUserMessage);
           break;
 
@@ -133,10 +136,10 @@ export class WebSocketHandler {
           break;
 
         default:
-          console.warn('Unknown message type:', message.type);
+          wsLogger.warn('Unknown message type', { type: message.type });
       }
     } catch (error) {
-      console.error('Error parsing message:', error);
+      wsLogger.error('Error parsing message', error as Error);
     }
   }
 
@@ -144,15 +147,15 @@ export class WebSocketHandler {
    * 处理用户消息
    */
   private async handleUserMessage(clientId: string, message: WSUserMessage): Promise<void> {
-    console.log('[WebSocket] handleUserMessage called');
+    wsLogger.debug('handleUserMessage called');
     const clientInfo = websocketService.getClientInfo(clientId);
     if (!clientInfo) {
-      console.log('[WebSocket] No client info found');
+      wsLogger.warn('No client info found', { clientId });
       return;
     }
 
     const { chatId, content } = message.data;
-    console.log('[WebSocket] Processing message for chat:', chatId, 'content:', content.substring(0, 50));
+    wsLogger.debug('Processing message', { chatId, contentPreview: content.substring(0, 50) });
 
     try {
       // 保存用户消息到数据库
@@ -269,7 +272,7 @@ export class WebSocketHandler {
                   });
                 }
               } catch (e) {
-                console.error('Error parsing SSE data:', e);
+                wsLogger.error('Error parsing SSE data', e as Error);
               }
             }
           }
@@ -312,7 +315,7 @@ export class WebSocketHandler {
         );
       }
     } catch (error) {
-      console.error('Error handling user message:', error);
+      wsLogger.error('Error handling user message', error as Error);
       websocketService.sendToClient(clientId, {
         type: WSMessageType.ERROR,
         timestamp: new Date().toISOString(),
@@ -405,7 +408,7 @@ export class WebSocketHandler {
     this.heartbeatInterval = setInterval(() => {
       const cleaned = websocketService.cleanupStaleConnections(60000);
       if (cleaned > 0) {
-        console.log(`Cleaned up ${cleaned} stale connections`);
+        wsLogger.info('Cleaned up stale connections', { count: cleaned });
       }
     }, 30000); // 每 30 秒检查一次
   }

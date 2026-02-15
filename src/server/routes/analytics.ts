@@ -5,6 +5,9 @@ import { createMiddleware } from 'hono/factory';
 import type { Context } from 'hono';
 import { randomUUID } from 'crypto';
 import { authMiddleware } from '../middleware/auth';
+import { logger } from '../services/logger.service';
+
+const analyticsLogger = logger.child({ module: 'analytics' });
 import { requireFeature } from '../middleware/feature-gate';
 import { batchEventsSchema } from '../../types/analytics';
 import { getKafkaProducer, TOPICS } from '../../core/kafka';
@@ -93,7 +96,7 @@ analyticsRoutes.post(
         meta: { timestamp: new Date().toISOString() },
       }, 202);
     } catch (error) {
-      console.error('[Analytics] Failed to ingest events:', error);
+      analyticsLogger.error('Failed to ingest events', error as Error);
       return c.json({
         success: true,
         data: { accepted: events.length, note: 'queued' },

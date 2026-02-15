@@ -7,6 +7,9 @@
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
 import { NotFoundError } from '../../core/errors';
+import { logger } from './logger.service';
+
+const chatLogger = logger.child({ module: 'chat' });
 import type { CreateChatInput, UpdateChatInput, CreateMessageInput } from '../../types/chat';
 import type { PaginationParams, PaginatedResponse } from '../../types/api';
 import type { Chat, Message } from '../../db/schema/chats';
@@ -171,7 +174,7 @@ export class ChatService {
    */
   async buildEnhancedSystemPrompt(params: EnhancedPromptParams): Promise<EnhancedPromptResult> {
     const { character, characterId, userId, chatId, userMessage } = params;
-    console.log('[Intelligence] Building enhanced prompt for chat:', chatId, 'character:', characterId);
+    chatLogger.debug('Building enhanced prompt', { chatId, characterId });
     const promptStartTime = Date.now();
     const parts: string[] = [];
 
@@ -230,7 +233,7 @@ export class ChatService {
           maxContext: params.maxContext ?? 4096,
         });
       } catch (error) {
-        console.warn('[Intelligence] World info scan failed:', (error as Error).message);
+        chatLogger.warn('World info scan failed', { error: (error as Error).message });
       }
     }
 
@@ -254,7 +257,7 @@ export class ChatService {
 
     // Retrieve relevant memories with timing (session-isolated)
     const retrievalStartTime = Date.now();
-    console.log('[Intelligence] Retrieving memories for query:', userMessage.substring(0, 50));
+    chatLogger.debug('Retrieving memories', { query: userMessage.substring(0, 50) });
     const memories = await memoryService.retrieveMemories({
       characterId,
       userId,
@@ -263,7 +266,7 @@ export class ChatService {
       limit: 5,
     });
     const retrievalLatency = Date.now() - retrievalStartTime;
-    console.log('[Intelligence] Retrieved', memories.length, 'memories in', retrievalLatency, 'ms');
+    chatLogger.debug('Retrieved memories', { count: memories.length, latencyMs: retrievalLatency });
 
     // Record retrieval for debug
     intelligenceDebugService.recordRetrieval(characterId, userId, chatId, {
@@ -529,7 +532,7 @@ export class ChatService {
     messageContent: string,
     messageId?: number
   ): Promise<void> {
-    console.log('[Intelligence] Updating emotion for chat:', chatId, 'message:', messageContent.substring(0, 50));
+    chatLogger.debug('Updating emotion', { chatId, messagePreview: messageContent.substring(0, 50) });
     // Get previous emotion state
     const previousEmotion = await emotionService.getCurrentEmotion(characterId, userId, chatId);
 

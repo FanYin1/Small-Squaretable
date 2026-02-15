@@ -64,7 +64,7 @@ export class EmbeddingService {
       const data = await response.json();
       return data.embedding;
     } catch (error) {
-      console.warn('[EmbeddingService] Embed failed, using fallback:', (error as Error).message);
+      logger.warn('Embed failed, using fallback', { error: (error as Error).message });
       return new Array(384).fill(0);
     }
   }
@@ -92,7 +92,7 @@ export class EmbeddingService {
       const data = await response.json();
       return data.embeddings;
     } catch (error) {
-      console.warn('[EmbeddingService] Batch embed failed, using fallback:', (error as Error).message);
+      logger.warn('Batch embed failed, using fallback', { error: (error as Error).message });
       return texts.map(() => new Array(384).fill(0));
     }
   }
@@ -124,7 +124,7 @@ export class EmbeddingService {
         arousal: data.arousal,
       };
     } catch (error) {
-      console.warn('[EmbeddingService] Sentiment failed, using fallback:', (error as Error).message);
+      logger.warn('Sentiment failed, using fallback', { error: (error as Error).message });
       return { valence: 0, arousal: 0.3 };
     }
   }

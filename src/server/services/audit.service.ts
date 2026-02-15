@@ -6,6 +6,9 @@
 
 import crypto from 'crypto';
 import { auditRepository } from '../../db/repositories/audit.repository';
+import { logger } from './logger.service';
+
+const auditLogger = logger.child({ module: 'audit' });
 import type { AuditLogFilters, AuditPaginationParams } from '../../db/repositories/audit.repository';
 import type { PaginatedResponse } from '../../types/api';
 import type { AuditLog } from '../../db/schema/audit-logs';
@@ -35,7 +38,7 @@ export const auditService = {
       actorIp: hashedIp,
       metadata: event.metadata ?? {},
     }).catch((err) => {
-      console.error('[AuditService] Failed to write audit log:', err);
+      auditLogger.error('Failed to write audit log', err as Error);
     });
   },
 

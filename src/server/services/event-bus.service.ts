@@ -4,6 +4,10 @@
  * 进程内事件发布/订阅，作为 Webhook 和通知系统的基础
  */
 
+import { logger } from './logger.service';
+
+const busLogger = logger.child({ module: 'event-bus' });
+
 export type EventHandler = (...args: unknown[]) => void | Promise<void>;
 export type WildcardHandler = (event: string, payload: Record<string, unknown>) => void | Promise<void>;
 
@@ -47,7 +51,7 @@ export class EventBus {
         try {
           await handler(payload);
         } catch (error) {
-          console.error(`[EventBus] Handler error for event "${event}":`, error);
+          busLogger.error(`Handler error for event "${event}"`, error as Error);
         }
       }
     }
@@ -56,7 +60,7 @@ export class EventBus {
       try {
         await handler(event, payload);
       } catch (error) {
-        console.error(`[EventBus] Wildcard handler error for event "${event}":`, error);
+        busLogger.error(`Wildcard handler error for event "${event}"`, error as Error);
       }
     }
   }

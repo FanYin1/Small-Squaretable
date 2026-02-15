@@ -3,6 +3,10 @@
  * Runs in the main server process — no persistence, no distributed locking.
  */
 
+import { logger } from './logger.service';
+
+const schedulerLogger = logger.child({ module: 'scheduler' });
+
 export interface JobStatus {
   name: string;
   intervalMs: number;
@@ -60,7 +64,7 @@ export class SchedulerService {
     } catch (err) {
       job.status.lastStatus = 'error';
       job.status.lastError = (err as Error).message;
-      console.error(`[Scheduler] Job "${name}" failed:`, err);
+      schedulerLogger.error(`Job "${name}" failed`, err as Error);
     }
     job.status.lastRunAt = new Date();
     job.status.runCount++;

@@ -6,6 +6,9 @@
 
 import * as Sentry from '@sentry/node';
 import { config } from '@/core/config';
+import { logger } from './logger.service';
+
+const sentryLogger = logger.child({ module: 'sentry' });
 
 interface SentryConfig {
   dsn: string;
@@ -22,7 +25,7 @@ export function initializeSentry() {
   const sentryDsn = process.env.SENTRY_DSN;
 
   if (!sentryDsn) {
-    console.warn('Sentry DSN not configured, skipping Sentry initialization');
+    sentryLogger.warn('Sentry DSN not configured, skipping initialization');
     return;
   }
 
@@ -35,7 +38,7 @@ export function initializeSentry() {
 
   Sentry.init(sentryConfig);
 
-  console.log('Sentry initialized for environment:', config.nodeEnv);
+  sentryLogger.info('Sentry initialized', { environment: config.nodeEnv });
 }
 
 /**
