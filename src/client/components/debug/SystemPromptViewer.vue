@@ -2,8 +2,8 @@
 <template>
   <div class="system-prompt-viewer">
     <div class="prompt-header">
-      <span class="prompt-title">系统提示预览</span>
-      <el-button size="small" @click="copyPrompt" :icon="CopyDocument">复制</el-button>
+      <span class="prompt-title">{{ t('debug.prompt.title') }}</span>
+      <el-button size="small" @click="copyPrompt" :icon="CopyDocument">{{ t('common.copy') }}</el-button>
     </div>
 
     <div v-if="loading" class="prompt-loading">
@@ -13,14 +13,14 @@
     <div v-else-if="promptData" class="prompt-content">
       <!-- Token Summary -->
       <div class="token-summary">
-        <el-tag type="info">总计: {{ promptData.tokenCount.total }} tokens</el-tag>
+        <el-tag type="info">{{ t('debug.prompt.total') }} {{ promptData.tokenCount.total }} tokens</el-tag>
       </div>
 
       <!-- Sections -->
       <el-collapse v-model="activeSections">
-        <el-collapse-item title="角色基础" name="character">
+        <el-collapse-item :title="t('debug.prompt.character')" name="character">
           <template #title>
-            <span>角色基础</span>
+            <span>{{ t('debug.prompt.character') }}</span>
             <el-tag size="small" type="primary" class="section-token">
               {{ promptData.tokenCount.characterBase }} tokens
             </el-tag>
@@ -28,9 +28,9 @@
           <pre class="prompt-text">{{ promptData.sections.characterBase }}</pre>
         </el-collapse-item>
 
-        <el-collapse-item v-if="promptData.sections.memories" title="记忆" name="memories">
+        <el-collapse-item v-if="promptData.sections.memories" :title="t('debug.prompt.memories')" name="memories">
           <template #title>
-            <span>记忆</span>
+            <span>{{ t('debug.prompt.memories') }}</span>
             <el-tag size="small" type="success" class="section-token">
               {{ promptData.tokenCount.memories }} tokens
             </el-tag>
@@ -38,9 +38,9 @@
           <pre class="prompt-text">{{ promptData.sections.memories }}</pre>
         </el-collapse-item>
 
-        <el-collapse-item v-if="promptData.sections.emotion" title="情感" name="emotion">
+        <el-collapse-item v-if="promptData.sections.emotion" :title="t('debug.prompt.emotionState')" name="emotion">
           <template #title>
-            <span>情感状态</span>
+            <span>{{ t('debug.prompt.emotionState') }}</span>
             <el-tag size="small" type="warning" class="section-token">
               {{ promptData.tokenCount.emotion }} tokens
             </el-tag>
@@ -48,9 +48,9 @@
           <pre class="prompt-text">{{ promptData.sections.emotion }}</pre>
         </el-collapse-item>
 
-        <el-collapse-item title="行为指引" name="guidelines">
+        <el-collapse-item :title="t('debug.prompt.guidelines')" name="guidelines">
           <template #title>
-            <span>行为指引</span>
+            <span>{{ t('debug.prompt.guidelines') }}</span>
             <el-tag size="small" type="info" class="section-token">
               {{ promptData.tokenCount.guidelines }} tokens
             </el-tag>
@@ -61,20 +61,21 @@
 
       <!-- Full Prompt (collapsed by default) -->
       <el-collapse class="full-prompt-collapse">
-        <el-collapse-item title="完整提示">
+        <el-collapse-item :title="t('debug.prompt.fullPrompt')">
           <pre class="prompt-text full-prompt">{{ promptData.fullPrompt }}</pre>
         </el-collapse-item>
       </el-collapse>
     </div>
 
     <div v-else class="prompt-empty">
-      <el-empty description="暂无系统提示数据" :image-size="60" />
+      <el-empty :description="t('debug.prompt.empty')" :image-size="60" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { CopyDocument } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { api } from '../../services/api';
@@ -101,6 +102,8 @@ const props = defineProps<{
   characterId: string;
 }>();
 
+const { t } = useI18n();
+
 const loading = ref(false);
 const promptData = ref<SystemPromptData | null>(null);
 const activeSections = ref(['character', 'memories', 'emotion', 'guidelines']);
@@ -124,7 +127,7 @@ async function fetchPromptData() {
 function copyPrompt() {
   if (!promptData.value) return;
   navigator.clipboard.writeText(promptData.value.fullPrompt);
-  ElMessage.success('已复制到剪贴板');
+  ElMessage.success(t('debug.prompt.copied'));
 }
 
 watch(() => [props.chatId, props.characterId], () => {

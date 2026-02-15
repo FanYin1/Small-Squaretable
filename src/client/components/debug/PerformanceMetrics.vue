@@ -2,18 +2,18 @@
 <template>
   <div class="performance-metrics">
     <div class="metrics-header">
-      <span class="metrics-title">性能指标</span>
-      <el-button size="small" @click="refresh" :icon="Refresh" :loading="loading">刷新</el-button>
+      <span class="metrics-title">{{ t('debug.performance.title') }}</span>
+      <el-button size="small" @click="refresh" :icon="Refresh" :loading="loading">{{ t('common.refresh') }}</el-button>
     </div>
 
     <!-- Latency Metrics -->
     <div class="latency-section">
-      <div class="section-label">延迟指标 (ms)</div>
+      <div class="section-label">{{ t('debug.performance.latencyMetrics') }}</div>
 
       <div class="latency-grid">
         <div class="latency-item">
           <div class="latency-header">
-            <span class="latency-name">嵌入生成</span>
+            <span class="latency-name">{{ t('debug.performance.embedding') }}</span>
             <span class="latency-value">{{ metrics.embeddingLatency }}ms</span>
           </div>
           <el-progress
@@ -26,7 +26,7 @@
 
         <div class="latency-item">
           <div class="latency-header">
-            <span class="latency-name">向量检索</span>
+            <span class="latency-name">{{ t('debug.performance.vectorSearch') }}</span>
             <span class="latency-value">{{ metrics.retrievalLatency }}ms</span>
           </div>
           <el-progress
@@ -39,7 +39,7 @@
 
         <div class="latency-item">
           <div class="latency-header">
-            <span class="latency-name">情感分析</span>
+            <span class="latency-name">{{ t('debug.performance.sentiment') }}</span>
             <span class="latency-value">{{ metrics.emotionAnalysisLatency }}ms</span>
           </div>
           <el-progress
@@ -52,7 +52,7 @@
 
         <div class="latency-item">
           <div class="latency-header">
-            <span class="latency-name">提示构建</span>
+            <span class="latency-name">{{ t('debug.performance.promptBuild') }}</span>
             <span class="latency-value">{{ metrics.promptBuildLatency }}ms</span>
           </div>
           <el-progress
@@ -67,10 +67,10 @@
 
     <!-- Token Stats -->
     <div class="token-section">
-      <div class="section-label">Token 统计</div>
+      <div class="section-label">{{ t('debug.performance.tokenStats') }}</div>
       <div class="token-content">
         <div class="token-item">
-          <span class="token-label">最近提示</span>
+          <span class="token-label">{{ t('debug.performance.recentPrompt') }}</span>
           <span class="token-value">{{ metrics.lastPromptTokenCount }} tokens</span>
         </div>
       </div>
@@ -78,18 +78,18 @@
 
     <!-- Model Status -->
     <div class="model-section">
-      <div class="section-label">模型状态</div>
+      <div class="section-label">{{ t('debug.performance.modelStatus') }}</div>
       <div class="model-grid">
         <div class="model-item">
-          <span class="model-name">MiniLM (嵌入)</span>
+          <span class="model-name">MiniLM ({{ t('debug.performance.modelEmbedding') }})</span>
           <el-tag :type="modelStatus.embedding ? 'success' : 'warning'" size="small">
-            {{ modelStatus.embedding ? '已加载' : '未加载' }}
+            {{ modelStatus.embedding ? t('debug.performance.loaded') : t('debug.performance.notLoaded') }}
           </el-tag>
         </div>
         <div class="model-item">
-          <span class="model-name">DistilBERT (情感)</span>
+          <span class="model-name">DistilBERT ({{ t('debug.performance.modelSentiment') }})</span>
           <el-tag :type="modelStatus.sentiment ? 'success' : 'warning'" size="small">
-            {{ modelStatus.sentiment ? '已加载' : '未加载' }}
+            {{ modelStatus.sentiment ? t('debug.performance.loaded') : t('debug.performance.notLoaded') }}
           </el-tag>
         </div>
       </div>
@@ -97,19 +97,19 @@
 
     <!-- Legend -->
     <div class="legend-section">
-      <div class="section-label">延迟等级</div>
+      <div class="section-label">{{ t('debug.performance.latencyLegend') }}</div>
       <div class="legend-items">
         <div class="legend-item">
           <span class="legend-dot success"></span>
-          <span>良好</span>
+          <span>{{ t('debug.performance.good') }}</span>
         </div>
         <div class="legend-item">
           <span class="legend-dot warning"></span>
-          <span>一般</span>
+          <span>{{ t('debug.performance.average') }}</span>
         </div>
         <div class="legend-item">
           <span class="legend-dot exception"></span>
-          <span>较慢</span>
+          <span>{{ t('debug.performance.slow') }}</span>
         </div>
       </div>
     </div>
@@ -118,6 +118,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Refresh } from '@element-plus/icons-vue';
 import { api } from '../../services/api';
 
@@ -133,6 +134,8 @@ const props = defineProps<{
   chatId: string;
   characterId: string;
 }>();
+
+const { t } = useI18n();
 
 const loading = ref(false);
 const metrics = reactive<PerformanceData>({

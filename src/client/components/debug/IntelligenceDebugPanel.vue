@@ -4,7 +4,7 @@
     <div class="debug-panel__header" @click="toggleCollapse">
       <div class="debug-panel__title">
         <span class="debug-icon">🔬</span>
-        <span>智能系统调试</span>
+        <span>{{ t('debug.title') }}</span>
       </div>
       <div class="debug-panel__actions">
         <el-badge :value="eventCount" :hidden="eventCount === 0" :max="99" />
@@ -18,58 +18,58 @@
     <Transition name="slide-down">
       <div v-show="!isCollapsed" class="debug-panel__content">
         <el-tabs v-model="activeTab" class="debug-tabs">
-          <el-tab-pane label="系统提示" name="prompt">
+          <el-tab-pane :label="t('debug.tab.systemPrompt')" name="prompt">
             <SystemPromptViewer
               v-if="chatId && characterId"
               :chat-id="chatId"
               :character-id="characterId"
             />
             <div v-else class="tab-empty">
-              <el-empty description="请先选择聊天" :image-size="60" />
+              <el-empty :description="t('debug.selectChatFirst')" :image-size="60" />
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="记忆检索" name="retrieval">
+          <el-tab-pane :label="t('debug.tab.memoryRetrieval')" name="retrieval">
             <MemoryRetrievalLog
               v-if="chatId && characterId"
               :chat-id="chatId"
               :character-id="characterId"
             />
             <div v-else class="tab-empty">
-              <el-empty description="请先选择聊天" :image-size="60" />
+              <el-empty :description="t('debug.selectChatFirst')" :image-size="60" />
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="情感时间线" name="emotion">
+          <el-tab-pane :label="t('debug.tab.emotionTimeline')" name="emotion">
             <EmotionTimeline
               v-if="chatId && characterId"
               :chat-id="chatId"
               :character-id="characterId"
             />
             <div v-else class="tab-empty">
-              <el-empty description="请先选择聊天" :image-size="60" />
+              <el-empty :description="t('debug.selectChatFirst')" :image-size="60" />
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="提取日志" name="extraction">
+          <el-tab-pane :label="t('debug.tab.extractionLog')" name="extraction">
             <ExtractionLog
               v-if="chatId && characterId"
               :chat-id="chatId"
               :character-id="characterId"
             />
             <div v-else class="tab-empty">
-              <el-empty description="请先选择聊天" :image-size="60" />
+              <el-empty :description="t('debug.selectChatFirst')" :image-size="60" />
             </div>
           </el-tab-pane>
 
-          <el-tab-pane label="性能指标" name="performance">
+          <el-tab-pane :label="t('debug.tab.performance')" name="performance">
             <PerformanceMetrics
               v-if="chatId && characterId"
               :chat-id="chatId"
               :character-id="characterId"
             />
             <div v-else class="tab-empty">
-              <el-empty description="请先选择聊天" :image-size="60" />
+              <el-empty :description="t('debug.selectChatFirst')" :image-size="60" />
             </div>
           </el-tab-pane>
         </el-tabs>
@@ -80,6 +80,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { ArrowDown, ArrowRight } from '@element-plus/icons-vue';
 import SystemPromptViewer from './SystemPromptViewer.vue';
 import MemoryRetrievalLog from './MemoryRetrievalLog.vue';
@@ -91,6 +92,8 @@ defineProps<{
   chatId?: string;
   characterId?: string;
 }>();
+
+const { t } = useI18n();
 
 const isCollapsed = ref(true);
 const activeTab = ref('prompt');
