@@ -15,7 +15,7 @@ import { requestIdMiddleware } from './middleware/request-id';
 import { tenantMiddleware } from './middleware/tenant';
 import { securityHeaders, developmentSecurityHeaders } from './middleware/security';
 import { csrfProtection, getCsrfToken } from './middleware/csrf';
-import { authRateLimit, apiRateLimit, searchRateLimit } from './middleware/rateLimit';
+import { authRateLimit, apiRateLimit, searchRateLimit, socialCommentRateLimit, reportRateLimit, exportRateLimit, analyticsIngestionRateLimit } from './middleware/rateLimit';
 import { authRoutes } from './routes/auth';
 import { userRoutes } from './routes/users';
 import { characterRoutes } from './routes/characters';
@@ -89,6 +89,10 @@ app.use('*', cors({
 app.use('/api/v1/auth/*', authRateLimit);
 app.use('/api/v1/characters/search', searchRateLimit);
 app.use('/api/v1/*', apiRateLimit);
+app.use('/api/v1/social/comments', socialCommentRateLimit);
+app.use('/api/v1/reports', reportRateLimit);
+app.use('/api/v1/account/export', exportRateLimit);
+app.use('/api/v1/analytics/events', analyticsIngestionRateLimit);
 
 // Tenant middleware 只应用到需要租户隔离的 API 路由
 // 注意：/api/v1/characters/search 和 /api/v1/characters/marketplace 是公开端点，不需要租户 ID

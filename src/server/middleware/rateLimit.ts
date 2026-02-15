@@ -366,3 +366,31 @@ export const pluginExecutionRateLimit = rateLimit({
   },
   message: 'Plugin execution rate limit exceeded. Please try again later.',
 });
+
+// Social comment creation rate limiter
+export const socialCommentRateLimit = rateLimit({
+  limit: isTestEnv ? 100 : 10,
+  windowMs: 60 * 1000, // 10 comments per minute
+  message: 'Too many comments, please slow down',
+});
+
+// Report submission rate limiter
+export const reportRateLimit = rateLimit({
+  limit: isTestEnv ? 50 : 5,
+  windowMs: 60 * 60 * 1000, // 5 reports per hour
+  message: 'Too many reports, please try again later',
+});
+
+// Data export rate limiter (expensive operation)
+export const exportRateLimit = rateLimit({
+  limit: 3,
+  windowMs: 60 * 60 * 1000, // 3 exports per hour
+  message: 'Too many export requests, please try again later',
+});
+
+// Analytics event ingestion rate limiter
+export const analyticsIngestionRateLimit = rateLimit({
+  limit: isTestEnv ? 500 : 50,
+  windowMs: 60 * 1000, // 50 batch ingestions per minute
+  message: 'Analytics ingestion rate limit exceeded',
+});
