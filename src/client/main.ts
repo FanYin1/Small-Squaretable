@@ -8,6 +8,7 @@ import router from './router';
 import { useUserStore } from './stores/user';
 import { initWebVitals, observeCustomMetrics } from './utils/webVitals';
 import { initSentry } from './utils/sentry';
+import i18n from './i18n';
 
 // 导入全局样式
 import './styles/variables.css';
@@ -25,6 +26,9 @@ app.use(pinia);
 
 // Register Element Plus
 app.use(ElementPlus);
+
+// Register i18n
+app.use(i18n);
 
 // Register Element Plus Icons
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
