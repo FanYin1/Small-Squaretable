@@ -1488,6 +1488,195 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 
   # ============================================================
+  # Notification Endpoints
+  # ============================================================
+  /api/v1/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: List notifications
+      operationId: listNotifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          notifications:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Notification'
+                          total:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/notifications/unread-count:
+    get:
+      tags:
+        - Notifications
+      summary: Get unread notification count
+      operationId: getUnreadCount
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/notifications/{id}/read:
+    patch:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      operationId: markNotificationRead
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/notifications/read-all:
+    post:
+      tags:
+        - Notifications
+      summary: Mark all notifications as read
+      operationId: markAllNotificationsRead
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: All marked as read
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          markedCount:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/notifications/{id}:
+    delete:
+      tags:
+        - Notifications
+      summary: Delete a notification
+      operationId: deleteNotification
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================
+  # Report Endpoints
+  # ============================================================
+  /api/v1/reports:
+    post:
+      tags:
+        - Reports
+      summary: Submit a content report
+      description: Report a character, comment, or user for policy violations.
+      operationId: submitReport
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitReportRequest'
+      responses:
+        '201':
+          description: Report submitted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
   # User Endpoints
   # ============================================================
   /api/v1/users/me:
@@ -2821,6 +3010,82 @@ components:
           type: string
           format: uuid
           description: Parent comment ID for replies
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            - follow
+            - favorite
+            - comment
+            - reply
+            - system
+        title:
+          type: string
+        message:
+          type: string
+        isRead:
+          type: boolean
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+
+    SubmitReportRequest:
+      type: object
+      required:
+        - targetType
+        - targetId
+        - reason
+      properties:
+        targetType:
+          type: string
+          enum:
+            - character
+            - comment
+            - user
+        targetId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 1000
+
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        reporterId:
+          type: string
+          format: uuid
+        targetType:
+          type: string
+        targetId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - resolved
+            - dismissed
+        createdAt:
+          type: string
+          format: date-time
 
     HealthCheckResponse:
       type: object
