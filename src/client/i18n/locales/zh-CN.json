@@ -106,6 +106,8 @@
     "fileTypeNotSupported": "不支持的文件类型",
     "uploading": "上传中...",
     "imagePreview": "图片预览",
+    "copyMessage": "复制消息",
+    "editMessage": "编辑消息",
     "deleteMessage": "删除消息",
     "deleteMessageConfirm": "确定要删除这条消息吗？",
     "loadingOlder": "加载更多消息...",
