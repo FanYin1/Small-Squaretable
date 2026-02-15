@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ElMessageBox } from 'element-plus';
 import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound } from '@element-plus/icons-vue';
 import { api } from '@client/services/api';
@@ -13,6 +14,7 @@ import CharacterPublishForm from '@client/components/character/CharacterPublishF
 import { downloadCharacterJson, readCharacterFile } from '@client/utils/sillytavern';
 import type { Character } from '@client/types';
 
+const { t } = useI18n();
 const { hasFeature } = useFeatureGate();
 const toast = useToast();
 const router = useRouter();
@@ -64,7 +66,7 @@ async function fetchCharacters() {
     characters.value = response.items || [];
   } catch (error) {
     console.error('Failed to fetch characters:', error);
-    toast.error('加载失败', { message: '获取角色列表失败' });
+    toast.error(t('myCharacters.loadFailed'), { message: t('myCharacters.loadListFailed') });
   } finally {
     loading.value = false;
   }
@@ -85,7 +87,7 @@ function handleBrowseAll() {
 
 function handleCreateNew() {
   // Navigate to character creation page or open dialog
-  toast.info('创建角色功能开发中');
+  toast.info(t('myCharacters.createComingSoon'));
 }
 
 function handlePublish(character: Character) {
@@ -96,21 +98,21 @@ function handlePublish(character: Character) {
 async function handleUnpublish(character: Character) {
   try {
     await ElMessageBox.confirm(
-      '确定要从市场下架此角色吗？',
-      '确认下架',
+      t('myCharacters.unlistConfirm'),
+      t('myCharacters.unlistTitle'),
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
       }
     );
 
     await api.post(`/characters/${character.id}/unpublish`);
-    toast.success('角色已下架');
+    toast.success(t('myCharacters.unlisted'));
     await fetchCharacters();
   } catch (error: any) {
     if (error !== 'cancel') {
-      toast.error('下架失败', { message: error.message || '请稍后重试' });
+      toast.error(t('myCharacters.unlistFailed'), { message: error.message || t('common.retry') });
     }
   }
 }
@@ -118,28 +120,28 @@ async function handleUnpublish(character: Character) {
 async function handleDelete(character: Character) {
   try {
     await ElMessageBox.confirm(
-      '确定要删除此角色吗？此操作不可恢复。',
-      '确认删除',
+      t('myCharacters.deleteConfirm'),
+      t('myCharacters.deleteTitle'),
       {
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
         type: 'error',
       }
     );
 
     await api.delete(`/characters/${character.id}`);
-    toast.success('角色已删除');
+    toast.success(t('myCharacters.deleted'));
     await fetchCharacters();
   } catch (error: any) {
     if (error !== 'cancel') {
-      toast.error('删除失败', { message: error.message || '请稍后重试' });
+      toast.error(t('myCharacters.deleteFailed'), { message: error.message || t('common.retry') });
     }
   }
 }
 
 function handleExport(character: Character) {
   downloadCharacterJson(character);
-  toast.success('角色已导出');
+  toast.success(t('myCharacters.exported'));
 }
 
 async function handleImport() {
@@ -184,11 +186,11 @@ async function handleImport() {
         cardData: characterData.cardData,
         isNsfw: characterData.isNsfw || false,
       });
-      toast.success('角色已导入');
+      toast.success(t('myCharacters.imported'));
       await fetchCharacters();
     } catch (error: any) {
       console.error('Import error:', error);
-      toast.error('导入失败', { message: error.message || '请稍后重试' });
+      toast.error(t('myCharacters.importFailed'), { message: error.message || t('common.retry') });
     }
   };
 
@@ -213,12 +215,12 @@ function handleStartChat(character: Character) {
 
 <template>
   <DashboardLayout>
-    <template #title>我的角色</template>
+    <template #title>{{ $t('myCharacters.title') }}</template>
     <template #center>
       <div class="search-combo">
         <el-input
           v-model="searchQuery"
-          placeholder="搜索角色名称、描述或标签..."
+          :placeholder="$t('myCharacters.searchPlaceholder')"
           :prefix-icon="Search"
           clearable
           @keyup.enter="handleSearch"
@@ -227,7 +229,7 @@ function handleStartChat(character: Character) {
     </template>
     <template #actions>
       <el-button type="primary" :icon="Plus" @click="handleCreateNew">
-        创建角色
+        {{ $t('myCharacters.createCharacter') }}
       </el-button>
     </template>
 
@@ -236,7 +238,7 @@ function handleStartChat(character: Character) {
         <el-tab-pane name="private">
           <template #label>
             <span class="tab-label">
-              私有角色
+              {{ $t('myCharacters.private') }}
               <span class="tab-count">{{ privateCharacters.length }}</span>
             </span>
           </template>
@@ -244,7 +246,7 @@ function handleStartChat(character: Character) {
         <el-tab-pane name="published">
           <template #label>
             <span class="tab-label">
-              已发布
+              {{ $t('myCharacters.published') }}
               <span class="tab-count">{{ publishedCharacters.length }}</span>
             </span>
           </template>
@@ -253,7 +255,7 @@ function handleStartChat(character: Character) {
 
       <div class="tabs-actions">
         <el-button :icon="Upload" @click="handleImport">
-          导入角色
+          {{ $t('myCharacters.importCharacter') }}
         </el-button>
       </div>
     </div>
@@ -291,7 +293,7 @@ function handleStartChat(character: Character) {
               :icon="ChatDotRound"
               @click.stop="handleStartChat(character)"
             >
-              开始聊天
+              {{ $t('market.startChat') }}
             </el-button>
 
             <el-button
