@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 interface Props {
   selectedCategory: string;
@@ -19,15 +22,15 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-const categories = [
-  { label: '全部', value: '' },
-  { label: '助手', value: 'assistant' },
-  { label: '娱乐', value: 'entertainment' },
-  { label: '教育', value: 'education' },
-  { label: '游戏', value: 'game' },
-  { label: '历史', value: 'historical' },
-  { label: '现代', value: 'modern' },
-];
+const categories = computed(() => [
+  { label: t('market.filters.all'), value: '' },
+  { label: t('market.filters.assistant'), value: 'assistant' },
+  { label: t('market.filters.entertainment'), value: 'entertainment' },
+  { label: t('market.filters.education'), value: 'education' },
+  { label: t('market.filters.game'), value: 'game' },
+  { label: t('market.filters.historical'), value: 'historical' },
+  { label: t('market.filters.modern'), value: 'modern' },
+]);
 
 const availableTags = [
   'Fantasy',
@@ -44,12 +47,12 @@ const availableTags = [
   'Action',
 ];
 
-const sortOptions = [
-  { label: 'Hot', value: 'popular' },
-  { label: 'Latest', value: 'newest' },
-  { label: 'Top Rated', value: 'rating' },
-  { label: 'Relevance', value: 'relevance' },
-];
+const sortOptions = computed(() => [
+  { label: t('market.filters.hot'), value: 'popular' },
+  { label: t('market.filters.latest'), value: 'newest' },
+  { label: t('market.filters.topRated'), value: 'rating' },
+  { label: t('market.filters.relevance'), value: 'relevance' },
+]);
 
 const handleCategoryChange = (value: string) => {
   emit('update:selectedCategory', value);
@@ -75,10 +78,10 @@ const handleSortChange = (value: string) => {
 <template>
   <div class="filter-toolbar">
     <div class="filter-item">
-      <label class="filter-label">分类</label>
+      <label class="filter-label">{{ $t('market.filters.category') }}</label>
       <el-select
         :model-value="selectedCategory"
-        placeholder="选择分类"
+        :placeholder="$t('market.filters.selectCategory')"
         size="default"
         @update:model-value="handleCategoryChange"
       >
@@ -92,10 +95,10 @@ const handleSortChange = (value: string) => {
     </div>
 
     <div class="filter-item">
-      <label class="filter-label">标签</label>
+      <label class="filter-label">{{ $t('market.filters.tags') }}</label>
       <el-select
         :model-value="selectedTags"
-        placeholder="选择标签"
+        :placeholder="$t('market.filters.selectTags')"
         multiple
         collapse-tags
         collapse-tags-tooltip
@@ -117,12 +120,12 @@ const handleSortChange = (value: string) => {
         :model-value="showNsfw"
         @update:model-value="handleNsfwChange"
       >
-        显示 NSFW
+        {{ $t('market.filters.showNsfw') }}
       </el-checkbox>
     </div>
 
     <div class="filter-item">
-      <label class="filter-label">排序</label>
+      <label class="filter-label">{{ $t('market.filters.sort') }}</label>
       <el-select
         :model-value="sortBy"
         size="default"

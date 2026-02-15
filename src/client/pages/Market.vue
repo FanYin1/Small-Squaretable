@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useToast } from '@client/composables/useToast';
 import { useCharacterSearch } from '@client/composables/useCharacterSearch';
 import { recommendationApi } from '@client/services/recommendation.api';
@@ -16,6 +17,7 @@ import type { Character } from '@client/types';
 
 const toast = useToast();
 const router = useRouter();
+const { t } = useI18n();
 
 // Trending state
 const trendingLoading = ref(false);
@@ -78,8 +80,8 @@ async function loadCharacters() {
     await fetchCharacters();
   } catch (error) {
     console.error('Failed to fetch characters:', error);
-    toast.error('加载失败', {
-      message: '无法加载角色列表，请稍后重试'
+    toast.error(t('chat.loadFailed'), {
+      message: t('common.retry')
     });
   }
 }
@@ -116,7 +118,7 @@ function handleCardClick(characterId: string) {
 
 <template>
   <DashboardLayout>
-    <template #title>角色市场</template>
+    <template #title>{{ $t('market.title') }}</template>
     <template #center>
       <SearchCombo
         v-model="searchQuery"

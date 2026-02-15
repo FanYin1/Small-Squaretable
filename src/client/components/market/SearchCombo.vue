@@ -2,6 +2,9 @@
 import { ref } from 'vue';
 import { Search, Plus } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const router = useRouter();
 
@@ -47,19 +50,19 @@ const handleNewChat = () => {
         :value="modelValue"
         type="text"
         class="search-input"
-        placeholder="搜索角色名称或描述..."
+        :placeholder="$t('market.searchPlaceholder')"
         @input="handleInput(($event.target as HTMLInputElement).value)"
         @keyup.enter="handleKeyEnter"
       />
     </div>
 
     <button class="search-btn" @click="handleSearch">
-      搜索
+      {{ $t('market.searchBtn') }}
     </button>
 
     <button class="new-chat-btn" @click="handleNewChat">
       <el-icon><Plus /></el-icon>
-      新建聊天
+      {{ $t('market.newChat') }}
     </button>
   </div>
 </template>
