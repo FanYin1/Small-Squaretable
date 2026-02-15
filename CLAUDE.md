@@ -7,8 +7,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 7 Complete (Test Suite Fix)
-**Last Updated**: 2026-02-15
+**Status**: Iteration 8 Complete (i18n Full Coverage)
+**Last Updated**: 2026-02-16
 
 ---
 
@@ -384,6 +384,30 @@ npm run build            # Production build
 ### Test Isolation (M6) ✅
 - **vitest.config.ts**: Excluded ml-service/** and tests/integration/** from unit test runs
 - **embedding.service.spec.ts**: Skipped ML-dependent tests (requires microservice)
+
+---
+
+## Iteration 8: i18n Full Coverage (2026-02-16) ✅
+
+### High-Impact Pages (M1) ✅
+- **MyCharacters.vue**: 26 hardcoded strings → `$t()` calls (myCharacters.*, common.*)
+- **Chat.vue**: 15 hardcoded strings → `$t()` calls (chat.*, common.*)
+- **UpgradePrompt.vue**: 15 hardcoded strings → `$t()` calls (subscription.*, common.*)
+- **MemoryPanel.vue**: 19 hardcoded strings → `$t()` calls (memory.*, common.*)
+- **CharacterPublishForm.vue**: 19 hardcoded strings → `$t()` calls (characterPublish.*, market.filters.*)
+
+### Debug + Layout + Market (M2) ✅
+- **Debug Panels**: PerformanceMetrics, SystemPromptViewer, IntelligenceDebugPanel — 43 strings wired to debug.*
+- **Layout**: AppHeader, UserMenu, AppSidebar, LeftSidebar — 29 strings wired to nav.*, settings.*, theme.*
+- **Market**: FilterToolbar, SearchCombo, Market.vue — 22 strings wired to market.*, market.filters.*
+
+### Analytics + Admin + Profile (M3) ✅
+- **New Locale Keys**: Added `analytics` section (28 keys) to both en-US.json and zh-CN.json
+- **Analytics Components**: 7 files wired to analytics.* keys (dashboard, charts, tables)
+- **Admin Pages**: Experiments, SystemDashboard, UserManagement — role labels, experiment metrics
+- **Profile**: ProfileForm, AvatarUpload — form labels and validation messages
+- **UsageDashboard**: 15 strings wired to subscription.* keys
+- **Missing Keys**: Added chat.copyMessage, chat.editMessage, admin role/experiment keys
 
 ---
 
