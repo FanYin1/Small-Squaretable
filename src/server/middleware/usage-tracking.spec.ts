@@ -7,6 +7,20 @@ import {
   trackImageUsage,
 } from './usage-tracking';
 
+const { mockUsageLoggerError } = vi.hoisted(() => ({
+  mockUsageLoggerError: vi.fn(),
+}));
+
+vi.mock('../services/logger.service', () => ({
+  logger: {
+    child: () => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: mockUsageLoggerError,
+    }),
+  },
+}));
+
 // Mock the usage service
 vi.mock('../services/usage.service', () => ({
   usageService: {
@@ -16,16 +30,10 @@ vi.mock('../services/usage.service', () => ({
 
 describe('Usage Tracking Middleware', () => {
   let app: Hono;
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     app = new Hono();
     vi.clearAllMocks();
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    consoleErrorSpy.mockRestore();
   });
 
   describe('trackMessageUsage', () => {
@@ -86,8 +94,8 @@ describe('Usage Tracking Middleware', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to track message usage:',
+      expect(mockUsageLoggerError).toHaveBeenCalledWith(
+        'Failed to track message usage',
         expect.any(Error)
       );
     });
@@ -157,8 +165,8 @@ describe('Usage Tracking Middleware', () => {
       const res = await app.request('/api/data');
 
       expect(res.status).toBe(200);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to track API call usage:',
+      expect(mockUsageLoggerError).toHaveBeenCalledWith(
+        'Failed to track API call usage',
         expect.any(Error)
       );
     });
@@ -226,8 +234,8 @@ describe('Usage Tracking Middleware', () => {
       const res = await app.request('/llm/chat', { method: 'POST' });
 
       expect(res.status).toBe(200);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to track token usage:',
+      expect(mockUsageLoggerError).toHaveBeenCalledWith(
+        'Failed to track token usage',
         expect.any(Error)
       );
     });
@@ -274,8 +282,8 @@ describe('Usage Tracking Middleware', () => {
       const res = await app.request('/images/generate', { method: 'POST' });
 
       expect(res.status).toBe(200);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to track image usage:',
+      expect(mockUsageLoggerError).toHaveBeenCalledWith(
+        'Failed to track image usage',
         expect.any(Error)
       );
     });
