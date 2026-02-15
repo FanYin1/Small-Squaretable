@@ -94,6 +94,17 @@ class MemoryRepository {
     return result as unknown as MemoryWithScore[];
   }
 
+  async updateAccessTimeBatch(memoryIds: string[]): Promise<void> {
+    if (memoryIds.length === 0) return;
+    await db
+      .update(characterMemories)
+      .set({
+        lastAccessed: new Date(),
+        accessCount: sql`${characterMemories.accessCount} + 1`,
+      })
+      .where(inArray(characterMemories.id, memoryIds));
+  }
+
   async updateAccessTime(memoryId: string): Promise<void> {
     await db
       .update(characterMemories)

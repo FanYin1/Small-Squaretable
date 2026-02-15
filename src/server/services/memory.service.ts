@@ -55,10 +55,9 @@ export class MemoryService {
       limit,
     });
 
-    // Update access times
-    for (const memory of memories) {
-      await memoryRepository.updateAccessTime(memory.id);
-    }
+    // Update access times (batch)
+    const memoryIds = memories.map((m) => m.id);
+    await memoryRepository.updateAccessTimeBatch(memoryIds);
 
     return memories.map((m) => ({
       id: m.id,
