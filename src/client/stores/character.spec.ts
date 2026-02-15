@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useCharacterStore } from './character';
 import { characterApi } from '@client/services';
-import '../test-setup';
+
 
 vi.mock('@client/services', () => ({
   characterApi: {

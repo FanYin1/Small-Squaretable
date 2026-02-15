@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { api, ApiError, apiRequest } from './api';
-import '../test-setup';
+
 
 describe('API Client', () => {
   beforeEach(() => {

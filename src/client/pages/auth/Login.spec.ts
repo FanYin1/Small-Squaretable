@@ -7,7 +7,7 @@ import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import Login from './Login.vue';
 import { useUserStore } from '@client/stores/user';
-import '../../test-setup';
+
 
 // Mock vue-router
 const mockPush = vi.fn();

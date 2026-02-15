@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useSubscriptionStore } from './subscription';
 import { subscriptionApi } from '@client/services/subscription.api';
-import '../test-setup';
+
 
 vi.mock('@client/services/subscription.api', () => ({
   subscriptionApi: {

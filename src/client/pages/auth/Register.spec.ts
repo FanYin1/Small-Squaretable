@@ -10,7 +10,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import Register from './Register.vue';
 import { useUserStore } from '@client/stores/user';
-import '../../test-setup';
+
 
 // Mock useToast composable
 const mockToast = {

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { nextTick } from 'vue';
 import { useUiStore } from './ui';
-import '../test-setup';
+
 
 describe('UI Store', () => {
   beforeEach(() => {

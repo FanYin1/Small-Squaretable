@@ -7,7 +7,7 @@ import { setActivePinia, createPinia } from 'pinia';
 import { useChatStore } from './chat';
 import { chatApi, ApiError } from '@client/services';
 import type { Chat, Message } from '@client/types';
-import '../test-setup';
+
 
 vi.mock('@client/services', () => ({
   chatApi: {
