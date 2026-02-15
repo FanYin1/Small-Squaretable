@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@client/stores';
 
+const { t } = useI18n();
 const router = useRouter();
 const userStore = useUserStore();
 
@@ -57,27 +59,27 @@ const handleRegister = () => {
             </div>
           </el-dropdown-item>
           <el-dropdown-item divided command="profile">
-            📊 个人中心
+            {{ $t('nav.profile') }}
           </el-dropdown-item>
           <el-dropdown-item command="my-characters">
-            🎭 我的角色
+            {{ $t('nav.myCharacters') }}
           </el-dropdown-item>
           <el-dropdown-item command="subscription">
-            💳 订阅管理
+            {{ $t('nav.subscription') }}
           </el-dropdown-item>
           <el-dropdown-item command="settings">
-            ⚙️ 设置
+            {{ $t('nav.settings') }}
           </el-dropdown-item>
           <el-dropdown-item divided command="logout">
-            🚪 退出登录
+            {{ $t('nav.logout') }}
           </el-dropdown-item>
         </el-dropdown-menu>
       </template>
     </el-dropdown>
 
     <div v-else class="auth-buttons">
-      <el-button @click="handleLogin">登录</el-button>
-      <el-button type="primary" @click="handleRegister">注册</el-button>
+      <el-button @click="handleLogin">{{ $t('nav.login') }}</el-button>
+      <el-button type="primary" @click="handleRegister">{{ $t('nav.register') }}</el-button>
     </div>
   </div>
 </template>

@@ -139,7 +139,7 @@ const handleMouseLeave = () => { if (!pinned.value) hovered.value = false; };
       </button>
       <button class="nav-item" @click="toggleLocale">
         <span class="nav-icon locale-icon">{{ currentLocale === 'zh-CN' ? 'EN' : '中' }}</span>
-        <span class="nav-label">{{ currentLocale === 'zh-CN' ? 'English' : '中文' }}</span>
+        <span class="nav-label">{{ currentLocale === 'zh-CN' ? $t('settings.languageEn') : $t('settings.languageZh') }}</span>
       </button>
       <button class="sidebar-action" :title="t('nav.logout')" :aria-label="t('nav.logout')" @click="handleLogout">
         <el-icon :size="18"><SwitchButton /></el-icon>

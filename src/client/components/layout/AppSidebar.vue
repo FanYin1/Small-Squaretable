@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ChatDotRound, Plus } from '@element-plus/icons-vue';
 
+const { t } = useI18n();
 const router = useRouter();
 const isCollapsed = ref(false);
 
@@ -14,7 +16,7 @@ const toggleCollapse = () => {
 <template>
   <el-aside :width="isCollapsed ? '64px' : '200px'" class="app-sidebar">
     <div class="sidebar-header">
-      <h3 v-if="!isCollapsed">聊天列表</h3>
+      <h3 v-if="!isCollapsed">{{ $t('chat.title') }}</h3>
       <el-button
         :icon="isCollapsed ? 'Expand' : 'Fold'"
         circle
@@ -31,7 +33,7 @@ const toggleCollapse = () => {
         class="new-chat-button"
         @click="router.push({ name: 'Market' })"
       >
-        新建聊天
+        {{ $t('chat.newChat') }}
       </el-button>
       <el-button
         v-else
@@ -47,7 +49,7 @@ const toggleCollapse = () => {
           <ChatDotRound />
         </el-icon>
         <p v-if="!isCollapsed" class="placeholder-text">
-          聊天列表将在 Task 7 实现
+          {{ $t('chat.noChats') }}
         </p>
       </div>
     </div>

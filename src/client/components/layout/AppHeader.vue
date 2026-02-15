@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { User, ChatDotRound, ShoppingBag } from '@element-plus/icons-vue';
 
+const { t } = useI18n();
 const router = useRouter();
 const route = useRoute();
 
@@ -64,15 +66,15 @@ const toggleMobileMenu = () => {
         active-text-color="#409eff"
       >
         <el-menu-item index="1" @click="router.push({ name: 'Home' })">
-          首页
+          {{ $t('nav.home') }}
         </el-menu-item>
         <el-menu-item index="2" @click="router.push({ name: 'Market' })">
           <el-icon><ShoppingBag /></el-icon>
-          <span>角色市场</span>
+          <span>{{ $t('nav.market') }}</span>
         </el-menu-item>
         <el-menu-item index="3" @click="router.push({ name: 'Chat' })">
           <el-icon><ChatDotRound /></el-icon>
-          <span>聊天</span>
+          <span>{{ $t('nav.chat') }}</span>
         </el-menu-item>
       </el-menu>
 
@@ -83,16 +85,16 @@ const toggleMobileMenu = () => {
             <el-button circle :icon="User" />
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-                <el-dropdown-item command="subscription">订阅管理</el-dropdown-item>
-                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+                <el-dropdown-item command="profile">{{ $t('nav.profile') }}</el-dropdown-item>
+                <el-dropdown-item command="subscription">{{ $t('nav.subscription') }}</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>{{ $t('nav.logout') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </template>
         <template v-else>
-          <el-button @click="handleLogin" text>登录</el-button>
-          <el-button @click="handleRegister" type="primary">注册</el-button>
+          <el-button @click="handleLogin" text>{{ $t('nav.login') }}</el-button>
+          <el-button @click="handleRegister" type="primary">{{ $t('nav.register') }}</el-button>
         </template>
       </div>
 
@@ -117,33 +119,33 @@ const toggleMobileMenu = () => {
         class="mobile-menu"
       >
         <el-menu-item index="1" @click="router.push({ name: 'Home' }); isMobileMenuOpen = false">
-          首页
+          {{ $t('nav.home') }}
         </el-menu-item>
         <el-menu-item index="2" @click="router.push({ name: 'Market' }); isMobileMenuOpen = false">
           <el-icon><ShoppingBag /></el-icon>
-          <span>角色市场</span>
+          <span>{{ $t('nav.market') }}</span>
         </el-menu-item>
         <el-menu-item index="3" @click="router.push({ name: 'Chat' }); isMobileMenuOpen = false">
           <el-icon><ChatDotRound /></el-icon>
-          <span>聊天</span>
+          <span>{{ $t('nav.chat') }}</span>
         </el-menu-item>
         <el-divider v-if="isAuthenticated" />
         <el-menu-item v-if="isAuthenticated" @click="handleProfile(); isMobileMenuOpen = false">
           <el-icon><User /></el-icon>
-          <span>个人中心</span>
+          <span>{{ $t('nav.profile') }}</span>
         </el-menu-item>
         <el-menu-item v-if="isAuthenticated" @click="router.push({ name: 'Subscription' }); isMobileMenuOpen = false">
-          订阅管理
+          {{ $t('nav.subscription') }}
         </el-menu-item>
         <el-menu-item v-if="isAuthenticated" @click="handleLogout(); isMobileMenuOpen = false">
-          退出登录
+          {{ $t('nav.logout') }}
         </el-menu-item>
         <template v-else>
           <el-menu-item @click="handleLogin(); isMobileMenuOpen = false">
-            登录
+            {{ $t('nav.login') }}
           </el-menu-item>
           <el-menu-item @click="handleRegister(); isMobileMenuOpen = false">
-            注册
+            {{ $t('nav.register') }}
           </el-menu-item>
         </template>
       </el-menu>
