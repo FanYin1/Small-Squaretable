@@ -960,6 +960,33 @@
   "recommendations": {
     "seeAll": "See All"
   },
+  "analytics": {
+    "title": "Analytics Dashboard",
+    "executiveOverview": "Executive Overview",
+    "productMetrics": "Product Metrics",
+    "weeklyActiveUsers": "Weekly Active Users",
+    "weeklyMessages": "Weekly Messages",
+    "activeUsersRealtime": "Active Users (Realtime)",
+    "eventsPerMin": "Events / Min",
+    "messagesPerMin": "Messages / Min",
+    "userSegments": "User Segments",
+    "noSegmentData": "No segment data",
+    "conversionFunnel": "Conversion Funnel",
+    "noFunnelData": "No funnel data",
+    "cohortRetention": "Cohort Retention",
+    "noRetentionData": "No retention data",
+    "trendOverview": "Trend Overview",
+    "noTrendData": "No trend data",
+    "rank": "Rank",
+    "characterId": "Character ID",
+    "messages": "Messages",
+    "chatStarts": "Chat Starts",
+    "avgRating": "Avg Rating",
+    "impressions": "Impressions",
+    "clicks": "Clicks",
+    "variant": "Variant",
+    "variantName": "Variant name"
+  },
   "admin": {
     "title": "Admin Panel",
     "nav": {

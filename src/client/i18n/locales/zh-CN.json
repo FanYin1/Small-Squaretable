@@ -960,6 +960,33 @@
   "recommendations": {
     "seeAll": "查看全部"
   },
+  "analytics": {
+    "title": "数据分析仪表盘",
+    "executiveOverview": "管理概览",
+    "productMetrics": "产品指标",
+    "weeklyActiveUsers": "周活跃用户",
+    "weeklyMessages": "周消息数",
+    "activeUsersRealtime": "实时活跃用户",
+    "eventsPerMin": "事件/分钟",
+    "messagesPerMin": "消息/分钟",
+    "userSegments": "用户分群",
+    "noSegmentData": "暂无分群数据",
+    "conversionFunnel": "转化漏斗",
+    "noFunnelData": "暂无漏斗数据",
+    "cohortRetention": "群组留存",
+    "noRetentionData": "暂无留存数据",
+    "trendOverview": "趋势概览",
+    "noTrendData": "暂无趋势数据",
+    "rank": "排名",
+    "characterId": "角色 ID",
+    "messages": "消息数",
+    "chatStarts": "聊天次数",
+    "avgRating": "平均评分",
+    "impressions": "展示次数",
+    "clicks": "点击次数",
+    "variant": "变体",
+    "variantName": "变体名称"
+  },
   "admin": {
     "title": "管理面板",
     "nav": {
