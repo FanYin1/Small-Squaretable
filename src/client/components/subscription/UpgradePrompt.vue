@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { Check, Warning } from '@element-plus/icons-vue';
 
 interface Props {
@@ -21,46 +22,47 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const { t } = useI18n();
 
 const resourceLabels: Record<string, string> = {
-  messages: '消息数量',
+  messages: t('subscription.resourceMessages'),
   llm_tokens: 'LLM Tokens',
-  images: '图片生成',
-  api_calls: 'API 调用',
+  images: t('subscription.resourceImages'),
+  api_calls: t('subscription.resourceApiCalls'),
 };
 
 const title = computed(() => {
-  return `${resourceLabels[props.resourceType]} 配额已用尽`;
+  return t('subscription.quotaExhausted', { resource: resourceLabels[props.resourceType] });
 });
 
 const recommendedPlan = computed(() => {
   if (props.currentPlan === 'free') {
     return {
-      name: '专业版',
+      name: t('subscription.pro'),
       price: '¥29',
-      period: '/月',
+      period: t('subscription.perMonth'),
       features: [
-        '10,000 条消息/月',
-        '1,000,000 LLM Tokens/月',
-        '500 张图片/月',
-        '优先响应速度',
-        '高级模型访问',
-        '历史记录导出',
+        t('subscription.proMessages'),
+        t('subscription.proTokens'),
+        t('subscription.proImages'),
+        t('subscription.proPriority'),
+        t('subscription.proModels'),
+        t('subscription.proExport'),
       ],
     };
   }
   return {
-    name: '团队版',
+    name: t('subscription.team'),
     price: '¥99',
-    period: '/月',
+    period: t('subscription.perMonth'),
     features: [
-      '100,000 条消息/月',
-      '10,000,000 LLM Tokens/月',
-      '5,000 张图片/月',
-      '团队协作功能',
-      '自定义角色',
-      'API 访问',
-      '优先客服支持',
+      t('subscription.teamMessages'),
+      t('subscription.teamTokens'),
+      t('subscription.teamImages'),
+      t('subscription.teamCollaboration'),
+      t('subscription.teamCustomCharacters'),
+      t('subscription.teamApiAccess'),
+      t('subscription.teamSupport'),
     ],
   };
 });
@@ -91,14 +93,14 @@ function handleUpgrade() {
       </div>
 
       <p class="prompt-message">
-        您当前的 {{ resourceLabels[resourceType] }} 配额已达到上限。
-        升级到更高级别的方案以继续使用服务。
+        {{ $t('subscription.quotaReached', { resource: resourceLabels[resourceType] }) }}
+        {{ $t('subscription.upgradeToUnlock') }}
       </p>
 
       <el-divider />
 
       <div class="recommended-plan">
-        <div class="plan-badge">推荐方案</div>
+        <div class="plan-badge">{{ $t('subscription.recommended') }}</div>
         <div class="plan-header">
           <h3>{{ recommendedPlan.name }}</h3>
           <div class="plan-price">
@@ -118,9 +120,9 @@ function handleUpgrade() {
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button @click="handleClose">稍后再说</el-button>
+        <el-button @click="handleClose">{{ $t('common.later') }}</el-button>
         <el-button type="primary" @click="handleUpgrade">
-          立即升级
+          {{ $t('common.upgradeNow') }}
         </el-button>
       </div>
     </template>
