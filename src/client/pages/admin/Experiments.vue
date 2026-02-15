@@ -69,7 +69,7 @@ async function fetchExperiments() {
     const data = await res.json();
     if (data.success) experiments.value = data.data;
   } catch {
-    toast.error('Failed to load experiments');
+    toast.error(t('common.retry'));
   } finally {
     loading.value = false;
   }
@@ -90,10 +90,10 @@ async function handleCreate() {
       experiments.value.push(data.data);
       createDialogVisible.value = false;
       resetForm();
-      toast.success('Experiment created');
+      toast.success(t('admin.experiments.created'));
     }
   } catch {
-    toast.error('Failed to create experiment');
+    toast.error(t('admin.experiments.createFailed'));
   }
 }
 
@@ -107,10 +107,10 @@ async function handleStatusChange(exp: Experiment, status: 'running' | 'complete
     if (data.success) {
       const idx = experiments.value.findIndex((e) => e.id === exp.id);
       if (idx !== -1) experiments.value[idx] = data.data;
-      toast.success(`Experiment ${status === 'running' ? 'started' : 'stopped'}`);
+      toast.success(status === 'running' ? t('admin.experiments.started') : t('admin.experiments.stopped'));
     }
   } catch {
-    toast.error('Failed to update experiment');
+    toast.error(t('admin.experiments.updateFailed'));
   }
 }
 
@@ -123,7 +123,7 @@ async function viewResults(exp: Experiment) {
     const data = await res.json();
     if (data.success) currentResults.value = data.data;
   } catch {
-    toast.error('Failed to load results');
+    toast.error(t('admin.experiments.loadResultsFailed'));
   } finally {
     resultsLoading.value = false;
   }
@@ -211,7 +211,7 @@ onMounted(() => fetchExperiments());
     <el-dialog v-model="createDialogVisible" :title="t('admin.experiments.create')" width="600px">
       <el-form label-position="top">
         <el-form-item :label="t('admin.experiments.name')">
-          <el-input v-model="form.name" placeholder="e.g. homepage-layout" />
+          <el-input v-model="form.name" :placeholder="t('admin.experiments.namePlaceholder')" />
         </el-form-item>
         <el-form-item :label="t('admin.experiments.description')">
           <el-input v-model="form.description" type="textarea" :rows="2" />
@@ -219,7 +219,7 @@ onMounted(() => fetchExperiments());
         <el-form-item :label="t('admin.experiments.variants')">
           <div class="variants-editor">
             <div v-for="(v, i) in form.variants" :key="i" class="variant-row">
-              <el-input v-model="v.name" placeholder="Variant name" class="variant-name" />
+              <el-input v-model="v.name" :placeholder="t('admin.experiments.variantName')" class="variant-name" />
               <el-input-number v-model="v.weight" :min="1" :max="100" class="variant-weight" />
               <el-input v-model="v.configJson" placeholder="{}" type="textarea" :rows="1" class="variant-config" />
               <el-button :icon="Delete" circle size="small" :disabled="form.variants.length <= 1" @click="removeVariant(i)" />
@@ -235,13 +235,13 @@ onMounted(() => fetchExperiments());
     </el-dialog>
 
     <!-- Results Dialog -->
-    <el-dialog v-model="resultsDialogVisible" :title="`Results: ${currentResultsName}`" width="700px">
+    <el-dialog v-model="resultsDialogVisible" :title="`${t('admin.experiments.results')}: ${currentResultsName}`" width="700px">
       <div v-loading="resultsLoading">
         <el-table v-if="currentResults.length > 0" :data="currentResults" stripe>
-          <el-table-column prop="variant" label="Variant" width="150" />
-          <el-table-column prop="impressions" label="Impressions" width="120" align="right" />
-          <el-table-column prop="clicks" label="Clicks" width="100" align="right" />
-          <el-table-column prop="chatStarts" label="Chat Starts" width="120" align="right" />
+          <el-table-column prop="variant" :label="t('analytics.variant')" width="150" />
+          <el-table-column prop="impressions" :label="t('analytics.impressions')" width="120" align="right" />
+          <el-table-column prop="clicks" :label="t('analytics.clicks')" width="100" align="right" />
+          <el-table-column prop="chatStarts" :label="t('analytics.chatStarts')" width="120" align="right" />
           <el-table-column label="CTR" width="160">
             <template #default="{ row }">
               <div class="ctr-cell">

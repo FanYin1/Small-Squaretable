@@ -1019,7 +1019,10 @@
       "unsuspended": "用户已恢复",
       "forceReset": "重置密码",
       "forceResetConfirm": "强制重置 {name} 的密码？",
-      "resetSent": "密码重置已发起"
+      "resetSent": "密码重置已发起",
+      "roleUser": "用户",
+      "roleModerator": "版主",
+      "roleAdmin": "管理员"
     },
     "content": {
       "title": "内容审核",
@@ -1094,7 +1097,14 @@
       "cancel": "取消",
       "noExperiments": "暂无实验",
       "noResults": "暂无结果数据",
-      "variantName": "变体名称"
+      "variantName": "变体名称",
+      "namePlaceholder": "例如 homepage-layout",
+      "created": "实验已创建",
+      "createFailed": "创建实验失败",
+      "started": "实验已启动",
+      "stopped": "实验已停止",
+      "updateFailed": "更新实验失败",
+      "loadResultsFailed": "加载结果失败"
     }
   }
 }

@@ -122,7 +122,7 @@ onMounted(() => refresh());
         </template>
         <div class="subscription-bars">
           <div class="sub-row">
-            <span class="sub-label">Free</span>
+            <span class="sub-label">{{ t('subscription.free') }}</span>
             <el-progress
               :percentage="adminStore.systemStats.totalUsers > 0
                 ? Math.round((adminStore.systemStats.subscriptionBreakdown.free / adminStore.systemStats.totalUsers) * 100)
@@ -133,7 +133,7 @@ onMounted(() => refresh());
             <span class="sub-count">{{ adminStore.systemStats.subscriptionBreakdown.free }}</span>
           </div>
           <div class="sub-row">
-            <span class="sub-label">Pro</span>
+            <span class="sub-label">{{ t('subscription.pro') }}</span>
             <el-progress
               :percentage="adminStore.systemStats.totalUsers > 0
                 ? Math.round((adminStore.systemStats.subscriptionBreakdown.pro / adminStore.systemStats.totalUsers) * 100)
@@ -144,7 +144,7 @@ onMounted(() => refresh());
             <span class="sub-count">{{ adminStore.systemStats.subscriptionBreakdown.pro }}</span>
           </div>
           <div class="sub-row">
-            <span class="sub-label">Team</span>
+            <span class="sub-label">{{ t('subscription.team') }}</span>
             <el-progress
               :percentage="adminStore.systemStats.totalUsers > 0
                 ? Math.round((adminStore.systemStats.subscriptionBreakdown.team / adminStore.systemStats.totalUsers) * 100)

@@ -135,9 +135,9 @@ watch(searchQuery, () => {
             <el-button size="small" text>{{ t('admin.users.changeRole') }}</el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="user" :disabled="row.role === 'user'">User</el-dropdown-item>
-                <el-dropdown-item command="moderator" :disabled="row.role === 'moderator'">Moderator</el-dropdown-item>
-                <el-dropdown-item command="admin" :disabled="row.role === 'admin'">Admin</el-dropdown-item>
+                <el-dropdown-item command="user" :disabled="row.role === 'user'">{{ t('admin.users.roleUser') }}</el-dropdown-item>
+                <el-dropdown-item command="moderator" :disabled="row.role === 'moderator'">{{ t('admin.users.roleModerator') }}</el-dropdown-item>
+                <el-dropdown-item command="admin" :disabled="row.role === 'admin'">{{ t('admin.users.roleAdmin') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>

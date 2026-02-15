@@ -1019,7 +1019,10 @@
       "unsuspended": "User unsuspended",
       "forceReset": "Reset Password",
       "forceResetConfirm": "Force password reset for {name}?",
-      "resetSent": "Password reset initiated"
+      "resetSent": "Password reset initiated",
+      "roleUser": "User",
+      "roleModerator": "Moderator",
+      "roleAdmin": "Admin"
     },
     "content": {
       "title": "Content Moderation",
@@ -1094,7 +1097,14 @@
       "cancel": "Cancel",
       "noExperiments": "No experiments yet",
       "noResults": "No results data available",
-      "variantName": "Variant name"
+      "variantName": "Variant name",
+      "namePlaceholder": "e.g. homepage-layout",
+      "created": "Experiment created",
+      "createFailed": "Failed to create experiment",
+      "started": "Experiment started",
+      "stopped": "Experiment stopped",
+      "updateFailed": "Failed to update experiment",
+      "loadResultsFailed": "Failed to load results"
     }
   }
 }
