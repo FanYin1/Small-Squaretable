@@ -188,24 +188,24 @@ onMounted(() => fetchExperiments());
             type="success"
             :icon="VideoPlay"
             @click="handleStatusChange(row, 'running')"
-          >Start</el-button>
+          >{{ t('admin.experiments.start') }}</el-button>
           <el-button
             v-if="row.status === 'running'"
             size="small"
             type="warning"
             :icon="VideoPause"
             @click="handleStatusChange(row, 'completed')"
-          >Stop</el-button>
+          >{{ t('admin.experiments.stop') }}</el-button>
           <el-button
             size="small"
             :icon="DataAnalysis"
             @click="viewResults(row)"
-          >Results</el-button>
+          >{{ t('admin.experiments.results') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-empty v-if="!loading && experiments.length === 0" description="No experiments yet" />
+    <el-empty v-if="!loading && experiments.length === 0" :description="t('admin.experiments.noExperiments')" />
 
     <!-- Create Dialog -->
     <el-dialog v-model="createDialogVisible" :title="t('admin.experiments.create')" width="600px">
@@ -224,13 +224,13 @@ onMounted(() => fetchExperiments());
               <el-input v-model="v.configJson" placeholder="{}" type="textarea" :rows="1" class="variant-config" />
               <el-button :icon="Delete" circle size="small" :disabled="form.variants.length <= 1" @click="removeVariant(i)" />
             </div>
-            <el-button size="small" :icon="Plus" @click="addVariant">Add Variant</el-button>
+            <el-button size="small" :icon="Plus" @click="addVariant">{{ t('admin.experiments.addVariant') }}</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" :disabled="!form.name || form.variants.length === 0" @click="handleCreate">Create</el-button>
+        <el-button @click="createDialogVisible = false">{{ t('admin.experiments.cancel') }}</el-button>
+        <el-button type="primary" :disabled="!form.name || form.variants.length === 0" @click="handleCreate">{{ t('admin.experiments.create') }}</el-button>
       </template>
     </el-dialog>
 
@@ -250,7 +250,7 @@ onMounted(() => fetchExperiments());
             </template>
           </el-table-column>
         </el-table>
-        <el-empty v-else-if="!resultsLoading" description="No results data available" />
+        <el-empty v-else-if="!resultsLoading" :description="t('admin.experiments.noResults')" />
       </div>
     </el-dialog>
   </div>

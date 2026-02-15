@@ -1046,6 +1046,25 @@
       "filterDate": "Date range",
       "filterActor": "Search actor ID or email...",
       "noLogs": "No audit logs found"
+    },
+    "experiments": {
+      "title": "Experiments",
+      "create": "Create Experiment",
+      "name": "Name",
+      "description": "Description",
+      "status": "Status",
+      "variants": "Variants",
+      "started": "Started",
+      "ended": "Ended",
+      "actions": "Actions",
+      "start": "Start",
+      "stop": "Stop",
+      "results": "Results",
+      "addVariant": "Add Variant",
+      "cancel": "Cancel",
+      "noExperiments": "No experiments yet",
+      "noResults": "No results data available",
+      "variantName": "Variant name"
     }
   }
 }
