@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { useFeatureGate } from '@client/composables/useFeatureGate';
 import { api } from '@client/services/api';
@@ -15,6 +16,7 @@ const emit = defineEmits<{
   success: [];
 }>();
 
+const { t } = useI18n();
 const { hasFeature, getUpgradeMessage } = useFeatureGate();
 
 // Check if user has character_share feature
@@ -49,12 +51,12 @@ const availableTags = [
 
 // Categories
 const categories = [
-  'Fantasy',
-  'Sci-Fi',
-  'Anime',
-  'Game',
-  'Historical',
-  'Modern',
+  { value: 'assistant', labelKey: 'market.filters.assistant' },
+  { value: 'entertainment', labelKey: 'market.filters.entertainment' },
+  { value: 'education', labelKey: 'market.filters.education' },
+  { value: 'game', labelKey: 'market.filters.game' },
+  { value: 'historical', labelKey: 'market.filters.historical' },
+  { value: 'modern', labelKey: 'market.filters.modern' },
 ];
 
 async function handlePublish() {
@@ -65,17 +67,17 @@ async function handlePublish() {
 
   // Validate form
   if (!formData.value.name.trim()) {
-    ElMessage.warning('请输入角色名称');
+    ElMessage.warning(t('characterPublish.nameRequired'));
     return;
   }
 
   if (!formData.value.category) {
-    ElMessage.warning('请选择分类');
+    ElMessage.warning(t('characterPublish.categoryRequired'));
     return;
   }
 
   if (formData.value.tags.length === 0) {
-    ElMessage.warning('请至少选择一个标签');
+    ElMessage.warning(t('characterPublish.tagsRequired'));
     return;
   }
 
@@ -93,14 +95,14 @@ async function handlePublish() {
     // Publish character
     await api.post(`/characters/${props.character.id}/publish`);
 
-    ElMessage.success('角色已发布到市场');
+    ElMessage.success(t('characterPublish.success'));
     emit('success');
     emit('close');
   } catch (error: any) {
     if (error.response?.status === 403) {
       ElMessage.error(getUpgradeMessage('character_share'));
     } else {
-      ElMessage.error(error.message || '发布失败');
+      ElMessage.error(error.message || t('characterPublish.error'));
     }
   } finally {
     publishing.value = false;
@@ -115,7 +117,7 @@ function handleClose() {
 <template>
   <el-dialog
     :model-value="visible"
-    title="发布角色到市场"
+    :title="$t('characterPublish.dialogTitle')"
     width="600px"
     @close="handleClose"
   >
@@ -128,11 +130,11 @@ function handleClose() {
       style="margin-bottom: 20px"
     >
       <template #title>
-        需要升级到 Pro 或 Team 套餐
+        {{ $t('characterPublish.upgradeRequired') }}
       </template>
       <p>{{ getUpgradeMessage('character_share') }}</p>
       <el-button type="primary" size="small" @click="$router.push({ name: 'Subscription' })">
-        立即升级
+        {{ $t('characterPublish.upgradeNow') }}
       </el-button>
     </el-alert>
 
@@ -141,46 +143,46 @@ function handleClose() {
       label-width="100px"
       :disabled="!canPublish"
     >
-      <el-form-item label="角色名称" required>
+      <el-form-item :label="$t('characterPublish.nameLabel')" required>
         <el-input
           v-model="formData.name"
-          placeholder="输入角色名称"
+          :placeholder="$t('characterPublish.namePlaceholder')"
           maxlength="255"
           show-word-limit
         />
       </el-form-item>
 
-      <el-form-item label="描述">
+      <el-form-item :label="$t('characterPublish.descLabel')">
         <el-input
           v-model="formData.description"
           type="textarea"
           :rows="4"
-          placeholder="输入角色描述"
+          :placeholder="$t('characterPublish.descPlaceholder')"
           maxlength="1000"
           show-word-limit
         />
       </el-form-item>
 
-      <el-form-item label="分类" required>
+      <el-form-item :label="$t('characterPublish.categoryLabel')" required>
         <el-select
           v-model="formData.category"
-          placeholder="选择分类"
+          :placeholder="$t('characterPublish.categoryPlaceholder')"
           style="width: 100%"
         >
           <el-option
             v-for="cat in categories"
-            :key="cat"
-            :label="cat"
-            :value="cat"
+            :key="cat.value"
+            :label="$t(cat.labelKey)"
+            :value="cat.value"
           />
         </el-select>
       </el-form-item>
 
-      <el-form-item label="标签" required>
+      <el-form-item :label="$t('characterPublish.tagsLabel')" required>
         <el-select
           v-model="formData.tags"
           multiple
-          placeholder="选择标签"
+          :placeholder="$t('characterPublish.tagsPlaceholder')"
           style="width: 100%"
         >
           <el-option
@@ -195,20 +197,20 @@ function handleClose() {
       <el-form-item label="NSFW">
         <el-switch v-model="formData.isNsfw" />
         <span style="margin-left: 12px; font-size: 12px; color: var(--el-text-color-secondary)">
-          标记为 NSFW 的角色将被过滤显示
+          {{ $t('characterPublish.nsfwHint') }}
         </span>
       </el-form-item>
     </el-form>
 
     <template #footer>
-      <el-button @click="handleClose">取消</el-button>
+      <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
       <el-button
         type="primary"
         :loading="publishing"
         :disabled="!canPublish"
         @click="handlePublish"
       >
-        发布
+        {{ $t('characterPublish.submit') }}
       </el-button>
     </template>
   </el-dialog>
