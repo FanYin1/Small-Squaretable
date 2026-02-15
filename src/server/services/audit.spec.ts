@@ -5,6 +5,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import crypto from 'crypto';
 
+// Mock the logger
+const { mockAuditLoggerError } = vi.hoisted(() => ({
+  mockAuditLoggerError: vi.fn(),
+}));
+
+vi.mock('./logger.service', () => ({
+  logger: {
+    child: () => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: mockAuditLoggerError,
+    }),
+  },
+}));
+
 // Mock the audit repository
 const mockCreate = vi.fn();
 const mockFindByTenant = vi.fn();
@@ -97,7 +112,7 @@ describe('AuditService', () => {
     });
 
     it('should not throw on DB error (fire-and-forget)', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = mockAuditLoggerError;
       mockCreate.mockRejectedValue(new Error('DB connection lost'));
 
       // This should NOT throw
@@ -112,12 +127,10 @@ describe('AuditService', () => {
       // Wait for the rejected promise to be caught
       await vi.waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
-          '[AuditService] Failed to write audit log:',
+          'Failed to write audit log',
           expect.any(Error),
         );
       });
-
-      consoleSpy.mockRestore();
     });
 
     it('should set actorIp to null when not provided', async () => {

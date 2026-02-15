@@ -9,6 +9,7 @@ vi.mock('../../db/repositories/memory.repository', () => ({
     findByCharacterAndUser: vi.fn(),
     hybridSearch: vi.fn(),
     updateAccessTime: vi.fn(),
+    updateAccessTimeBatch: vi.fn(),
     delete: vi.fn(),
     deleteAllForCharacterUser: vi.fn(),
     countByCharacterUser: vi.fn(),
@@ -71,9 +72,8 @@ describe('MemoryService', () => {
         query: 'Tell me about the user',
       });
 
-      expect(memoryRepository.updateAccessTime).toHaveBeenCalledTimes(2);
-      expect(memoryRepository.updateAccessTime).toHaveBeenCalledWith('mem-1');
-      expect(memoryRepository.updateAccessTime).toHaveBeenCalledWith('mem-2');
+      expect(memoryRepository.updateAccessTimeBatch).toHaveBeenCalledTimes(1);
+      expect(memoryRepository.updateAccessTimeBatch).toHaveBeenCalledWith(['mem-1', 'mem-2']);
     });
 
     it('should return scored memories with correct structure', async () => {

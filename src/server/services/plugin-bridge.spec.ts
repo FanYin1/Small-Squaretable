@@ -3,6 +3,21 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { mockLoggerError } = vi.hoisted(() => ({
+  mockLoggerError: vi.fn(),
+}));
+
+vi.mock('./logger.service', () => ({
+  logger: {
+    child: () => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: mockLoggerError,
+    }),
+  },
+}));
+
 import { PluginBridge } from './plugin-bridge';
 
 // ── Mock factories ──
@@ -141,18 +156,16 @@ describe('PluginBridge', () => {
 
     // 11. fire-and-forget logs errors without throwing
     it('should log errors from fire-and-forget dispatch without throwing', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const payload = { userId: 'user-1', characterId: 'char-1' };
       mockPluginService.executeEvent.mockRejectedValue(new Error('dispatch fail'));
       const result = await bridge.handleEvent('character.created', payload);
       expect(result).toEqual(payload);
       // Wait for the fire-and-forget promise to settle
       await new Promise((r) => setTimeout(r, 10));
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[PluginBridge] Error dispatching event "character.created"'),
+      expect(mockLoggerError).toHaveBeenCalledWith(
+        expect.stringContaining('Error dispatching event "character.created"'),
         expect.any(Error),
       );
-      consoleSpy.mockRestore();
     });
   });
 });

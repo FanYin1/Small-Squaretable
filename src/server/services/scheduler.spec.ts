@@ -3,6 +3,21 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+const { mockLoggerError } = vi.hoisted(() => ({
+  mockLoggerError: vi.fn(),
+}));
+
+vi.mock('./logger.service', () => ({
+  logger: {
+    child: () => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: mockLoggerError,
+    }),
+  },
+}));
+
 import { SchedulerService } from './scheduler.service';
 
 describe('SchedulerService', () => {
@@ -60,7 +75,6 @@ describe('SchedulerService', () => {
 
   describe('error handling', () => {
     it('should handle job failures gracefully', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const handler = vi.fn().mockRejectedValue(new Error('db connection lost'));
       scheduler.register('sync', handler, 2000);
       scheduler.start();
@@ -71,13 +85,10 @@ describe('SchedulerService', () => {
       expect(status?.lastStatus).toBe('error');
       expect(status?.lastError).toBe('db connection lost');
       expect(status?.runCount).toBe(1);
-      expect(consoleSpy).toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
+      expect(mockLoggerError).toHaveBeenCalled();
     });
 
     it('should recover on subsequent successful runs', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const handler = vi.fn()
         .mockRejectedValueOnce(new Error('transient'))
         .mockResolvedValue(undefined);
@@ -91,8 +102,6 @@ describe('SchedulerService', () => {
       expect(scheduler.getJobStatus('retry-job')?.lastStatus).toBe('success');
       expect(scheduler.getJobStatus('retry-job')?.lastError).toBeNull();
       expect(scheduler.getJobStatus('retry-job')?.runCount).toBe(2);
-
-      consoleSpy.mockRestore();
     });
   });
 

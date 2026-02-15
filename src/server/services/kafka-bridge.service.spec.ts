@@ -6,10 +6,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventBus } from './event-bus.service';
 
 // ── Hoisted mocks (available before vi.mock hoisting) ──
-const { mockSend, mockProducer } = vi.hoisted(() => {
+const { mockSend, mockProducer, mockKafkaLoggerError } = vi.hoisted(() => {
   const mockSend = vi.fn().mockResolvedValue(undefined);
   const mockProducer = { send: mockSend };
-  return { mockSend, mockProducer };
+  const mockKafkaLoggerError = vi.fn();
+  return { mockSend, mockProducer, mockKafkaLoggerError };
 });
 
 vi.mock('../../core/kafka', () => ({
@@ -31,6 +32,16 @@ vi.mock('crypto', async (importOriginal) => {
     randomUUID: vi.fn().mockReturnValue('test-uuid-1234'),
   };
 });
+
+vi.mock('./logger.service', () => ({
+  logger: {
+    child: () => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: mockKafkaLoggerError,
+    }),
+  },
+}));
 
 import { KafkaBridgeService } from './kafka-bridge.service';
 
@@ -225,18 +236,16 @@ describe('KafkaBridgeService', () => {
   // ── 10. Error handling ──
   describe('error handling', () => {
     it('should log error and not throw when producer.send fails', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockSend.mockRejectedValueOnce(new Error('Kafka unavailable'));
 
       await bridge.start();
       // Should not throw
       await eventBus.emit('social.follow', { userId: 'user-1' });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[KafkaBridge] Failed to send event "social.follow"'),
+      expect(mockKafkaLoggerError).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to send event "social.follow"'),
         expect.any(Error),
       );
-      consoleSpy.mockRestore();
     });
   });
 });
