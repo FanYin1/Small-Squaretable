@@ -19,6 +19,8 @@ function loadLogs() {
     limit: pageSize.value,
     action: actionFilter.value || undefined,
     userId: actorSearch.value || undefined,
+    startDate: dateRange.value?.[0] || undefined,
+    endDate: dateRange.value?.[1] || undefined,
   });
 }
 

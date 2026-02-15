@@ -202,8 +202,7 @@ function handlePublishSuccess() {
 }
 
 function handleCardClick(characterId: string) {
-  // TODO: Open character detail modal or navigate to detail page
-  console.log('Character clicked:', characterId);
+  router.push({ name: 'CharacterDetail', params: { id: characterId } });
 }
 
 function handleStartChat(character: Character) {
