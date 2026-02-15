@@ -1,6 +1,6 @@
 <template>
   <DashboardLayout>
-    <template #title>会话</template>
+    <template #title>{{ $t('chat.title') }}</template>
     <template #actions>
       <div class="chat-header-actions">
         <el-button
@@ -9,7 +9,7 @@
           @click="handleNewChat"
           class="new-chat-btn"
         >
-          新建聊天
+          {{ $t('chat.newChat') }}
         </el-button>
       </div>
     </template>
@@ -33,10 +33,10 @@
         <div v-if="!currentChat" class="chat-empty">
           <div class="empty-content">
             <div class="empty-icon">💬</div>
-            <h3 class="empty-title">开始新的对话</h3>
-            <p class="empty-description">选择一个聊天或创建新的对话开始交流</p>
+            <h3 class="empty-title">{{ $t('chat.startNewConversation') }}</h3>
+            <p class="empty-description">{{ $t('chat.selectOrCreateChat') }}</p>
             <el-button type="primary" size="large" @click="handleNewChat">
-              创建新聊天
+              {{ $t('chat.createNewChat') }}
             </el-button>
           </div>
         </div>
@@ -48,15 +48,15 @@
 
   <el-dialog
     v-model="showNewChatDialog"
-    title="创建新聊天"
+    :title="$t('chat.createNewChat')"
     width="500px"
     :close-on-click-modal="false"
   >
     <el-form :model="newChatForm" label-position="top">
-      <el-form-item label="选择角色">
+      <el-form-item :label="$t('chat.selectCharacter')">
         <el-select
           v-model="newChatForm.characterId"
-          placeholder="选择一个角色"
+          :placeholder="$t('chat.selectACharacter')"
           style="width: 100%"
         >
           <el-option
@@ -68,10 +68,10 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item label="聊天标题（可选）">
+      <el-form-item :label="$t('chat.chatTitleOptional')">
         <el-input
           v-model="newChatForm.title"
-          placeholder="为这个聊天输入一个标题"
+          :placeholder="$t('chat.enterChatTitle')"
           maxlength="100"
           show-word-limit
         />
@@ -79,14 +79,14 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="showNewChatDialog = false">取消</el-button>
+      <el-button @click="showNewChatDialog = false">{{ $t('common.cancel') }}</el-button>
       <el-button
         type="primary"
         :disabled="!newChatForm.characterId"
         :loading="creating"
         @click="handleCreateChat"
       >
-        创建聊天
+        {{ $t('chat.createChat') }}
       </el-button>
     </template>
   </el-dialog>
@@ -95,6 +95,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { Expand, Fold, Plus } from '@element-plus/icons-vue';
 import { ElMessage, ElSelectV2 } from 'element-plus';
 import { useChatStore } from '@client/stores/chat';
@@ -105,6 +106,7 @@ import ChatSidebar from '@client/components/chat/ChatSidebar.vue';
 import ChatWindow from '@client/components/chat/ChatWindow.vue';
 import type { Character } from '@client/types';
 
+const { t } = useI18n();
 const route = useRoute();
 const chatStore = useChatStore();
 const userStore = useUserStore();
@@ -125,7 +127,7 @@ const currentChat = computed(() => chatStore.currentChat);
 const characterOptions = computed(() => {
   return characters.value.map(c => ({
     value: c.id,
-    label: c.name || '未命名角色',
+    label: c.name || t('chat.unnamedCharacter'),
   }));
 });
 
@@ -148,7 +150,7 @@ const handleSelectChat = async (chatId: string) => {
     }
   } catch (error) {
     console.error('Failed to select chat:', error);
-    ElMessage.error('Failed to load chat');
+    ElMessage.error(t('chat.loadFailed'));
   }
 };
 
@@ -172,10 +174,10 @@ const handleCreateChat = async () => {
     // Save last selected chat to localStorage
     localStorage.setItem('lastChatId', chat.id);
 
-    ElMessage.success('Chat created successfully');
+    ElMessage.success(t('chat.createSuccess'));
   } catch (error) {
     console.error('Failed to create chat:', error);
-    ElMessage.error('Failed to create chat');
+    ElMessage.error(t('chat.createFailed'));
   } finally {
     creating.value = false;
   }
@@ -225,7 +227,7 @@ const loadCharacters = async () => {
     }
   } catch (error) {
     console.error('Failed to load characters:', error);
-    ElMessage.error('加载角色列表失败');
+    ElMessage.error(t('chat.loadCharactersFailed'));
   }
 };
 
