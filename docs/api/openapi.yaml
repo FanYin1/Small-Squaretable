@@ -949,6 +949,545 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 
   # ============================================================
+  # Social Endpoints (Follow, Favorites, Comments)
+  # ============================================================
+  /api/v1/social/follows:
+    post:
+      tags:
+        - Social
+      summary: Follow a user
+      operationId: followUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - followingId
+              properties:
+                followingId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Followed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Follow'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/social/follows/{userId}:
+    delete:
+      tags:
+        - Social
+      summary: Unfollow a user
+      operationId: unfollowUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Unfollowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/follows/{userId}/status:
+    get:
+      tags:
+        - Social
+      summary: Check follow status
+      operationId: checkFollowStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Follow status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          isFollowing:
+                            type: boolean
+                          isFollowedBy:
+                            type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/users/{userId}/followers:
+    get:
+      tags:
+        - Social
+      summary: List followers
+      operationId: listFollowers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Follower list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          followers:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Follow'
+                          total:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/users/{userId}/following:
+    get:
+      tags:
+        - Social
+      summary: List following
+      operationId: listFollowing
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Following list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          following:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Follow'
+                          total:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/favorites:
+    post:
+      tags:
+        - Social
+      summary: Favorite a character
+      operationId: favoriteCharacter
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - characterId
+              properties:
+                characterId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Favorited
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Favorite'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      tags:
+        - Social
+      summary: List user favorites
+      operationId: listFavorites
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Favorites list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          favorites:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Favorite'
+                          total:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/favorites/{characterId}:
+    delete:
+      tags:
+        - Social
+      summary: Unfavorite a character
+      operationId: unfavoriteCharacter
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Unfavorited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/favorites/{characterId}/status:
+    get:
+      tags:
+        - Social
+      summary: Check favorite status
+      operationId: checkFavoriteStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Favorite status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          isFavorited:
+                            type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/characters/{characterId}/comments:
+    post:
+      tags:
+        - Social
+      summary: Create a comment
+      operationId: createComment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Comment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      tags:
+        - Social
+      summary: List comments for a character
+      operationId: listComments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum:
+              - newest
+              - oldest
+            default: newest
+      responses:
+        '200':
+          description: Comment list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          comments:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Comment'
+                          total:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/social/comments/{commentId}:
+    patch:
+      tags:
+        - Social
+      summary: Update a comment
+      operationId: updateComment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '200':
+          description: Comment updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Comment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Social
+      summary: Delete a comment
+      operationId: deleteComment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Comment deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/social/comments/{commentId}/replies:
+    get:
+      tags:
+        - Social
+      summary: Get replies to a comment
+      operationId: listReplies
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: commentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Reply list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          replies:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Comment'
+                          total:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
   # User Endpoints
   # ============================================================
   /api/v1/users/me:
@@ -2209,6 +2748,79 @@ components:
               type: number
             totalInjectionMs:
               type: number
+
+    Follow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        followerId:
+          type: string
+          format: uuid
+        followingId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    Favorite:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        characterId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        characterId:
+          type: string
+          format: uuid
+        content:
+          type: string
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        replyCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateCommentRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        parentId:
+          type: string
+          format: uuid
+          description: Parent comment ID for replies
 
     HealthCheckResponse:
       type: object
