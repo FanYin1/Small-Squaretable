@@ -15,6 +15,7 @@ import {
   listCommentsQuerySchema,
 } from '../../types/social';
 import { socialService } from '../services/social.service';
+import { cacheService } from '../services/cache.service';
 import type { ApiResponse } from '../../types/api';
 
 export const socialRoutes = new Hono();
@@ -33,6 +34,8 @@ socialRoutes.post(
     const { followingId } = c.req.valid('json');
     const follow = await socialService.followUser(user.id, followingId);
 
+    await cacheService.deletePattern(`social:*:${user.id}:*`);
+
     return c.json<ApiResponse>(
       {
         success: true,
@@ -49,6 +52,8 @@ socialRoutes.delete('/follows/:userId', authMiddleware(), async (c) => {
   const user = c.get('user');
   const targetId = c.req.param('userId');
   await socialService.unfollowUser(user.id, targetId);
+
+  await cacheService.deletePattern(`social:*:${user.id}:*`);
 
   return c.json<ApiResponse>(
     {
@@ -81,7 +86,21 @@ socialRoutes.get('/users/:userId/followers', authMiddleware(), async (c) => {
   const userId = c.req.param('userId');
   const limit = Number(c.req.query('limit') || 20);
   const offset = Number(c.req.query('offset') || 0);
+  const page = Math.floor(offset / limit) + 1;
+
+  const cacheKey = `social:followers:${userId}:${page}`;
+  const cached = await cacheService.get(cacheKey);
+  if (cached) {
+    return c.json<ApiResponse>({
+      success: true,
+      data: cached,
+      meta: { timestamp: new Date().toISOString(), cached: true },
+    }, 200);
+  }
+
   const followers = await socialService.getFollowers(userId, limit, offset);
+
+  await cacheService.set(cacheKey, followers, 60);
 
   return c.json<ApiResponse>(
     {
@@ -98,7 +117,21 @@ socialRoutes.get('/users/:userId/following', authMiddleware(), async (c) => {
   const userId = c.req.param('userId');
   const limit = Number(c.req.query('limit') || 20);
   const offset = Number(c.req.query('offset') || 0);
+  const page = Math.floor(offset / limit) + 1;
+
+  const cacheKey = `social:following:${userId}:${page}`;
+  const cached = await cacheService.get(cacheKey);
+  if (cached) {
+    return c.json<ApiResponse>({
+      success: true,
+      data: cached,
+      meta: { timestamp: new Date().toISOString(), cached: true },
+    }, 200);
+  }
+
   const following = await socialService.getFollowing(userId, limit, offset);
+
+  await cacheService.set(cacheKey, following, 60);
 
   return c.json<ApiResponse>(
     {
@@ -124,6 +157,8 @@ socialRoutes.post(
     const { characterId } = c.req.valid('json');
     const favorite = await socialService.favoriteCharacter(user.id, characterId);
 
+    await cacheService.deletePattern(`social:*:${user.id}:*`);
+
     return c.json<ApiResponse>(
       {
         success: true,
@@ -140,6 +175,8 @@ socialRoutes.delete('/favorites/:characterId', authMiddleware(), async (c) => {
   const user = c.get('user');
   const characterId = c.req.param('characterId');
   await socialService.unfavoriteCharacter(user.id, characterId);
+
+  await cacheService.deletePattern(`social:*:${user.id}:*`);
 
   return c.json<ApiResponse>(
     {
@@ -172,7 +209,21 @@ socialRoutes.get('/favorites', authMiddleware(), async (c) => {
   const user = c.get('user');
   const limit = Number(c.req.query('limit') || 20);
   const offset = Number(c.req.query('offset') || 0);
+  const page = Math.floor(offset / limit) + 1;
+
+  const cacheKey = `social:favorites:${user.id}:${page}`;
+  const cached = await cacheService.get(cacheKey);
+  if (cached) {
+    return c.json<ApiResponse>({
+      success: true,
+      data: cached,
+      meta: { timestamp: new Date().toISOString(), cached: true },
+    }, 200);
+  }
+
   const favorites = await socialService.getUserFavorites(user.id, limit, offset);
+
+  await cacheService.set(cacheKey, favorites, 60);
 
   return c.json<ApiResponse>(
     {
@@ -198,6 +249,8 @@ socialRoutes.post(
     const characterId = c.req.param('characterId');
     const { content, parentId } = c.req.valid('json');
     const comment = await socialService.createComment(user.id, characterId, content, parentId);
+
+    await cacheService.deletePattern(`social:*:${user.id}:*`);
 
     return c.json<ApiResponse>(
       {
