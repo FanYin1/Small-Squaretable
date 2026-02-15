@@ -184,3 +184,60 @@ describe('Rate Limiting Middleware', () => {
     });
   });
 });
+
+// --- RedisRateLimitStore tests ---
+
+const { mockIncr, mockExpire, mockTtl, mockDel } = vi.hoisted(() => ({
+  mockIncr: vi.fn().mockResolvedValue(1),
+  mockExpire: vi.fn().mockResolvedValue(true),
+  mockTtl: vi.fn().mockResolvedValue(60),
+  mockDel: vi.fn().mockResolvedValue(1),
+}));
+
+vi.mock('../../core/redis', () => ({
+  getRedisClient: vi.fn().mockResolvedValue({
+    incr: mockIncr,
+    expire: mockExpire,
+    ttl: mockTtl,
+    del: mockDel,
+  }),
+}));
+
+describe('RedisRateLimitStore', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should increment counter and set TTL on first request', async () => {
+    mockIncr.mockResolvedValue(1);
+    const { RedisRateLimitStore } = await import('./rateLimit');
+    const store = new RedisRateLimitStore();
+    const entry = await store.increment('test-key', 60000);
+    expect(entry.count).toBe(1);
+    expect(mockIncr).toHaveBeenCalledWith('rl:test-key');
+    expect(mockExpire).toHaveBeenCalledWith('rl:test-key', 60);
+  });
+
+  it('should not set TTL on subsequent requests', async () => {
+    mockIncr.mockResolvedValue(5);
+    mockTtl.mockResolvedValue(45);
+    const { RedisRateLimitStore } = await import('./rateLimit');
+    const store = new RedisRateLimitStore();
+    const entry = await store.increment('test-key', 60000);
+    expect(entry.count).toBe(5);
+    expect(mockExpire).not.toHaveBeenCalled();
+  });
+
+  it('should delete key with prefix', async () => {
+    const { RedisRateLimitStore } = await import('./rateLimit');
+    const store = new RedisRateLimitStore();
+    await store.delete('test-key');
+    expect(mockDel).toHaveBeenCalledWith('rl:test-key');
+  });
+
+  it('cleanup should be a no-op', async () => {
+    const { RedisRateLimitStore } = await import('./rateLimit');
+    const store = new RedisRateLimitStore();
+    store.cleanup(); // Should not throw
+  });
+});

@@ -7,6 +7,7 @@
 
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
+import { getRedisClient } from '../../core/redis';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -123,11 +124,62 @@ class InMemoryRateLimitStore implements RateLimitStore {
   }
 }
 
-// Default store instance
-const rateLimitStore = new InMemoryRateLimitStore();
+/**
+ * Redis-backed rate limit store
+ * For production multi-instance deployments
+ */
+export class RedisRateLimitStore implements RateLimitStore {
+  private readonly prefix = 'rl';
 
-// Periodic cleanup (every 5 minutes)
-if (typeof setInterval !== 'undefined') {
+  private key(k: string): string {
+    return `${this.prefix}:${k}`;
+  }
+
+  async get(key: string): Promise<RateLimitEntry | null> {
+    return null;
+  }
+
+  async set(key: string, entry: RateLimitEntry): Promise<void> {
+    // Not needed for increment-based flow
+  }
+
+  async increment(key: string, ttl: number): Promise<RateLimitEntry> {
+    const client = await getRedisClient();
+    const redisKey = this.key(key);
+    const count = await client.incr(redisKey);
+
+    if (count === 1) {
+      await client.expire(redisKey, Math.ceil(ttl / 1000));
+    }
+
+    const remaining = await client.ttl(redisKey);
+    const resetAt = Date.now() + remaining * 1000;
+
+    return { count, resetAt };
+  }
+
+  async delete(key: string): Promise<void> {
+    const client = await getRedisClient();
+    await client.del(this.key(key));
+  }
+
+  cleanup(): void {
+    // Redis handles TTL expiry automatically
+  }
+}
+
+// Auto-select store based on environment
+function createRateLimitStore(): RateLimitStore {
+  if (process.env.NODE_ENV === 'production' && process.env.REDIS_URL) {
+    return new RedisRateLimitStore();
+  }
+  return new InMemoryRateLimitStore();
+}
+
+const rateLimitStore = createRateLimitStore();
+
+// Periodic cleanup (only needed for in-memory store)
+if (rateLimitStore instanceof InMemoryRateLimitStore && typeof setInterval !== 'undefined') {
   setInterval(() => {
     rateLimitStore.cleanup();
   }, 5 * 60 * 1000);
