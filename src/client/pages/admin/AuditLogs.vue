@@ -44,7 +44,6 @@ function formatTimestamp(ts: string): string {
   });
 }
 
-/* PLACEHOLDER_ACTIONS */
 
 const actionOptions = [
   'user.login',

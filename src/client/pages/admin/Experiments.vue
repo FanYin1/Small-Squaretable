@@ -42,7 +42,6 @@ const resultsLoading = ref(false);
 const currentResults = ref<VariantMetrics[]>([]);
 const currentResultsName = ref('');
 
-// PLACEHOLDER_FORM
 
 const form = ref({
   name: '',
@@ -98,7 +97,6 @@ async function handleCreate() {
   }
 }
 
-// PLACEHOLDER_ACTIONS
 
 async function handleStatusChange(exp: Experiment, status: 'running' | 'completed') {
   try {
@@ -156,7 +154,6 @@ function formatDate(d?: string) {
 onMounted(() => fetchExperiments());
 </script>
 
-<!-- PLACEHOLDER_TEMPLATE -->
 
 <template>
   <div class="experiments-page">
@@ -210,8 +207,6 @@ onMounted(() => fetchExperiments());
 
     <el-empty v-if="!loading && experiments.length === 0" description="No experiments yet" />
 
-    <!-- PLACEHOLDER_DIALOGS -->
-
     <!-- Create Dialog -->
     <el-dialog v-model="createDialogVisible" :title="t('admin.experiments.create')" width="600px">
       <el-form label-position="top">
@@ -261,7 +256,6 @@ onMounted(() => fetchExperiments());
   </div>
 </template>
 
-<!-- PLACEHOLDER_STYLE -->
 
 <style scoped>
 .experiments-page {
