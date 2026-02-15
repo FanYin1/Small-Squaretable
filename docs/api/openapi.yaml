@@ -4100,6 +4100,39 @@ paths:
                       data:
                         $ref: '#/components/schemas/PaginatedCharacters'
 
+  /api/v1/characters/stats:
+    get:
+      tags:
+        - Characters
+      summary: Get character statistics
+      description: Returns character statistics for the current user (total, public, downloads, average rating).
+      operationId: getCharacterStats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Character statistics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          totalCharacters:
+                            type: integer
+                          publicCharacters:
+                            type: integer
+                          totalDownloads:
+                            type: integer
+                          avgRating:
+                            type: number
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /api/v1/characters/search:
     get:
       tags:
@@ -4590,6 +4623,93 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/MessagesResponse'
+
+  /api/v1/chats/{id}/messages/{messageId}:
+    patch:
+      tags:
+        - Chats
+      summary: Edit a message
+      description: Edits the content of an existing message.
+      operationId: editMessage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Chat ID
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Message ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: Message updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Chats
+      summary: Delete a message
+      description: Deletes a message from a chat.
+      operationId: deleteMessage
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Chat ID
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Message ID
+      responses:
+        '200':
+          description: Message deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   # ============================================================
   # LLM Endpoints
