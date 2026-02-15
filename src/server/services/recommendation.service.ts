@@ -9,6 +9,7 @@ import { featureStoreService } from './feature-store.service';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { getRedisClient } from '../../core/redis';
 import { experimentService } from './experiment.service';
+import { config } from '../../core/config';
 
 export interface RecommendationItem {
   characterId: string;
@@ -26,7 +27,7 @@ const DEFAULT_WEIGHTS: PersonalizationWeights = {
   collaborative: 0.6,
 };
 
-const CACHE_TTL = 900; // 15 minutes
+const CACHE_TTL = config.recommendationCacheTtl; // 15 minutes
 const CACHE_PREFIX = 'rec:personalized:';
 
 export class RecommendationService {

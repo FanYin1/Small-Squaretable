@@ -9,6 +9,7 @@ import { embeddingService } from './embedding.service';
 import { logger } from './logger.service';
 import { llmService } from './llm.service';
 import { getDefaultModel } from '../config/llm.config';
+import { config } from '../../core/config';
 import type { Message } from '../../db/schema/chats';
 
 export interface MemoryFact {
@@ -34,9 +35,9 @@ export interface ScoredMemory {
 
 // Memory limits by subscription tier
 const MEMORY_LIMITS: Record<string, number> = {
-  free: 100,
-  pro: 500,
-  team: 2000,
+  free: config.memoryLimitFree,
+  pro: config.memoryLimitPro,
+  team: config.memoryLimitTeam,
 };
 
 export class MemoryService {

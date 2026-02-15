@@ -65,6 +65,13 @@ const configSchema = z.object({
   stripeProMonthlyPrice: z.string().default(''),
   stripeProYearlyPrice: z.string().default(''),
   stripeTeamMonthlyPrice: z.string().default(''),
+
+  // Tunable limits
+  memoryLimitFree: z.coerce.number().default(100),
+  memoryLimitPro: z.coerce.number().default(500),
+  memoryLimitTeam: z.coerce.number().default(2000),
+  cacheTtlDefault: z.coerce.number().default(300),
+  recommendationCacheTtl: z.coerce.number().default(900),
 });
 
 export type Config = z.infer<typeof configSchema>;
@@ -110,6 +117,11 @@ export function loadConfig(): Config {
     stripeProMonthlyPrice: process.env.STRIPE_PRICE_PRO_MONTHLY,
     stripeProYearlyPrice: process.env.STRIPE_PRICE_PRO_YEARLY,
     stripeTeamMonthlyPrice: process.env.STRIPE_PRICE_TEAM_MONTHLY,
+    memoryLimitFree: process.env.MEMORY_LIMIT_FREE,
+    memoryLimitPro: process.env.MEMORY_LIMIT_PRO,
+    memoryLimitTeam: process.env.MEMORY_LIMIT_TEAM,
+    cacheTtlDefault: process.env.CACHE_TTL_DEFAULT,
+    recommendationCacheTtl: process.env.RECOMMENDATION_CACHE_TTL,
   };
 
   try {

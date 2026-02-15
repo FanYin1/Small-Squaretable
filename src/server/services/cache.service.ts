@@ -7,6 +7,7 @@
 import { redis } from '@/core/redis';
 import { getRedisClient } from '@/core/redis';
 import { logger } from './logger.service';
+import { config } from '@/core/config';
 
 export interface CacheOptions {
   /**
@@ -21,7 +22,7 @@ export interface CacheOptions {
 
 export class CacheService {
   private readonly defaultPrefix = 'api';
-  private readonly defaultTTL = 300; // 5 minutes
+  private readonly defaultTTL = config.cacheTtlDefault;
 
   /**
    * Generate cache key from parameters
