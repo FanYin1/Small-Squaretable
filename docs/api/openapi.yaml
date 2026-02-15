@@ -3152,6 +3152,341 @@ paths:
           $ref: '#/components/responses/Unauthorized'
 
   # ============================================================
+  # Admin Endpoints
+  # ============================================================
+  /api/v1/admin/users:
+    get:
+      tags:
+        - Admin
+      summary: List users (admin)
+      description: Returns a paginated, searchable list of all users. Requires admin role.
+      operationId: adminListUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by username or email
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: User list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          users:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AdminUserListItem'
+                          total:
+                            type: integer
+                          page:
+                            type: integer
+                          limit:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+
+  /api/v1/admin/users/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get user details (admin)
+      description: Returns detailed user information including subscription and OAuth accounts. Requires admin role.
+      operationId: adminGetUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AdminUserDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/users/{id}/role:
+    patch:
+      tags:
+        - Admin
+      summary: Change user role
+      description: Updates a user's role. Requires admin role.
+      operationId: adminChangeRole
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRoleRequest'
+      responses:
+        '200':
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          role:
+                            type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/users/{id}/suspend:
+    post:
+      tags:
+        - Admin
+      summary: Suspend user
+      description: Suspends a user account. Requires admin role.
+      operationId: adminSuspendUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User suspended
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          isActive:
+                            type: boolean
+                            example: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/users/{id}/unsuspend:
+    post:
+      tags:
+        - Admin
+      summary: Unsuspend user
+      description: Reactivates a suspended user account. Requires admin role.
+      operationId: adminUnsuspendUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User unsuspended
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          isActive:
+                            type: boolean
+                            example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/users/{id}/force-password-reset:
+    post:
+      tags:
+        - Admin
+      summary: Force password reset
+      description: Forces a password reset for a user. Sends a reset email. Requires admin role.
+      operationId: adminForcePasswordReset
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Password reset initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/system/stats:
+    get:
+      tags:
+        - Admin
+      summary: System overview stats
+      description: Returns system-wide statistics including user counts, content counts, and subscription breakdown. Requires admin role.
+      operationId: adminSystemStats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: System statistics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SystemStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+
+  /api/v1/admin/audit-logs:
+    get:
+      tags:
+        - Admin
+      summary: List audit logs
+      description: Returns paginated, filterable audit logs. Requires admin role.
+      operationId: adminListAuditLogs
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: actorId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: targetType
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Audit log list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          logs:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AuditLog'
+                          total:
+                            type: integer
+                          page:
+                            type: integer
+                          limit:
+                            type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Admin role required
+
+  # ============================================================
   # User Endpoints
   # ============================================================
   /api/v1/users/me:
@@ -5076,6 +5411,130 @@ components:
         cookies:
           type: boolean
       description: At least one consent type must be provided
+
+    AdminUserListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+            - user
+            - moderator
+            - admin
+        isActive:
+          type: boolean
+        plan:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminUserDetail:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/AdminUserListItem'
+        subscription:
+          type: object
+          properties:
+            plan:
+              type: string
+            status:
+              type: string
+            currentPeriodEnd:
+              type: string
+              format: date-time
+        oauthAccounts:
+          type: array
+          items:
+            type: object
+            properties:
+              provider:
+                type: string
+              providerUserId:
+                type: string
+              linkedAt:
+                type: string
+                format: date-time
+
+    ChangeRoleRequest:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          type: string
+          enum:
+            - user
+            - moderator
+            - admin
+
+    SystemStats:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        activeUsers:
+          type: integer
+          description: Users active in last 30 days
+        totalCharacters:
+          type: integer
+        totalChats:
+          type: integer
+        subscriptionBreakdown:
+          type: object
+          properties:
+            free:
+              type: integer
+            pro:
+              type: integer
+            team:
+              type: integer
+        recentSignups:
+          type: integer
+          description: Signups in last 7 days
+        pendingReports:
+          type: integer
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        actorId:
+          type: string
+          format: uuid
+        actorIp:
+          type: string
+          description: SHA-256 hashed IP address
+        action:
+          type: string
+        targetType:
+          type: string
+          nullable: true
+        targetId:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
 
     HealthCheckResponse:
       type: object
