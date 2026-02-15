@@ -106,7 +106,7 @@ const chartOption = computed(() => {
 <template>
   <el-card shadow="hover" class="heatmap-card">
     <template #header>
-      <span class="chart-title">Cohort Retention</span>
+      <span class="chart-title">{{ $t('analytics.cohortRetention') }}</span>
     </template>
     <el-skeleton :loading="loading" animated :rows="8">
       <template #default>
@@ -116,7 +116,7 @@ const chartOption = computed(() => {
           autoresize
           class="chart"
         />
-        <div v-else class="no-data">No retention data available</div>
+        <div v-else class="no-data">{{ $t('analytics.noRetentionData') }}</div>
       </template>
     </el-skeleton>
   </el-card>

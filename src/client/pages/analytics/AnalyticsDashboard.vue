@@ -15,8 +15,8 @@ onMounted(() => {
 
 <template>
   <DashboardLayout>
-    <template #title>Analytics Dashboard</template>
-    <template #subtitle>Data-driven insights for your platform</template>
+    <template #title>{{ $t('analytics.title') }}</template>
+    <template #subtitle>{{ $t('analytics.subtitle') }}</template>
 
     <div class="analytics-dashboard">
       <!-- Error banner -->
@@ -31,10 +31,10 @@ onMounted(() => {
 
       <!-- Tab navigation -->
       <el-tabs v-model="activeTab" class="analytics-tabs">
-        <el-tab-pane label="Executive Overview" name="executive">
+        <el-tab-pane :label="$t('analytics.executiveOverview')" name="executive">
           <ExecutiveOverview />
         </el-tab-pane>
-        <el-tab-pane label="Product Metrics" name="product">
+        <el-tab-pane :label="$t('analytics.productMetrics')" name="product">
           <ProductMetrics />
         </el-tab-pane>
       </el-tabs>

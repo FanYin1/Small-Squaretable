@@ -79,7 +79,7 @@ const chartOption = computed(() => {
 <template>
   <el-card shadow="hover" class="funnel-chart-card">
     <template #header>
-      <span class="chart-title">Conversion Funnel</span>
+      <span class="chart-title">{{ $t('analytics.conversionFunnel') }}</span>
     </template>
     <el-skeleton :loading="loading" animated :rows="8">
       <template #default>
@@ -89,7 +89,7 @@ const chartOption = computed(() => {
           autoresize
           class="chart"
         />
-        <div v-else class="no-data">No funnel data available</div>
+        <div v-else class="no-data">{{ $t('analytics.noFunnelData') }}</div>
       </template>
     </el-skeleton>
   </el-card>

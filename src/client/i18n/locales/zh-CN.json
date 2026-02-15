@@ -985,7 +985,10 @@
     "impressions": "展示次数",
     "clicks": "点击次数",
     "variant": "变体",
-    "variantName": "变体名称"
+    "variantName": "变体名称",
+    "topCharacters": "热门角色",
+    "noCharacterData": "暂无角色数据",
+    "subtitle": "平台数据驱动洞察"
   },
   "admin": {
     "title": "管理面板",

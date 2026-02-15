@@ -11,18 +11,18 @@ const store = useAnalyticsStore();
     <!-- Realtime Metrics -->
     <div class="metrics-row">
       <MetricCard
-        label="Active Users (Realtime)"
+        :label="$t('analytics.activeUsersRealtime')"
         :value="store.realtime?.activeUsers ?? 0"
         :loading="store.loadingRealtime"
       />
       <MetricCard
-        label="Events / Min"
+        :label="$t('analytics.eventsPerMin')"
         :value="store.realtime?.eventsPerMin ?? 0"
         :loading="store.loadingRealtime"
         suffix="/min"
       />
       <MetricCard
-        label="Messages / Min"
+        :label="$t('analytics.messagesPerMin')"
         :value="store.realtime?.messagesPerMin ?? 0"
         :loading="store.loadingRealtime"
         suffix="/min"
@@ -33,7 +33,7 @@ const store = useAnalyticsStore();
     <el-card shadow="hover" class="segments-card">
       <template #header>
         <div class="segment-header">
-          <span class="chart-title">User Segments</span>
+          <span class="chart-title">{{ $t('analytics.userSegments') }}</span>
           <el-tag type="info" size="small">
             {{ store.totalSegmentedUsers.toLocaleString() }} total users
           </el-tag>
@@ -58,7 +58,7 @@ const store = useAnalyticsStore();
               />
             </div>
           </div>
-          <div v-else class="no-data">No segment data available</div>
+          <div v-else class="no-data">{{ $t('analytics.noSegmentData') }}</div>
         </template>
       </el-skeleton>
     </el-card>

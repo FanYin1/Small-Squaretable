@@ -41,13 +41,13 @@ const messagesTrend = computed(() => {
     <!-- North Star Metrics -->
     <div class="metrics-row">
       <MetricCard
-        label="Weekly Active Users"
+        :label="$t('analytics.weeklyActiveUsers')"
         :value="wauValue"
         :trend="wauTrend"
         :loading="store.loadingOverview"
       />
       <MetricCard
-        label="Weekly Messages"
+        :label="$t('analytics.weeklyMessages')"
         :value="messagesValue"
         :trend="messagesTrend"
         :loading="store.loadingOverview"

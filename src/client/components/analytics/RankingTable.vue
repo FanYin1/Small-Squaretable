@@ -25,16 +25,16 @@ function ratingColor(rating: number): string {
 <template>
   <el-card shadow="hover" class="ranking-card">
     <template #header>
-      <span class="chart-title">Top Characters</span>
+      <span class="chart-title">{{ $t('analytics.topCharacters') }}</span>
     </template>
     <el-table
       v-loading="loading"
       :data="data"
       stripe
       style="width: 100%"
-      :empty-text="'No character data available'"
+      :empty-text="$t('analytics.noCharacterData')"
     >
-      <el-table-column label="Rank" width="70" align="center">
+      <el-table-column :label="$t('analytics.rank')" width="70" align="center">
         <template #default="{ $index }">
           <span class="rank" :class="{ 'rank-top': $index < 3 }">
             {{ $index + 1 }}
@@ -43,21 +43,21 @@ function ratingColor(rating: number): string {
       </el-table-column>
       <el-table-column
         prop="character_id"
-        label="Character ID"
+        :label="$t('analytics.characterId')"
         min-width="180"
         show-overflow-tooltip
       />
-      <el-table-column label="Messages" width="120" align="right">
+      <el-table-column :label="$t('analytics.messages')" width="120" align="right">
         <template #default="{ row }">
           {{ formatNumber(row.total_messages) }}
         </template>
       </el-table-column>
-      <el-table-column label="Chat Starts" width="120" align="right">
+      <el-table-column :label="$t('analytics.chatStarts')" width="120" align="right">
         <template #default="{ row }">
           {{ formatNumber(row.total_chat_starts) }}
         </template>
       </el-table-column>
-      <el-table-column label="Avg Rating" width="120" align="center">
+      <el-table-column :label="$t('analytics.avgRating')" width="120" align="center">
         <template #default="{ row }">
           <el-tag :type="ratingColor(row.avg_rating)" size="small">
             {{ row.avg_rating.toFixed(1) }}

@@ -985,7 +985,10 @@
     "impressions": "Impressions",
     "clicks": "Clicks",
     "variant": "Variant",
-    "variantName": "Variant name"
+    "variantName": "Variant name",
+    "topCharacters": "Top Characters",
+    "noCharacterData": "No character data available",
+    "subtitle": "Data-driven insights for your platform"
   },
   "admin": {
     "title": "Admin Panel",
