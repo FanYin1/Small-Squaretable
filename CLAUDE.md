@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 8 Complete (i18n Full Coverage)
+**Status**: Iteration 9 Complete (OpenAPI Documentation Sync)
 **Last Updated**: 2026-02-16
 
 ---
@@ -384,6 +384,36 @@ npm run build            # Production build
 ### Test Isolation (M6) ✅
 - **vitest.config.ts**: Excluded ml-service/** and tests/integration/** from unit test runs
 - **embedding.service.spec.ts**: Skipped ML-dependent tests (requires microservice)
+
+---
+
+## Iteration 9: OpenAPI Documentation Sync (2026-02-16) ✅
+
+### Full API Coverage
+- **Before**: 44 endpoints documented (Health, Auth, Users, Characters, Chats, LLM, Subscriptions, Usage, WebSocket)
+- **After**: 154 endpoints documented across 22 tags
+- **File**: `docs/api/openapi.yaml` — 7360 lines, OpenAPI 3.1.0
+
+### New Tags Added (13)
+MFA, OAuth, Intelligence, Social, Notifications, Webhooks, Developer, Plugins, Analytics, Recommendations, GDPR, Reports, Admin
+
+### Endpoints Added by Domain
+- Auth Extended: 4 (forgot-password, reset-password, verify-email, resend-verification)
+- OAuth: 3 (redirect, callback, exchange)
+- MFA: 5 (setup, verify-setup, disable, challenge, backup-codes)
+- Intelligence: 9 (memories CRUD, emotion CRUD, extract, debug, system-prompt)
+- Social: 14 (follows, favorites, comments)
+- Notifications: 5 + Reports: 1
+- Webhooks: 8 (CRUD, test, deliveries, retry)
+- Developer: 6 (API keys CRUD, scopes)
+- Plugins: 14 (author CRUD, marketplace, installs, execute)
+- Analytics: 7 (events, overview, retention, funnel, realtime, top-chars, segments)
+- Recommendations: 4 + GDPR: 6
+- Admin: 21 (users, content, audit, system, experiments, GDPR, jobs)
+- Characters extra: 1 + Chats extra: 2
+
+### Component Schemas Added (50+)
+Full request/response schemas with property definitions for all new endpoints.
 
 ---
 
