@@ -18,6 +18,8 @@ export default defineConfig({
       'node_modules/**',
       'dist/**',
       'e2e/**',
+      'ml-service/**',
+      'tests/integration/**',
     ],
     environmentMatchGlobs: [
       // Server-side tests should run in Node environment
