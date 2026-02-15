@@ -2850,6 +2850,308 @@ paths:
           description: Team plan required
 
   # ============================================================
+  # Recommendation Endpoints
+  # ============================================================
+  /api/v1/recommendations:
+    get:
+      tags:
+        - Recommendations
+      summary: Personalized recommendations
+      description: Returns personalized character recommendations based on user behavior and preferences.
+      operationId: getRecommendations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: Recommendation list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/RecommendationItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/recommendations/trending:
+    get:
+      tags:
+        - Recommendations
+      summary: Trending characters
+      description: Returns currently trending characters based on recent activity.
+      operationId: getTrending
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: Trending characters
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/RecommendationItem'
+
+  /api/v1/recommendations/similar/{characterId}:
+    get:
+      tags:
+        - Recommendations
+      summary: Similar characters
+      description: Returns characters similar to the specified character based on tags and content overlap.
+      operationId: getSimilarCharacters
+      parameters:
+        - name: characterId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: Similar characters
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/RecommendationItem'
+
+  /api/v1/recommendations/feedback:
+    post:
+      tags:
+        - Recommendations
+      summary: Submit recommendation feedback
+      description: Records user interaction with a recommendation for improving future suggestions.
+      operationId: submitRecommendationFeedback
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationFeedbackRequest'
+      responses:
+        '200':
+          description: Feedback recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
+  # GDPR / Account Endpoints
+  # ============================================================
+  /api/v1/account/export:
+    post:
+      tags:
+        - GDPR
+      summary: Export user data
+      description: Generates and downloads a ZIP archive containing all user data (Right of Access). Rate limited to 1 request per 24 hours.
+      operationId: exportUserData
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: ZIP archive of user data
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: 'attachment; filename="data-export-{userId}.zip"'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Rate limited (1 per 24 hours)
+
+  /api/v1/account/delete:
+    post:
+      tags:
+        - GDPR
+      summary: Request account deletion
+      description: Initiates account deletion with a 30-day grace period. Requires password confirmation.
+      operationId: requestAccountDeletion
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAccountRequest'
+      responses:
+        '200':
+          description: Deletion scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  scheduledAt:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Rate limited
+
+  /api/v1/account/delete/cancel:
+    post:
+      tags:
+        - GDPR
+      summary: Cancel account deletion
+      description: Cancels a pending account deletion during the 30-day grace period.
+      operationId: cancelAccountDeletion
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Deletion cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/account/delete/status:
+    get:
+      tags:
+        - GDPR
+      summary: Check deletion status
+      description: Returns the current account deletion status and scheduled date if applicable.
+      operationId: getDeletionStatus
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Deletion status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DeletionStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/account/consents:
+    get:
+      tags:
+        - GDPR
+      summary: Get consent preferences
+      description: Returns current consent preferences for analytics, marketing, and cookies.
+      operationId: getConsents
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Consent preferences
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          consents:
+                            $ref: '#/components/schemas/ConsentPreferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags:
+        - GDPR
+      summary: Update consent preferences
+      description: Updates one or more consent preferences. At least one consent type must be provided.
+      operationId: updateConsents
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConsentsRequest'
+      responses:
+        '200':
+          description: Consents updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          consents:
+                            $ref: '#/components/schemas/ConsentPreferences'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
   # User Endpoints
   # ============================================================
   /api/v1/users/me:
@@ -4667,6 +4969,113 @@ components:
         timestamp:
           type: string
           format: date-time
+
+    RecommendationItem:
+      type: object
+      properties:
+        characterId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        avatar:
+          type: string
+        score:
+          type: number
+          description: Recommendation relevance score
+        reason:
+          type: string
+          description: "Why this was recommended (e.g., trending, similar_tags)"
+
+    RecommendationFeedbackRequest:
+      type: object
+      required:
+        - characterId
+        - action
+      properties:
+        characterId:
+          type: string
+          format: uuid
+        action:
+          type: string
+          enum:
+            - click
+            - dismiss
+            - bookmark
+            - chat_start
+        position:
+          type: integer
+          description: Position in the recommendation list
+        experimentId:
+          type: string
+          description: A/B experiment ID if applicable
+
+    DeleteAccountRequest:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          description: Current password for confirmation
+
+    DeletionStatus:
+      type: object
+      properties:
+        isPending:
+          type: boolean
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        requestedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ConsentPreferences:
+      type: object
+      properties:
+        analytics:
+          type: object
+          properties:
+            granted:
+              type: boolean
+            updatedAt:
+              type: string
+              format: date-time
+              nullable: true
+        marketing:
+          type: object
+          properties:
+            granted:
+              type: boolean
+            updatedAt:
+              type: string
+              format: date-time
+              nullable: true
+        cookies:
+          type: object
+          properties:
+            granted:
+              type: boolean
+            updatedAt:
+              type: string
+              format: date-time
+              nullable: true
+
+    UpdateConsentsRequest:
+      type: object
+      properties:
+        analytics:
+          type: boolean
+        marketing:
+          type: boolean
+        cookies:
+          type: boolean
+      description: At least one consent type must be provided
 
     HealthCheckResponse:
       type: object
