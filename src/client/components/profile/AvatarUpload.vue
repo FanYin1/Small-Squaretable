@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Plus } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   avatarUrl: string;
@@ -13,7 +16,7 @@ defineEmits<{
 
 function handleUpload() {
   if (props.disabled) return;
-  ElMessage.info('头像上传功能将在后续版本实现');
+  ElMessage.info(t('profile.avatarComingSoon'));
 }
 </script>
 

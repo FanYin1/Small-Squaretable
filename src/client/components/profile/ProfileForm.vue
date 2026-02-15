@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { reactive, watch, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { User } from '@client/types';
 import type { FormInstance, FormRules } from 'element-plus';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   user: User;
@@ -30,8 +33,8 @@ watch(
 
 const rules: FormRules = {
   name: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 2, max: 20, message: '用户名需要 2-20 个字符', trigger: 'blur' },
+    { required: true, message: () => t('profile.nameRequired'), trigger: 'blur' },
+    { min: 2, max: 20, message: () => t('profile.nameLength'), trigger: 'blur' },
   ],
 };
 
@@ -49,24 +52,24 @@ function handleCancel() {
 
 <template>
   <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-    <el-form-item label="用户名" prop="name">
+    <el-form-item :label="t('auth.name')" prop="name">
       <el-input v-model="form.name" :disabled="!editMode" />
     </el-form-item>
 
-    <el-form-item label="邮箱">
+    <el-form-item :label="t('auth.email')">
       <el-input v-model="form.email" disabled />
       <template #extra>
-        <span class="form-tip">邮箱不可修改</span>
+        <span class="form-tip">{{ t('profile.emailReadonly') }}</span>
       </template>
     </el-form-item>
 
-    <el-form-item label="注册时间">
+    <el-form-item :label="t('profile.registeredAt')">
       <span>{{ new Date(user.createdAt).toLocaleDateString('zh-CN') }}</span>
     </el-form-item>
 
     <el-form-item v-if="editMode">
-      <el-button type="primary" @click="handleSave">保存</el-button>
-      <el-button @click="handleCancel">取消</el-button>
+      <el-button type="primary" @click="handleSave">{{ t('common.save') }}</el-button>
+      <el-button @click="handleCancel">{{ t('common.cancel') }}</el-button>
     </el-form-item>
   </el-form>
 </template>

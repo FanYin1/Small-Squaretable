@@ -1,35 +1,37 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useUsageStore } from '@client/stores/usage';
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { useRouter } from 'vue-router';
 import { Warning } from '@element-plus/icons-vue';
 
+const { t } = useI18n();
 const usageStore = useUsageStore();
 const subscriptionStore = useSubscriptionStore();
 const router = useRouter();
 
 const quotaItems = computed(() => [
   {
-    label: '消息数量',
+    label: t('subscription.resourceMessages'),
     key: 'messages',
     quota: usageStore.messagesQuota,
     icon: '💬',
   },
   {
-    label: 'LLM Tokens',
+    label: t('subscription.tokens'),
     key: 'llm_tokens',
     quota: usageStore.tokensQuota,
     icon: '🤖',
   },
   {
-    label: '图片生成',
+    label: t('subscription.images'),
     key: 'images',
     quota: usageStore.imagesQuota,
     icon: '🖼️',
   },
   {
-    label: 'API 调用',
+    label: t('subscription.resourceApiCalls'),
     key: 'api_calls',
     quota: usageStore.apiCallsQuota,
     icon: '🔌',
@@ -69,14 +71,14 @@ function handleUpgrade() {
   <el-card class="usage-dashboard">
     <template #header>
       <div class="card-header">
-        <span class="title">使用量统计</span>
+        <span class="title">{{ t('subscription.usageTitle') }}</span>
         <el-tag v-if="usageStore.hasWarning" type="warning" size="small">
           <el-icon><Warning /></el-icon>
-          接近限制
+          {{ t('subscription.nearLimit') }}
         </el-tag>
         <el-tag v-else-if="usageStore.hasExceeded" type="danger" size="small">
           <el-icon><Warning /></el-icon>
-          已超限
+          {{ t('subscription.exceeded') }}
         </el-tag>
       </div>
     </template>
@@ -90,12 +92,12 @@ function handleUpgrade() {
         class="quota-alert"
       >
         <template #title>
-          您已达到配额限制
+          {{ t('subscription.usageQuotaReached') }}
         </template>
         <template #default>
-          升级到更高级别的方案以继续使用服务
+          {{ t('subscription.usageUpgradeMessage') }}
           <el-button type="primary" size="small" @click="handleUpgrade" style="margin-left: 12px;">
-            立即升级
+            {{ t('common.upgradeNow') }}
           </el-button>
         </template>
       </el-alert>
@@ -108,10 +110,10 @@ function handleUpgrade() {
         class="quota-alert"
       >
         <template #title>
-          配额即将用尽
+          {{ t('subscription.usageQuotaNearLimit') }}
         </template>
         <template #default>
-          您的某些配额使用量已超过 80%，建议升级方案
+          {{ t('subscription.usageQuotaWarning') }}
         </template>
       </el-alert>
 
@@ -135,7 +137,7 @@ function handleUpgrade() {
           />
           <div class="quota-footer">
             <span class="remaining">
-              剩余: {{ formatNumber(item.quota?.remaining || 0) }}
+              {{ t('subscription.remaining') }} {{ formatNumber(item.quota?.remaining || 0) }}
             </span>
           </div>
         </div>
@@ -143,13 +145,13 @@ function handleUpgrade() {
 
       <div class="reset-info">
         <el-icon><Warning /></el-icon>
-        <span>配额将在 {{ resetDate }} 重置</span>
+        <span>{{ t('subscription.resetDate', { date: resetDate }) }}</span>
       </div>
 
       <div v-if="subscriptionStore.currentPlan === 'free'" class="upgrade-cta">
-        <p>升级到专业版或团队版，享受更高配额</p>
+        <p>{{ t('subscription.upgradeHint') }}</p>
         <el-button type="primary" @click="handleUpgrade">
-          查看订阅方案
+          {{ t('subscription.viewPlans') }}
         </el-button>
       </div>
     </div>
