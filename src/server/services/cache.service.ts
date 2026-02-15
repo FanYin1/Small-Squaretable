@@ -6,6 +6,7 @@
 
 import { redis } from '@/core/redis';
 import { getRedisClient } from '@/core/redis';
+import { logger } from './logger.service';
 
 export interface CacheOptions {
   /**
@@ -38,7 +39,7 @@ export class CacheService {
       if (!cached) return null;
       return JSON.parse(cached) as T;
     } catch (error) {
-      console.error('Cache get error:', error);
+      logger.error('Cache get error', error as Error);
       return null;
     }
   }
@@ -50,7 +51,7 @@ export class CacheService {
     try {
       await redis.set(key, JSON.stringify(value), { EX: ttl });
     } catch (error) {
-      console.error('Cache set error:', error);
+      logger.error('Cache set error', error as Error);
     }
   }
 
@@ -61,7 +62,7 @@ export class CacheService {
     try {
       await redis.del(key);
     } catch (error) {
-      console.error('Cache delete error:', error);
+      logger.error('Cache delete error', error as Error);
     }
   }
 
@@ -76,7 +77,7 @@ export class CacheService {
         await client.del(keys);
       }
     } catch (error) {
-      console.error('Cache delete pattern error:', error);
+      logger.error('Cache delete pattern error', error as Error);
     }
   }
 

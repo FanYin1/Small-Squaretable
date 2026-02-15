@@ -287,17 +287,17 @@ if (process.env.NODE_ENV !== 'test') {
 
   // Start Kafka event bridge
   kafkaBridge.start().then(() => {
-    console.log('📊 Kafka bridge started');
+    appLogger.info('Kafka bridge started');
   }).catch((err) => {
-    console.error('Failed to start Kafka bridge:', err);
+    appLogger.error('Failed to start Kafka bridge', err);
   });
 
   // Register and start scheduled jobs
   registerJobs(scheduler);
   scheduler.start();
-  console.log('⏰ Scheduler started');
+  appLogger.info('Scheduler started');
 
-  console.log(`🚀 Server starting on http://${config.host}:${port}`);
+  appLogger.info('Server starting', { host: config.host, port });
 
   const serverInstance = serve({
     fetch: app.fetch,

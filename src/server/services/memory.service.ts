@@ -6,6 +6,7 @@
 
 import { memoryRepository, type MemoryWithScore } from '../../db/repositories/memory.repository';
 import { embeddingService } from './embedding.service';
+import { logger } from './logger.service';
 import { llmService } from './llm.service';
 import { getDefaultModel } from '../config/llm.config';
 import type { Message } from '../../db/schema/chats';
@@ -157,7 +158,7 @@ ${conversationText}
 
       return memories;
     } catch (error) {
-      console.error('Failed to extract memories:', error);
+      logger.error('Failed to extract memories', error as Error);
       return [];
     }
   }

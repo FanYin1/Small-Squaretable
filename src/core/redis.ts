@@ -12,7 +12,7 @@ export async function getRedisClient() {
     }) as RedisClientType;
 
     redisClient.on('error', (err) => {
-      console.error('Redis Client Error:', err);
+      console.error(JSON.stringify({ level: 'error', message: 'Redis client error', error: String(err), timestamp: new Date().toISOString() }));
     });
 
     connectionPromise = redisClient.connect();

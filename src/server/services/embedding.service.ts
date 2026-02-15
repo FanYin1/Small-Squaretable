@@ -6,6 +6,8 @@
  * Falls back to default values when ML service is unavailable
  */
 
+import { logger } from './logger.service';
+
 export interface SentimentResult {
   valence: number; // -1 to 1
   arousal: number; // 0 to 1
@@ -29,10 +31,10 @@ export class EmbeddingService {
       if (response.ok) {
         const data = await response.json();
         this.serviceAvailable = data.initialized;
-        console.log('[EmbeddingService] ML service connected:', data);
+        logger.info('ML service connected', data);
       }
     } catch {
-      console.warn('[EmbeddingService] ML service not available, using fallback mode');
+      logger.warn('ML service not available, using fallback mode');
     }
 
     this.initialized = true;
