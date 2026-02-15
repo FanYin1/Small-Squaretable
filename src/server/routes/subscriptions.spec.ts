@@ -58,7 +58,11 @@ describe('Subscription Routes', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
-      expect(data.data.subscription).toEqual(mockSubscription);
+      // Date objects are serialized to ISO strings in JSON responses
+      expect(data.data.subscription).toEqual({
+        ...mockSubscription,
+        currentPeriodEnd: mockSubscription.currentPeriodEnd.toISOString(),
+      });
       expect(subscriptionService.getSubscriptionStatus).toHaveBeenCalledWith('tenant_123');
     });
 
