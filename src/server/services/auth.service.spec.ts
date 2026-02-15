@@ -13,7 +13,8 @@ vi.mock('../../db/repositories/user.repository', () => ({
   userRepository: {
     findByEmail: vi.fn(),
     create: vi.fn(),
-    updateLastLogin: vi.fn(),
+    update: vi.fn().mockResolvedValue(null),
+    updateLastLogin: vi.fn().mockResolvedValue(undefined),
     findById: vi.fn(),
   },
 }));
@@ -29,6 +30,40 @@ vi.mock('../../core/redis', () => ({
     set: vi.fn().mockResolvedValue('OK'),
     get: vi.fn().mockResolvedValue('token123'),
     del: vi.fn().mockResolvedValue(1),
+  },
+}));
+
+vi.mock('../../db/repositories/tenant.repository', () => ({
+  tenantRepository: {
+    create: vi.fn().mockResolvedValue({ id: '456', name: 'Test', plan: 'free' }),
+    findById: vi.fn(),
+  },
+}));
+
+vi.mock('../../db/repositories/password-reset.repository', () => ({
+  passwordResetRepository: {
+    create: vi.fn(),
+    findByTokenHash: vi.fn(),
+    deleteByUserId: vi.fn(),
+    markUsed: vi.fn(),
+  },
+}));
+
+vi.mock('../../core/email', () => ({
+  sendEmail: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../core/config', () => ({
+  config: {
+    appUrl: 'http://localhost:5173',
+    jwtSecret: 'a'.repeat(32),
+    jwtExpiresIn: '7d',
+  },
+}));
+
+vi.mock('./audit.service', () => ({
+  auditService: {
+    log: vi.fn(),
   },
 }));
 
