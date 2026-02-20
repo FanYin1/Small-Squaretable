@@ -12,7 +12,7 @@ import bcrypt from 'bcrypt';
 import { config } from '../../core/config';
 import type { BackupCode } from '../../db/schema/backup-codes';
 
-const ENCRYPTION_KEY = crypto.createHash('sha256').update(config.jwtSecret).digest();
+const ENCRYPTION_KEY = crypto.createHash('sha256').update(config.totpEncryptionKey ?? config.jwtSecret).digest();
 const APP_NAME = 'SmallSquaretable';
 const BACKUP_CODE_COUNT = 10;
 const SALT_ROUNDS = 10;

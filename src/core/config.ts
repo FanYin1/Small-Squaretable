@@ -24,7 +24,11 @@ const configSchema = z.object({
 
   // JWT
   jwtSecret: z.string().min(32),
+  jwtRefreshSecret: z.string().min(32),
   jwtExpiresIn: z.string().default('7d'),
+
+  // TOTP 2FA
+  totpEncryptionKey: z.string().min(32).optional(),
 
   // Storage
   storageType: z.enum(['local', 's3']).default('local'),
@@ -90,6 +94,7 @@ export function loadConfig(): Config {
     redisUrl: process.env.REDIS_URL,
     redisPassword: process.env.REDIS_PASSWORD,
     jwtSecret: process.env.JWT_SECRET,
+    jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
     jwtExpiresIn: process.env.JWT_EXPIRES_IN,
     storageType: process.env.STORAGE_TYPE,
     storagePath: process.env.STORAGE_PATH,
@@ -112,6 +117,8 @@ export function loadConfig(): Config {
     githubClientId: process.env.GITHUB_CLIENT_ID,
     githubClientSecret: process.env.GITHUB_CLIENT_SECRET,
     oauthCallbackBase: process.env.OAUTH_CALLBACK_BASE,
+    totpEncryptionKey: process.env.TOTP_ENCRYPTION_KEY,
+    corsOrigins: process.env.CORS_ORIGINS,
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     stripeProMonthlyPrice: process.env.STRIPE_PRICE_PRO_MONTHLY,

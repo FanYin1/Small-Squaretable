@@ -22,7 +22,8 @@ export interface RefreshTokenPayload {
   tokenId: string;
 }
 
-const getSecretKey = () => new TextEncoder().encode(config.jwtSecret);
+const getAccessSecretKey = () => new TextEncoder().encode(config.jwtSecret);
+const getRefreshSecretKey = () => new TextEncoder().encode(config.jwtRefreshSecret);
 
 export async function generateAccessToken(payload: AccessTokenPayload): Promise<string> {
   return await new jose.SignJWT({
@@ -35,7 +36,7 @@ export async function generateAccessToken(payload: AccessTokenPayload): Promise<
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(ACCESS_TOKEN_EXPIRY)
-    .sign(getSecretKey());
+    .sign(getAccessSecretKey());
 }
 
 export async function generateRefreshToken(userId: string): Promise<string> {
@@ -48,11 +49,11 @@ export async function generateRefreshToken(userId: string): Promise<string> {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(REFRESH_TOKEN_EXPIRY)
-    .sign(getSecretKey());
+    .sign(getRefreshSecretKey());
 }
 
 export async function verifyAccessToken(token: string): Promise<AccessTokenPayload> {
-  const { payload } = await jose.jwtVerify(token, getSecretKey());
+  const { payload } = await jose.jwtVerify(token, getAccessSecretKey());
   if (payload.type !== 'access') {
     throw new Error('Invalid token type');
   }
@@ -65,7 +66,7 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenPaylo
 }
 
 export async function verifyRefreshToken(token: string): Promise<RefreshTokenPayload> {
-  const { payload } = await jose.jwtVerify(token, getSecretKey());
+  const { payload } = await jose.jwtVerify(token, getRefreshSecretKey());
   if (payload.type !== 'refresh') {
     throw new Error('Invalid token type');
   }
