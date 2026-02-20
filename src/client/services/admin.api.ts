@@ -107,7 +107,7 @@ export interface AuditLogListResponse {
 
 // ── API methods ──
 
-function buildQuery(params: Record<string, unknown>): string {
+function buildQuery<T extends object>(params: T): string {
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
   if (entries.length === 0) return '';
   return '?' + entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&');
