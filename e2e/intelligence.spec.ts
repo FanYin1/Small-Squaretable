@@ -2,7 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { AuthPage } from './pages/auth.page';
 import { ChatPage } from './pages/chat.page';
 import { generateUniqueUser } from './fixtures/test-data';
-import { clearSession, waitForNetworkIdle } from './utils/helpers';
+import { clearSession, waitForNetworkIdle, createCharacterViaApi } from './utils/helpers';
 
 /**
  * E2E Tests: Intelligence Features
@@ -21,12 +21,16 @@ test.describe('Intelligence Features', () => {
 
     // Create a chat if in empty state
     if (await chatPage.isEmptyState()) {
+      // Ensure at least one character exists (created via API)
+      await createCharacterViaApi(page);
+      await page.waitForTimeout(500);
+
       try {
         await chatPage.createChatWithCharacter(0);
         await waitForNetworkIdle(page);
         return true;
       } catch {
-        console.log('No characters available for chat creation');
+        console.log('Chat creation failed after character seed');
         return false;
       }
     }

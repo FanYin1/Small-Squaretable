@@ -142,6 +142,42 @@ export async function getConsoleErrors(page: Page): Promise<string[]> {
 }
 
 /**
+ * Create a character via the API so chat-dependent tests have data.
+ * Extracts the auth token from localStorage and calls the backend directly.
+ * Returns the character ID on success, or null if the call fails.
+ */
+export async function createCharacterViaApi(page: Page): Promise<string | null> {
+  const API_URL = process.env.API_URL || 'http://localhost:3000';
+
+  const token = await page.evaluate(() => localStorage.getItem('token'));
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`${API_URL}/api/v1/characters`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name: `E2E Char ${Date.now()}`,
+        description: 'Auto-created for E2E test',
+        greeting: 'Hello from E2E!',
+        personality: 'Helpful test character',
+        scenario: 'E2E testing',
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.data?.id ?? null;
+    }
+  } catch {
+    // Server may not be reachable — fall through
+  }
+  return null;
+}
+
+/**
  * Check for accessibility violations (basic check)
  */
 export async function checkAccessibility(page: Page): Promise<boolean> {
