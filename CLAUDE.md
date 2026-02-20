@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 12 Complete (Dependency Upgrade)
+**Status**: Iteration 13 Complete (Chat-Centric UI Redesign)
 **Last Updated**: 2026-02-20
 
 ---
@@ -387,6 +387,29 @@ npm run build            # Production build
 
 ---
 
+## Iteration 13: Chat-Centric UI Redesign (2026-02-20) ✅
+
+### New Layout
+- **ChatLayout**: Replaces DashboardLayout for chat — 280px collapsible sidebar + main content
+- **MarkdownRenderer**: highlight.js code highlighting + KaTeX math formulas
+- **WelcomePage**: Inline character selection (replaces dialog)
+
+### Message Redesign
+- **MessageBubble**: Full-width blocks (no bubbles), avatar + name + emotion tag for assistant
+- **MessageInput**: Claude-style centered pill input (max-width 900px)
+- **ChatWindow**: Simplified header, explicit Memory/Debug buttons
+
+### Routing
+- Default authenticated landing: `/chat` (was `/dashboard`)
+- `/dashboard` redirects to `/chat`
+- Dashboard.vue deleted, DashboardLayout/LeftSidebar kept for other pages
+
+### Dependencies Added
+- `highlight.js` (code syntax highlighting)
+- `katex` (math formula rendering)
+
+---
+
 ## Iteration 12: Dependency Upgrade + Vulnerability Fix (2026-02-20) ✅
 
 ### M1: Vulnerability Fixes (Low Risk)
@@ -738,7 +761,7 @@ Full request/response schemas with property definitions for all new endpoints.
 ### Testing
 - Unit tests: `*.spec.ts` files alongside source
 - E2E tests: `e2e/` directory
-- Unit tests: 1412 passing, 0 failures (17 skipped)
+- Unit tests: 1415 passing, 0 failures (17 skipped)
 - E2E tests: 107/119 passed (90%), 8 flaky, 4 skipped
 
 ### Security

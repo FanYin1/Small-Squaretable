@@ -2,7 +2,7 @@
 
 **项目**: SillyTavern SaaS 转换
 **版本**: 0.1.0
-**最后更新**: 2026-02-16
+**最后更新**: 2026-02-20
 
 ---
 
@@ -28,9 +28,10 @@ Phase 7: 生产部署          ████████████████�
 迭代 10: 安全审计              ████████████████████ 100% ✅
 迭代 11: 测试补全              ████████████████████ 100% ✅
 迭代 12: 依赖升级              ████████████████████ 100% ✅
+迭代 13: Chat-Centric UI        ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 12 完成
+**整体完成度**: 迭代 13 完成
 
 ---
 
@@ -218,6 +219,37 @@ Phase 7: 生产部署          ████████████████�
   - 修复 chat.spec.ts 和 intelligence.spec.ts 中 28 个条件跳过
 - **新增**: 75 个单元测试 (1337 → 1412), 4 个新 spec 文件, 4 个新路由 spec 文件
 
+### 迭代 13: Chat-Centric UI Redesign (2026-02-20) ✅
+
+#### 目标
+将应用从 Dashboard 中心重构为聊天中心 (类似 Claude/ChatGPT)，保留角色扮演平台的角色存在感。
+
+#### 完成内容
+- **ChatLayout**: 新主布局 — 280px 可折叠侧边栏 + 主内容区，移动端抽屉式侧边栏
+- **MarkdownRenderer**: 增强 Markdown 渲染器 — highlight.js 代码高亮 + KaTeX 数学公式
+- **MessageBubble 重设计**: 去掉气泡样式，改为全宽块 (Claude 风格)，助手消息带头像+角色名+情感标签
+- **MessageInput 重设计**: Claude 风格居中药丸形输入框 (max-width 900px, border-radius 24px)
+- **ChatSidebar 增强**: 底部导航图标 (Market/Characters/Settings/User)，侧边栏折叠切换
+- **WelcomePage**: 内联欢迎页 — 角色选择卡片，搜索，空状态引导
+- **Chat.vue 重构**: 592行→104行，使用 ChatLayout + WelcomePage 替代 DashboardLayout + Dialog
+- **ChatWindow 更新**: 简化头部 (角色名+情感标签)，Memory/Debug 独立按钮，流式渲染使用 MarkdownRenderer
+- **路由变更**: 登录后默认跳转 `/chat`，`/dashboard` 重定向到 `/chat`
+- **E2E 测试更新**: 7个测试文件更新 waitForURL 模式
+- **CSS 变量**: 新增 5 个聊天主题变量 (light/dark)
+- **清理**: 删除 Dashboard.vue (DashboardLayout/LeftSidebar 保留供其他页面使用)
+
+#### 新增依赖
+- `highlight.js` — 代码语法高亮
+- `katex` — 数学公式渲染
+
+#### 新建文件
+- `src/client/components/layout/ChatLayout.vue`
+- `src/client/components/chat/MarkdownRenderer.vue`
+- `src/client/components/chat/WelcomePage.vue`
+
+#### 删除文件
+- `src/client/pages/Dashboard.vue`
+
 ### 迭代 12: 依赖升级 + 漏洞修复 ✅ (2026-02-20)
 - ✅ **M1: 漏洞修复 (低风险)**
   - 移除 `vite-plugin-imagemin` (未维护, 55+ 高危传递依赖)
@@ -332,7 +364,7 @@ Phase 7: 生产部署          ████████████████�
 
 | 指标 | 数值 |
 |------|------|
-| 单元测试 | 1412 通过, 0 失败 (17 跳过) |
+| 单元测试 | 1415 通过, 0 失败 (17 跳过) |
 | E2E 测试 | 130/142 通过 (含 5 个技术债务+推荐) |
 | i18n 覆盖 | 86 Vue 文件 100% 覆盖, ~490 locale 键 (en-US + zh-CN) |
 | 结构化日志 | 57+ console.* 替换为 pino child loggers |
@@ -364,5 +396,6 @@ Phase 7: 生产部署          ████████████████�
 2026-02-16  迭代 9 完成 (OpenAPI 文档同步: 44 → 154 端点, 13 新标签)
 2026-02-20  迭代 10 完成 (安全审计: 10 项漏洞修复 — 1 Critical + 5 High + 4 Medium)
 2026-02-20  迭代 11 完成 (测试补全: +75 单元测试, 4 服务 + 4 路由 + E2E 修复)
-2026-02-20  迭代 12 完成 (依赖升级: 漏洞 66→23, 6 主要版本升级, vite 7 + vitest 4) ← 当前
+2026-02-20  迭代 12 完成 (依赖升级: 漏洞 66→23, 6 主要版本升级, vite 7 + vitest 4)
+2026-02-20  迭代 13 完成 (Chat-Centric UI Redesign: ChatLayout + MarkdownRenderer + WelcomePage) ← 当前
 ```
