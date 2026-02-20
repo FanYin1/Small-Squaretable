@@ -17,6 +17,9 @@ import type {
   PluginMarketplaceQuery,
 } from '../../types/plugin';
 import { ValidationError, NotFoundError } from '../../core/errors';
+import { logger as appLogger } from './logger.service';
+
+const logger = appLogger.child({ module: 'plugin-service' });
 
 const MAX_INSTALLS_PER_USER = 20;
 
@@ -92,8 +95,8 @@ export class PluginService {
     await this.pluginRepo.incrementInstallCount(pluginId);
     try {
       await this.pluginSandbox.loadPlugin(pluginId, userId, plugin.sourceCode, config);
-    } catch {
-      // Sandbox load failure is non-fatal for install
+    } catch (err) {
+      logger.warn('Plugin sandbox load failed (non-fatal)', { pluginId, error: String(err) });
     }
     return { ...install, plugin: this.toPluginInfo(plugin) } as unknown as PluginInstallInfo;
   }

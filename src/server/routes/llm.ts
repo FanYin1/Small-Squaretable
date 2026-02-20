@@ -8,6 +8,9 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { stream } from 'hono/streaming';
 import { llmService } from '../services/llm.service';
+import { logger as appLogger } from '../services/logger.service';
+
+const logger = appLogger.child({ module: 'llm-routes' });
 import { usageService } from '../services/usage.service';
 import { authMiddleware } from '../middleware/auth';
 import { requireQuota } from '../middleware/feature-gate';
@@ -69,8 +72,8 @@ llmRoutes.post(
                   if (data.choices?.[0]?.delta?.content) {
                     totalTokens += llmService.countTokens(data.choices[0].delta.content);
                   }
-                } catch {
-                  // 忽略解析错误
+                } catch (err) {
+                  logger.debug('SSE chunk parse error (non-fatal)', { error: String(err) });
                 }
               }
             }

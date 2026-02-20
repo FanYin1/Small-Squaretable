@@ -11,6 +11,9 @@ import { memoryService } from '../services/memory.service';
 import { emotionService } from '../services/emotion.service';
 import { intelligenceDebugService } from '../services/intelligence-debug.service';
 import { embeddingService } from '../services/embedding.service';
+import { logger as appLogger } from '../services/logger.service';
+
+const logger = appLogger.child({ module: 'intelligence-routes' });
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:3001';
 import { characterRepository } from '../../db/repositories/character.repository';
@@ -226,8 +229,8 @@ intelligenceRoutes.get(
           sentiment: data.initialized,
         };
       }
-    } catch {
-      // ML service not available
+    } catch (err) {
+      logger.warn('ML service unavailable for intelligence debug', { error: String(err) });
     }
 
     return c.json<ApiResponse>({
