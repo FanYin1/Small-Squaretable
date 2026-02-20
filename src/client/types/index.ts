@@ -16,7 +16,18 @@ export interface Chat {
   characterAvatar?: string;
   lastMessage?: string;
   lastMessageAt?: string;
+  unreadCount?: number;
   createdAt: string;
+}
+
+export interface MessageAttachment {
+  id: string;
+  type: 'image' | 'file';
+  url: string;
+  name?: string;
+  size?: number;
+  mimeType?: string;
+  thumbnailUrl?: string;
 }
 
 export interface Message {
@@ -24,6 +35,7 @@ export interface Message {
   chatId: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  attachments?: MessageAttachment[];
   createdAt: string;
 }
 
