@@ -46,7 +46,6 @@ vi.mock('../../middleware/auth', () => ({
   },
 }));
 
-// PLACEHOLDER_IMPORTS
 
 import { adminExperimentRoutes } from './experiments';
 import { experimentRepository } from '../../../db/repositories/experiment.repository';
@@ -102,7 +101,6 @@ describe('Admin Experiment Routes', () => {
     });
   });
 
-  // PLACEHOLDER_CREATE_TESTS
   describe('POST /experiments', () => {
     it('should create an experiment', async () => {
       vi.mocked(experimentRepository.create).mockResolvedValue(mockExperiment as any);
@@ -143,7 +141,6 @@ describe('Admin Experiment Routes', () => {
     });
   });
 
-  // PLACEHOLDER_UPDATE_TESTS
   describe('PATCH /experiments/:id', () => {
     it('should update experiment and set startedAt when status=running', async () => {
       const runningExp = { ...mockExperiment, status: 'running', startedAt: new Date() };

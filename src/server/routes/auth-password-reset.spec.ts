@@ -52,7 +52,6 @@ vi.mock('../middleware/rateLimit', () => {
 
 // --- Helpers ---
 
-/* PLACEHOLDER_TESTS */
 
 describe('Password Reset Routes', () => {
   let app: Hono;

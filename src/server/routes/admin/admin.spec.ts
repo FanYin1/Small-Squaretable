@@ -43,7 +43,6 @@ vi.mock('../../../db/repositories/subscription.repository', () => ({
   SubscriptionRepository: vi.fn(),
 }));
 
-// PLACEHOLDER_REST_OF_FILE
 
 // Mock oauth repository
 vi.mock('../../../db/repositories/oauth.repository', () => ({
@@ -89,7 +88,6 @@ vi.mock('../../services/moderation.service', () => ({
   getModerationService: vi.fn(),
 }));
 
-// PLACEHOLDER_MOCKS_AND_HELPERS
 
 // Helper to create mock auth middleware with a specific role
 function mockAuthWithRole(role: 'user' | 'moderator' | 'admin', userId = 'admin-123') {
@@ -120,7 +118,6 @@ import { authService } from '../../services/auth.service';
 import { moderationService } from '../../services/moderation.service';
 import { db } from '../../../db/index';
 
-// PLACEHOLDER_TESTS
 
 describe('Admin Routes', () => {
   let app: Hono;
@@ -132,7 +129,6 @@ describe('Admin Routes', () => {
     vi.clearAllMocks();
   });
 
-  // PLACEHOLDER_USER_TESTS
   describe('Admin User Routes', () => {
     describe('GET /admin/users', () => {
       it('should list users with pagination', async () => {
@@ -285,7 +281,6 @@ describe('Admin Routes', () => {
       });
     });
 
-    // PLACEHOLDER_SUSPEND_TESTS
     describe('POST /admin/users/:id/suspend', () => {
       it('should suspend a user', async () => {
         vi.mocked(userRepository.findById).mockResolvedValue({
@@ -352,7 +347,6 @@ describe('Admin Routes', () => {
       });
     });
   });
-  // PLACEHOLDER_CONTENT_TESTS
   describe('Admin Content Routes', () => {
     describe('GET /admin/content/reports', () => {
       it('should list pending reports', async () => {
@@ -436,7 +430,6 @@ describe('Admin Routes', () => {
       });
     });
   });
-  // PLACEHOLDER_SYSTEM_TESTS
   describe('Admin System Routes', () => {
     describe('GET /admin/system/stats', () => {
       it('should return system stats with correct shape', async () => {
@@ -492,7 +485,6 @@ describe('Admin Routes', () => {
       });
     });
   });
-  // PLACEHOLDER_RBAC_TESTS
   describe('RBAC enforcement', () => {
     it('user role gets 403 on admin user routes', async () => {
       // Create a separate app with user-role auth
