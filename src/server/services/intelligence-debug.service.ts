@@ -18,6 +18,7 @@ export interface DebugPerformanceMetrics {
   emotionAnalysisLatency: number;
   promptBuildLatency: number;
   lastPromptTokenCount: number;
+  worldInfoScanLatency?: number;
 }
 
 export interface MemoryRetrievalResult {
@@ -273,6 +274,23 @@ Stay in character at all times.`;
         guidelines: estimateTokens(guidelines),
       },
     };
+  }
+
+  // Record world info scan event
+  recordWorldInfoScan(
+    _characterId: string,
+    _userId: string,
+    _chatId: string | undefined,
+    _data: {
+      scannedEntries: number;
+      activatedCount: number;
+      budgetUsed: number;
+      budgetLimit: number;
+      scanTimeMs: number;
+      matches: unknown[];
+    }
+  ) {
+    // Stub: world info scan recording
   }
 
   // Clear debug data for a chat

@@ -31,6 +31,9 @@ export interface ScoredMemory {
   content: string;
   type: string;
   score: number;
+  similarity?: number;
+  importanceScore?: number;
+  recencyScore?: number;
 }
 
 // Memory limits by subscription tier
@@ -136,6 +139,11 @@ ${conversationText}
           { role: 'system', content: 'You are a memory extraction assistant. Output valid JSON only.' },
           { role: 'user', content: prompt },
         ],
+        stream: false,
+        temperature: 0.3,
+        n: 1,
+        presence_penalty: 0,
+        frequency_penalty: 0,
       });
 
       const content = response.choices[0]?.message?.content ?? '';

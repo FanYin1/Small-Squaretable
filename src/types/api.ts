@@ -20,6 +20,7 @@ export interface ApiResponse<T = unknown> {
   meta?: {
     timestamp: string;
     requestId?: string;
+    cached?: boolean;
   };
 }
 
