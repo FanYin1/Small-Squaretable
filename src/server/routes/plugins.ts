@@ -6,6 +6,7 @@
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { pluginService } from '../services/plugin.service';
 import { authMiddleware } from '../middleware/auth';
@@ -275,18 +276,29 @@ pluginRoutes.post('/installs/:id/disable', authMiddleware(), async (c) => {
 // Event Execution
 // =====================
 
-// POST /execute — Execute plugin event pipeline
-pluginRoutes.post('/execute', authMiddleware(), pluginExecutionRateLimit, async (c) => {
-  const user = c.get('user');
-  const { event, payload } = await c.req.json();
-  const results = await pluginService.executeEvent(user.id, event, payload);
-
-  return c.json<ApiResponse>(
-    {
-      success: true,
-      data: results,
-      meta: { timestamp: new Date().toISOString() },
-    },
-    200,
-  );
+const executePluginSchema = z.object({
+  event: z.string().min(1).max(100),
+  payload: z.record(z.unknown()).default({}),
 });
+
+// POST /execute — Execute plugin event pipeline
+pluginRoutes.post(
+  '/execute',
+  authMiddleware(),
+  pluginExecutionRateLimit,
+  zValidator('json', executePluginSchema),
+  async (c) => {
+    const user = c.get('user');
+    const { event, payload } = c.req.valid('json');
+    const results = await pluginService.executeEvent(user.id, event, payload);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: results,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200,
+    );
+  },
+);
