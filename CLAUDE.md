@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 11 Complete (Test Coverage)
+**Status**: Iteration 12 Complete (Dependency Upgrade)
 **Last Updated**: 2026-02-20
 
 ---
@@ -384,6 +384,29 @@ npm run build            # Production build
 ### Test Isolation (M6) ✅
 - **vitest.config.ts**: Excluded ml-service/** and tests/integration/** from unit test runs
 - **embedding.service.spec.ts**: Skipped ML-dependent tests (requires microservice)
+
+---
+
+## Iteration 12: Dependency Upgrade + Vulnerability Fix (2026-02-20) ✅
+
+### M1: Vulnerability Fixes (Low Risk)
+- Removed `vite-plugin-imagemin` (unmaintained, root cause of 55+ high vulnerabilities)
+- Upgraded `bcrypt` 5→6 (fixes `tar` vulnerability)
+- `npm audit fix` for remaining safe patches
+- Vulnerabilities: 66 → 23 (remaining are in eslint/drizzle-kit transitive deps, not safely fixable)
+
+### M2: Semver-Compatible Upgrades
+- hono, stripe, dotenv, marked, @playwright/test, @typescript-eslint/*, @vitejs/plugin-vue, @types/nodemailer
+
+### M3: Major Version Upgrades
+- `jose` 5→6 (ESM-only, API compatible — zero code changes)
+- `redis` 4→5 (createClient API compatible — zero code changes)
+- `drizzle-orm` 0.38→0.45 + `drizzle-kit` 0.30→0.31 (57 files import drizzle-orm — zero code changes)
+- `bcrypt` 5→6 (API compatible — zero code changes)
+- `vite` 6→7 + `vitest` 2→4 + `@vitest/coverage-v8` 2→4
+  - Breaking: `environmentMatchGlobs` removed → `projects` array config in vitest.config.ts
+  - Breaking: `vi.fn()` constructor mock syntax changed (kafka.spec.ts, oauth.service.spec.ts)
+- Skipped: eslint 9→10 (too risky), @types/node 22→25 (unnecessary)
 
 ---
 
