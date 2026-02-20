@@ -141,9 +141,7 @@ describe('Character Store', () => {
         createdAt: '2024-01-01',
       };
 
-      vi.mocked(characterApi.getCharacter).mockResolvedValue({
-        character: mockCharacter,
-      } as any);
+      vi.mocked(characterApi.getCharacter).mockResolvedValue(mockCharacter as any);
 
       const store = useCharacterStore();
       await store.fetchCharacter('char_1');
