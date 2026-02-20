@@ -7,7 +7,9 @@
 
 import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHash, timingSafeEqual } from 'crypto';
+import { config } from '../../core/config';
+import { redis } from '../../core/redis';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -30,6 +32,16 @@ function hashToken(token: string): string {
 }
 
 /**
+ * Constant-time string comparison to prevent timing attacks
+ */
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return timingSafeEqual(bufA, bufB);
+}
+
+/**
  * CSRF Token storage interface
  */
 interface CsrfStore {
@@ -39,8 +51,29 @@ interface CsrfStore {
 }
 
 /**
- * In-memory CSRF token store (for development)
- * In production, use Redis or similar
+ * Redis-backed CSRF token store (for production)
+ */
+class RedisCsrfStore implements CsrfStore {
+  private prefix = 'csrf:';
+  private defaultTtl = 3600; // 1 hour in seconds
+
+  async get(sessionId: string): Promise<string | null> {
+    return redis.get(`${this.prefix}${sessionId}`);
+  }
+
+  async set(sessionId: string, token: string, ttl?: number): Promise<void> {
+    await redis.set(`${this.prefix}${sessionId}`, token, {
+      EX: ttl ? Math.ceil(ttl / 1000) : this.defaultTtl,
+    });
+  }
+
+  async delete(sessionId: string): Promise<void> {
+    await redis.del(`${this.prefix}${sessionId}`);
+  }
+}
+
+/**
+ * In-memory CSRF token store (for development/test)
  */
 class InMemoryCsrfStore implements CsrfStore {
   private store = new Map<string, { token: string; expiresAt: number }>();
@@ -75,8 +108,9 @@ class InMemoryCsrfStore implements CsrfStore {
   }
 }
 
-// Default store instance
-const csrfStore = new InMemoryCsrfStore();
+// Use Redis in production, in-memory for dev/test
+const csrfStore: CsrfStore =
+  config.nodeEnv === 'production' ? new RedisCsrfStore() : new InMemoryCsrfStore();
 
 /**
  * Extract session ID from request
@@ -117,7 +151,7 @@ export function csrfProtection() {
       if (sessionId) {
         const sessionToken = await csrfStore.get(sessionId);
 
-        if (!sessionToken || !token || token !== sessionToken) {
+        if (!sessionToken || !token || !safeCompare(token, sessionToken)) {
           throw new HTTPException(403, {
             message: 'Invalid CSRF token',
           });
@@ -188,7 +222,7 @@ export function optionalCsrfProtection() {
       if (token && sessionId) {
         const sessionToken = await csrfStore.get(sessionId);
 
-        if (sessionToken && token !== sessionToken) {
+        if (sessionToken && !safeCompare(token, sessionToken)) {
           throw new HTTPException(403, {
             message: 'Invalid CSRF token',
           });
