@@ -103,7 +103,7 @@ test.describe('Analytics Dashboard', () => {
       // Register and login a fresh user (mocked as team)
       const testUser = generateUniqueUser();
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
     });
 
@@ -326,7 +326,7 @@ test.describe('Analytics Dashboard', () => {
       // Register and login a fresh user (mocked as free)
       const testUser = generateUniqueUser();
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
     });
 
@@ -442,7 +442,7 @@ test.describe('Analytics Dashboard', () => {
 
       const testUser = generateUniqueUser();
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
     });
 

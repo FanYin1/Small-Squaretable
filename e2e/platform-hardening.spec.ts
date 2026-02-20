@@ -89,7 +89,7 @@ test.describe('Platform Hardening', () => {
       const testUser = generateUniqueUser();
       const authPage = new AuthPage(page);
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
 
       // Navigate to security settings
@@ -99,7 +99,7 @@ test.describe('Platform Hardening', () => {
       // Verify the page loaded (may redirect if route doesn't exist)
       const url = page.url();
       const isOnSecurityPage = url.includes('/settings/security') || url.includes('/settings');
-      expect(isOnSecurityPage || url.includes('/dashboard')).toBe(true);
+      expect(isOnSecurityPage || url.includes('/chat') || url.includes('/dashboard')).toBe(true);
 
       // Look for 2FA-related elements
       const twoFaSection = page.locator(
@@ -131,7 +131,7 @@ test.describe('Platform Hardening', () => {
       const testUser = generateUniqueUser();
       const authPage = new AuthPage(page);
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
 
       // Mock admin endpoints
@@ -145,7 +145,7 @@ test.describe('Platform Hardening', () => {
 
       // Admin page should load (not redirect to login)
       const url = page.url();
-      const isAdminOrDashboard = url.includes('/admin') || url.includes('/dashboard');
+      const isAdminOrDashboard = url.includes('/admin') || url.includes('/chat') || url.includes('/dashboard');
       expect(isAdminOrDashboard).toBe(true);
     });
 
@@ -168,7 +168,7 @@ test.describe('Platform Hardening', () => {
       const testUser = generateUniqueUser();
       const authPage = new AuthPage(page);
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
 
       await page.goto('/admin');
@@ -176,7 +176,7 @@ test.describe('Platform Hardening', () => {
 
       // Regular user should be redirected away from admin
       const url = page.url();
-      // Either redirected to dashboard/home or shown a 403 page
+      // Either redirected to chat/dashboard/home or shown a 403 page
       expect(typeof url).toBe('string');
     });
   });
@@ -207,12 +207,12 @@ test.describe('Platform Hardening', () => {
       const testUser = generateUniqueUser();
       const authPage = new AuthPage(page);
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
 
       // The report form is typically accessed from a character page or via a modal
-      // Verify the dashboard loaded successfully as a baseline
-      expect(page.url()).toMatch(/\/dashboard|\//);
+      // Verify the page loaded successfully as a baseline
+      expect(page.url()).toMatch(/\/chat|\/dashboard|\//);
     });
   });
 
@@ -242,7 +242,7 @@ test.describe('Platform Hardening', () => {
       const testUser = generateUniqueUser();
       const authPage = new AuthPage(page);
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
 
       // Navigate to privacy/GDPR settings
@@ -251,7 +251,7 @@ test.describe('Platform Hardening', () => {
 
       const url = page.url();
       const isOnPrivacyPage = url.includes('/settings/privacy') || url.includes('/settings');
-      expect(isOnPrivacyPage || url.includes('/dashboard')).toBe(true);
+      expect(isOnPrivacyPage || url.includes('/chat') || url.includes('/dashboard')).toBe(true);
 
       // Look for export button
       const exportBtn = page.locator(
@@ -300,7 +300,7 @@ test.describe('Platform Hardening', () => {
       const testUser = generateUniqueUser();
       const authPage = new AuthPage(page);
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
 
       // Navigate to privacy settings
@@ -350,7 +350,7 @@ test.describe('Platform Hardening', () => {
       const testUser = generateUniqueUser();
       const authPage = new AuthPage(page);
       await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
       await waitForNetworkIdle(page);
 
       // Navigate to privacy settings

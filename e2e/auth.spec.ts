@@ -298,7 +298,7 @@ test.describe('Authentication Flow', () => {
       isLoggedIn = await authPage.isLoggedIn();
       expect(isLoggedIn).toBe(true);
 
-      await page.goto('/dashboard');
+      await page.goto('/chat');
       await waitForNetworkIdle(page);
 
       // Should still be logged in

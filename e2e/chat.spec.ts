@@ -50,8 +50,8 @@ test.describe('Chat Flow', () => {
     const testUser = generateUniqueUser();
     await authPage.register(testUser.email, testUser.password, testUser.name);
 
-    // Wait for redirect to dashboard (guestOnly routes redirect authenticated users to dashboard)
-    await page.waitForURL('/dashboard', { timeout: 15000 });
+    // Wait for redirect to chat (or dashboard) after authentication
+    await page.waitForURL(/\/chat|\/dashboard/, { timeout: 15000 });
     await waitForNetworkIdle(page);
   });
 

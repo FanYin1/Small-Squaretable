@@ -133,8 +133,8 @@ export class AuthPage {
    * Logout user
    */
   async logout() {
-    // Navigate to a page with the user menu (dashboard has the layout with user menu)
-    await this.page.goto('/dashboard');
+    // Navigate to a page with the user menu (chat page has the layout with user menu)
+    await this.page.goto('/chat');
     await this.page.waitForLoadState('networkidle');
 
     // Click on user avatar to open dropdown menu

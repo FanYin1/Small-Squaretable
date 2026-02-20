@@ -100,8 +100,8 @@ test.describe('Technical Debt Smoke Tests', () => {
     await waitForNetworkIdle(page);
 
     const url = page.url();
-    // Should be on worldbooks page or redirected to login/dashboard
-    const isExpectedPage = url.includes('/worldbooks') || url.includes('/dashboard') || url.includes('/auth');
+    // Should be on worldbooks page or redirected to login/chat/dashboard
+    const isExpectedPage = url.includes('/worldbooks') || url.includes('/chat') || url.includes('/dashboard') || url.includes('/auth');
     expect(isExpectedPage).toBe(true);
   });
 });

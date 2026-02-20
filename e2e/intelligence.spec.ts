@@ -46,8 +46,8 @@ test.describe('Intelligence Features', () => {
     const testUser = generateUniqueUser();
     await authPage.register(testUser.email, testUser.password, testUser.name);
 
-    // Wait for redirect to dashboard
-    await page.waitForURL(/\/dashboard|\/$/, { timeout: 15000 });
+    // Wait for redirect to chat (or dashboard/root)
+    await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
     await waitForNetworkIdle(page);
   });
 
