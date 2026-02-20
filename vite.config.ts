@@ -21,28 +21,6 @@ const loadOptionalPlugins = async (): Promise<PluginOption[]> => {
     console.log('rollup-plugin-visualizer not installed, skipping bundle analysis');
   }
 
-  // Try to load vite-plugin-imagemin
-  try {
-    const viteImagemin = (await import('vite-plugin-imagemin')).default;
-    plugins.push(
-      viteImagemin({
-        gifsicle: { optimizationLevel: 7 },
-        optipng: { optimizationLevel: 7 },
-        mozjpeg: { quality: 80 },
-        pngquant: { quality: [0.8, 0.9] },
-        svgo: {
-          plugins: [
-            { name: 'removeViewBox', active: false },
-            { name: 'removeEmptyAttrs', active: false },
-          ],
-        },
-        webp: { quality: 80 },
-      })
-    );
-  } catch {
-    console.log('vite-plugin-imagemin not installed, skipping image optimization');
-  }
-
   return plugins;
 };
 
