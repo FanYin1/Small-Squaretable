@@ -394,3 +394,16 @@ export const analyticsIngestionRateLimit = rateLimit({
   windowMs: 60 * 1000, // 50 batch ingestions per minute
   message: 'Analytics ingestion rate limit exceeded',
 });
+
+// MFA challenge rate limiter - strict per-IP to prevent brute force
+export const mfaChallengeRateLimit = rateLimit({
+  limit: isTestEnv ? 100 : 5,
+  windowMs: 5 * 60 * 1000, // 5 attempts per 5 minutes
+  keyGenerator: (c: any) => {
+    const ip = c.req.header('x-forwarded-for')?.split(',')[0] ||
+               c.req.header('x-real-ip') ||
+               'unknown';
+    return `mfa-challenge:${ip}`;
+  },
+  message: 'Too many MFA attempts. Please try again later.',
+});

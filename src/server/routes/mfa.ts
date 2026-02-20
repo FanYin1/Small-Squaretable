@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth';
+import { mfaChallengeRateLimit } from '../middleware/rateLimit';
 import { totpService } from '../services/totp.service';
 import { auditService } from '../services/audit.service';
 import { userRepository } from '../../db/repositories/user.repository';
@@ -149,6 +150,7 @@ const challengeSchema = z.object({
 
 mfaRoutes.post(
   '/challenge',
+  mfaChallengeRateLimit,
   zValidator('json', challengeSchema),
   async (c) => {
     const { mfaToken, code } = c.req.valid('json');
