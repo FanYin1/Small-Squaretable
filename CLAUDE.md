@@ -7,8 +7,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 9 Complete (OpenAPI Documentation Sync)
-**Last Updated**: 2026-02-16
+**Status**: Iteration 10 Complete (Security Audit)
+**Last Updated**: 2026-02-20
 
 ---
 
@@ -384,6 +384,27 @@ npm run build            # Production build
 ### Test Isolation (M6) ✅
 - **vitest.config.ts**: Excluded ml-service/** and tests/integration/** from unit test runs
 - **embedding.service.spec.ts**: Skipped ML-dependent tests (requires microservice)
+
+---
+
+## Iteration 10: Security Audit (2026-02-20) ✅
+
+### Findings: 1 Critical, 5 High, 4 Medium — All Fixed
+
+**Critical + High Fixes:**
+- **Credential Sanitization**: Removed real API key from `.env`, added separate JWT_REFRESH_SECRET and TOTP_ENCRYPTION_KEY
+- **JWT Secret Separation**: Access tokens use `jwtSecret`, refresh tokens use `jwtRefreshSecret`
+- **TOTP Key Isolation**: Dedicated `totpEncryptionKey` with backwards-compatible fallback
+- **Plugin Sandbox Hardening**: Block `import()`, `require()`, `fetch`, `WebSocket`, dangerous module patterns
+- **Plugin Execute Validation**: Zod schema on `/execute` endpoint (was raw `c.req.json()`)
+- **CSRF Redis Migration**: Production uses Redis-backed store with `crypto.timingSafeEqual`
+- **File Upload Auth**: `/uploads/*` requires valid JWT, adds `nosniff` + `Content-Disposition` headers
+- **CORS Config Fix**: Added `corsOrigins` to Zod config schema
+
+**Medium Fixes:**
+- **CSP Hardening**: Removed `unsafe-eval` from production CSP `script-src`
+- **MFA Rate Limiting**: Dedicated per-IP limiter (5 attempts / 5 minutes) on `/challenge`
+- **Pagination Bounds**: Zod validation (limit 1-100, offset ≥ 0) on social + chat endpoints
 
 ---
 
