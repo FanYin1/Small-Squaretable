@@ -200,7 +200,7 @@ export class WebSocketHandler {
           chatId,
           userMessage: content,
         });
-        llmMessages.push({ role: 'system', content: enhancedPrompt });
+        llmMessages.push({ role: 'system', content: enhancedPrompt.systemPrompt });
 
         // 更新情感状态
         await chatService.updateEmotionFromMessage(

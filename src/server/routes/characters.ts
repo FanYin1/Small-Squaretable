@@ -135,7 +135,7 @@ async function createCharacterWorldBook(
   } catch (error) {
     charLogger.warn(
       `Failed to create world book for character ${characterId}`,
-      error as Error
+      { error: String(error) }
     );
     return null;
   }
@@ -211,7 +211,7 @@ characterRoutes.get(
 characterRoutes.get('/stats', authMiddleware(), async (c) => {
   const user = c.get('user');
   const [result, favoritesCount] = await Promise.all([
-    characterService.getByTenantId(user.tenantId, { page: 1, limit: 1000 }),
+    characterService.getByTenantId(user.tenantId, { page: 1, limit: 1000, sortOrder: 'desc' }),
     favoriteRepository.countByUser(user.id),
   ]);
 

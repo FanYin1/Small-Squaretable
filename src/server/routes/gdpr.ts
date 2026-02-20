@@ -47,7 +47,7 @@ gdprRoutes.post('/export', authMiddleware(), exportRateLimit, async (c) => {
     metadata: { sizeBytes: zipBuffer.length },
   });
 
-  return new Response(zipBuffer, {
+  return new Response(new Uint8Array(zipBuffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/zip',
