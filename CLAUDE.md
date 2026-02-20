@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 10 Complete (Security Audit)
+**Status**: Iteration 11 Complete (Test Coverage)
 **Last Updated**: 2026-02-20
 
 ---
@@ -387,6 +387,31 @@ npm run build            # Production build
 
 ---
 
+## Iteration 11: Test Coverage Completion (2026-02-20) ✅
+
+### M1: High-Risk Service Tests (4 services, 42 tests)
+- **totp.service.spec.ts**: 8 tests — encrypt/decrypt round-trip, generateSetup, verify, backup codes
+- **oauth.service.spec.ts**: 21 tests — isSupported, getAuthorizationUrl, handleCallback (Google/GitHub), authenticateWithOAuth (3 scenarios + deactivated user)
+- **experiment-analysis.service.spec.ts**: 5 tests — ClickHouse query, error handling, empty results
+- **intelligence-debug.service.spec.ts**: 8 tests — state recording, counters, cleanup, chatId fallback
+
+### M2: PLACEHOLDER Cleanup + Silent Catch Fixes
+- Removed 12 PLACEHOLDER comments from admin.spec.ts, experiments.spec.ts, auth-password-reset.spec.ts
+- Fixed 3 silent catch blocks → structured logging (plugin.service.ts, intelligence.ts, llm.ts)
+
+### M3: Route Tests (4 routes, 33 tests)
+- **notifications.spec.ts**: 6 tests — GET /, GET /unread-count, PATCH /:id/read, POST /read-all, DELETE /:id
+- **reports.spec.ts**: 4 tests — POST / valid/invalid input
+- **developer.spec.ts**: 12 tests — API key CRUD + scopes
+- **webhooks.spec.ts**: 11 tests — Webhook CRUD + test + deliveries + retry
+
+### M4: E2E Test Fixes
+- Created `e2e/seed.ts` globalSetup (register user + create character + create chat via API)
+- Added `createCharacterViaApi` helper to ensure characters exist before chat tests
+- Fixed 28 conditional skips in chat.spec.ts (11) and intelligence.spec.ts (17)
+
+---
+
 ## Iteration 10: Security Audit (2026-02-20) ✅
 
 ### Findings: 1 Critical, 5 High, 4 Medium — All Fixed
@@ -690,7 +715,7 @@ Full request/response schemas with property definitions for all new endpoints.
 ### Testing
 - Unit tests: `*.spec.ts` files alongside source
 - E2E tests: `e2e/` directory
-- Unit tests: 1337 passing, 0 failures (17 skipped)
+- Unit tests: 1412 passing, 0 failures (17 skipped)
 - E2E tests: 107/119 passed (90%), 8 flaky, 4 skipped
 
 ### Security

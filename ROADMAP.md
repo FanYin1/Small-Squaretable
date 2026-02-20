@@ -26,9 +26,10 @@ Phase 7: 生产部署          ████████████████�
 迭代 8: i18n 全覆盖           ████████████████████ 100% ✅
 迭代 9: OpenAPI 文档同步        ████████████████████ 100% ✅
 迭代 10: 安全审计              ████████████████████ 100% ✅
+迭代 11: 测试补全              ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 10 完成
+**整体完成度**: 迭代 11 完成
 
 ---
 
@@ -196,6 +197,26 @@ Phase 7: 生产部署          ████████████████�
 - ✅ **M5: DB 测试 Mock 化** — 6 个仓库 + 4 个服务 + 4 个路由 + 2 个基础设施测试
 - ✅ **M6: 测试隔离** — 排除 ml-service 和集成测试
 
+### 迭代 11: 测试补全 ✅ (2026-02-20)
+- ✅ **M1: 高风险服务测试** — 4 个零覆盖服务添加单元测试
+  - totp.service (8 tests): 加密/解密往返、generateSetup、verify、备份码
+  - oauth.service (21 tests): isSupported、getAuthorizationUrl、handleCallback (Google/GitHub)、authenticateWithOAuth (3 场景)
+  - experiment-analysis.service (5 tests): ClickHouse 查询、错误处理
+  - intelligence-debug.service (8 tests): 状态记录、计数器、清理、chatId 回退
+- ✅ **M2: PLACEHOLDER 清理 + 静默 catch 修复**
+  - 移除 12 个 PLACEHOLDER 注释 (admin.spec.ts、experiments.spec.ts、auth-password-reset.spec.ts)
+  - 修复 3 个静默 catch 块 (plugin.service.ts、intelligence.ts、llm.ts) → 结构化日志
+- ✅ **M3: 路由测试补全** — 4 个未测试路由添加测试
+  - notifications.spec.ts (6 tests): GET /、GET /unread-count、PATCH /:id/read、POST /read-all、DELETE /:id
+  - reports.spec.ts (4 tests): POST / 有效/无效输入
+  - developer.spec.ts (12 tests): API 密钥 CRUD + scopes
+  - webhooks.spec.ts (11 tests): Webhook CRUD + test + deliveries + retry
+- ✅ **M4: E2E 测试修复**
+  - 创建 e2e/seed.ts globalSetup (注册用户 + 创建角色 + 创建聊天)
+  - 添加 createCharacterViaApi 辅助函数
+  - 修复 chat.spec.ts 和 intelligence.spec.ts 中 28 个条件跳过
+- **新增**: 75 个单元测试 (1337 → 1412), 4 个新 spec 文件, 4 个新路由 spec 文件
+
 ### 迭代 10: 安全审计 ✅ (2026-02-20)
 - ✅ **凭证清理** — 清除 .env 中的真实 API 密钥, 添加独立 JWT_REFRESH_SECRET 和 TOTP_ENCRYPTION_KEY 占位符
 - ✅ **JWT 密钥分离** — 访问令牌和刷新令牌使用不同签名密钥, TOTP 加密使用独立密钥
@@ -291,7 +312,7 @@ Phase 7: 生产部署          ████████████████�
 
 | 指标 | 数值 |
 |------|------|
-| 单元测试 | 1337 通过, 0 失败 (17 跳过) |
+| 单元测试 | 1412 通过, 0 失败 (17 跳过) |
 | E2E 测试 | 130/142 通过 (含 5 个技术债务+推荐) |
 | i18n 覆盖 | 86 Vue 文件 100% 覆盖, ~490 locale 键 (en-US + zh-CN) |
 | 结构化日志 | 57+ console.* 替换为 pino child loggers |
@@ -321,5 +342,6 @@ Phase 7: 生产部署          ████████████████�
 2026-02-15  迭代 7 完成 (测试修复: vue-i18n + 存根 + Mock + 隔离)
 2026-02-16  迭代 8 完成 (i18n 全覆盖: 27 文件 ~304 字符串 → $t() 调用)
 2026-02-16  迭代 9 完成 (OpenAPI 文档同步: 44 → 154 端点, 13 新标签)
-2026-02-20  迭代 10 完成 (安全审计: 10 项漏洞修复 — 1 Critical + 5 High + 4 Medium) ← 当前
+2026-02-20  迭代 10 完成 (安全审计: 10 项漏洞修复 — 1 Critical + 5 High + 4 Medium)
+2026-02-20  迭代 11 完成 (测试补全: +75 单元测试, 4 服务 + 4 路由 + E2E 修复) ← 当前
 ```
