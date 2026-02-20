@@ -74,14 +74,14 @@ export class CacheService {
     try {
       const client = await getRedisClient();
       const batch: string[] = [];
-      for await (const key of client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-        batch.push(key);
+      for await (const keys of client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+        batch.push(...keys);
         if (batch.length >= 100) {
-          await client.del(batch.splice(0));
+          await client.del(batch.splice(0) as string[]);
         }
       }
       if (batch.length > 0) {
-        await client.del(batch);
+        await client.del(batch as string[]);
       }
     } catch (error) {
       logger.error('Cache delete pattern error', error as Error);
