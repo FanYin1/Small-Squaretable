@@ -6,12 +6,13 @@ const mockProducer = { connect: mockConnect, disconnect: mockDisconnect };
 const mockConsumerConnect = vi.fn().mockResolvedValue(undefined);
 const mockConsumer = { connect: mockConsumerConnect };
 
-vi.mock('kafkajs', () => ({
-  Kafka: vi.fn().mockImplementation(() => ({
-    producer: vi.fn().mockReturnValue(mockProducer),
-    consumer: vi.fn().mockReturnValue(mockConsumer),
-  })),
-}));
+vi.mock('kafkajs', () => {
+  const KafkaMock = vi.fn(function (this: Record<string, unknown>) {
+    this.producer = vi.fn().mockReturnValue(mockProducer);
+    this.consumer = vi.fn().mockReturnValue(mockConsumer);
+  });
+  return { Kafka: KafkaMock };
+});
 
 vi.mock('./config', () => ({
   config: {

@@ -2,6 +2,7 @@ export { useCharacters } from './useCharacters';
 export { useCharacterSearch } from './useCharacterSearch';
 export { useDateTime } from './useDateTime';
 export { useLoading } from './useLoading';
+export { useLocale } from './useLocale';
 export { useTheme } from './useTheme';
 export { useFeatureGate } from './useFeatureGate';
 export { useToast } from './useToast';

@@ -47,14 +47,14 @@ const {
 // --- Module mocks ---
 
 vi.mock('arctic', () => {
-  const GoogleMock = vi.fn(() => ({
-    createAuthorizationURL: mockGoogleCreateAuthURL,
-    validateAuthorizationCode: mockGoogleValidateCode,
-  }));
-  const GitHubMock = vi.fn(() => ({
-    createAuthorizationURL: mockGitHubCreateAuthURL,
-    validateAuthorizationCode: mockGitHubValidateCode,
-  }));
+  const GoogleMock = vi.fn(function (this: Record<string, unknown>) {
+    this.createAuthorizationURL = mockGoogleCreateAuthURL;
+    this.validateAuthorizationCode = mockGoogleValidateCode;
+  });
+  const GitHubMock = vi.fn(function (this: Record<string, unknown>) {
+    this.createAuthorizationURL = mockGitHubCreateAuthURL;
+    this.validateAuthorizationCode = mockGitHubValidateCode;
+  });
   return {
     Google: GoogleMock,
     GitHub: GitHubMock,
