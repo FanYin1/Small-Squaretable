@@ -1,30 +1,29 @@
 <template>
   <div class="message-input">
-    <el-input
-      v-model="inputValue"
-      type="textarea"
-      :placeholder="computedPlaceholder"
-      :autosize="{ minRows: 1, maxRows: 5 }"
-      :maxlength="maxLength"
-      :disabled="disabled || sending"
-      @keydown="handleKeyDown"
-      class="input-textarea"
-      resize="none"
-    />
-    <div class="input-footer">
-      <span class="char-count" :class="{ 'char-count-warning': isNearLimit }">
-        {{ inputValue.length }} / {{ maxLength }}
-        <span v-if="inputValue.length > 0" class="token-estimate">~{{ estimatedTokens }} tokens</span>
-      </span>
-      <el-button
-        type="primary"
+    <div class="input-wrapper">
+      <button class="attach-btn" type="button" aria-label="Attach file">
+        <el-icon :size="20"><Upload /></el-icon>
+      </button>
+      <el-input
+        v-model="inputValue"
+        type="textarea"
+        :placeholder="computedPlaceholder"
+        :autosize="{ minRows: 1, maxRows: 5 }"
+        :maxlength="maxLength"
+        :disabled="disabled || sending"
+        @keydown="handleKeyDown"
+        class="input-textarea"
+        resize="none"
+      />
+      <button
+        class="send-btn"
+        type="button"
         :disabled="!canSend"
-        :loading="sending"
         @click="handleSend"
-        :icon="Position"
+        :aria-label="sending ? t('common.sending') : t('common.send')"
       >
-        {{ sending ? t('common.sending') : t('common.send') }}
-      </el-button>
+        <el-icon :size="18"><Position /></el-icon>
+      </button>
     </div>
     <div class="input-hint">
       {{ t('chat.inputHint') }}
@@ -35,7 +34,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Position } from '@element-plus/icons-vue';
+import { Position, Upload } from '@element-plus/icons-vue';
 
 interface Props {
   placeholder?: string;
@@ -102,68 +101,73 @@ const handleKeyDown = (event: KeyboardEvent) => {
 
 <style scoped>
 .message-input {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+
+.input-wrapper {
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  border-radius: 24px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-card);
+  padding: 8px 16px;
   gap: 8px;
-  padding: 16px;
-  background-color: var(--surface-card);
-  border-top: 1px solid var(--border-default);
+  transition: border-color 0.2s;
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--accent-purple);
+}
+
+.attach-btn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 8px;
+  flex-shrink: 0;
 }
 
 .input-textarea {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .input-textarea :deep(.el-textarea__inner) {
   font-size: 14px;
   line-height: 1.5;
-  padding: 12px;
-  transition: height 0.15s ease;
-}
-
-.input-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.input-footer :deep(.el-button--primary) {
-  background: var(--accent-gradient);
+  padding: 6px 0;
   border: none;
-  border-radius: 9999px;
-  padding: 8px 20px;
-  transition: all 0.2s ease;
+  background: transparent;
+  box-shadow: none;
+  resize: none;
 }
 
-.input-footer :deep(.el-button--primary:hover) {
-  opacity: 0.9;
-  transform: scale(1.02);
+.send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-purple);
+  color: white;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.input-footer :deep(.el-button--primary:active) {
-  transform: scale(0.98);
-}
-
-.char-count {
-  font-size: 12px;
-  color: var(--text-secondary);
-  transition: color 0.3s;
-}
-
-.char-count-warning {
-  color: var(--color-warning);
-  font-weight: 500;
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .input-hint {
+  text-align: center;
   font-size: 12px;
   color: var(--text-tertiary);
-  text-align: center;
-}
-
-.token-estimate {
-  margin-left: 8px;
-  color: var(--text-tertiary);
-  font-size: 11px;
+  margin-top: 8px;
 }
 </style>
