@@ -76,6 +76,9 @@ const configSchema = z.object({
   memoryLimitTeam: z.coerce.number().default(2000),
   cacheTtlDefault: z.coerce.number().default(300),
   recommendationCacheTtl: z.coerce.number().default(900),
+
+  // CORS
+  corsOrigins: z.string().default('http://localhost:5173'),
 });
 
 export type Config = z.infer<typeof configSchema>;
