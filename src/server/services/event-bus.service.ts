@@ -28,12 +28,14 @@ export class EventBus {
     this.handlers.get(event)!.add(handler as EventHandler);
   }
 
-  off(event: string, handler: EventHandler): void {
+  off(event: '*', handler: WildcardHandler): void;
+  off(event: string, handler: EventHandler): void;
+  off(event: string, handler: EventHandler | WildcardHandler): void {
     if (event === '*') {
       this.wildcardHandlers.delete(handler as (event: string, payload: Record<string, unknown>) => void | Promise<void>);
       return;
     }
-    this.handlers.get(event)?.delete(handler);
+    this.handlers.get(event)?.delete(handler as EventHandler);
   }
 
   once(event: string, handler: EventHandler): void {
