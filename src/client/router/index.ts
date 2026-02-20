@@ -43,7 +43,7 @@ router.beforeEach((to, from, next) => {
     });
   } else if (to.meta.guestOnly && isAuthenticated) {
     // Redirect to dashboard if route is guest-only and user is authenticated
-    next({ name: 'Dashboard' });
+    next({ name: 'Chat' });
   } else if (to.meta.requiresRole && isAuthenticated) {
     // Check role-based access for the most specific matched route
     const requiredRole = to.matched
@@ -52,7 +52,7 @@ router.beforeEach((to, from, next) => {
       .pop();
     if (requiredRole && !hasRequiredRole(userStore.user?.role, requiredRole)) {
       // Insufficient role, redirect to dashboard
-      next({ name: 'Dashboard' });
+      next({ name: 'Chat' });
     } else {
       next();
     }

@@ -3,7 +3,6 @@ import type { RouteRecordRaw } from 'vue-router';
 // Define preload/prefetch hints for performance
 // @ts-ignore - Custom webpackChunkName comment for code splitting
 const loadHome = () => import(/* webpackPrefetch: true */ '../pages/Home.vue');
-const loadDashboard = () => import(/* webpackPrefetch: true */ '../pages/Dashboard.vue');
 const loadLogin = () => import(/* webpackPrefetch: true */ '../pages/auth/Login.vue');
 const loadRegister = () => import(/* webpackPrefetch: true */ '../pages/auth/Register.vue');
 const loadForgotPassword = () => import('../pages/auth/ForgotPassword.vue');
@@ -48,7 +47,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/dashboard',
     name: 'Dashboard',
-    component: loadDashboard,
+    redirect: { name: 'Chat' },
     meta: {
       requiresAuth: true,
       guestOnly: false,
