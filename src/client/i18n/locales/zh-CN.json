@@ -113,7 +113,13 @@
     "loadingOlder": "加载更多消息...",
     "noMoreMessages": "没有更多消息了",
     "you": "你",
-    "regenerateMessage": "重新生成回复"
+    "regenerateMessage": "重新生成回复",
+    "welcomeTitle": "开始新对话",
+    "welcomeSubtitle": "选择一个角色开始聊天",
+    "searchCharacters": "搜索角色...",
+    "recentCharacters": "最近角色",
+    "browseMarket": "浏览市场",
+    "createCharacter": "创建角色"
   },
   "market": {
     "title": "角色市场",

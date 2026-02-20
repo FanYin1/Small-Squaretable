@@ -113,7 +113,13 @@
     "loadingOlder": "Loading older messages...",
     "noMoreMessages": "No more messages",
     "you": "You",
-    "regenerateMessage": "Regenerate response"
+    "regenerateMessage": "Regenerate response",
+    "welcomeTitle": "Start a new conversation",
+    "welcomeSubtitle": "Choose a character to chat with",
+    "searchCharacters": "Search characters...",
+    "recentCharacters": "Recent Characters",
+    "browseMarket": "Browse Market",
+    "createCharacter": "Create Character"
   },
   "market": {
     "title": "Character Market",
