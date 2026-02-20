@@ -59,6 +59,11 @@ export class KafkaBridgeService {
     return TOPICS.SYSTEM;
   }
 
+  async disconnect(): Promise<void> {
+    this.eventBus.off('*', this.handleEvent.bind(this) as WildcardHandler);
+    kafkaLogger.info('Kafka bridge disconnected');
+  }
+
   private extractKey(event: string, payload: Record<string, unknown>): string | undefined {
     if (payload.userId) return String(payload.userId);
     if (payload.chatId) return String(payload.chatId);

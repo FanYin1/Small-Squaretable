@@ -50,6 +50,7 @@ export function apiKeyAuthMiddleware() {
       email: user.email,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      role: user.role,
     });
     c.set('tenantId', tenantId);
     c.set('apiKeyScopes', scopes);

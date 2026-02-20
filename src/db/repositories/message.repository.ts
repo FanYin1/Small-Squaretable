@@ -20,7 +20,7 @@ export class MessageRepository extends BaseRepository {
       conditions.push(gt(messages.id, pagination.after));
     }
 
-    let query = this.db.select().from(messages).where(and(...conditions));
+    let query = this.db.select().from(messages).where(and(...conditions)).$dynamic();
 
     if (pagination) {
       query = query.limit(pagination.limit);
