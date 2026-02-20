@@ -2,24 +2,24 @@
   <div class="chat-window">
     <div class="chat-header" v-if="currentChat">
       <div class="chat-info">
-        <el-avatar :size="40" :src="currentChat.characterAvatar">
-          {{ currentChat.characterName[0] }}
-        </el-avatar>
         <div class="chat-details">
-          <h3 class="chat-title">{{ currentChat.title || currentChat.characterName }}</h3>
-          <span class="chat-subtitle">{{ currentChat.characterName }}</span>
+          <h3 class="chat-title">{{ currentChat.characterName }}</h3>
+          <span class="chat-subtitle">{{ emotionEmoji }} {{ intelligenceStore.emotionLabel }}</span>
         </div>
       </div>
       <div class="chat-actions">
-        <el-tooltip :content="t('chat.intelligence')" placement="bottom">
+        <el-tooltip :content="t('chat.memory')" placement="bottom">
+          <el-button
+            size="small"
+            @click="openIntelligenceTab('memory')"
+          >{{ t('chat.memory') }}</el-button>
+        </el-tooltip>
+        <el-tooltip :content="t('chat.debug')" placement="bottom">
           <el-badge :value="intelligenceStore.debugEventCount" :hidden="intelligenceStore.debugEventCount === 0" :max="99">
             <el-button
-              :type="showIntelligenceDrawer ? 'primary' : 'default'"
-              :icon="DataAnalysis"
-              circle
               size="small"
-              @click="toggleIntelligenceDrawer"
-            />
+              @click="openIntelligenceTab('debug')"
+            >{{ t('chat.debug') }}</el-button>
           </el-badge>
         </el-tooltip>
         <el-dropdown trigger="click" @command="handleMenuCommand">
@@ -57,7 +57,7 @@
       <div v-else-if="messages.length === 0 && currentGreeting" class="greeting-container">
         <div class="message-bubble message-assistant">
           <div class="message-content">
-            <div class="markdown-content" v-html="renderedGreeting"></div>
+            <MarkdownRenderer :content="currentGreeting" />
           </div>
         </div>
         <div v-if="hasAlternateGreetings" class="greeting-swipe">
@@ -106,7 +106,7 @@
         <!-- Streaming message -->
         <div v-if="isStreaming" class="message-bubble message-assistant streaming">
           <div class="message-content">
-            <div class="markdown-content" v-html="renderedStreamingContent"></div>
+            <MarkdownRenderer :content="streamingMessage" />
             <span class="typing-cursor">|</span>
           </div>
         </div>
@@ -165,9 +165,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessageBox } from 'element-plus';
-import { More, DataAnalysis, Loading } from '@element-plus/icons-vue';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { More, Loading } from '@element-plus/icons-vue';
 import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
 import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
@@ -176,6 +174,7 @@ import MessageBubble from './MessageBubble.vue';
 import MessageInput from './MessageInput.vue';
 import ScrollToBottom from './ScrollToBottom.vue';
 import DateDivider from './DateDivider.vue';
+import MarkdownRenderer from './MarkdownRenderer.vue';
 import EmotionIndicator from '@client/components/EmotionIndicator.vue';
 import MemoryPanel from '@client/components/MemoryPanel.vue';
 import IntelligenceDebugPanel from '@client/components/debug/IntelligenceDebugPanel.vue';
@@ -232,6 +231,15 @@ const loadOlderMessages = async () => {
 const showIntelligenceDrawer = ref(false);
 const activeIntelligenceTab = ref('emotion');
 
+// Emotion emoji mapping
+const EMOTION_EMOJI: Record<string, string> = {
+  excited: '🤩', happy: '😊', loving: '🥰', calm: '😌',
+  curious: '🤔', surprised: '😮', confused: '😕', bored: '😐',
+  sad: '😢', fearful: '😨', angry: '😠', disgusted: '🤢', neutral: '😶',
+};
+
+const emotionEmoji = computed(() => EMOTION_EMOJI[intelligenceStore.emotionLabel] ?? '😶');
+
 const messages = computed(() => chatStore.messages);
 const loading = computed(() => chatStore.loading);
 const sending = computed(() => chatStore.sending);
@@ -265,11 +273,6 @@ const currentGreeting = computed(() => {
   return allGreetings.value[idx] || '';
 });
 
-const renderedGreeting = computed(() => {
-  if (!currentGreeting.value) return '';
-  return DOMPurify.sanitize(marked.parse(currentGreeting.value) as string);
-});
-
 const prevGreeting = () => {
   if (greetingIndex.value > 0) {
     greetingIndex.value--;
@@ -281,16 +284,6 @@ const nextGreeting = () => {
     greetingIndex.value++;
   }
 };
-
-// Configure marked
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-});
-
-const renderedStreamingContent = computed(() => {
-  return DOMPurify.sanitize(marked.parse(streamingMessage.value) as string);
-});
 
 const getDateLabel = (dateStr: string): string => {
   const date = new Date(dateStr);
@@ -402,11 +395,10 @@ const handleRegenerateMessage = async (messageId: string) => {
   }
 };
 
-const toggleIntelligenceDrawer = () => {
-  showIntelligenceDrawer.value = !showIntelligenceDrawer.value;
-  if (showIntelligenceDrawer.value) {
-    intelligenceStore.resetDebugEventCount();
-  }
+const openIntelligenceTab = (tab: string) => {
+  activeIntelligenceTab.value = tab;
+  showIntelligenceDrawer.value = true;
+  intelligenceStore.resetDebugEventCount();
 };
 
 // Watch for chat changes to fetch intelligence data

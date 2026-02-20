@@ -32,6 +32,7 @@ describe('ChatWindow', () => {
           'el-skeleton': true,
           'MessageBubble': true,
           'MessageInput': true,
+          'MarkdownRenderer': true,
         },
       },
     });
@@ -51,12 +52,13 @@ describe('ChatWindow', () => {
           'el-skeleton': true,
           'MessageBubble': true,
           'MessageInput': true,
+          'MarkdownRenderer': true,
         },
       },
     });
 
-    expect(wrapper.find('.chat-title').text()).toBe('Test Chat');
-    expect(wrapper.find('.chat-subtitle').text()).toBe('Test Character');
+    expect(wrapper.find('.chat-title').text()).toBe('Test Character');
+    expect(wrapper.find('.chat-subtitle').exists()).toBe(true);
   });
 
   it('has messages container', () => {
@@ -71,6 +73,7 @@ describe('ChatWindow', () => {
           'el-skeleton': true,
           'MessageBubble': true,
           'MessageInput': true,
+          'MarkdownRenderer': true,
         },
       },
     });
@@ -90,6 +93,7 @@ describe('ChatWindow', () => {
           'el-skeleton': true,
           'MessageBubble': true,
           'MessageInput': true,
+          'MarkdownRenderer': true,
         },
       },
     });
