@@ -2,7 +2,7 @@
 
 **项目**: SillyTavern SaaS 转换
 **版本**: 0.1.0
-**最后更新**: 2026-02-20
+**最后更新**: 2026-02-21
 
 ---
 
@@ -29,9 +29,10 @@ Phase 7: 生产部署          ████████████████�
 迭代 11: 测试补全              ████████████████████ 100% ✅
 迭代 12: 依赖升级              ████████████████████ 100% ✅
 迭代 13: Chat-Centric UI        ████████████████████ 100% ✅
+迭代 14: i18n 修复 + 前端测试     ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 13 完成
+**整体完成度**: 迭代 14 完成
 
 ---
 
@@ -219,6 +220,31 @@ Phase 7: 生产部署          ████████████████�
   - 修复 chat.spec.ts 和 intelligence.spec.ts 中 28 个条件跳过
 - **新增**: 75 个单元测试 (1337 → 1412), 4 个新 spec 文件, 4 个新路由 spec 文件
 
+### 迭代 14: i18n 修复 + 前端测试覆盖 ✅ (2026-02-21)
+
+#### Part A: i18n 修复
+- ✅ **WelcomePage 键**: 添加 6 个缺失的 `chat.welcome*` 键到 en-US.json 和 zh-CN.json
+- ✅ **ChatSidebar i18n**: 替换底部导航中 15 个硬编码英文字符串为 `t()` 调用，添加 `nav.security/account/analytics/admin/user` 和 `chat.sidebar.collapse/expand` 键
+
+#### Part B: Store 测试 (6 个 Store)
+- developer.spec.ts: 12 tests — API key CRUD, scopes, activeKeyCount getter
+- notification.spec.ts: 18 tests — fetch, mark read, delete, WebSocket handlers
+- plugin.spec.ts: 17 tests — marketplace, install/uninstall, config, toggle
+- admin.spec.ts: 21 tests — users, roles, suspend, reports, stats, audit logs, $reset
+- analytics.spec.ts: 20 tests — overview, retention, funnel, realtime, segments, fetchAll
+- characterIntelligence.spec.ts: 26 tests — memories, emotion, debug handlers, WebSocket
+
+#### Part C: Composable 测试 (9 个 Composable)
+- useDeviceSync.spec.ts: 2 tests — stub validation
+- useDateTime.spec.ts: 7 tests — relative time formatting
+- useLoading.spec.ts: 7 tests — loading state, auto-timeout
+- useUpgradePrompt.spec.ts: 4 tests — show/hide, resource types
+- useToast.spec.ts: 6 tests — success/error/warning/info, custom options
+- useLocale.spec.ts: 4 tests — locale switching, localStorage persistence
+- useCharacters.spec.ts: 11 tests — store delegation
+- useCharacterSearch.spec.ts: 9 tests — search params, filters, pagination
+- useFeatureGate.spec.ts: 21 tests — plan features, limits, upgrade messages
+
 ### 迭代 13: Chat-Centric UI Redesign (2026-02-20) ✅
 
 #### 目标
@@ -364,7 +390,7 @@ Phase 7: 生产部署          ████████████████�
 
 | 指标 | 数值 |
 |------|------|
-| 单元测试 | 1415 通过, 0 失败 (17 跳过) |
+| 单元测试 | 1600 通过, 0 失败 (17 跳过) |
 | E2E 测试 | 130/142 通过 (含 5 个技术债务+推荐) |
 | i18n 覆盖 | 86 Vue 文件 100% 覆盖, ~490 locale 键 (en-US + zh-CN) |
 | 结构化日志 | 57+ console.* 替换为 pino child loggers |
@@ -397,5 +423,6 @@ Phase 7: 生产部署          ████████████████�
 2026-02-20  迭代 10 完成 (安全审计: 10 项漏洞修复 — 1 Critical + 5 High + 4 Medium)
 2026-02-20  迭代 11 完成 (测试补全: +75 单元测试, 4 服务 + 4 路由 + E2E 修复)
 2026-02-20  迭代 12 完成 (依赖升级: 漏洞 66→23, 6 主要版本升级, vite 7 + vitest 4)
-2026-02-20  迭代 13 完成 (Chat-Centric UI Redesign: ChatLayout + MarkdownRenderer + WelcomePage) ← 当前
+2026-02-20  迭代 13 完成 (Chat-Centric UI Redesign: ChatLayout + MarkdownRenderer + WelcomePage)
+2026-02-21  迭代 14 完成 (i18n 修复 + 前端测试覆盖: +185 单元测试, 6 Store + 9 Composable) ← 当前
 ```

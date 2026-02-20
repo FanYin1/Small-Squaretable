@@ -7,8 +7,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 13 Complete (Chat-Centric UI Redesign)
-**Last Updated**: 2026-02-20
+**Status**: Iteration 14 Complete (i18n Fixes + Frontend Test Coverage)
+**Last Updated**: 2026-02-21
 
 ---
 
@@ -387,6 +387,20 @@ npm run build            # Production build
 
 ---
 
+## Iteration 14: i18n Fixes + Frontend Test Coverage (2026-02-21) ✅
+
+### i18n Fixes
+- **WelcomePage**: Added 6 missing `chat.welcome*` keys (en-US + zh-CN)
+- **ChatSidebar**: Replaced 15 hardcoded strings in bottom nav with `t()` calls
+
+### Store Tests (6 stores, ~114 tests)
+- developer, notification, plugin, admin, analytics, characterIntelligence
+
+### Composable Tests (9 composables, ~71 tests)
+- useDeviceSync, useDateTime, useLoading, useUpgradePrompt, useToast, useLocale, useCharacters, useCharacterSearch, useFeatureGate
+
+---
+
 ## Iteration 13: Chat-Centric UI Redesign (2026-02-20) ✅
 
 ### New Layout
@@ -761,7 +775,7 @@ Full request/response schemas with property definitions for all new endpoints.
 ### Testing
 - Unit tests: `*.spec.ts` files alongside source
 - E2E tests: `e2e/` directory
-- Unit tests: 1415 passing, 0 failures (17 skipped)
+- Unit tests: 1600 passing, 0 failures (17 skipped)
 - E2E tests: 107/119 passed (90%), 8 flaky, 4 skipped
 
 ### Security
