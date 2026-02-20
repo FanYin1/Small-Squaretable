@@ -10,6 +10,10 @@ import { createPinia, setActivePinia } from 'pinia';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import Register from './Register.vue';
 import { useUserStore } from '@client/stores/user';
+import i18n from '../../i18n';
+
+// Set locale to zh-CN for tests
+i18n.global.locale.value = 'zh-CN';
 
 
 // Mock useToast composable
@@ -79,6 +83,8 @@ describe('Register Page', () => {
         { path: '/', name: 'Home', component: { template: '<div>Home</div>' } },
         { path: '/auth/login', name: 'Login', component: { template: '<div>Login</div>' } },
         { path: '/auth/register', name: 'Register', component: Register },
+        { path: '/terms', name: 'Terms', component: { template: '<div>Terms</div>' } },
+        { path: '/privacy', name: 'Privacy', component: { template: '<div>Privacy</div>' } },
       ],
     });
 
@@ -96,7 +102,7 @@ describe('Register Page', () => {
   const createWrapper = () => {
     return mount(Register, {
       global: {
-        plugins: [router],
+        plugins: [router, i18n],
         stubs: elementPlusStubs,
       },
     });
@@ -306,7 +312,7 @@ describe('Register Page', () => {
       // Create a wrapper with form validation that fails
       const wrapper = mount(Register, {
         global: {
-          plugins: [router],
+          plugins: [router, i18n],
           stubs: {
             ...elementPlusStubs,
             'el-form': {

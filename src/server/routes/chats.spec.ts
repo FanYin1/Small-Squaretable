@@ -11,6 +11,18 @@ import { NotFoundError } from '../../core/errors';
 
 vi.mock('../services/chat.service');
 
+vi.mock('../../db/repositories/chat.repository', () => ({
+  chatRepository: {
+    findById: vi.fn(),
+  },
+}));
+
+vi.mock('../services/event-bus.service', () => ({
+  eventBus: {
+    emit: vi.fn(),
+  },
+}));
+
 vi.mock('../../core/jwt', () => ({
   verifyAccessToken: vi.fn(),
   extractTokenFromHeader: vi.fn((header) => {
@@ -371,6 +383,7 @@ describe('Chat Routes', () => {
       const { userRepository } = await import('../../db/repositories/user.repository');
       const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
       const { usageService } = await import('../services/usage.service');
+      const { chatRepository } = await import('../../db/repositories/chat.repository');
 
       const messageData = {
         role: 'user',
@@ -415,6 +428,11 @@ describe('Chat Routes', () => {
         limit: 100,
         remaining: 50,
       });
+      vi.mocked(chatRepository.findById).mockResolvedValue({
+        id: 'chat-123',
+        userId: 'user-123',
+        tenantId: 'tenant-123',
+      } as any);
       vi.mocked(chatService.addMessage).mockResolvedValue(mockMessage as any);
 
       const res = await app.request('/api/v1/chats/chat-123/messages', {
@@ -487,6 +505,7 @@ describe('Chat Routes', () => {
     it('should return messages for chat', async () => {
       const { verifyAccessToken } = await import('../../core/jwt');
       const { userRepository } = await import('../../db/repositories/user.repository');
+      const { chatRepository } = await import('../../db/repositories/chat.repository');
 
       const mockMessages = [
         {
@@ -515,6 +534,11 @@ describe('Chat Routes', () => {
         tenantId: 'tenant-123',
         email: 'test@example.com',
         isActive: true,
+      } as any);
+      vi.mocked(chatRepository.findById).mockResolvedValue({
+        id: 'chat-123',
+        userId: 'user-123',
+        tenantId: 'tenant-123',
       } as any);
       vi.mocked(chatService.getMessages).mockResolvedValue(mockMessages as any);
 
@@ -594,6 +618,7 @@ describe('Chat Routes', () => {
         const { userRepository } = await import('../../db/repositories/user.repository');
         const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
         const { usageService } = await import('../services/usage.service');
+        const { chatRepository } = await import('../../db/repositories/chat.repository');
 
         const messageData = {
           role: 'user',
@@ -638,6 +663,11 @@ describe('Chat Routes', () => {
           limit: 100,
           remaining: 50,
         });
+        vi.mocked(chatRepository.findById).mockResolvedValue({
+          id: 'chat-123',
+          userId: 'user-123',
+          tenantId: 'tenant-123',
+        } as any);
         vi.mocked(chatService.addMessage).mockResolvedValue(mockMessage as any);
 
         const res = await app.request('/api/v1/chats/chat-123/messages', {
@@ -659,6 +689,7 @@ describe('Chat Routes', () => {
         const { userRepository } = await import('../../db/repositories/user.repository');
         const { subscriptionRepository } = await import('../../db/repositories/subscription.repository');
         const { usageService } = await import('../services/usage.service');
+        const { chatRepository } = await import('../../db/repositories/chat.repository');
 
         const messageData = {
           role: 'user',
@@ -703,6 +734,11 @@ describe('Chat Routes', () => {
           limit: 10000,
           remaining: 5000,
         });
+        vi.mocked(chatRepository.findById).mockResolvedValue({
+          id: 'chat-123',
+          userId: 'user-123',
+          tenantId: 'tenant-123',
+        } as any);
         vi.mocked(chatService.addMessage).mockResolvedValue(mockMessage as any);
 
         const res = await app.request('/api/v1/chats/chat-123/messages', {

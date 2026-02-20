@@ -18,6 +18,16 @@ vi.mock('@client/services', () => ({
     getMessages: vi.fn(),
     sendMessage: vi.fn(),
   },
+  llmApi: {
+    streamChatCompletion: vi.fn().mockImplementation((_params: any, _onChunk: any, onDone: any) => {
+      // Immediately call onDone to simulate completion
+      if (onDone) onDone();
+      return Promise.resolve();
+    }),
+  },
+  characterApi: {
+    getCharacter: vi.fn(),
+  },
   ApiError: class ApiError extends Error {
     constructor(
       public status: number,

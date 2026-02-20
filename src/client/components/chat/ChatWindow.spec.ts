@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import ChatWindow from './ChatWindow.vue';
 import type { Chat } from '@client/types';
+import i18n from '../../i18n';
 
 describe('ChatWindow', () => {
   let mockChat: Chat;
@@ -23,6 +24,7 @@ describe('ChatWindow', () => {
     const wrapper = mount(ChatWindow, {
       props: { currentChat: mockChat },
       global: {
+        plugins: [i18n],
         stubs: {
           'el-avatar': true,
           'el-button': true,
@@ -41,6 +43,7 @@ describe('ChatWindow', () => {
     const wrapper = mount(ChatWindow, {
       props: { currentChat: mockChat },
       global: {
+        plugins: [i18n],
         stubs: {
           'el-avatar': true,
           'el-button': true,
@@ -60,6 +63,7 @@ describe('ChatWindow', () => {
     const wrapper = mount(ChatWindow, {
       props: { currentChat: mockChat },
       global: {
+        plugins: [i18n],
         stubs: {
           'el-avatar': true,
           'el-button': true,
@@ -78,6 +82,7 @@ describe('ChatWindow', () => {
     const wrapper = mount(ChatWindow, {
       props: { currentChat: mockChat },
       global: {
+        plugins: [i18n],
         stubs: {
           'el-avatar': true,
           'el-button': true,

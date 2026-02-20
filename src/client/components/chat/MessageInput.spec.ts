@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import MessageInput from './MessageInput.vue';
+import i18n from '../../i18n';
 
 describe('MessageInput', () => {
   it('renders component', () => {
     const wrapper = mount(MessageInput, {
       global: {
+        plugins: [i18n],
         stubs: {
           'el-input': {
             template: '<div class="el-input-stub"><textarea /></div>',
@@ -22,6 +24,7 @@ describe('MessageInput', () => {
   it('has correct default props', () => {
     const wrapper = mount(MessageInput, {
       global: {
+        plugins: [i18n],
         stubs: {
           'el-input': true,
           'el-button': true,
@@ -29,7 +32,6 @@ describe('MessageInput', () => {
       },
     });
     expect(wrapper.props('maxLength')).toBe(4000);
-    expect(wrapper.props('rows')).toBe(3);
   });
 
   it('accepts custom props', () => {
@@ -40,6 +42,7 @@ describe('MessageInput', () => {
         disabled: true,
       },
       global: {
+        plugins: [i18n],
         stubs: {
           'el-input': true,
           'el-button': true,

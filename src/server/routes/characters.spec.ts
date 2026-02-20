@@ -11,6 +11,29 @@ import { NotFoundError, ForbiddenError } from '../../core/errors';
 
 vi.mock('../services/character.service');
 
+vi.mock('../services/cache.service', () => ({
+  cacheService: {
+    get: vi.fn(),
+    set: vi.fn(),
+    delete: vi.fn(),
+    deletePattern: vi.fn(),
+    invalidateCharacter: vi.fn(),
+    invalidateMarketplace: vi.fn(),
+    getCachedCharacter: vi.fn().mockResolvedValue(null),
+    setCachedCharacter: vi.fn(),
+    getCachedMarketplace: vi.fn().mockResolvedValue(null),
+    setCachedMarketplace: vi.fn(),
+    getCachedSearch: vi.fn().mockResolvedValue(null),
+    setCachedSearch: vi.fn(),
+  },
+}));
+
+vi.mock('../services/event-bus.service', () => ({
+  eventBus: {
+    emit: vi.fn(),
+  },
+}));
+
 vi.mock('../../core/jwt', () => ({
   verifyAccessToken: vi.fn(),
   extractTokenFromHeader: vi.fn((header) => {

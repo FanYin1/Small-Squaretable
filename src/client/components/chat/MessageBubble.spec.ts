@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import MessageBubble from './MessageBubble.vue';
 import type { Message } from '@client/types';
+import i18n from '../../i18n';
 
 describe('MessageBubble', () => {
   const createMessage = (role: 'user' | 'assistant' = 'user'): Message => ({
@@ -16,6 +17,7 @@ describe('MessageBubble', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage() },
       global: {
+        plugins: [i18n],
         stubs: {
           'el-button': true,
         },
@@ -29,6 +31,7 @@ describe('MessageBubble', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage('user') },
       global: {
+        plugins: [i18n],
         stubs: {
           'el-button': true,
         },
@@ -43,6 +46,7 @@ describe('MessageBubble', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage('assistant') },
       global: {
+        plugins: [i18n],
         stubs: {
           'el-button': true,
         },
@@ -56,6 +60,7 @@ describe('MessageBubble', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage() },
       global: {
+        plugins: [i18n],
         stubs: {
           'el-button': true,
         },

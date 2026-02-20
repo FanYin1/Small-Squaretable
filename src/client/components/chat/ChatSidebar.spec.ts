@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import ChatSidebar from './ChatSidebar.vue';
+import i18n from '../../i18n';
 
 vi.mock('element-plus', () => ({
   ElMessageBox: {
@@ -22,6 +23,7 @@ describe('ChatSidebar', () => {
   it('renders component', () => {
     const wrapper = mount(ChatSidebar, {
       global: {
+        plugins: [i18n],
         stubs: {
           'el-button': true,
           'el-input': true,
@@ -40,6 +42,7 @@ describe('ChatSidebar', () => {
   it('renders sidebar header', () => {
     const wrapper = mount(ChatSidebar, {
       global: {
+        plugins: [i18n],
         stubs: {
           'el-button': true,
           'el-input': true,
@@ -58,6 +61,7 @@ describe('ChatSidebar', () => {
   it('has search input', () => {
     const wrapper = mount(ChatSidebar, {
       global: {
+        plugins: [i18n],
         stubs: {
           'el-button': true,
           'el-input': true,

@@ -48,6 +48,12 @@ describe('WebSocketClient', () => {
     // Mock global WebSocket
     global.WebSocket = MockWebSocket as any;
     mockWs = new MockWebSocket('ws://localhost:3000/ws');
+
+    // Mock fetch for ticket-based auth
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { ticket: 'mock-ticket' } }),
+    }) as any;
   });
 
   afterEach(() => {
@@ -90,24 +96,21 @@ describe('WebSocketClient', () => {
     });
 
     it('should handle connection error', async () => {
+      // Mock fetch to fail so the error path is triggered
+      global.fetch = vi.fn().mockRejectedValue(new Error('Network error')) as any;
+
       wsClient = new WebSocketClient({
         url: 'ws://localhost:3000/ws',
         token: 'test-token',
-      });
-
-      const errorPromise = new Promise<void>((resolve) => {
-        wsClient.on('error', () => resolve());
+        maxReconnectAttempts: 0,
       });
 
       wsClient.connect();
 
-      // Simulate error
-      const ws = (wsClient as any).ws;
-      if (ws && ws.onerror) {
-        ws.onerror(new Event('error'));
-      }
+      // Wait for the async fetch to fail and state to update
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      await errorPromise;
+      expect(wsClient.getState()).toBe(WSConnectionState.ERROR);
     });
   });
 

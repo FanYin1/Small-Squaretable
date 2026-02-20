@@ -18,6 +18,7 @@ vi.mock('../../../db/repositories/memory.repository', () => ({
     findByCharacterAndUser: vi.fn(),
     hybridSearch: vi.fn(),
     updateAccessTime: vi.fn(),
+    updateAccessTimeBatch: vi.fn(),
     delete: vi.fn(),
     deleteAllForCharacterUser: vi.fn(),
     countByCharacterUser: vi.fn(),
@@ -106,10 +107,9 @@ describe('Intelligence Integration', () => {
         limit: 5,
       });
 
-      // Verify access times were updated
-      expect(memoryRepository.updateAccessTime).toHaveBeenCalledTimes(2);
-      expect(memoryRepository.updateAccessTime).toHaveBeenCalledWith('mem-1');
-      expect(memoryRepository.updateAccessTime).toHaveBeenCalledWith('mem-2');
+      // Verify access times were updated (batch)
+      expect(memoryRepository.updateAccessTimeBatch).toHaveBeenCalledTimes(1);
+      expect(memoryRepository.updateAccessTimeBatch).toHaveBeenCalledWith(['mem-1', 'mem-2']);
 
       // Verify result
       expect(result).toHaveLength(2);
@@ -294,13 +294,14 @@ describe('Intelligence Integration', () => {
         },
       };
 
-      const prompt = await chatService.buildEnhancedSystemPrompt({
+      const result = await chatService.buildEnhancedSystemPrompt({
         character: mockCharacter as any,
         characterId: 'char-1',
         userId: 'user-1',
         chatId: 'chat-1',
         userMessage: 'Help me with TypeScript',
       });
+      const prompt = result.systemPrompt;
 
       // Verify prompt contains character info
       expect(prompt).toContain('Assistant');
@@ -329,13 +330,14 @@ describe('Intelligence Integration', () => {
         cardData: {},
       };
 
-      const prompt = await chatService.buildEnhancedSystemPrompt({
+      const result = await chatService.buildEnhancedSystemPrompt({
         character: mockCharacter as any,
         characterId: 'char-1',
         userId: 'user-1',
         chatId: 'chat-1',
         userMessage: 'Hello',
       });
+      const prompt = result.systemPrompt;
 
       // Should still have character info
       expect(prompt).toContain('Assistant');
@@ -360,7 +362,7 @@ describe('Intelligence Integration', () => {
         },
       };
 
-      const prompt = await chatService.buildEnhancedSystemPrompt({
+      const result = await chatService.buildEnhancedSystemPrompt({
         character: mockCharacter as any,
         characterId: 'char-1',
         userId: 'user-1',
@@ -368,7 +370,7 @@ describe('Intelligence Integration', () => {
         userMessage: 'Hello',
       });
 
-      expect(prompt).toContain('Always respond in a formal manner.');
+      expect(result.systemPrompt).toContain('Always respond in a formal manner.');
     });
 
     it('should categorize memories by type in prompt', async () => {
@@ -387,13 +389,14 @@ describe('Intelligence Integration', () => {
         cardData: {},
       };
 
-      const prompt = await chatService.buildEnhancedSystemPrompt({
+      const result = await chatService.buildEnhancedSystemPrompt({
         character: mockCharacter as any,
         characterId: 'char-1',
         userId: 'user-1',
         chatId: 'chat-1',
         userMessage: 'Tell me about myself',
       });
+      const prompt = result.systemPrompt;
 
       // Verify memory categories are present
       expect(prompt).toContain('【事实】');
@@ -486,21 +489,21 @@ describe('Intelligence Integration', () => {
         { id: 2, role: 'assistant', content: 'Hi!', chatId, sentAt: new Date() },
       ];
 
-      // Trigger first extraction (10 messages)
-      for (let i = 0; i < 10; i++) {
+      // Trigger first extraction (5 messages - threshold changed from 10 to 5)
+      for (let i = 0; i < 5; i++) {
         await chatService.checkAndExtractMemories(chatId, characterId, userId, messages as any);
       }
 
       expect(llmService.chatCompletion).toHaveBeenCalledTimes(1);
 
-      // Next 9 messages should not trigger extraction
-      for (let i = 0; i < 9; i++) {
+      // Next 4 messages should not trigger extraction
+      for (let i = 0; i < 4; i++) {
         await chatService.checkAndExtractMemories(chatId, characterId, userId, messages as any);
       }
 
       expect(llmService.chatCompletion).toHaveBeenCalledTimes(1);
 
-      // 10th message after reset should trigger again
+      // 5th message after reset should trigger again
       await chatService.checkAndExtractMemories(chatId, characterId, userId, messages as any);
 
       expect(llmService.chatCompletion).toHaveBeenCalledTimes(2);
@@ -575,13 +578,14 @@ describe('Intelligence Integration', () => {
         cardData: {},
       };
 
-      const prompt = await chatService.buildEnhancedSystemPrompt({
+      const result = await chatService.buildEnhancedSystemPrompt({
         character: mockCharacter as any,
         characterId: 'char-1',
         userId: 'user-1',
         chatId: 'chat-1',
         userMessage: 'Tell me about hiking trails',
       });
+      const prompt = result.systemPrompt;
 
       // Verify the prompt integrates all components
       expect(prompt).toContain('HikingBuddy');
