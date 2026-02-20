@@ -2,14 +2,23 @@
   <div class="chat-sidebar">
     <div class="sidebar-header">
       <h2 class="sidebar-title">{{ t('chat.title') }}</h2>
-      <el-button
-        type="primary"
-        :icon="Plus"
-        @click="handleNewChat"
-        size="small"
-      >
-        {{ t('chat.newChat') }}
-      </el-button>
+      <div class="sidebar-header-actions">
+        <el-tooltip :content="t('chat.newChat')" placement="bottom">
+          <el-button
+            type="primary"
+            :icon="Plus"
+            @click="handleNewChat"
+            size="small"
+          >
+            {{ t('chat.newChat') }}
+          </el-button>
+        </el-tooltip>
+        <el-tooltip content="Collapse" placement="bottom">
+          <button class="collapse-btn" @click="emit('toggle-collapse')">
+            <el-icon><Fold /></el-icon>
+          </button>
+        </el-tooltip>
+      </div>
     </div>
 
     <div class="sidebar-search">
@@ -86,15 +95,55 @@
         </div>
       </div>
     </div>
+
+    <div class="sidebar-footer">
+      <el-tooltip content="Market" placement="top">
+        <button class="footer-btn" @click="router.push({ name: 'Market' })">
+          <el-icon><Shop /></el-icon>
+        </button>
+      </el-tooltip>
+      <el-tooltip content="My Characters" placement="top">
+        <button class="footer-btn" @click="router.push({ name: 'MyCharacters' })">
+          <el-icon><User /></el-icon>
+        </button>
+      </el-tooltip>
+      <el-tooltip content="Settings" placement="top">
+        <button class="footer-btn" @click="router.push({ name: 'Profile' })">
+          <el-icon><Setting /></el-icon>
+        </button>
+      </el-tooltip>
+      <el-dropdown trigger="click" @command="handleUserMenuCommand">
+        <el-tooltip content="User" placement="top">
+          <button class="footer-btn">
+            <el-icon><UserFilled /></el-icon>
+          </button>
+        </el-tooltip>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="Profile">Profile</el-dropdown-item>
+            <el-dropdown-item command="SecuritySettings">Security</el-dropdown-item>
+            <el-dropdown-item command="AccountSettings">Account</el-dropdown-item>
+            <el-dropdown-item command="Subscription">Subscription</el-dropdown-item>
+            <el-dropdown-item command="PluginMarketplace">Plugins</el-dropdown-item>
+            <el-dropdown-item command="DeveloperSettings">Developer</el-dropdown-item>
+            <el-dropdown-item command="Analytics">Analytics</el-dropdown-item>
+            <el-dropdown-item v-if="isAdminOrMod" command="AdminUsers">Admin</el-dropdown-item>
+            <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Plus, Search, More, Edit, Delete } from '@element-plus/icons-vue';
+import { useRouter } from 'vue-router';
+import { Plus, Search, More, Edit, Delete, Shop, Setting, UserFilled, User, Fold } from '@element-plus/icons-vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { useChatStore } from '@client/stores/chat';
+import { useUserStore } from '@client/stores/user';
 import { useDateTime } from '@client/composables';
 import { createLogger } from '@client/utils/logger';
 import type { Chat } from '@client/types';
@@ -104,18 +153,26 @@ const logger = createLogger('ChatSidebar');
 interface Emits {
   (e: 'new-chat'): void;
   (e: 'select-chat', chatId: string): void;
+  (e: 'toggle-collapse'): void;
 }
 
 const emit = defineEmits<Emits>();
 
 const { t } = useI18n();
+const router = useRouter();
 const { formatRelativeTime } = useDateTime();
 const chatStore = useChatStore();
+const userStore = useUserStore();
 const searchQuery = ref('');
 
 const chats = computed(() => chatStore.chats);
 const currentChatId = computed(() => chatStore.currentChatId);
 const loading = computed(() => chatStore.loading);
+
+const isAdminOrMod = computed(() => {
+  const role = userStore.user?.role;
+  return role === 'admin' || role === 'moderator';
+});
 
 const filteredChats = computed(() => {
   if (!searchQuery.value) {
@@ -218,6 +275,15 @@ const handleChatAction = async (command: string, chatId: string) => {
         logger.error('Failed to rename chat', error);
       }
     }
+  }
+};
+
+const handleUserMenuCommand = async (command: string) => {
+  if (command === 'logout') {
+    await userStore.logout();
+    router.push({ name: 'Login' });
+  } else {
+    router.push({ name: command });
   }
 };
 </script>
@@ -378,6 +444,59 @@ const handleChatAction = async (command: string, chatId: string) => {
   line-height: 48px;
   font-size: 16px;
   flex-shrink: 0;
+}
+
+.sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.collapse-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.collapse-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-footer {
+  border-top: 1px solid var(--border-default);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-shrink: 0;
+}
+
+.footer-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.footer-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 /* Scrollbar styling */
