@@ -20,11 +20,12 @@ describe('MessageBubble', () => {
         plugins: [i18n],
         stubs: {
           'el-button': true,
+          MarkdownRenderer: true,
         },
       },
     });
 
-    expect(wrapper.find('.message-bubble').exists()).toBe(true);
+    expect(wrapper.find('.message').exists()).toBe(true);
   });
 
   it('renders user message correctly', () => {
@@ -34,6 +35,7 @@ describe('MessageBubble', () => {
         plugins: [i18n],
         stubs: {
           'el-button': true,
+          MarkdownRenderer: true,
         },
       },
     });
@@ -49,6 +51,7 @@ describe('MessageBubble', () => {
         plugins: [i18n],
         stubs: {
           'el-button': true,
+          MarkdownRenderer: true,
         },
       },
     });
@@ -63,10 +66,11 @@ describe('MessageBubble', () => {
         plugins: [i18n],
         stubs: {
           'el-button': true,
+          MarkdownRenderer: true,
         },
       },
     });
 
-    expect(wrapper.find('.message-content').exists()).toBe(true);
+    expect(wrapper.find('.message-body').exists()).toBe(true);
   });
 });

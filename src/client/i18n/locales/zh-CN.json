@@ -111,7 +111,9 @@
     "deleteMessage": "删除消息",
     "deleteMessageConfirm": "确定要删除这条消息吗？",
     "loadingOlder": "加载更多消息...",
-    "noMoreMessages": "没有更多消息了"
+    "noMoreMessages": "没有更多消息了",
+    "you": "你",
+    "regenerateMessage": "重新生成回复"
   },
   "market": {
     "title": "角色市场",

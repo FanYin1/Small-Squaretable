@@ -111,7 +111,9 @@
     "deleteMessage": "Delete Message",
     "deleteMessageConfirm": "Are you sure you want to delete this message?",
     "loadingOlder": "Loading older messages...",
-    "noMoreMessages": "No more messages"
+    "noMoreMessages": "No more messages",
+    "you": "You",
+    "regenerateMessage": "Regenerate response"
   },
   "market": {
     "title": "Character Market",

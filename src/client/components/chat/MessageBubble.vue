@@ -1,82 +1,72 @@
 <template>
-  <div :class="['message-bubble', `message-${message.role}`]">
-    <el-avatar
-      v-if="message.role === 'assistant'"
-      :size="32"
-      :src="characterAvatar"
-      class="message-avatar"
-    >
-      {{ avatarFallback(characterName) }}
-    </el-avatar>
-    <div class="message-body">
-      <div class="message-content">
-        <template v-if="editing && message.role === 'user'">
-          <div class="edit-container">
-            <el-input
-              v-model="editContent"
-              type="textarea"
-              :autosize="{ minRows: 1, maxRows: 8 }"
-              @keydown.enter.ctrl="saveEdit"
-              @keydown.escape="cancelEdit"
-            />
-            <div class="edit-actions">
-              <el-button size="small" @click="cancelEdit">{{ t('common.cancel') }}</el-button>
-              <el-button size="small" type="primary" @click="saveEdit">{{ t('common.save') }}</el-button>
-            </div>
-          </div>
+  <div :class="['message', `message-${message.role}`]">
+    <div class="message-inner">
+      <div class="message-header">
+        <template v-if="message.role === 'assistant'">
+          <el-avatar :size="36" :src="characterAvatar">
+            {{ characterName?.[0]?.toUpperCase() || '?' }}
+          </el-avatar>
+          <span class="message-author">{{ characterName }}</span>
+          <span v-if="(message as any).emotion" class="emotion-tag">{{ (message as any).emotion }}</span>
         </template>
         <template v-else>
-          <div v-if="message.role === 'assistant'" class="markdown-content" v-html="renderedContent"></div>
-          <div v-else class="text-content">{{ message.content }}</div>
+          <span class="message-author">{{ t('chat.you') || 'You' }}</span>
         </template>
-        <MessageImage :attachments="message.attachments" />
       </div>
-      <div class="message-footer">
+      <div class="message-body">
+        <template v-if="message.role === 'assistant'">
+          <MarkdownRenderer :content="message.content" />
+        </template>
+        <template v-else>
+          <template v-if="editing">
+            <div class="edit-container">
+              <el-input
+                v-model="editContent"
+                type="textarea"
+                :autosize="{ minRows: 1, maxRows: 8 }"
+                @keydown.enter.ctrl="saveEdit"
+                @keydown.escape="cancelEdit"
+              />
+              <div class="edit-actions">
+                <el-button size="small" @click="cancelEdit">{{ t('common.cancel') }}</el-button>
+                <el-button size="small" type="primary" @click="saveEdit">{{ t('common.save') }}</el-button>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div class="user-text">{{ message.content }}</div>
+          </template>
+        </template>
+      </div>
+      <div class="message-actions">
+        <template v-if="message.role === 'assistant'">
+          <button class="action-btn" @click="copyMessage" :aria-label="t('chat.copyMessage') || 'Copy'">
+            {{ copied ? '✓' : 'Copy' }}
+          </button>
+          <button class="action-btn" @click="handleRegenerate" :aria-label="t('chat.regenerateMessage') || 'Regenerate'">
+            Regenerate
+          </button>
+        </template>
+        <template v-else>
+          <button class="action-btn" @click="handleEdit" :aria-label="t('chat.editMessage') || 'Edit'">
+            Edit
+          </button>
+        </template>
+        <button class="action-btn delete-btn" @click="handleDelete" :aria-label="t('chat.deleteMessage') || 'Delete'">
+          Delete
+        </button>
         <span class="message-time">{{ formattedTime }}</span>
-        <div class="message-actions">
-          <el-tooltip content="Copy" placement="top" :show-after="500">
-            <button class="action-btn" :aria-label="t('chat.copyMessage') || 'Copy message'" @click="copyMessage" v-if="message.content">
-              <el-icon :size="14"><component :is="copied ? Check : CopyDocument" /></el-icon>
-            </button>
-          </el-tooltip>
-          <el-tooltip content="Edit" placement="top" :show-after="500">
-            <button class="action-btn" :aria-label="t('chat.editMessage') || 'Edit message'" @click="handleEdit" v-if="message.role === 'user'">
-              <el-icon :size="14"><Edit /></el-icon>
-            </button>
-          </el-tooltip>
-          <el-tooltip content="Regenerate" placement="top" :show-after="500">
-            <button class="action-btn" :aria-label="t('chat.regenerateMessage') || 'Regenerate response'" @click="handleRegenerate" v-if="message.role === 'assistant'">
-              <el-icon :size="14"><RefreshRight /></el-icon>
-            </button>
-          </el-tooltip>
-          <el-tooltip content="Delete" placement="top" :show-after="500">
-            <button class="action-btn delete-btn" :aria-label="t('chat.deleteMessage') || 'Delete message'" @click="handleDelete">
-              <el-icon :size="14"><Delete /></el-icon>
-            </button>
-          </el-tooltip>
-        </div>
       </div>
     </div>
-    <el-avatar
-      v-if="message.role === 'user'"
-      :size="32"
-      :src="userAvatar"
-      class="message-avatar"
-    >
-      {{ avatarFallback(userName) }}
-    </el-avatar>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Check, CopyDocument, Edit, RefreshRight, Delete } from '@element-plus/icons-vue';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import { useDateTime } from '@client/composables';
 import { createLogger } from '@client/utils/logger';
-import MessageImage from './MessageImage.vue';
+import MarkdownRenderer from './MarkdownRenderer.vue';
 import type { Message } from '@client/types';
 
 const logger = createLogger('MessageBubble');
@@ -92,9 +82,6 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const avatarFallback = (name?: string): string => {
-  return name ? name[0].toUpperCase() : '?';
-};
 const emit = defineEmits<{
   (e: 'edit', messageId: string): void;
   (e: 'regenerate', messageId: string): void;
@@ -102,6 +89,7 @@ const emit = defineEmits<{
   (e: 'save-edit', messageId: string, content: string): void;
   (e: 'cancel-edit'): void;
 }>();
+
 const { t } = useI18n();
 const { formatRelativeTime } = useDateTime();
 const copied = ref(false);
@@ -122,19 +110,6 @@ const saveEdit = () => {
 const cancelEdit = () => {
   emit('cancel-edit');
 };
-
-// Configure marked for safe rendering
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-});
-
-const renderedContent = computed(() => {
-  if (props.message.role === 'assistant') {
-    return DOMPurify.sanitize(marked.parse(props.message.content) as string);
-  }
-  return props.message.content;
-});
 
 const formattedTime = computed(() => {
   return formatRelativeTime(props.message.createdAt);
@@ -166,172 +141,71 @@ const handleDelete = () => {
 </script>
 
 <style scoped>
-.message-bubble {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 16px;
-  max-width: 80%;
+.message {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--chat-divider);
   animation: fadeIn 0.3s ease-in;
 }
 
-.message-user {
-  align-self: flex-end;
+.message-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px;
 }
 
 .message-assistant {
-  align-self: flex-start;
+  background: var(--chat-assistant-msg-bg);
 }
 
-.message-avatar {
-  flex-shrink: 0;
-  margin-top: 4px;
+.message-user {
+  background: var(--chat-user-msg-bg);
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.message-author {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.emotion-tag {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface-hover);
+  padding: 2px 8px;
+  border-radius: 12px;
 }
 
 .message-body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.message-content {
-  padding: 12px 16px;
-  border-radius: 12px;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-.message-user .message-content {
-  background-color: var(--accent-purple);
-  color: white;
-  border-bottom-right-radius: 4px;
-}
-
-.message-assistant .message-content {
-  background-color: var(--surface-card);
-  color: var(--text-primary);
-  border-bottom-left-radius: 4px;
-  position: relative;
-  z-index: 0;
-}
-
-.message-assistant .message-content::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
-  z-index: -1;
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-.text-content {
-  white-space: pre-wrap;
-}
-
-.markdown-content {
   line-height: 1.6;
 }
 
-.markdown-content :deep(p) {
-  margin: 0 0 8px 0;
-}
-
-.markdown-content :deep(p:last-child) {
-  margin-bottom: 0;
-}
-
-.markdown-content :deep(code) {
-  background-color: var(--surface-hover);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9em;
-}
-
-.markdown-content :deep(pre) {
-  background-color: var(--surface-hover);
-  padding: 12px;
-  border-radius: 8px;
-  overflow-x: auto;
-  margin: 8px 0;
-}
-
-.markdown-content :deep(pre code) {
-  background-color: transparent;
-  padding: 0;
-}
-
-.markdown-content :deep(ul),
-.markdown-content :deep(ol) {
-  margin: 8px 0;
-  padding-left: 24px;
-}
-
-.markdown-content :deep(li) {
-  margin: 4px 0;
-}
-
-.markdown-content :deep(blockquote) {
-  border-left: 4px solid var(--accent-purple);
-  padding-left: 12px;
-  margin: 8px 0;
-  color: var(--text-secondary);
-}
-
-.markdown-content :deep(a) {
-  color: var(--accent-purple);
-  text-decoration: none;
-}
-
-.markdown-content :deep(a:hover) {
-  text-decoration: underline;
-}
-
-.message-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  padding: 0 4px;
-}
-
-.message-user .message-footer {
-  justify-content: flex-end;
-}
-
-.message-assistant .message-footer {
-  justify-content: flex-start;
-}
-
-.message-time {
-  font-size: 12px;
-  color: var(--text-secondary);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.message-bubble:hover .message-time {
-  opacity: 1;
+.user-text {
+  white-space: pre-wrap;
+  color: var(--text-primary);
 }
 
 .message-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
+  margin-top: 8px;
   opacity: 0;
   transition: opacity 0.2s;
 }
 
-.message-bubble:hover .message-actions {
+.message:hover .message-actions {
   opacity: 1;
 }
 
 /* Show on focus-within (keyboard navigation) */
-.message-bubble:focus-within .message-time,
-.message-bubble:focus-within .message-actions {
+.message:focus-within .message-actions {
   opacity: 1;
 }
 
@@ -340,24 +214,17 @@ const handleDelete = () => {
   .message-actions {
     opacity: 1;
   }
-  .message-time {
-    opacity: 1;
-  }
 }
 
 .action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
+  background: none;
+  border: 1px solid var(--border-default);
   border-radius: 6px;
-  background: transparent;
-  color: var(--text-tertiary);
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: background-color 0.15s, color 0.15s;
 }
 
 .action-btn:hover {
@@ -367,6 +234,12 @@ const handleDelete = () => {
 
 .action-btn.delete-btn:hover {
   color: var(--color-danger);
+}
+
+.message-time {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-left: auto;
 }
 
 .edit-container {
@@ -380,5 +253,14 @@ const handleDelete = () => {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style>
