@@ -5,6 +5,7 @@
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { chatService } from '../services/chat.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
@@ -226,13 +227,21 @@ chatRoutes.patch(
   }
 );
 
+const messagesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  before: z.coerce.number().int().optional(),
+  after: z.coerce.number().int().optional(),
+});
+
 // 获取聊天消息列表（游标分页）
-chatRoutes.get('/:id/messages', authMiddleware(), async (c) => {
-  const user = c.get('user');
-  const chatId = c.req.param('id');
-  const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!) : 20;
-  const before = c.req.query('before') ? parseInt(c.req.query('before')!) : undefined;
-  const after = c.req.query('after') ? parseInt(c.req.query('after')!) : undefined;
+chatRoutes.get(
+  '/:id/messages',
+  authMiddleware(),
+  zValidator('query', messagesQuerySchema),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const { limit, before, after } = c.req.valid('query');
 
   // IDOR fix: verify the chat belongs to the authenticated user
   const chat = await chatRepository.findById(chatId);

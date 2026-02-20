@@ -5,6 +5,7 @@
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { authMiddleware } from '../middleware/auth';
 import {
@@ -19,6 +20,11 @@ import { cacheService } from '../services/cache.service';
 import type { ApiResponse } from '../../types/api';
 
 export const socialRoutes = new Hono();
+
+const socialPaginationSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
 
 // =====================
 // Follow Routes
@@ -82,11 +88,14 @@ socialRoutes.get('/follows/:userId/status', authMiddleware(), async (c) => {
 });
 
 // GET /users/:userId/followers - Get followers
-socialRoutes.get('/users/:userId/followers', authMiddleware(), async (c) => {
-  const userId = c.req.param('userId');
-  const limit = Number(c.req.query('limit') || 20);
-  const offset = Number(c.req.query('offset') || 0);
-  const page = Math.floor(offset / limit) + 1;
+socialRoutes.get(
+  '/users/:userId/followers',
+  authMiddleware(),
+  zValidator('query', socialPaginationSchema),
+  async (c) => {
+    const userId = c.req.param('userId');
+    const { limit, offset } = c.req.valid('query');
+    const page = Math.floor(offset / limit) + 1;
 
   const cacheKey = `social:followers:${userId}:${page}`;
   const cached = await cacheService.get(cacheKey);
@@ -113,11 +122,14 @@ socialRoutes.get('/users/:userId/followers', authMiddleware(), async (c) => {
 });
 
 // GET /users/:userId/following - Get following
-socialRoutes.get('/users/:userId/following', authMiddleware(), async (c) => {
-  const userId = c.req.param('userId');
-  const limit = Number(c.req.query('limit') || 20);
-  const offset = Number(c.req.query('offset') || 0);
-  const page = Math.floor(offset / limit) + 1;
+socialRoutes.get(
+  '/users/:userId/following',
+  authMiddleware(),
+  zValidator('query', socialPaginationSchema),
+  async (c) => {
+    const userId = c.req.param('userId');
+    const { limit, offset } = c.req.valid('query');
+    const page = Math.floor(offset / limit) + 1;
 
   const cacheKey = `social:following:${userId}:${page}`;
   const cached = await cacheService.get(cacheKey);
@@ -205,11 +217,14 @@ socialRoutes.get('/favorites/:characterId/status', authMiddleware(), async (c) =
 });
 
 // GET /favorites - Get user's favorites
-socialRoutes.get('/favorites', authMiddleware(), async (c) => {
-  const user = c.get('user');
-  const limit = Number(c.req.query('limit') || 20);
-  const offset = Number(c.req.query('offset') || 0);
-  const page = Math.floor(offset / limit) + 1;
+socialRoutes.get(
+  '/favorites',
+  authMiddleware(),
+  zValidator('query', socialPaginationSchema),
+  async (c) => {
+    const user = c.get('user');
+    const { limit, offset } = c.req.valid('query');
+    const page = Math.floor(offset / limit) + 1;
 
   const cacheKey = `social:favorites:${user.id}:${page}`;
   const cached = await cacheService.get(cacheKey);
@@ -323,11 +338,14 @@ socialRoutes.get(
 );
 
 // GET /comments/:commentId/replies - Get replies
-socialRoutes.get('/comments/:commentId/replies', authMiddleware(), async (c) => {
-  const commentId = c.req.param('commentId');
-  const limit = Number(c.req.query('limit') || 20);
-  const offset = Number(c.req.query('offset') || 0);
-  const replies = await socialService.getReplies(commentId, limit, offset);
+socialRoutes.get(
+  '/comments/:commentId/replies',
+  authMiddleware(),
+  zValidator('query', socialPaginationSchema),
+  async (c) => {
+    const commentId = c.req.param('commentId');
+    const { limit, offset } = c.req.valid('query');
+    const replies = await socialService.getReplies(commentId, limit, offset);
 
   return c.json<ApiResponse>(
     {
