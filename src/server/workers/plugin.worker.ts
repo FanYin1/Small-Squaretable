@@ -16,8 +16,36 @@ Object.defineProperty(globalThis, 'process', {
   configurable: false,
 });
 
-// Block require in the plugin scope (plugins receive it as undefined)
-// The worker itself already imported what it needs above.
+// Block fetch and other network/FS APIs in the worker scope
+for (const name of ['fetch', 'XMLHttpRequest', 'WebSocket'] as const) {
+  Object.defineProperty(globalThis, name, {
+    value: undefined,
+    writable: false,
+    configurable: false,
+  });
+}
+
+/**
+ * Patterns that indicate sandbox escape attempts.
+ * Checked against plugin source code before execution.
+ */
+const BLOCKED_PATTERNS = [
+  /\bimport\s*\(/,          // dynamic import()
+  /\brequire\s*\(/,         // CommonJS require()
+  /\bprocess\s*\.\s*(?:env|exit|kill|binding|dlopen|_linkedBinding)/,
+  /\bchild_process\b/,
+  /\bglobalThis\s*\.\s*process\b/,
+  /\b(?:__dirname|__filename)\b/,
+  /\bnew\s+Function\b/,     // nested Function constructor
+];
+
+function validatePluginSource(code: string): void {
+  for (const pattern of BLOCKED_PATTERNS) {
+    if (pattern.test(code)) {
+      throw new Error(`Plugin source contains blocked pattern: ${pattern.source}`);
+    }
+  }
+}
 
 interface WorkerMessage {
   type: 'execute' | 'event' | 'kv_response';
@@ -99,6 +127,8 @@ parentPort?.on('message', async (msg: WorkerMessage) => {
   if (msg.type === 'execute') {
     try {
       const { sourceCode } = msg.payload as { sourceCode: string };
+      // Validate plugin source before execution
+      validatePluginSource(sourceCode);
       // Run plugin code with only `ctx` and a fake `module` in scope.
       // If the plugin assigns module.exports to a function, call it with ctx.
       const pluginFn = new Function(
