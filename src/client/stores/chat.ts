@@ -335,7 +335,7 @@ export const useChatStore = defineStore('chat', () => {
         streamingMessage.value = '';
 
         // 构建消息历史，包含角色的 system prompt
-        const chatMessages: Array<{ role: string; content: string }> = [];
+        const chatMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
 
         // 添加角色的 system prompt
         if (currentCharacter.value) {

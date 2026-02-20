@@ -108,7 +108,7 @@ function watchUserContext() {
     const currentUserId = userStore.user?.id || null;
 
     if (currentUserId !== lastUserId) {
-      if (currentUserId) {
+      if (currentUserId && userStore.user) {
         Sentry.setUser({
           id: userStore.user.id,
           email: userStore.user.email,

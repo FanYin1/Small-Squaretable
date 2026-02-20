@@ -56,7 +56,7 @@ export const useCharacterStore = defineStore('character', () => {
     error.value = null;
     try {
       const response = await characterApi.getCharacter(id);
-      currentCharacter.value = response.character;
+      currentCharacter.value = response;
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch character';
       throw e;
