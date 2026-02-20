@@ -48,7 +48,12 @@
     "developer": "开发者",
     "plugins": "插件",
     "pinSidebar": "固定侧边栏",
-    "unpinSidebar": "取消固定侧边栏"
+    "unpinSidebar": "取消固定侧边栏",
+    "security": "安全设置",
+    "account": "账户",
+    "analytics": "数据分析",
+    "admin": "管理面板",
+    "user": "用户"
   },
   "theme": {
     "light": "浅色",
@@ -119,7 +124,11 @@
     "searchCharacters": "搜索角色...",
     "recentCharacters": "最近角色",
     "browseMarket": "浏览市场",
-    "createCharacter": "创建角色"
+    "createCharacter": "创建角色",
+    "sidebar": {
+      "collapse": "收起侧边栏",
+      "expand": "展开侧边栏"
+    }
   },
   "market": {
     "title": "角色市场",

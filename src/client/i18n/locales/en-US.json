@@ -48,7 +48,12 @@
     "developer": "Developer",
     "plugins": "Plugins",
     "pinSidebar": "Pin sidebar",
-    "unpinSidebar": "Unpin sidebar"
+    "unpinSidebar": "Unpin sidebar",
+    "security": "Security",
+    "account": "Account",
+    "analytics": "Analytics",
+    "admin": "Admin Panel",
+    "user": "User"
   },
   "theme": {
     "light": "Light",
@@ -119,7 +124,11 @@
     "searchCharacters": "Search characters...",
     "recentCharacters": "Recent Characters",
     "browseMarket": "Browse Market",
-    "createCharacter": "Create Character"
+    "createCharacter": "Create Character",
+    "sidebar": {
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar"
+    }
   },
   "market": {
     "title": "Character Market",

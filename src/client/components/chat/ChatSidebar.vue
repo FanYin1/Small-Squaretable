@@ -13,7 +13,7 @@
             {{ t('chat.newChat') }}
           </el-button>
         </el-tooltip>
-        <el-tooltip content="Collapse" placement="bottom">
+        <el-tooltip :content="t('chat.sidebar.collapse')" placement="bottom">
           <button class="collapse-btn" @click="emit('toggle-collapse')">
             <el-icon><Fold /></el-icon>
           </button>
@@ -97,38 +97,38 @@
     </div>
 
     <div class="sidebar-footer">
-      <el-tooltip content="Market" placement="top">
+      <el-tooltip :content="t('nav.market')" placement="top">
         <button class="footer-btn" @click="router.push({ name: 'Market' })">
           <el-icon><Shop /></el-icon>
         </button>
       </el-tooltip>
-      <el-tooltip content="My Characters" placement="top">
+      <el-tooltip :content="t('nav.myCharacters')" placement="top">
         <button class="footer-btn" @click="router.push({ name: 'MyCharacters' })">
           <el-icon><User /></el-icon>
         </button>
       </el-tooltip>
-      <el-tooltip content="Settings" placement="top">
+      <el-tooltip :content="t('nav.settings')" placement="top">
         <button class="footer-btn" @click="router.push({ name: 'Profile' })">
           <el-icon><Setting /></el-icon>
         </button>
       </el-tooltip>
       <el-dropdown trigger="click" @command="handleUserMenuCommand">
-        <el-tooltip content="User" placement="top">
+        <el-tooltip :content="t('nav.user')" placement="top">
           <button class="footer-btn">
             <el-icon><UserFilled /></el-icon>
           </button>
         </el-tooltip>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="Profile">Profile</el-dropdown-item>
-            <el-dropdown-item command="SecuritySettings">Security</el-dropdown-item>
-            <el-dropdown-item command="AccountSettings">Account</el-dropdown-item>
-            <el-dropdown-item command="Subscription">Subscription</el-dropdown-item>
-            <el-dropdown-item command="PluginMarketplace">Plugins</el-dropdown-item>
-            <el-dropdown-item command="DeveloperSettings">Developer</el-dropdown-item>
-            <el-dropdown-item command="Analytics">Analytics</el-dropdown-item>
-            <el-dropdown-item v-if="isAdminOrMod" command="AdminUsers">Admin</el-dropdown-item>
-            <el-dropdown-item divided command="logout">Logout</el-dropdown-item>
+            <el-dropdown-item command="Profile">{{ t('nav.profile') }}</el-dropdown-item>
+            <el-dropdown-item command="SecuritySettings">{{ t('nav.security') }}</el-dropdown-item>
+            <el-dropdown-item command="AccountSettings">{{ t('nav.account') }}</el-dropdown-item>
+            <el-dropdown-item command="Subscription">{{ t('nav.subscription') }}</el-dropdown-item>
+            <el-dropdown-item command="PluginMarketplace">{{ t('nav.plugins') }}</el-dropdown-item>
+            <el-dropdown-item command="DeveloperSettings">{{ t('nav.developer') }}</el-dropdown-item>
+            <el-dropdown-item command="Analytics">{{ t('nav.analytics') }}</el-dropdown-item>
+            <el-dropdown-item v-if="isAdminOrMod" command="AdminUsers">{{ t('nav.admin') }}</el-dropdown-item>
+            <el-dropdown-item divided command="logout">{{ t('nav.logout') }}</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
