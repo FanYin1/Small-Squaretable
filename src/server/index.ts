@@ -46,6 +46,7 @@ import { WebhookWorker } from './workers/webhook.worker';
 import { webhookRepository } from '../db/repositories/webhook.repository';
 import { basicHealthCheck, livenessCheck, readinessCheck } from './services/health';
 import { websocketHandler } from './routes/websocket';
+import { verifyAccessToken, extractTokenFromHeader } from '../core/jwt';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -228,8 +229,23 @@ app.get('/api/v1', (c) => {
   });
 });
 
-// Static file serving for uploads
+// Static file serving for uploads (authenticated)
 app.get('/uploads/*', async (c) => {
+  // Verify JWT from Authorization header or query param
+  const authHeader = c.req.header('Authorization');
+  const queryToken = c.req.query('token');
+  const token = extractTokenFromHeader(authHeader) || queryToken || null;
+
+  if (!token) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+
+  try {
+    await verifyAccessToken(token);
+  } catch {
+    return c.json({ error: 'Invalid or expired token' }, 401);
+  }
+
   const filePath = c.req.path;
   const absolutePath = path.resolve(config.storagePath, filePath.replace(/^\/uploads\//, ''));
 
@@ -247,6 +263,7 @@ app.get('/uploads/*', async (c) => {
 
     const fileBuffer = await fs.promises.readFile(absolutePath);
     const ext = path.extname(absolutePath).toLowerCase();
+    const imageTypes = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
     const mimeMap: Record<string, string> = {
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
@@ -259,11 +276,14 @@ app.get('/uploads/*', async (c) => {
       '.webm': 'audio/webm',
     };
     const contentType = mimeMap[ext] || 'application/octet-stream';
+    const disposition = imageTypes.has(ext) ? 'inline' : 'attachment';
 
     return new Response(fileBuffer, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Disposition': disposition,
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'private, max-age=3600',
       },
     });
   } catch {
