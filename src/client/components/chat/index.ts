@@ -8,3 +8,4 @@ export { default as ChatWindow } from './ChatWindow.vue';
 export { default as ChatSidebar } from './ChatSidebar.vue';
 export { default as MessageBubble } from './MessageBubble.vue';
 export { default as MessageInput } from './MessageInput.vue';
+export { default as WelcomePage } from './WelcomePage.vue';
