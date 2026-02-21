@@ -77,6 +77,14 @@ export const useCharacterIntelligenceStore = defineStore('characterIntelligence'
 
   const emotionLabel = computed(() => currentEmotion.value?.label ?? 'neutral');
 
+  const globalMemories = computed(() =>
+    memories.value.filter(m => !m.sourceChatId)
+  );
+
+  const sessionMemories = computed(() =>
+    memories.value.filter(m => !!m.sourceChatId)
+  );
+
   // Actions
   async function fetchMemories(characterId: string, chatId?: string, query?: string) {
     isLoading.value = true;
@@ -175,6 +183,36 @@ export const useCharacterIntelligenceStore = defineStore('characterIntelligence'
       await fetchMemories(characterId);
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to extract memories';
+      throw e;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function consolidateMemories(characterId: string) {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const result = await api.post(`/characters/${characterId}/intelligence/consolidate`);
+      await fetchMemories(characterId);
+      return result;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to consolidate memories';
+      throw e;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function promoteMemories(characterId: string) {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const result = await api.post(`/characters/${characterId}/intelligence/promote`);
+      await fetchMemories(characterId);
+      return result;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to promote memories';
       throw e;
     } finally {
       isLoading.value = false;
@@ -283,6 +321,8 @@ export const useCharacterIntelligenceStore = defineStore('characterIntelligence'
     memoryCount,
     memoriesByType,
     emotionLabel,
+    globalMemories,
+    sessionMemories,
     // Actions
     fetchMemories,
     deleteMemory,
@@ -290,6 +330,8 @@ export const useCharacterIntelligenceStore = defineStore('characterIntelligence'
     fetchEmotion,
     resetEmotion,
     extractMemories,
+    consolidateMemories,
+    promoteMemories,
     updateEmotionFromWebSocket,
     reset,
     // Debug actions

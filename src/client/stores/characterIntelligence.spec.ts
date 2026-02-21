@@ -265,6 +265,84 @@ describe('useCharacterIntelligenceStore', () => {
     });
   });
 
+  describe('consolidateMemories', () => {
+    it('should call API and refresh memories', async () => {
+      vi.mocked(api.post).mockResolvedValue({ consolidated: 3 });
+      vi.mocked(api.get).mockResolvedValue({ memories: [mockMemory()], total: 1 });
+
+      const store = useCharacterIntelligenceStore();
+      const result = await store.consolidateMemories('char-1');
+
+      expect(api.post).toHaveBeenCalledWith('/characters/char-1/intelligence/consolidate');
+      expect(api.get).toHaveBeenCalledWith('/characters/char-1/intelligence/memories');
+      expect(store.memories).toHaveLength(1);
+      expect(result).toEqual({ consolidated: 3 });
+      expect(store.isLoading).toBe(false);
+    });
+
+    it('should set error on failure', async () => {
+      vi.mocked(api.post).mockRejectedValue(new Error('Consolidation failed'));
+
+      const store = useCharacterIntelligenceStore();
+      await expect(store.consolidateMemories('char-1')).rejects.toThrow('Consolidation failed');
+      expect(store.error).toBe('Consolidation failed');
+      expect(store.isLoading).toBe(false);
+    });
+  });
+
+  describe('promoteMemories', () => {
+    it('should call API and refresh memories', async () => {
+      vi.mocked(api.post).mockResolvedValue({ promoted: 2 });
+      vi.mocked(api.get).mockResolvedValue({ memories: [mockMemory()], total: 1 });
+
+      const store = useCharacterIntelligenceStore();
+      const result = await store.promoteMemories('char-1');
+
+      expect(api.post).toHaveBeenCalledWith('/characters/char-1/intelligence/promote');
+      expect(api.get).toHaveBeenCalledWith('/characters/char-1/intelligence/memories');
+      expect(store.memories).toHaveLength(1);
+      expect(result).toEqual({ promoted: 2 });
+      expect(store.isLoading).toBe(false);
+    });
+
+    it('should set error on failure', async () => {
+      vi.mocked(api.post).mockRejectedValue(new Error('Promotion failed'));
+
+      const store = useCharacterIntelligenceStore();
+      await expect(store.promoteMemories('char-1')).rejects.toThrow('Promotion failed');
+      expect(store.error).toBe('Promotion failed');
+      expect(store.isLoading).toBe(false);
+    });
+  });
+
+  describe('globalMemories', () => {
+    it('should filter memories without sourceChatId', () => {
+      const store = useCharacterIntelligenceStore();
+      store.memories = [
+        mockMemory({ id: '1', sourceChatId: null }),
+        mockMemory({ id: '2', sourceChatId: 'chat-1' }),
+        mockMemory({ id: '3', sourceChatId: null }),
+      ];
+
+      expect(store.globalMemories).toHaveLength(2);
+      expect(store.globalMemories.map(m => m.id)).toEqual(['1', '3']);
+    });
+  });
+
+  describe('sessionMemories', () => {
+    it('should filter memories with sourceChatId', () => {
+      const store = useCharacterIntelligenceStore();
+      store.memories = [
+        mockMemory({ id: '1', sourceChatId: null }),
+        mockMemory({ id: '2', sourceChatId: 'chat-1' }),
+        mockMemory({ id: '3', sourceChatId: 'chat-2' }),
+      ];
+
+      expect(store.sessionMemories).toHaveLength(2);
+      expect(store.sessionMemories.map(m => m.id)).toEqual(['2', '3']);
+    });
+  });
+
   describe('updateEmotionFromWebSocket', () => {
     it('should update current emotion and prepend to history', () => {
       const store = useCharacterIntelligenceStore();
