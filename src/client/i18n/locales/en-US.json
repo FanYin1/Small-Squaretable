@@ -646,7 +646,21 @@
     "deleteSuccess": "Memory deleted",
     "deleteError": "Failed to delete",
     "clearSuccess": "All memories cleared",
-    "clearError": "Failed to clear"
+    "clearError": "Failed to clear",
+    "consolidate": "Consolidate memories",
+    "consolidating": "Consolidating...",
+    "consolidateSuccess": "Consolidated {count} memories into {summaries} summaries",
+    "consolidateEmpty": "No memories to consolidate",
+    "promote": "Promote to global",
+    "promoting": "Promoting...",
+    "promoteSuccess": "Promoted {count} memories, skipped {skipped}",
+    "promoteEmpty": "No memories eligible for promotion",
+    "global": "Global",
+    "session": "Session",
+    "decayedImportance": "Effective importance",
+    "similarity": "Similarity",
+    "recency": "Recency",
+    "lastAccessed": "Last accessed"
   },
   "emotion": {
     "title": "Emotion State",

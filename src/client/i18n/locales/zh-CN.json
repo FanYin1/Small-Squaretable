@@ -646,7 +646,21 @@
     "deleteSuccess": "记忆已删除",
     "deleteError": "删除失败",
     "clearSuccess": "所有记忆已清除",
-    "clearError": "清除失败"
+    "clearError": "清除失败",
+    "consolidate": "整合记忆",
+    "consolidating": "整合中...",
+    "consolidateSuccess": "已将 {count} 条记忆整合为 {summaries} 条摘要",
+    "consolidateEmpty": "没有可整合的记忆",
+    "promote": "提升为全局",
+    "promoting": "提升中...",
+    "promoteSuccess": "已提升 {count} 条记忆，跳过 {skipped} 条",
+    "promoteEmpty": "没有符合提升条件的记忆",
+    "global": "全局",
+    "session": "会话",
+    "decayedImportance": "有效重要性",
+    "similarity": "相似度",
+    "recency": "时效性",
+    "lastAccessed": "最后访问"
   },
   "emotion": {
     "title": "情感状态",
