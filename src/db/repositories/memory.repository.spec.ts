@@ -23,6 +23,15 @@ vi.mock('../schema/memories', () => ({
   characterMemoryVectors: {},
 }));
 
+vi.mock('../../core/config', () => ({
+  config: {
+    memorySimilarityWeight: 0.5,
+    memoryImportanceWeight: 0.3,
+    memoryRecencyWeight: 0.2,
+    memoryDecayHalfLifeDays: 30,
+  },
+}));
+
 describe('MemoryRepository', () => {
   beforeEach(() => {
     vi.clearAllMocks();

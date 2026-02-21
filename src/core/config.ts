@@ -77,6 +77,13 @@ const configSchema = z.object({
   cacheTtlDefault: z.coerce.number().default(300),
   recommendationCacheTtl: z.coerce.number().default(900),
 
+  // Memory retrieval scoring weights (must sum to 1.0)
+  memorySimilarityWeight: z.coerce.number().default(0.5),
+  memoryImportanceWeight: z.coerce.number().default(0.3),
+  memoryRecencyWeight: z.coerce.number().default(0.2),
+  // Importance decay: halve importance after this many days without access
+  memoryDecayHalfLifeDays: z.coerce.number().default(30),
+
   // CORS
   corsOrigins: z.string().default('http://localhost:5173'),
 });
@@ -132,6 +139,10 @@ export function loadConfig(): Config {
     memoryLimitTeam: process.env.MEMORY_LIMIT_TEAM,
     cacheTtlDefault: process.env.CACHE_TTL_DEFAULT,
     recommendationCacheTtl: process.env.RECOMMENDATION_CACHE_TTL,
+    memorySimilarityWeight: process.env.MEMORY_SIMILARITY_WEIGHT,
+    memoryImportanceWeight: process.env.MEMORY_IMPORTANCE_WEIGHT,
+    memoryRecencyWeight: process.env.MEMORY_RECENCY_WEIGHT,
+    memoryDecayHalfLifeDays: process.env.MEMORY_DECAY_HALF_LIFE_DAYS,
   };
 
   try {
