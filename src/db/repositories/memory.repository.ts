@@ -250,6 +250,20 @@ class MemoryRepository {
 
     return ids.length;
   }
+  async findActiveCharacterUserPairs(
+    minMemoryCount = 10
+  ): Promise<Array<{ characterId: string; userId: string }>> {
+    const result = await db
+      .select({
+        characterId: characterMemories.characterId,
+        userId: characterMemories.userId,
+      })
+      .from(characterMemories)
+      .groupBy(characterMemories.characterId, characterMemories.userId)
+      .having(sql`count(*) >= ${minMemoryCount}`);
+
+    return result;
+  }
 }
 
 export const memoryRepository = new MemoryRepository();

@@ -166,6 +166,29 @@ ${memoryTexts}
       return null;
     }
   }
+  /**
+   * Run consolidation for all character-user pairs that have enough memories.
+   * Called by the scheduled job.
+   */
+  async consolidateAll(minMemoryCount = 10): Promise<{ pairs: number; totalConsolidated: number }> {
+    const pairs = await memoryRepository.findActiveCharacterUserPairs(minMemoryCount);
+    let totalConsolidated = 0;
+
+    for (const pair of pairs) {
+      try {
+        const result = await this.consolidate(pair.characterId, pair.userId);
+        totalConsolidated += result.memoriesConsolidated;
+      } catch (error) {
+        consolidationLogger.error('Consolidation failed for pair', {
+          characterId: pair.characterId,
+          userId: pair.userId,
+          error: (error as Error).message,
+        });
+      }
+    }
+
+    return { pairs: pairs.length, totalConsolidated };
+  }
 }
 
 export const memoryConsolidationService = new MemoryConsolidationService();
