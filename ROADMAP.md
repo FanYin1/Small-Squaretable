@@ -32,9 +32,10 @@ Phase 7: 生产部署          ████████████████�
 迭代 14: i18n 修复 + 前端测试     ████████████████████ 100% ✅
 迭代 15: TypeScript 编译修复      ████████████████████ 100% ✅
 迭代 16: E2E 测试覆盖补全        ████████████████████ 100% ✅
+迭代 17: 语音/音频多模态          ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 16 完成
+**整体完成度**: 迭代 17 完成
 
 ---
 
@@ -405,6 +406,15 @@ Phase 7: 生产部署          ████████████████�
 - ✅ **推荐系统 E2E** — 热门/个性化/相似 (8 tests)
 - ✅ **个人资料 + 世界书 E2E** — 编辑/主题/世界书 CRUD (14 tests) + 5 额外测试
 - **新增**: 91 E2E 测试, 7 个新 spec 文件 (142 → 228 unique tests)
+
+### 迭代 17: 语音/音频多模态 ✅ (2026-02-22)
+- ✅ **音频上传** — POST /uploads/audio, MIME 验证 (7 种格式), 25MB 限制, 租户隔离存储
+- ✅ **语音录制** — useAudioRecorder composable (MediaRecorder API), MessageInput 录音 UI (录制/取消/发送)
+- ✅ **音频播放** — AudioPlayer 组件 (播放/暂停/进度条/倍速切换), MessageBubble 附件渲染
+- ✅ **语音转文字 (STT)** — useSpeechToText composable (Web Speech API), 实时转录到输入框
+- ✅ **文字转语音 (TTS)** — useTextToSpeech composable (Speech Synthesis API), 助手消息朗读按钮
+- ✅ **i18n** — voice.* 键 15 个 (en-US + zh-CN)
+- **新增**: 67 单元测试 (1600 → 1667), 3 composable + 1 组件 + 1 路由
 
 ---
 
