@@ -6,3 +6,4 @@ export { useLocale } from './useLocale';
 export { useTheme } from './useTheme';
 export { useFeatureGate } from './useFeatureGate';
 export { useToast } from './useToast';
+export { useAudioRecorder } from './useAudioRecorder';
