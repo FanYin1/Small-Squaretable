@@ -10,6 +10,7 @@ import { authMiddleware } from '../middleware/auth';
 import { memoryService } from '../services/memory.service';
 import { emotionService } from '../services/emotion.service';
 import { intelligenceDebugService } from '../services/intelligence-debug.service';
+import { memoryConsolidationService } from '../services/memory-consolidation.service';
 import { embeddingService } from '../services/embedding.service';
 import { logger as appLogger } from '../services/logger.service';
 
@@ -280,6 +281,40 @@ intelligenceRoutes.get(
       success: true,
       data: promptDetails,
       meta: { timestamp: new Date().toISOString() },
+    });
+  }
+);
+
+// Consolidate duplicate/similar memories for a character
+intelligenceRoutes.post(
+  '/characters/:characterId/intelligence/consolidate',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user');
+    const { characterId } = c.req.param();
+
+    const result = await memoryConsolidationService.consolidate(characterId, user.id);
+
+    return c.json({
+      success: true,
+      data: result,
+    });
+  }
+);
+
+// Promote session-scoped memories to long-term (cross-session)
+intelligenceRoutes.post(
+  '/characters/:characterId/intelligence/promote',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user');
+    const { characterId } = c.req.param();
+
+    const result = await memoryService.promoteSessionMemories(characterId, user.id);
+
+    return c.json({
+      success: true,
+      data: result,
     });
   }
 );
