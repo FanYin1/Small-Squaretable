@@ -161,6 +161,45 @@ class MemoryRepository {
     return Number(result[0]?.count ?? 0);
   }
 
+  async findSimilar(
+    characterId: string,
+    userId: string,
+    embedding: number[],
+    threshold = 0.85,
+    limit = 5
+  ): Promise<Array<CharacterMemory & { similarity: number }>> {
+    const embeddingStr = `[${embedding.join(',')}]`;
+
+    const result = await db.execute(sql`
+      SELECT m.*, (1 - (v.embedding <=> ${embeddingStr}::vector)) as similarity
+      FROM character_memories m
+      JOIN character_memory_vectors v ON v.memory_id = m.id
+      WHERE m.character_id = ${characterId}::uuid
+        AND m.user_id = ${userId}::uuid
+        AND (1 - (v.embedding <=> ${embeddingStr}::vector)) >= ${threshold}
+      ORDER BY similarity DESC
+      LIMIT ${limit}
+    `);
+
+    return result as unknown as Array<CharacterMemory & { similarity: number }>;
+  }
+
+  async updateContent(memoryId: string, content: string, importance: string): Promise<void> {
+    await db
+      .update(characterMemories)
+      .set({ content, importance, lastAccessed: new Date() })
+      .where(eq(characterMemories.id, memoryId));
+  }
+
+  async updateVector(memoryId: string, embedding: number[]): Promise<void> {
+    const embeddingStr = `[${embedding.join(',')}]`;
+    await db.execute(sql`
+      UPDATE character_memory_vectors
+      SET embedding = ${embeddingStr}::vector
+      WHERE memory_id = ${memoryId}::uuid
+    `);
+  }
+
   async deleteOldest(characterId: string, userId: string, count: number): Promise<number> {
     // Select the oldest memories by lastAccessed (ascending)
     const oldest = await db

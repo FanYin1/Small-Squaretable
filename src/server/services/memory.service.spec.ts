@@ -7,9 +7,12 @@ vi.mock('../../db/repositories/memory.repository', () => ({
     create: vi.fn(),
     createVector: vi.fn(),
     findByCharacterAndUser: vi.fn(),
+    findSimilar: vi.fn(),
     hybridSearch: vi.fn(),
     updateAccessTime: vi.fn(),
     updateAccessTimeBatch: vi.fn(),
+    updateContent: vi.fn(),
+    updateVector: vi.fn(),
     delete: vi.fn(),
     deleteAllForCharacterUser: vi.fn(),
     countByCharacterUser: vi.fn(),
@@ -99,6 +102,7 @@ describe('MemoryService', () => {
 
   describe('storeMemory', () => {
     it('should create memory and vector', async () => {
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.create).mockResolvedValue({
         id: 'mem-1',
         content: 'User is a programmer',
@@ -117,6 +121,7 @@ describe('MemoryService', () => {
     });
 
     it('should evict oldest memory when limit is reached', async () => {
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(100);
       vi.mocked(memoryRepository.deleteOldest).mockResolvedValue(1);
       vi.mocked(memoryRepository.create).mockResolvedValue({
@@ -136,6 +141,7 @@ describe('MemoryService', () => {
     });
 
     it('should respect subscription tier limits', async () => {
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(150);
       vi.mocked(memoryRepository.deleteOldest).mockResolvedValue(1);
       vi.mocked(memoryRepository.create).mockResolvedValue({
@@ -153,6 +159,7 @@ describe('MemoryService', () => {
       expect(memoryRepository.create).toHaveBeenCalled();
 
       vi.clearAllMocks();
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(150);
       vi.mocked(memoryRepository.create).mockResolvedValue({
         id: 'mem-1',
@@ -170,6 +177,7 @@ describe('MemoryService', () => {
     });
 
     it('should handle team tier limit', async () => {
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(1500);
       vi.mocked(memoryRepository.create).mockResolvedValue({
         id: 'mem-1',
@@ -186,6 +194,7 @@ describe('MemoryService', () => {
     });
 
     it('should handle unknown subscription tier as free', async () => {
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(99);
       vi.mocked(memoryRepository.create).mockResolvedValue({
         id: 'mem-1',
@@ -202,6 +211,7 @@ describe('MemoryService', () => {
     });
 
     it('should include chatId when provided', async () => {
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.create).mockResolvedValue({
         id: 'mem-1',
         content: 'Test',
@@ -222,6 +232,7 @@ describe('MemoryService', () => {
     });
 
     it('should NOT evict when under limit', async () => {
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(50);
       vi.mocked(memoryRepository.create).mockResolvedValue({
         id: 'mem-1',
@@ -239,6 +250,7 @@ describe('MemoryService', () => {
     });
 
     it('should use correct tier limit for pro (500)', async () => {
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(500);
       vi.mocked(memoryRepository.deleteOldest).mockResolvedValue(1);
       vi.mocked(memoryRepository.create).mockResolvedValue({
@@ -259,6 +271,7 @@ describe('MemoryService', () => {
     it('should still create memory after eviction', async () => {
       vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(100);
       vi.mocked(memoryRepository.deleteOldest).mockResolvedValue(1);
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
       vi.mocked(memoryRepository.create).mockResolvedValue({
         id: 'mem-new',
         content: 'New memory after eviction',
@@ -283,6 +296,117 @@ describe('MemoryService', () => {
       );
       expect(memoryRepository.createVector).toHaveBeenCalled();
       expect(embeddingService.embed).toHaveBeenCalledWith('New memory after eviction');
+    });
+
+    describe('semantic deduplication', () => {
+      it('should merge with existing memory when similarity >= 0.85', async () => {
+        vi.mocked(memoryRepository.findSimilar).mockResolvedValue([
+          {
+            id: 'existing-1',
+            content: 'User likes coffee',
+            importance: '0.7',
+            characterId: 'char-1',
+            userId: 'user-1',
+            type: 'preference',
+            similarity: 0.92,
+          } as any,
+        ]);
+
+        await service.storeMemory('char-1', 'user-1', {
+          type: 'preference',
+          content: 'User really likes coffee a lot',
+          importance: 0.8,
+        });
+
+        expect(memoryRepository.updateContent).toHaveBeenCalledWith(
+          'existing-1',
+          'User really likes coffee a lot',
+          expect.any(String)
+        );
+        expect(memoryRepository.updateVector).toHaveBeenCalledWith(
+          'existing-1',
+          expect.any(Array)
+        );
+        expect(memoryRepository.create).not.toHaveBeenCalled();
+        expect(memoryRepository.createVector).not.toHaveBeenCalled();
+      });
+
+      it('should create new memory when no similar memory exists', async () => {
+        vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
+        vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(5);
+        vi.mocked(memoryRepository.create).mockResolvedValue({
+          id: 'mem-new',
+          content: 'User is a programmer',
+        } as any);
+
+        await service.storeMemory('char-1', 'user-1', {
+          type: 'fact',
+          content: 'User is a programmer',
+          importance: 0.8,
+        });
+
+        expect(memoryRepository.create).toHaveBeenCalled();
+        expect(memoryRepository.createVector).toHaveBeenCalled();
+        expect(memoryRepository.updateContent).not.toHaveBeenCalled();
+        expect(memoryRepository.updateVector).not.toHaveBeenCalled();
+      });
+
+      it('should boost importance on merge (capped at 1.0)', async () => {
+        vi.mocked(memoryRepository.findSimilar).mockResolvedValue([
+          {
+            id: 'existing-1',
+            content: 'User loves TypeScript',
+            importance: '0.9',
+            characterId: 'char-1',
+            userId: 'user-1',
+            type: 'preference',
+            similarity: 0.95,
+          } as any,
+        ]);
+
+        await service.storeMemory('char-1', 'user-1', {
+          type: 'preference',
+          content: 'User loves TypeScript',
+          importance: 0.8,
+        });
+
+        // max(0.8, 0.9) + 0.1 = 1.0, capped at 1.0
+        expect(memoryRepository.updateContent).toHaveBeenCalledWith(
+          'existing-1',
+          'User loves TypeScript',
+          '1'
+        );
+      });
+
+      it('should keep longer content on merge', async () => {
+        const shortContent = 'Likes coffee';
+        const longContent = 'User really enjoys drinking coffee every morning';
+
+        vi.mocked(memoryRepository.findSimilar).mockResolvedValue([
+          {
+            id: 'existing-1',
+            content: shortContent,
+            importance: '0.5',
+            characterId: 'char-1',
+            userId: 'user-1',
+            type: 'preference',
+            similarity: 0.88,
+          } as any,
+        ]);
+
+        await service.storeMemory('char-1', 'user-1', {
+          type: 'preference',
+          content: longContent,
+          importance: 0.6,
+        });
+
+        // New content is longer, so it should be used
+        expect(memoryRepository.updateContent).toHaveBeenCalledWith(
+          'existing-1',
+          longContent,
+          expect.any(String)
+        );
+      });
     });
   });
 

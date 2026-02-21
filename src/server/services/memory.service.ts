@@ -78,12 +78,36 @@ export class MemoryService {
     chatId?: string,
     subscriptionTier = 'free'
   ): Promise<void> {
+    // Generate embedding first (needed for both dedup check and storage)
+    const embedding = await embeddingService.embed(memory.content);
+
+    // Check for semantic duplicates (similarity >= 0.85)
+    const similar = await memoryRepository.findSimilar(
+      characterId, userId, embedding, 0.85, 1
+    );
+
+    if (similar.length > 0) {
+      const existing = similar[0];
+      // Merge: keep the longer/newer content, boost importance
+      const mergedImportance = Math.min(1, Math.max(
+        memory.importance,
+        Number(existing.importance ?? 0.5)
+      ) + 0.1);
+
+      const mergedContent = memory.content.length > existing.content.length
+        ? memory.content
+        : existing.content;
+
+      await memoryRepository.updateContent(existing.id, mergedContent, String(mergedImportance));
+      await memoryRepository.updateVector(existing.id, embedding);
+      return;
+    }
+
     // Check memory limit
     const currentCount = await memoryRepository.countByCharacterUser(characterId, userId);
     const limit = MEMORY_LIMITS[subscriptionTier] ?? MEMORY_LIMITS.free;
 
     if (currentCount >= limit) {
-      // LRU eviction: delete the oldest memory to make room
       await memoryRepository.deleteOldest(characterId, userId, 1);
     }
 
@@ -97,8 +121,7 @@ export class MemoryService {
       sourceChatId: chatId,
     });
 
-    // Generate and store embedding
-    const embedding = await embeddingService.embed(memory.content);
+    // Store embedding
     await memoryRepository.createVector({
       memoryId: created.id,
       embedding,
