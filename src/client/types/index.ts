@@ -22,12 +22,13 @@ export interface Chat {
 
 export interface MessageAttachment {
   id: string;
-  type: 'image' | 'file';
+  type: 'image' | 'file' | 'audio';
   url: string;
   name?: string;
   size?: number;
   mimeType?: string;
   thumbnailUrl?: string;
+  duration?: number; // audio duration in seconds
 }
 
 export interface Message {
