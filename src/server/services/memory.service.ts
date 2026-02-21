@@ -68,6 +68,9 @@ export class MemoryService {
       content: m.content,
       type: m.type,
       score: m.score,
+      similarity: m.similarity ?? (m as any).similarity,
+      importanceScore: m.decayedImportance ?? (m as any).decayed_importance,
+      recencyScore: m.recency ?? (m as any).recency,
     }));
   }
 

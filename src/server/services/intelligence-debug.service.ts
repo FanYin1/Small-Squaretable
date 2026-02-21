@@ -49,6 +49,8 @@ export interface IntelligenceDebugState {
     total: number;
     byType: Record<string, number>;
     lastExtractedAt: string | null;
+    globalCount?: number;
+    sessionCount?: number;
   };
   lastRetrieval: LastRetrieval | null;
   performance: DebugPerformanceMetrics;
