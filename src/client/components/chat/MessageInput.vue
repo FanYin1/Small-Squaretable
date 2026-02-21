@@ -4,7 +4,33 @@
       <button class="attach-btn" type="button" aria-label="Attach file">
         <el-icon :size="20"><Upload /></el-icon>
       </button>
+      <button
+        v-if="audioRecorder.isSupported.value && !audioRecorder.isRecording.value && !isUploading"
+        class="mic-btn"
+        type="button"
+        :disabled="disabled || sending"
+        :aria-label="t('chat.voiceRecord')"
+        @click="handleStartRecording"
+      >
+        <el-icon :size="20"><Microphone /></el-icon>
+      </button>
+
+      <!-- Recording indicator (replaces text input while recording) -->
+      <div v-if="audioRecorder.isRecording.value" class="recording-indicator">
+        <span class="recording-dot" />
+        <span class="recording-label">{{ t('chat.recording') }}</span>
+        <span class="recording-duration">{{ formattedDuration }}</span>
+      </div>
+
+      <!-- Uploading spinner -->
+      <div v-else-if="isUploading" class="uploading-indicator">
+        <el-icon class="is-loading" :size="18"><Loading /></el-icon>
+        <span class="uploading-label">{{ t('chat.uploading') }}</span>
+      </div>
+
+      <!-- Normal text input -->
       <el-input
+        v-else
         v-model="inputValue"
         type="textarea"
         :placeholder="computedPlaceholder"
@@ -15,7 +41,30 @@
         class="input-textarea"
         resize="none"
       />
+
+      <!-- Recording action buttons -->
+      <template v-if="audioRecorder.isRecording.value">
+        <button
+          class="cancel-recording-btn"
+          type="button"
+          :aria-label="t('common.cancel')"
+          @click="handleCancelRecording"
+        >
+          <el-icon :size="18"><Close /></el-icon>
+        </button>
+        <button
+          class="send-recording-btn"
+          type="button"
+          :aria-label="t('common.send')"
+          @click="handleSendRecording"
+        >
+          <el-icon :size="18"><Check /></el-icon>
+        </button>
+      </template>
+
+      <!-- Normal send button -->
       <button
+        v-else-if="!isUploading"
         class="send-btn"
         type="button"
         :disabled="!canSend"
@@ -34,17 +83,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Position, Upload } from '@element-plus/icons-vue';
+import { Position, Upload, Microphone, Close, Check, Loading } from '@element-plus/icons-vue';
+import { useAudioRecorder } from '@/composables/useAudioRecorder';
+import { uploadApi } from '@/services/upload.api';
+import { useToast } from '@/composables/useToast';
+import type { MessageAttachment } from '@/types';
 
 interface Props {
   placeholder?: string;
   maxLength?: number;
   disabled?: boolean;
   sending?: boolean;
-}
-
-interface Emits {
-  (e: 'send', content: string): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -54,10 +103,15 @@ const props = withDefaults(defineProps<Props>(), {
   sending: false,
 });
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<{
+  (e: 'send', content: string, attachments?: MessageAttachment[]): void;
+}>();
 
 const { t } = useI18n();
+const toast = useToast();
+const audioRecorder = useAudioRecorder();
 const inputValue = ref('');
+const isUploading = ref(false);
 
 const computedPlaceholder = computed(() => {
   return props.placeholder || t('chat.inputPlaceholder');
@@ -79,6 +133,12 @@ const estimatedTokens = computed(() => {
   return Math.ceil(cjkCount * 1.5 + asciiCount * 0.25);
 });
 
+const formattedDuration = computed(() => {
+  const mins = Math.floor(audioRecorder.duration.value / 60);
+  const secs = audioRecorder.duration.value % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+});
+
 const handleSend = () => {
   if (!canSend.value) return;
 
@@ -96,6 +156,41 @@ const handleKeyDown = (event: KeyboardEvent) => {
     handleSend();
   }
   // Shift + Enter = new line (default behavior)
+};
+
+const handleStartRecording = async () => {
+  await audioRecorder.startRecording();
+  if (audioRecorder.error.value) {
+    toast.error(audioRecorder.error.value);
+  }
+};
+
+const handleCancelRecording = () => {
+  audioRecorder.cancelRecording();
+};
+
+const handleSendRecording = async () => {
+  try {
+    const blob = await audioRecorder.stopRecording();
+    isUploading.value = true;
+
+    const file = new File([blob], `recording-${Date.now()}.webm`, { type: 'audio/webm' });
+    const result = await uploadApi.uploadAudio(file);
+
+    const attachment: MessageAttachment = {
+      id: crypto.randomUUID(),
+      type: 'audio',
+      url: result.url,
+      name: file.name,
+      size: file.size,
+    };
+
+    emit('send', '', [attachment]);
+  } catch (err) {
+    toast.error(t('chat.uploadFailed'));
+  } finally {
+    isUploading.value = false;
+  }
 };
 </script>
 
@@ -121,13 +216,19 @@ const handleKeyDown = (event: KeyboardEvent) => {
   border-color: var(--accent-purple);
 }
 
-.attach-btn {
+.attach-btn,
+.mic-btn {
   background: none;
   border: none;
   color: var(--text-tertiary);
   cursor: pointer;
   padding: 8px;
   flex-shrink: 0;
+}
+
+.mic-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .input-textarea {
@@ -143,6 +244,82 @@ const handleKeyDown = (event: KeyboardEvent) => {
   background: transparent;
   box-shadow: none;
   resize: none;
+}
+
+.recording-indicator {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  min-height: 33px;
+}
+
+.recording-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.recording-label {
+  font-size: 14px;
+  color: #ef4444;
+}
+
+.recording-duration {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.uploading-indicator {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  min-height: 33px;
+  color: var(--text-tertiary);
+}
+
+.uploading-label {
+  font-size: 14px;
+}
+
+.cancel-recording-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface-hover, #f3f4f6);
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-recording-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .send-btn {
