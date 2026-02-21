@@ -200,6 +200,35 @@ class MemoryRepository {
     `);
   }
 
+  async findPromotionCandidates(
+    characterId: string,
+    userId: string,
+    minImportance = 0.7,
+    minAccessCount = 2
+  ): Promise<CharacterMemory[]> {
+    return await db
+      .select()
+      .from(characterMemories)
+      .where(
+        and(
+          eq(characterMemories.characterId, characterId),
+          eq(characterMemories.userId, userId),
+          sql`${characterMemories.sourceChatId} IS NOT NULL`,
+          sql`CAST(${characterMemories.importance} AS NUMERIC) >= ${minImportance}`,
+          sql`${characterMemories.accessCount} >= ${minAccessCount}`,
+        )
+      )
+      .orderBy(desc(characterMemories.importance))
+      .limit(50);
+  }
+
+  async promoteToGlobal(memoryId: string): Promise<void> {
+    await db
+      .update(characterMemories)
+      .set({ sourceChatId: null })
+      .where(eq(characterMemories.id, memoryId));
+  }
+
   async deleteOldest(characterId: string, userId: string, count: number): Promise<number> {
     // Select the oldest memories by lastAccessed (ascending)
     const oldest = await db

@@ -17,6 +17,8 @@ vi.mock('../../db/repositories/memory.repository', () => ({
     deleteAllForCharacterUser: vi.fn(),
     countByCharacterUser: vi.fn(),
     deleteOldest: vi.fn(),
+    findPromotionCandidates: vi.fn(),
+    promoteToGlobal: vi.fn(),
   },
 }));
 
@@ -531,6 +533,75 @@ describe('MemoryService', () => {
 
       expect(result).toBe(42);
       expect(memoryRepository.countByCharacterUser).toHaveBeenCalledWith('char-1', 'user-1', undefined);
+    });
+  });
+
+  describe('promoteSessionMemories', () => {
+    it('should promote high-importance session memories to global scope', async () => {
+      const candidates = [
+        { id: 'mem-1', content: 'User likes coffee', importance: '0.8', sourceChatId: 'chat-1', characterId: 'char-1', userId: 'user-1', type: 'preference', accessCount: 3 },
+        { id: 'mem-2', content: 'User is a developer', importance: '0.9', sourceChatId: 'chat-2', characterId: 'char-1', userId: 'user-1', type: 'fact', accessCount: 5 },
+      ];
+      vi.mocked(memoryRepository.findPromotionCandidates).mockResolvedValue(candidates as any);
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
+      vi.mocked(memoryRepository.promoteToGlobal).mockResolvedValue();
+
+      const result = await service.promoteSessionMemories('char-1', 'user-1');
+
+      expect(memoryRepository.promoteToGlobal).toHaveBeenCalledTimes(2);
+      expect(memoryRepository.promoteToGlobal).toHaveBeenCalledWith('mem-1');
+      expect(memoryRepository.promoteToGlobal).toHaveBeenCalledWith('mem-2');
+      expect(result).toEqual({ promoted: 2, skipped: 0 });
+    });
+
+    it('should skip promotion when similar global memory exists', async () => {
+      const candidates = [
+        { id: 'mem-1', content: 'User likes coffee', importance: '0.8', sourceChatId: 'chat-1', characterId: 'char-1', userId: 'user-1', type: 'preference', accessCount: 3 },
+      ];
+      vi.mocked(memoryRepository.findPromotionCandidates).mockResolvedValue(candidates as any);
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([
+        { id: 'global-1', content: 'User enjoys coffee', sourceChatId: null, similarity: 0.92 } as any,
+      ]);
+
+      const result = await service.promoteSessionMemories('char-1', 'user-1');
+
+      expect(memoryRepository.promoteToGlobal).not.toHaveBeenCalled();
+      expect(result).toEqual({ promoted: 0, skipped: 1 });
+    });
+
+    it('should respect minImportance and minAccessCount thresholds', async () => {
+      vi.mocked(memoryRepository.findPromotionCandidates).mockResolvedValue([]);
+
+      await service.promoteSessionMemories('char-1', 'user-1');
+
+      expect(memoryRepository.findPromotionCandidates).toHaveBeenCalledWith('char-1', 'user-1', 0.7, 2);
+    });
+
+    it('should return correct promoted/skipped counts', async () => {
+      const candidates = [
+        { id: 'mem-1', content: 'User likes coffee', importance: '0.8', sourceChatId: 'chat-1', characterId: 'char-1', userId: 'user-1', type: 'preference', accessCount: 3 },
+        { id: 'mem-2', content: 'User is a developer', importance: '0.9', sourceChatId: 'chat-2', characterId: 'char-1', userId: 'user-1', type: 'fact', accessCount: 5 },
+        { id: 'mem-3', content: 'User lives in Tokyo', importance: '0.75', sourceChatId: 'chat-1', characterId: 'char-1', userId: 'user-1', type: 'fact', accessCount: 4 },
+      ];
+      vi.mocked(memoryRepository.findPromotionCandidates).mockResolvedValue(candidates as any);
+
+      // mem-1: no global duplicate → promote
+      // mem-2: has global duplicate → skip
+      // mem-3: no global duplicate → promote
+      vi.mocked(memoryRepository.findSimilar)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          { id: 'global-2', content: 'User works as developer', sourceChatId: null, similarity: 0.90 } as any,
+        ])
+        .mockResolvedValueOnce([]);
+      vi.mocked(memoryRepository.promoteToGlobal).mockResolvedValue();
+
+      const result = await service.promoteSessionMemories('char-1', 'user-1');
+
+      expect(result).toEqual({ promoted: 2, skipped: 1 });
+      expect(memoryRepository.promoteToGlobal).toHaveBeenCalledTimes(2);
+      expect(memoryRepository.promoteToGlobal).toHaveBeenCalledWith('mem-1');
+      expect(memoryRepository.promoteToGlobal).toHaveBeenCalledWith('mem-3');
     });
   });
 });

@@ -209,6 +209,43 @@ ${conversationText}
   async getMemoryCount(characterId: string, userId: string, chatId?: string): Promise<number> {
     return await memoryRepository.countByCharacterUser(characterId, userId, chatId);
   }
+
+  async promoteSessionMemories(
+    characterId: string,
+    userId: string,
+    minImportance = 0.7,
+    minAccessCount = 2
+  ): Promise<{ promoted: number; skipped: number }> {
+    const candidates = await memoryRepository.findPromotionCandidates(
+      characterId, userId, minImportance, minAccessCount
+    );
+
+    let promoted = 0;
+    let skipped = 0;
+
+    for (const candidate of candidates) {
+      // Check if a similar global memory already exists
+      const embedding = await embeddingService.embed(candidate.content);
+      const similar = await memoryRepository.findSimilar(
+        characterId, userId, embedding, 0.85, 1
+      );
+
+      // If a global (no sourceChatId) similar memory exists, skip
+      const hasGlobalDuplicate = similar.some(s =>
+        s.id !== candidate.id && !s.sourceChatId
+      );
+
+      if (hasGlobalDuplicate) {
+        skipped++;
+        continue;
+      }
+
+      await memoryRepository.promoteToGlobal(candidate.id);
+      promoted++;
+    }
+
+    return { promoted, skipped };
+  }
 }
 
 export const memoryService = new MemoryService();
