@@ -38,6 +38,20 @@
           </template>
         </template>
       </div>
+      <div v-if="message.attachments?.length" class="message-attachments">
+        <template v-for="attachment in message.attachments" :key="attachment.id">
+          <AudioPlayer
+            v-if="attachment.type === 'audio'"
+            :src="attachment.url"
+            :duration="attachment.duration"
+          />
+          <MessageImage
+            v-else-if="attachment.type === 'image'"
+            :src="attachment.url"
+            :alt="attachment.name"
+          />
+        </template>
+      </div>
       <div class="message-actions">
         <template v-if="message.role === 'assistant'">
           <button class="action-btn" @click="copyMessage" :aria-label="t('chat.copyMessage') || 'Copy'">
@@ -67,6 +81,8 @@ import { useI18n } from 'vue-i18n';
 import { useDateTime } from '@client/composables';
 import { createLogger } from '@client/utils/logger';
 import MarkdownRenderer from './MarkdownRenderer.vue';
+import AudioPlayer from './AudioPlayer.vue';
+import MessageImage from './MessageImage.vue';
 import type { Message } from '@client/types';
 
 const logger = createLogger('MessageBubble');
@@ -184,6 +200,13 @@ const handleDelete = () => {
 
 .message-body {
   line-height: 1.6;
+}
+
+.message-attachments {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .user-text {
