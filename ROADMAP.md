@@ -30,9 +30,11 @@ Phase 7: 生产部署          ████████████████�
 迭代 12: 依赖升级              ████████████████████ 100% ✅
 迭代 13: Chat-Centric UI        ████████████████████ 100% ✅
 迭代 14: i18n 修复 + 前端测试     ████████████████████ 100% ✅
+迭代 15: TypeScript 编译修复      ████████████████████ 100% ✅
+迭代 16: E2E 测试覆盖补全        ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 14 完成
+**整体完成度**: 迭代 16 完成
 
 ---
 
@@ -384,6 +386,26 @@ Phase 7: 生产部署          ████████████████�
   - 管理端 GDPR 请求监控
   - 8 个 E2E 测试
 
+### 迭代 15: TypeScript 编译修复 ✅ (2026-02-21)
+- ✅ **客户端类型修复** — MessageAttachment 接口、Message/Chat 类型扩展
+- ✅ **Store/工具修复** — chat role 类型断言、sentry null 守卫、character 响应访问
+- ✅ **admin.api 泛型** — buildQuery 改为泛型函数
+- ✅ **服务端类型修复** — ApiResponse meta、ScoredMemory、DebugPerformanceMetrics 扩展
+- ✅ **服务类型修复** — event-bus handler 类型、cache del 展开、memory service 参数
+- ✅ **路由类型修复** — characters/gdpr/websocket 类型错误
+- ✅ **基础设施修复** — apiKeyAuth role、worldbooks/uploads 路由存根、kafka disconnect、message repo
+- **结果**: TypeScript 编译错误 34 → 0, 1600 测试通过
+
+### 迭代 16: E2E 测试覆盖补全 ✅ (2026-02-21)
+- ✅ **社交功能 E2E** — 关注/收藏/评论 (18 tests)
+- ✅ **通知系统 E2E** — 通知铃铛 + 通知页面 (10 tests)
+- ✅ **开发者 API E2E** — API Key 管理 (12 tests)
+- ✅ **插件市场 E2E** — 浏览/安装/配置/启停 (14 tests)
+- ✅ **Webhook 管理 E2E** — CRUD + 测试投递 (10 tests)
+- ✅ **推荐系统 E2E** — 热门/个性化/相似 (8 tests)
+- ✅ **个人资料 + 世界书 E2E** — 编辑/主题/世界书 CRUD (14 tests) + 5 额外测试
+- **新增**: 91 E2E 测试, 7 个新 spec 文件 (142 → 228 unique tests)
+
 ---
 
 ## 📈 技术指标
@@ -391,7 +413,7 @@ Phase 7: 生产部署          ████████████████�
 | 指标 | 数值 |
 |------|------|
 | 单元测试 | 1600 通过, 0 失败 (17 跳过) |
-| E2E 测试 | 130/142 通过 (含 5 个技术债务+推荐) |
+| E2E 测试 | 228 unique tests, 17 spec 文件 (Chromium + Mobile Chrome) |
 | i18n 覆盖 | 86 Vue 文件 100% 覆盖, ~490 locale 键 (en-US + zh-CN) |
 | 结构化日志 | 57+ console.* 替换为 pino child loggers |
 | API 端点 | 120+ |
@@ -424,5 +446,7 @@ Phase 7: 生产部署          ████████████████�
 2026-02-20  迭代 11 完成 (测试补全: +75 单元测试, 4 服务 + 4 路由 + E2E 修复)
 2026-02-20  迭代 12 完成 (依赖升级: 漏洞 66→23, 6 主要版本升级, vite 7 + vitest 4)
 2026-02-20  迭代 13 完成 (Chat-Centric UI Redesign: ChatLayout + MarkdownRenderer + WelcomePage)
-2026-02-21  迭代 14 完成 (i18n 修复 + 前端测试覆盖: +185 单元测试, 6 Store + 9 Composable) ← 当前
+2026-02-21  迭代 14 完成 (i18n 修复 + 前端测试覆盖: +185 单元测试, 6 Store + 9 Composable)
+2026-02-21  迭代 15 完成 (TypeScript 编译修复: 34 → 0 错误)
+2026-02-21  迭代 16 完成 (E2E 测试覆盖补全: +91 E2E 测试, 7 新 spec 文件) ← 当前
 ```
