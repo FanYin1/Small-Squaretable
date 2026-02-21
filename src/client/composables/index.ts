@@ -7,3 +7,5 @@ export { useTheme } from './useTheme';
 export { useFeatureGate } from './useFeatureGate';
 export { useToast } from './useToast';
 export { useAudioRecorder } from './useAudioRecorder';
+export { useSpeechToText } from './useSpeechToText';
+export { useTextToSpeech } from './useTextToSpeech';

@@ -57,6 +57,14 @@
           <button class="action-btn" @click="copyMessage" :aria-label="t('chat.copyMessage') || 'Copy'">
             {{ copied ? '✓' : 'Copy' }}
           </button>
+          <button
+            v-if="ttsSupported"
+            :class="['action-btn', { 'action-btn--active': ttsSpeaking }]"
+            :aria-label="ttsSpeaking ? (t('chat.stopSpeech') || 'Stop') : (t('chat.playVoice') || 'Play voice')"
+            @click="toggleTts"
+          >
+            {{ ttsSpeaking ? 'Stop' : 'Play' }}
+          </button>
           <button class="action-btn" @click="handleRegenerate" :aria-label="t('chat.regenerateMessage') || 'Regenerate'">
             Regenerate
           </button>
@@ -79,6 +87,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useDateTime } from '@client/composables';
+import { useTextToSpeech } from '@client/composables/useTextToSpeech';
 import { createLogger } from '@client/utils/logger';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import AudioPlayer from './AudioPlayer.vue';
@@ -110,6 +119,16 @@ const { t } = useI18n();
 const { formatRelativeTime } = useDateTime();
 const copied = ref(false);
 const editContent = ref('');
+
+const { isSpeaking: ttsSpeaking, isSupported: ttsSupported, speak: ttsSpeak, stop: ttsStop } = useTextToSpeech();
+
+const toggleTts = () => {
+  if (ttsSpeaking.value) {
+    ttsStop();
+  } else {
+    ttsSpeak(props.message.content);
+  }
+};
 
 watch(() => props.editing, (val) => {
   if (val) {
@@ -253,6 +272,17 @@ const handleDelete = () => {
 .action-btn:hover {
   background: var(--surface-hover);
   color: var(--accent-purple);
+}
+
+.action-btn--active {
+  background: var(--accent-purple);
+  color: #fff;
+  border-color: var(--accent-purple);
+}
+
+.action-btn--active:hover {
+  background: var(--accent-purple);
+  color: #fff;
 }
 
 .action-btn.delete-btn:hover {
