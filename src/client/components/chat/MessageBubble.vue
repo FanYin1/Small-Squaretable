@@ -60,7 +60,7 @@
           <button
             v-if="ttsSupported"
             :class="['action-btn', { 'action-btn--active': ttsSpeaking }]"
-            :aria-label="ttsSpeaking ? (t('chat.stopSpeech') || 'Stop') : (t('chat.playVoice') || 'Play voice')"
+            :aria-label="ttsSpeaking ? (t('voice.stopVoice') || 'Stop') : (t('voice.playVoice') || 'Play voice')"
             @click="toggleTts"
           >
             {{ ttsSpeaking ? 'Stop' : 'Play' }}

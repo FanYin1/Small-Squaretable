@@ -9,23 +9,35 @@
         class="mic-btn"
         type="button"
         :disabled="disabled || sending"
-        :aria-label="t('chat.voiceRecord')"
+        :aria-label="t('voice.record')"
         @click="handleStartRecording"
       >
         <el-icon :size="20"><Microphone /></el-icon>
       </button>
 
+      <button
+        v-if="stt.isSupported.value && !audioRecorder.isRecording.value && !isUploading"
+        class="stt-btn"
+        :class="{ 'stt-active': stt.isListening.value }"
+        type="button"
+        :disabled="disabled || sending"
+        :aria-label="stt.isListening.value ? t('voice.listening') : t('voice.speechToText')"
+        @click="toggleStt"
+      >
+        <el-icon :size="20"><Headset /></el-icon>
+      </button>
+
       <!-- Recording indicator (replaces text input while recording) -->
       <div v-if="audioRecorder.isRecording.value" class="recording-indicator">
         <span class="recording-dot" />
-        <span class="recording-label">{{ t('chat.recording') }}</span>
+        <span class="recording-label">{{ t('voice.recording') }}</span>
         <span class="recording-duration">{{ formattedDuration }}</span>
       </div>
 
       <!-- Uploading spinner -->
       <div v-else-if="isUploading" class="uploading-indicator">
         <el-icon class="is-loading" :size="18"><Loading /></el-icon>
-        <span class="uploading-label">{{ t('chat.uploading') }}</span>
+        <span class="uploading-label">{{ t('voice.uploading') }}</span>
       </div>
 
       <!-- Normal text input -->
@@ -81,13 +93,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Position, Upload, Microphone, Close, Check, Loading } from '@element-plus/icons-vue';
-import { useAudioRecorder } from '@/composables/useAudioRecorder';
-import { uploadApi } from '@/services/upload.api';
-import { useToast } from '@/composables/useToast';
-import type { MessageAttachment } from '@/types';
+import { Position, Upload, Microphone, Close, Check, Loading, Headset } from '@element-plus/icons-vue';
+import { useAudioRecorder } from '@client/composables/useAudioRecorder';
+import { useSpeechToText } from '@client/composables/useSpeechToText';
+import { uploadApi } from '@client/services/upload.api';
+import { useToast } from '@client/composables/useToast';
+import type { MessageAttachment } from '@client/types';
 
 interface Props {
   placeholder?: string;
@@ -110,12 +123,35 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const toast = useToast();
 const audioRecorder = useAudioRecorder();
+const stt = useSpeechToText();
 const inputValue = ref('');
 const isUploading = ref(false);
 
 const computedPlaceholder = computed(() => {
+  if (stt.isListening.value && stt.interimTranscript.value) {
+    return stt.interimTranscript.value;
+  }
   return props.placeholder || t('chat.inputPlaceholder');
 });
+
+// Append final STT transcript to input
+watch(() => stt.transcript.value, (newVal, oldVal) => {
+  if (newVal && newVal !== oldVal) {
+    inputValue.value += newVal;
+    stt.clearTranscript();
+  }
+});
+
+const toggleStt = () => {
+  if (stt.isListening.value) {
+    stt.stopListening();
+  } else {
+    stt.startListening();
+    if (stt.error.value) {
+      toast.error(stt.error.value);
+    }
+  }
+};
 
 const canSend = computed(() => {
   return inputValue.value.trim().length > 0 && !props.sending && !props.disabled;
@@ -217,16 +253,25 @@ const handleSendRecording = async () => {
 }
 
 .attach-btn,
-.mic-btn {
+.mic-btn,
+.stt-btn {
   background: none;
   border: none;
   color: var(--text-tertiary);
   cursor: pointer;
   padding: 8px;
   flex-shrink: 0;
+  border-radius: 50%;
+  transition: color 0.2s, background-color 0.2s;
 }
 
-.mic-btn:disabled {
+.stt-btn.stt-active {
+  color: var(--accent-purple);
+  background-color: color-mix(in srgb, var(--accent-purple) 12%, transparent);
+}
+
+.mic-btn:disabled,
+.stt-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }

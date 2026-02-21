@@ -1009,6 +1009,23 @@
     "noCharacterData": "暂无角色数据",
     "subtitle": "平台数据驱动洞察"
   },
+  "voice": {
+    "record": "录制语音消息",
+    "recording": "录音中...",
+    "stopRecording": "停止录音",
+    "cancelRecording": "取消录音",
+    "sendRecording": "发送录音",
+    "uploading": "上传音频中...",
+    "micPermissionDenied": "麦克风权限被拒绝",
+    "micNotSupported": "此浏览器不支持录音",
+    "speechToText": "语音转文字",
+    "listening": "聆听中...",
+    "sttNotSupported": "此浏览器不支持语音识别",
+    "playVoice": "朗读",
+    "stopVoice": "停止朗读",
+    "ttsNotSupported": "此浏览器不支持语音合成",
+    "playbackSpeed": "播放速度"
+  },
   "admin": {
     "title": "管理面板",
     "nav": {

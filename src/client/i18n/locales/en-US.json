@@ -1009,6 +1009,23 @@
     "noCharacterData": "No character data available",
     "subtitle": "Data-driven insights for your platform"
   },
+  "voice": {
+    "record": "Record voice message",
+    "recording": "Recording...",
+    "stopRecording": "Stop recording",
+    "cancelRecording": "Cancel recording",
+    "sendRecording": "Send recording",
+    "uploading": "Uploading audio...",
+    "micPermissionDenied": "Microphone permission denied",
+    "micNotSupported": "Audio recording not supported in this browser",
+    "speechToText": "Speech to text",
+    "listening": "Listening...",
+    "sttNotSupported": "Speech recognition not supported in this browser",
+    "playVoice": "Read aloud",
+    "stopVoice": "Stop reading",
+    "ttsNotSupported": "Text-to-speech not supported in this browser",
+    "playbackSpeed": "Playback speed"
+  },
   "admin": {
     "title": "Admin Panel",
     "nav": {
