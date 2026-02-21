@@ -45,6 +45,24 @@ vi.mock('../../db/repositories/webhook.repository', () => ({
   },
 }));
 
+vi.mock('../services/memory-consolidation.service', () => ({
+  memoryConsolidationService: {
+    consolidateAll: vi.fn().mockResolvedValue({ pairs: 0, totalConsolidated: 0 }),
+  },
+}));
+
+vi.mock('../services/memory.service', () => ({
+  memoryService: {
+    promoteSessionMemories: vi.fn().mockResolvedValue({ promoted: 0, skipped: 0 }),
+  },
+}));
+
+vi.mock('../../db/repositories/memory.repository', () => ({
+  memoryRepository: {
+    findActiveCharacterUserPairs: vi.fn().mockResolvedValue([]),
+  },
+}));
+
 import { gdprService } from '../services/gdpr.service';
 import { auditService } from '../services/audit.service';
 import { passwordResetRepository } from '../../db/repositories/password-reset.repository';
@@ -57,15 +75,17 @@ describe('registerJobs', () => {
     scheduler = new SchedulerService();
   });
 
-  it('should register all 4 jobs', () => {
+  it('should register all 6 jobs', () => {
     registerJobs(scheduler);
     const jobs = scheduler.listJobs();
-    expect(jobs).toHaveLength(4);
+    expect(jobs).toHaveLength(6);
     const names = jobs.map((j) => j.name);
     expect(names).toContain('gdpr-deletion');
     expect(names).toContain('audit-retention');
     expect(names).toContain('token-cleanup');
     expect(names).toContain('webhook-cleanup');
+    expect(names).toContain('memory-consolidation');
+    expect(names).toContain('memory-promotion');
   });
 
   it('gdpr-deletion job calls processExpiredDeletions', async () => {

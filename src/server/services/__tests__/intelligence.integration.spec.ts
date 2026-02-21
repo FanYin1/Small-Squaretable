@@ -22,6 +22,13 @@ vi.mock('../../../db/repositories/memory.repository', () => ({
     delete: vi.fn(),
     deleteAllForCharacterUser: vi.fn(),
     countByCharacterUser: vi.fn(),
+    findSimilar: vi.fn().mockResolvedValue([]),
+    updateContent: vi.fn(),
+    updateVector: vi.fn(),
+    findPromotionCandidates: vi.fn().mockResolvedValue([]),
+    promoteToGlobal: vi.fn(),
+    deleteOldest: vi.fn(),
+    findActiveCharacterUserPairs: vi.fn().mockResolvedValue([]),
   },
 }));
 
@@ -72,6 +79,8 @@ describe('Intelligence Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Ensure findSimilar returns empty array by default (needed for storeMemory dedup check)
+    vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
     memoryService = new MemoryService();
     emotionService = new EmotionService();
     chatService = new ChatService();
