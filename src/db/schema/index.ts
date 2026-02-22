@@ -26,3 +26,4 @@ export * from './moderation-actions';
 export * from './audit-logs';
 export * from './user-consents';
 export * from './experiments';
+export * from './activities';
