@@ -39,6 +39,8 @@ export const characters = pgTable('characters', {
   // 公开和分享
   isPublic: boolean('is_public').default(false).notNull(),
   isNsfw: boolean('is_nsfw').default(false).notNull(),
+  shareToken: varchar('share_token', { length: 64 }),
+  forkedFromId: uuid('forked_from_id'),
 
   // 统计数据
   downloadCount: integer('download_count').default(0).notNull(),

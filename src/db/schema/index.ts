@@ -33,3 +33,6 @@ export * from './message-bookmarks';
 export * from './chat-templates';
 export * from './character-relationships';
 export * from './character-growth';
+export * from './chat-snapshots';
+export * from './character-collaborators';
+export * from './character-templates';
