@@ -81,6 +81,8 @@ export interface Character {
   cardData?: CharacterCardData;
   createdAt: string;
   updatedAt?: string;
+  shareToken?: string;
+  forkedFromId?: string;
 }
 
 export type PlanType = 'free' | 'pro' | 'team';
@@ -106,4 +108,41 @@ export interface SubscriptionConfig {
     proYearly: string;
     teamMonthly: string;
   };
+}
+
+export interface ChatSnapshot {
+  id: string;
+  chatId: string;
+  shareToken: string;
+  title?: string;
+  messages: Message[];
+  messageCount: number;
+  characterName?: string;
+  characterAvatar?: string;
+  expiresAt?: string;
+  createdAt: string;
+}
+
+export interface CharacterCollaborator {
+  id: string;
+  characterId: string;
+  userId: string;
+  userName?: string;
+  userAvatar?: string;
+  role: 'editor' | 'viewer';
+  createdAt: string;
+}
+
+export interface CharacterTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  avatarUrl?: string;
+  cardData: CharacterCardData;
+  category?: string;
+  tags?: string[];
+  isPublic: boolean;
+  usageCount: number;
+  creatorId?: string;
+  createdAt: string;
 }

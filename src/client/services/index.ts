@@ -23,3 +23,7 @@ export * from './gdpr.api';
 export * from './recommendation.api';
 export * from './character-relationship.api';
 export * from './character-growth.api';
+export * from './search.api';
+export * from './share.api';
+export * from './collaborator.api';
+export * from './character-template.api';
