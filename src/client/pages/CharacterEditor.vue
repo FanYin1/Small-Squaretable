@@ -7,6 +7,7 @@ import { characterApi } from '@client/services/character.api';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import CharacterPreview from '@client/components/character/CharacterPreview.vue';
 import VersionHistory from '@client/components/character/VersionHistory.vue';
+import TemplateSelector from '@client/components/character/TemplateSelector.vue';
 import type { CharacterCardData } from '@client/types';
 
 const route = useRoute();
@@ -187,6 +188,14 @@ async function handleRestoreVersion(cardData: Record<string, unknown>) {
   form.creatorNotes = (cardData.creator_notes as string) || '';
   ElMessage.success(t('characterEditor.restoreSuccess', 'Version restored'));
 }
+function handleTemplateSelect(cardData: CharacterCardData) {
+  form.personality = cardData.personality || '';
+  form.scenario = cardData.scenario || '';
+  form.systemPrompt = cardData.system_prompt || '';
+  form.firstMessage = cardData.first_mes || '';
+  form.exampleMessages = cardData.mes_example || '';
+  form.creatorNotes = cardData.creator_notes || '';
+}
 </script>
 
 <template>
@@ -198,6 +207,10 @@ async function handleRestoreVersion(cardData: Record<string, unknown>) {
     <div v-loading="loading" class="editor-container">
       <el-row :gutter="24">
         <el-col :xs="24" :sm="24" :md="14" :lg="14">
+          <TemplateSelector
+            v-if="!isEditMode"
+            @select="handleTemplateSelect"
+          />
           <el-form
         ref="formRef"
         :model="form"
