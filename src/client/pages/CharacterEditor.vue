@@ -3,12 +3,15 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { ArrowUp, ArrowDown } from '@element-plus/icons-vue';
 import { characterApi } from '@client/services/character.api';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import CharacterPreview from '@client/components/character/CharacterPreview.vue';
 import VersionHistory from '@client/components/character/VersionHistory.vue';
 import TemplateSelector from '@client/components/character/TemplateSelector.vue';
+import VoiceSettings from '@client/components/character/VoiceSettings.vue';
 import type { CharacterCardData } from '@client/types';
+import type { VoiceConfig } from '@client/composables/useTextToSpeech';
 
 const route = useRoute();
 const router = useRouter();
@@ -18,6 +21,8 @@ const isEditMode = computed(() => !!route.params.id);
 const characterId = computed(() => route.params.id as string | undefined);
 const loading = ref(false);
 const saving = ref(false);
+const showVoiceSettings = ref(false);
+const voiceConfig = ref<VoiceConfig>({});
 
 // Form data
 const form = reactive({
@@ -100,6 +105,9 @@ async function handleSave() {
     mes_example: form.exampleMessages || undefined,
     system_prompt: form.systemPrompt || undefined,
     creator_notes: form.creatorNotes || undefined,
+    extensions: {
+      voice: voiceConfig.value,
+    },
   };
 
   saving.value = true;
@@ -155,6 +163,10 @@ async function fetchCharacter() {
       form.firstMessage = cd.first_mes || '';
       form.exampleMessages = cd.mes_example || '';
       form.creatorNotes = cd.creator_notes || '';
+      if (cd.extensions?.voice) {
+        voiceConfig.value = cd.extensions.voice as VoiceConfig;
+        showVoiceSettings.value = true;
+      }
     }
   } catch (error: unknown) {
     ElMessage.error(t('characterEditor.loadFailed'));
@@ -288,6 +300,22 @@ function handleTemplateSelect(cardData: CharacterCardData) {
           <el-input v-model="form.creatorNotes" type="textarea" :rows="3" />
         </el-form-item>
 
+        <!-- Voice Settings -->
+        <el-divider content-position="left">
+          <span class="voice-toggle" @click="showVoiceSettings = !showVoiceSettings">
+            {{ t('characterEditor.voiceSettingsSection', 'Voice Settings') }}
+            <el-icon style="margin-left: 4px;">
+              <arrow-up v-if="showVoiceSettings" />
+              <arrow-down v-else />
+            </el-icon>
+          </span>
+        </el-divider>
+
+        <VoiceSettings
+          v-if="showVoiceSettings"
+          v-model="voiceConfig"
+        />
+
         <!-- Avatar -->
         <el-divider content-position="left">{{ t('characterEditor.avatarSection') }}</el-divider>
 
@@ -398,6 +426,13 @@ function handleTemplateSelect(cardData: CharacterCardData) {
   margin-top: 32px;
   padding-top: 24px;
   border-top: 1px solid var(--border-default);
+}
+
+.voice-toggle {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
 }
 
 @media (max-width: 767px) {
