@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Chat, Message, Character, MessageAttachment } from '@client/types';
+import type { ModelMeta } from '@client/services/llm.api';
 import { chatApi, ApiError, llmApi, characterApi } from '@client/services';
 import { WebSocketClient } from '@client/services/websocket';
 import { WSConnectionState } from '../../types/websocket';
@@ -30,6 +31,7 @@ export const useChatStore = defineStore('chat', () => {
   const searchResults = ref<Message[]>([]);
   const searchQuery = ref('');
   const searching = ref(false);
+  const availableModels = ref<ModelMeta[]>([]);
 
   // WebSocket client
   let wsClient: WebSocketClient | null = null;
@@ -43,6 +45,13 @@ export const useChatStore = defineStore('chat', () => {
   const currentCharacter = computed<Character | null>(() =>
     chatCharacters.value.length > 0 ? chatCharacters.value[0] : null
   );
+
+  // Current model for the active chat
+  const currentModel = computed<string>(() => {
+    const chatModel = currentChat.value?.metadata?.model;
+    if (chatModel) return chatModel as string;
+    return availableModels.value.length > 0 ? availableModels.value[0].id : '';
+  });
 
   /**
    * 构建角色的 system prompt
@@ -630,6 +639,34 @@ export const useChatStore = defineStore('chat', () => {
     return result.deletedCount;
   }
 
+  async function fetchModels(): Promise<void> {
+    try {
+      const models = await llmApi.getModels();
+      availableModels.value = models;
+    } catch (e) {
+      logger.error('Failed to fetch models', e);
+    }
+  }
+
+  async function switchModel(model: string): Promise<void> {
+    if (!currentChatId.value) return;
+    try {
+      await chatApi.updateChatModel(currentChatId.value, model);
+      // Update local chat metadata
+      const index = chats.value.findIndex(c => c.id === currentChatId.value);
+      if (index !== -1) {
+        const chat = chats.value[index];
+        chats.value[index] = {
+          ...chat,
+          metadata: { ...chat.metadata, model },
+        };
+      }
+    } catch (e) {
+      logger.error('Failed to switch model', e);
+      throw e;
+    }
+  }
+
   return {
     chats,
     currentChatId,
@@ -651,6 +688,8 @@ export const useChatStore = defineStore('chat', () => {
     searchResults,
     searchQuery,
     searching,
+    availableModels,
+    currentModel,
     fetchChats,
     fetchMessages,
     fetchOlderMessages,
@@ -667,6 +706,8 @@ export const useChatStore = defineStore('chat', () => {
     searchMessages,
     clearSearch,
     rollbackToMessage,
+    fetchModels,
+    switchModel,
     initWebSocket,
     disconnectWebSocket,
   };

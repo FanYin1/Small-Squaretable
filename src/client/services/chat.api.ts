@@ -83,6 +83,7 @@ function transformChat(item: BackendChat): Chat {
     characterAvatar: undefined,
     lastMessage: item.summary || undefined,
     lastMessageAt: item.updatedAt,
+    metadata: item.metadata,
     createdAt: item.createdAt,
   };
 }
@@ -228,6 +229,12 @@ export const chatApi = {
     if (!response.ok) throw new Error('Export failed');
     return response.blob();
   },
+
+  /**
+   * 更新聊天使用的模型
+   */
+  updateChatModel: (chatId: string, model: string) =>
+    api.patch(`/chats/${chatId}/model`, { model }),
 
   /**
    * 回滚聊天到指定消息

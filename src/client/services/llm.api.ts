@@ -38,7 +38,20 @@ export interface ChatCompletionResponse {
   };
 }
 
+export interface ModelMeta {
+  id: string;
+  provider: string;
+  contextWindow: number;
+  maxOutputTokens: number;
+  defaultTemperature: number;
+}
+
 export const llmApi = {
+  /**
+   * 获取可用模型列表
+   */
+  getModels: () => api.get<ModelMeta[]>('/llm/models'),
+
   /**
    * 聊天补全（非流式）
    */

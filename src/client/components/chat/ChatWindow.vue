@@ -51,6 +51,25 @@
             @click="showGrowthPanel = true"
           >{{ t('character.growth') }}</el-button>
         </el-tooltip>
+        <el-select
+          v-if="chatStore.availableModels.length > 0 && currentChat"
+          :model-value="chatStore.currentModel"
+          size="small"
+          style="width: 180px"
+          @change="handleModelChange"
+        >
+          <el-option
+            v-for="m in chatStore.availableModels"
+            :key="m.id"
+            :label="m.id"
+            :value="m.id"
+          >
+            <span>{{ m.id }}</span>
+            <span style="float: right; color: var(--el-text-color-secondary); font-size: 12px">
+              {{ formatContextWindow(m.contextWindow) }}
+            </span>
+          </el-option>
+        </el-select>
         <el-dropdown trigger="click" @command="handleMenuCommand">
           <el-button link :icon="More" />
           <template #dropdown>
@@ -688,6 +707,20 @@ const openIntelligenceTab = (tab: string) => {
   intelligenceStore.resetDebugEventCount();
 };
 
+function formatContextWindow(tokens: number): string {
+  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(0)}M`;
+  if (tokens >= 1000) return `${(tokens / 1000).toFixed(0)}K`;
+  return `${tokens}`;
+}
+
+const handleModelChange = async (model: string) => {
+  try {
+    await chatStore.switchModel(model);
+  } catch (error: unknown) {
+    logger.error('Failed to switch model', error);
+  }
+};
+
 // Watch for chat changes to fetch intelligence data
 watch(() => props.currentChat, async (newChat, oldChat) => {
   // Reset greeting index when switching chats
@@ -788,6 +821,7 @@ const handleTouchEnd = async () => {
 onMounted(() => {
   scrollToBottom(false);
   messagesContainer.value?.addEventListener('scroll', handleScroll);
+  chatStore.fetchModels();
 });
 
 // Handle scroll on window resize
