@@ -38,6 +38,7 @@ const editingRelationship = ref<CharacterRelationship | null>(null);
 const characterOptions = ref<Character[]>([]);
 const searchLoading = ref(false);
 const submitting = ref(false);
+const characterNames = ref<Record<string, string>>({});
 
 const RELATIONSHIP_TYPES = [
   'friend', 'rival', 'mentor', 'student', 'lover', 'family', 'acquaintance',
@@ -48,7 +49,7 @@ const TYPE_COLORS: Record<string, string> = {
   rival: '#F56C6C',
   mentor: '#409EFF',
   student: '#E6A23C',
-  lover: '#F56C6C',
+  lover: '#E040A0',
   family: '#909399',
   acquaintance: '#C0C4CC',
 };
@@ -64,11 +65,29 @@ const defaultForm = (): CreateRelationshipRequest => ({
 
 const form = ref<CreateRelationshipRequest>(defaultForm());
 
+// Resolve character names for graph node labels
+async function resolveCharacterNames(rels: CharacterRelationship[]) {
+  const ids = rels
+    .map((r) => r.targetCharacterId)
+    .filter((id): id is string => !!id && !characterNames.value[id]);
+  for (const id of ids) {
+    try {
+      const char = await characterApi.getCharacter(id);
+      if (char && typeof char === 'object' && 'name' in char) {
+        characterNames.value[id] = (char as Character).name;
+      }
+    } catch {
+      // Character may have been deleted; skip
+    }
+  }
+}
+
 // Load relationships
 async function loadRelationships() {
   loading.value = true;
   try {
     relationships.value = await characterRelationshipApi.getRelationships(props.characterId);
+    await resolveCharacterNames(relationships.value);
   } catch (error) {
     logger.error('Failed to load relationships', error);
     ElMessage.error(t('common.loadFailed'));
@@ -185,7 +204,7 @@ const nodes = computed(() => {
     const affinity = Number(rel.affinity);
     const size = 20 + affinity * 30;
     return {
-      name: rel.label || rel.type,
+      name: (rel.targetCharacterId && characterNames.value[rel.targetCharacterId]) || rel.label || rel.type,
       symbolSize: size,
       itemStyle: { color: TYPE_COLORS[rel.type] || '#C0C4CC' },
       _id: rel.id,
