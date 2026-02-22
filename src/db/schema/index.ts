@@ -31,3 +31,4 @@ export * from './character-versions';
 export * from './chat-characters';
 export * from './message-bookmarks';
 export * from './chat-templates';
+export * from './character-relationships';
