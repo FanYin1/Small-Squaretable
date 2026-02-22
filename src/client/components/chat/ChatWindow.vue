@@ -45,6 +45,12 @@
             >{{ t('chat.debug') }}</el-button>
           </el-badge>
         </el-tooltip>
+        <el-tooltip v-if="currentChat?.characterId" :content="t('character.growth')" placement="bottom">
+          <el-button
+            size="small"
+            @click="showGrowthPanel = true"
+          >{{ t('character.growth') }}</el-button>
+        </el-tooltip>
         <el-dropdown trigger="click" @command="handleMenuCommand">
           <el-button link :icon="More" />
           <template #dropdown>
@@ -240,6 +246,17 @@
       </div>
     </el-dialog>
 
+    <!-- Growth Panel Dialog -->
+    <el-dialog
+      v-model="showGrowthPanel"
+      :title="t('character.growth')"
+      width="420px"
+      append-to-body
+      destroy-on-close
+    >
+      <GrowthPanel v-if="currentChat?.characterId" :character-id="currentChat.characterId" />
+    </el-dialog>
+
     <!-- Intelligence Drawer -->
     <el-drawer
       v-model="showIntelligenceDrawer"
@@ -285,6 +302,7 @@ import MarkdownRenderer from './MarkdownRenderer.vue';
 import EmotionIndicator from '@client/components/EmotionIndicator.vue';
 import MemoryPanel from '@client/components/MemoryPanel.vue';
 import IntelligenceDebugPanel from '@client/components/debug/IntelligenceDebugPanel.vue';
+import GrowthPanel from '@client/components/character/GrowthPanel.vue';
 import { createLogger } from '@client/utils/logger';
 import type { Chat, Message, MessageAttachment, Character } from '@client/types';
 
@@ -314,6 +332,7 @@ const showManageDialog = ref(false);
 const showAddCharacterDialog = ref(false);
 const addCharacterSearch = ref('');
 const availableCharacters = ref<Character[]>([]);
+const showGrowthPanel = ref(false);
 
 // Build a lookup map for character info by ID
 const characterMap = computed(() => {
