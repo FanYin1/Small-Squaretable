@@ -136,7 +136,8 @@
     "bookmarks": "收藏夹",
     "noBookmarks": "暂无收藏",
     "bookmarkedMessage": "已收藏的消息",
-    "rollbackToHere": "回滚到此处"
+    "rollbackToHere": "回滚到此处",
+    "templates": "模板"
   },
   "market": {
     "title": "角色市场",

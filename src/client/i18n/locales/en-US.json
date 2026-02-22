@@ -136,7 +136,8 @@
     "bookmarks": "Bookmarks",
     "noBookmarks": "No bookmarks yet",
     "bookmarkedMessage": "Bookmarked message",
-    "rollbackToHere": "Rollback to here"
+    "rollbackToHere": "Rollback to here",
+    "templates": "Templates"
   },
   "market": {
     "title": "Character Market",

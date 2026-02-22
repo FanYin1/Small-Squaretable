@@ -27,6 +27,28 @@
       </el-button>
     </div>
 
+    <!-- Templates section -->
+    <template v-if="!isGroupMode && allTemplates.length > 0">
+      <div class="section-title">{{ t('chat.templates') }}</div>
+      <div class="template-grid">
+        <div
+          v-for="tpl in allTemplates"
+          :key="tpl.id"
+          class="template-card"
+          role="button"
+          :tabindex="0"
+          @click="handleUseTemplate(tpl)"
+          @keydown.enter="handleUseTemplate(tpl)"
+        >
+          <span class="template-name">{{ tpl.name }}</span>
+          <span class="template-desc">{{ tpl.description || '' }}</span>
+          <div v-if="tpl.tags?.length" class="template-tags">
+            <el-tag v-for="tag in tpl.tags.slice(0, 3)" :key="tag" size="small" type="info">{{ tag }}</el-tag>
+          </div>
+        </div>
+      </div>
+    </template>
+
     <!-- Loading state -->
     <template v-if="loading">
       <div class="section-title">{{ t('chat.recentCharacters') }}</div>
@@ -96,14 +118,18 @@ import { useI18n } from 'vue-i18n';
 import { Search } from '@element-plus/icons-vue';
 import { characterApi } from '@client/services/character.api';
 import type { Character } from '@client/types';
+import { useChatTemplateStore } from '@client/stores/chatTemplate';
+import type { ChatTemplate } from '@client/services/chat-template.api';
 
 const emit = defineEmits<{
   (e: 'select-character', characterId: string): void;
   (e: 'select-characters', characterIds: string[]): void;
+  (e: 'use-template', template: ChatTemplate): void;
 }>();
 
 const router = useRouter();
 const { t } = useI18n();
+const templateStore = useChatTemplateStore();
 
 const searchQuery = ref('');
 const characters = ref<Character[]>([]);
@@ -147,6 +173,16 @@ const startGroupChat = () => {
   }
 };
 
+const allTemplates = computed(() => [
+  ...templateStore.ownTemplates,
+  ...templateStore.publicTemplates.filter(t => !templateStore.ownTemplates.some(o => o.id === t.id)),
+]);
+
+const handleUseTemplate = async (template: ChatTemplate) => {
+  await templateStore.useTemplate(template.id);
+  emit('use-template', template);
+};
+
 const goToMarket = () => {
   router.push({ name: 'Market' });
 };
@@ -164,6 +200,7 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+  templateStore.fetchTemplates();
 });
 </script>
 
@@ -335,8 +372,65 @@ onMounted(async () => {
   color: var(--text-color-secondary);
 }
 
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 600px;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.template-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-color);
+}
+
+.template-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.template-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.template-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-color-primary);
+}
+
+.template-desc {
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.template-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
 @media (max-width: 480px) {
   .character-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .template-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
