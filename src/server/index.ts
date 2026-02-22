@@ -41,6 +41,8 @@ import { gdprRoutes } from './routes/gdpr';
 import { recommendationRoutes } from './routes/recommendations';
 import { chatTemplatesRouter } from './routes/chat-templates';
 import { shareRoutes } from './routes/share';
+import { characterCollaboratorRoutes } from './routes/character-collaborators';
+import { characterTemplateRoutes } from './routes/character-templates';
 import { characterRelationshipsRouter } from './routes/character-relationships';
 import { characterGrowthRouter } from './routes/character-growth';
 import { searchRoutes } from './routes/search';
@@ -140,6 +142,8 @@ app.use('/api/v1/recommendations/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/chat-templates/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-relationships/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-growth/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/character-collaborators/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/character-templates/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/search/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
@@ -192,6 +196,8 @@ app.use('/api/v1/recommendations', csrfProtection());
 app.use('/api/v1/chat-templates', csrfProtection());
 app.use('/api/v1/character-relationships', csrfProtection());
 app.use('/api/v1/character-growth', csrfProtection());
+app.use('/api/v1/character-collaborators', csrfProtection());
+app.use('/api/v1/character-templates', csrfProtection());
 app.use('/api/v1/search', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
@@ -216,6 +222,8 @@ app.route('/api/v1/recommendations', recommendationRoutes);
 app.route('/api/v1/chat-templates', chatTemplatesRouter);
 app.route('/api/v1/character-relationships', characterRelationshipsRouter);
 app.route('/api/v1/character-growth', characterGrowthRouter);
+app.route('/api/v1/character-collaborators', characterCollaboratorRoutes);
+app.route('/api/v1/character-templates', characterTemplateRoutes);
 app.route('/api/v1/search', searchRoutes);
 app.route('/api/v1', intelligenceRoutes);
 app.route('/api/v1/share', shareRoutes);
@@ -249,6 +257,8 @@ app.get('/api/v1', (c) => {
       chatTemplates: '/api/v1/chat-templates',
       characterRelationships: '/api/v1/character-relationships',
       characterGrowth: '/api/v1/character-growth',
+      characterCollaborators: '/api/v1/character-collaborators',
+      characterTemplates: '/api/v1/character-templates',
       search: '/api/v1/search',
       docs: '/api/v1/docs',
       ws: '/ws',

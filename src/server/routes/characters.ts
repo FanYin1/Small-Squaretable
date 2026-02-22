@@ -649,7 +649,52 @@ characterRoutes.patch(
       charLogger.warn('Failed to auto-save version', { characterId, error: e });
     }
 
-    const character = await characterService.update(characterId, user.id, user.tenantId, input);
+    // Check if user is owner; if not, check if they are an editor collaborator
+    const existing = await characterService.getById(characterId);
+    const isOwner = existing.creatorId === user.id;
+
+    if (!isOwner) {
+      const collaborator = await db.select().from(characterCollaborators)
+        .where(and(
+          eq(characterCollaborators.characterId, characterId),
+          eq(characterCollaborators.userId, user.id),
+          eq(characterCollaborators.role, 'editor')
+        ))
+        .limit(1);
+
+      if (collaborator.length === 0) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'Forbidden' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          403
+        );
+      }
+    }
+
+    // Owner uses the service; collaborator bypasses ownership check via direct update
+    let character;
+    if (isOwner) {
+      character = await characterService.update(characterId, user.id, user.tenantId, input);
+    } else {
+      const [updated] = await db.update(characters)
+        .set({ ...input, updatedAt: new Date() })
+        .where(eq(characters.id, characterId))
+        .returning();
+      if (!updated) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Character not found' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          404
+        );
+      }
+      character = updated;
+    }
 
     // Invalidate relevant caches
     await cacheService.invalidateCharacter(characterId);
@@ -992,8 +1037,9 @@ characterRoutes.get('/:id/export/png', optionalAuthMiddleware(), async (c) => {
 
 import crypto from 'crypto';
 import { db } from '../../db';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { characters } from '../../db/schema/characters';
+import { characterCollaborators } from '../../db/schema/character-collaborators';
 
 // POST /:id/share — Generate a share token for a character
 characterRoutes.post(
