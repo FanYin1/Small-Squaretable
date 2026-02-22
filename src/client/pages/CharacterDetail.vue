@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { ChatDotRound, Download, Upload, ArrowLeft } from '@element-plus/icons-vue';
+import { ChatDotRound, Download, Upload, ArrowLeft, Edit } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useCharacterStore, useUserStore } from '@client/stores';
 import { api } from '@client/services/api';
@@ -22,6 +22,9 @@ const userStore = useUserStore();
 const characterId = computed(() => route.params.id as string);
 const character = computed(() => characterStore.currentCharacter);
 const isAuthenticated = computed(() => userStore.isAuthenticated);
+const isOwner = computed(() =>
+  userStore.user && character.value?.creatorId && userStore.user.id === character.value.creatorId
+);
 const loading = ref(true);
 
 // Rating state
@@ -121,6 +124,14 @@ async function fetchRatings() {
 
           <div class="action-buttons">
             <FavoriteButton :character-id="characterId" />
+            <el-button
+              v-if="isOwner"
+              type="warning"
+              :icon="Edit"
+              @click="router.push({ name: 'CharacterEdit', params: { id: character.id } })"
+            >
+              {{ t('common.edit') }}
+            </el-button>
             <el-button type="primary" :icon="ChatDotRound" @click="router.push({ name: 'Chat', query: { characterId: character.id } })">
               {{ t('market.startChat') }}
             </el-button>

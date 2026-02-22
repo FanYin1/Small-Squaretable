@@ -89,6 +89,10 @@ function handleCreateNew() {
   router.push({ name: 'CharacterCreate' });
 }
 
+function handleEdit(character: Character) {
+  router.push({ name: 'CharacterEdit', params: { id: character.id } });
+}
+
 function handlePublish(character: Character) {
   selectedCharacterForPublish.value = character;
   publishDialogVisible.value = true;
@@ -299,7 +303,7 @@ function handleStartChat(character: Character) {
               size="small"
               :icon="Edit"
               circle
-              @click.stop="handleCardClick(character.id)"
+              @click.stop="handleEdit(character)"
             />
 
             <el-button

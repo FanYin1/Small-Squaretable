@@ -69,6 +69,7 @@ export interface Character {
   viewCount?: number;
   isPublic: boolean;
   isNsfw?: boolean;
+  creatorId?: string;
   cardData?: CharacterCardData;
   createdAt: string;
   updatedAt?: string;
