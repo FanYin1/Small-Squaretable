@@ -4,7 +4,7 @@
  * Handles data access for world book entries.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { worldbookEntries } from '../schema/worldbooks';
@@ -64,6 +64,57 @@ export class WorldBookEntryRepository extends BaseRepository {
       })
       .returning();
     return row;
+  }
+
+  /**
+   * Find all entries for a world book, ordered by position.
+   */
+  async findByWorldBook(worldbookId: string) {
+    return this.db.select().from(worldbookEntries)
+      .where(eq(worldbookEntries.worldbookId, worldbookId))
+      .orderBy(worldbookEntries.position);
+  }
+
+  /**
+   * Find a single entry by ID.
+   */
+  async findById(id: string) {
+    const [row] = await this.db.select().from(worldbookEntries).where(eq(worldbookEntries.id, id));
+    return row ?? null;
+  }
+
+  /**
+   * Update an entry by ID.
+   */
+  async update(id: string, data: {
+    keyword?: string;
+    content?: string;
+    position?: number;
+    isEnabled?: boolean;
+    priority?: number;
+    settings?: Record<string, unknown>;
+  }) {
+    const updateData = { ...data, updatedAt: new Date() };
+    const [row] = await this.db.update(worldbookEntries).set(updateData)
+      .where(eq(worldbookEntries.id, id)).returning();
+    return row ?? null;
+  }
+
+  /**
+   * Delete an entry by ID.
+   */
+  async delete(id: string) {
+    await this.db.delete(worldbookEntries).where(eq(worldbookEntries.id, id));
+  }
+
+  /**
+   * Count entries in a world book.
+   */
+  async countByWorldBook(worldbookId: string): Promise<number> {
+    const result = await this.db.select({ count: sql<number>`count(*)::int` })
+      .from(worldbookEntries)
+      .where(eq(worldbookEntries.worldbookId, worldbookId));
+    return result[0]?.count ?? 0;
   }
 }
 
