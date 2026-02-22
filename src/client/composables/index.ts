@@ -9,3 +9,4 @@ export { useToast } from './useToast';
 export { useAudioRecorder } from './useAudioRecorder';
 export { useSpeechToText } from './useSpeechToText';
 export { useTextToSpeech } from './useTextToSpeech';
+export { useApiCache, invalidateCache, clearAllCache } from './useApiCache';

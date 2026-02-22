@@ -656,10 +656,21 @@ export const useChatStore = defineStore('chat', () => {
     return result.deletedCount;
   }
 
+  // Simple in-memory cache for models (rarely change)
+  const modelsCache: { data: ModelMeta[] | null; timestamp: number } = { data: null, timestamp: 0 };
+  const MODELS_CACHE_TTL = 300000; // 5 minutes
+
   async function fetchModels(): Promise<void> {
+    const now = Date.now();
+    if (modelsCache.data && now - modelsCache.timestamp < MODELS_CACHE_TTL) {
+      availableModels.value = modelsCache.data;
+      return;
+    }
     try {
       const models = await llmApi.getModels();
       availableModels.value = models;
+      modelsCache.data = models;
+      modelsCache.timestamp = now;
     } catch (e) {
       logger.error('Failed to fetch models', e);
     }
