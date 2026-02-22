@@ -12,8 +12,9 @@ import { logger } from '../services/logger.service';
 const wsLogger = logger.child({ module: 'websocket' });
 import { websocketService } from '../services/websocket.service';
 import { llmService } from '../services/llm.service';
-import { getDefaultModel } from '../config/llm.config';
-import { chatService } from '../services/chat.service';
+import { getDefaultModel, getModelMeta } from '../config/llm.config';
+import { chatService, getChatModel } from '../services/chat.service';
+import { contextManager } from '../services/context-manager.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
@@ -217,8 +218,15 @@ export class WebSocketHandler {
       : null;
 
     const messages = await chatService.getMessages(chatId);
-    const llmMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+    const chatMessages = messages.map(m => ({
+      role: m.role as 'user' | 'assistant' | 'system',
+      content: m.content,
+    }));
 
+    // Determine model from chat metadata or default
+    const model = getChatModel(chat) || getDefaultModel() || 'glm-4.5-air';
+
+    let systemPrompt = '';
     if (character) {
       const enhancedPrompt = await chatService.buildEnhancedSystemPrompt({
         character,
@@ -227,22 +235,18 @@ export class WebSocketHandler {
         chatId,
         userMessage: content,
       });
-      llmMessages.push({ role: 'system', content: enhancedPrompt.systemPrompt });
+      systemPrompt = enhancedPrompt.systemPrompt;
 
       await chatService.updateEmotionFromMessage(
         character.id, userId, chatId, content, userMessageId
       );
     }
 
-    for (const m of messages) {
-      llmMessages.push({
-        role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content,
-      });
-    }
+    // Use context manager to fit within token budget
+    const contextResult = contextManager.buildContext(systemPrompt, chatMessages, model);
 
     const assistantMessageId = nanoid();
-    const fullContent = await this.streamLlmResponse(chatId, assistantMessageId, llmMessages);
+    const fullContent = await this.streamLlmResponse(chatId, assistantMessageId, contextResult.messages, undefined, undefined, model);
 
     const assistantMessage = await chatService.addMessage(chatId, {
       role: 'assistant',
@@ -275,6 +279,10 @@ export class WebSocketHandler {
     userContent: string,
     userId: string
   ): Promise<void> {
+    // Load chat to determine model
+    const chat = await chatRepository.findById(chatId);
+    const model = (chat ? getChatModel(chat) : null) || getDefaultModel() || 'glm-4.5-air';
+
     // Determine who responded last to feed round-robin
     const recentMessages = await chatService.getMessages(chatId);
     let lastResponderId: string | undefined;
@@ -305,21 +313,17 @@ export class WebSocketHandler {
         userMessage: userContent,
       });
 
-      // Build LLM message array
-      const chatMessages = await chatService.getMessages(chatId);
-      const llmMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
-      llmMessages.push({ role: 'system', content: enhancedPrompt.systemPrompt });
-      for (const m of chatMessages) {
-        llmMessages.push({
-          role: m.role as 'user' | 'assistant' | 'system',
-          content: m.content,
-        });
-      }
+      // Build chat messages and use context manager
+      const chatMessages = (await chatService.getMessages(chatId)).map(m => ({
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+      }));
+      const contextResult = contextManager.buildContext(enhancedPrompt.systemPrompt, chatMessages, model);
 
       // Stream LLM response with character identification
       const tempMessageId = nanoid();
       const fullContent = await this.streamLlmResponse(
-        chatId, tempMessageId, llmMessages, character.id, character.name
+        chatId, tempMessageId, contextResult.messages, character.id, character.name, model
       );
 
       // Save message with characterId
@@ -352,12 +356,15 @@ export class WebSocketHandler {
     messageId: string,
     llmMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
     characterId?: string,
-    characterName?: string
+    characterName?: string,
+    model?: string
   ): Promise<string> {
+    const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
+    const meta = getModelMeta(selectedModel);
     const response = await llmService.streamChatCompletion({
       messages: llmMessages,
-      model: getDefaultModel() || 'glm-4.5-air',
-      temperature: 0.7,
+      model: selectedModel,
+      temperature: meta.defaultTemperature,
       n: 1,
       stream: true,
       presence_penalty: 0,
