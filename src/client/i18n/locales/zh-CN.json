@@ -1256,5 +1256,21 @@
     "restoreTitle": "恢复版本",
     "restored": "版本已恢复",
     "noVersions": "暂无版本历史"
+  },
+  "groupChat": {
+    "title": "群聊",
+    "singleMode": "单角色",
+    "groupMode": "群聊",
+    "selectCharacters": "选择角色",
+    "characters": "{count} 个角色",
+    "addCharacter": "添加角色",
+    "removeCharacter": "移除角色",
+    "removeConfirm": "从聊天中移除此角色？",
+    "maxCharacters": "每个聊天最多 10 个角色",
+    "manageCharacters": "管理角色",
+    "turnStrategy": "回复模式",
+    "roundRobin": "轮流回复",
+    "allRespond": "全部回复",
+    "randomRespond": "随机回复"
   }
 }

@@ -1256,5 +1256,21 @@
     "restoreTitle": "Restore Version",
     "restored": "Version restored",
     "noVersions": "No version history"
+  },
+  "groupChat": {
+    "title": "Group Chat",
+    "singleMode": "Single Character",
+    "groupMode": "Group Chat",
+    "selectCharacters": "Select Characters",
+    "characters": "{count} characters",
+    "addCharacter": "Add Character",
+    "removeCharacter": "Remove Character",
+    "removeConfirm": "Remove this character from the chat?",
+    "maxCharacters": "Maximum 10 characters per chat",
+    "manageCharacters": "Manage Characters",
+    "turnStrategy": "Response Mode",
+    "roundRobin": "Take Turns",
+    "allRespond": "All Respond",
+    "randomRespond": "Random"
   }
 }
