@@ -36,9 +36,10 @@ Phase 7: 生产部署          ████████████████�
 迭代 18: 角色记忆增强             ████████████████████ 100% ✅
 迭代 19: 社交功能增强             ████████████████████ 100% ✅
 迭代 20: 角色创作工具             ████████████████████ 100% ✅
+迭代 21: 多角色聊天               ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 20 完成
+**整体完成度**: 迭代 21 完成
 
 ---
 
@@ -448,13 +449,23 @@ Phase 7: 生产部署          ████████████████�
 - ✅ **i18n** — characterEditor.* 键 (en-US + zh-CN)
 - **新增**: 5 单元测试 (1706 → 1711), 4 新组件 + 1 新页面 + 3 API 端点
 
+### 迭代 21: 多角色聊天 ✅ (2026-02-22)
+- ✅ **群聊架构** — chat_characters 关联表, messages.characterId 字段
+- ✅ **轮流编排** — GroupChatOrchestrator (round_robin/all/random 策略)
+- ✅ **多角色创建** — 创建聊天时支持 characterIds 数组 (最多 10 个)
+- ✅ **WebSocket 扩展** — 流式响应携带 characterId/characterName
+- ✅ **角色管理 API** — GET/POST/DELETE /chats/:id/characters
+- ✅ **前端适配** — 多角色头像、消息气泡角色标识、群聊模式选择
+- ✅ **i18n** — groupChat.* 键 (en-US + zh-CN)
+- **新增**: 9 单元测试 (1711 → 1720), 1 新 schema + 1 新 repository + 1 新 service + 3 API 端点
+
 ---
 
 ## 📈 技术指标
 
 | 指标 | 数值 |
 |------|------|
-| 单元测试 | 1711 通过, 0 失败 (17 跳过) |
+| 单元测试 | 1720 通过, 0 失败 (17 跳过) |
 | E2E 测试 | 228 unique tests, 17 spec 文件 (Chromium + Mobile Chrome) |
 | i18n 覆盖 | 86 Vue 文件 100% 覆盖, ~490 locale 键 (en-US + zh-CN) |
 | 结构化日志 | 57+ console.* 替换为 pino child loggers |
