@@ -102,93 +102,73 @@ chatRoutes.get(
   }
 );
 
-// 导出聊天
-const exportQuerySchema = z.object({
-  format: z.enum(['json', 'markdown', 'txt']).default('json'),
+// GET /:id/export — Export chat history
+const exportChatSchema = z.object({
+  format: z.enum(['json', 'txt']).default('json'),
 });
 
-chatRoutes.get(
-  '/:id/export',
-  authMiddleware(),
-  zValidator('query', exportQuerySchema),
-  async (c) => {
-    const user = c.get('user');
-    const chatId = c.req.param('id');
-    const { format } = c.req.valid('query');
+chatRoutes.get('/:id/export', authMiddleware(), zValidator('query', exportChatSchema), async (c) => {
+  const user = c.get('user') as { id: string; tenantId: string };
+  const { id } = c.req.param();
+  const { format } = c.req.valid('query');
 
-    const chat = await chatRepository.findById(chatId);
+  try {
+    // Verify chat ownership
+    const chat = await chatRepository.findById(id);
     if (!chat || chat.userId !== user.id) {
-      return c.json<ApiResponse>(
-        {
-          success: false,
-          error: { code: 'NOT_FOUND', message: 'Chat not found' },
-          meta: { timestamp: new Date().toISOString() },
-        },
-        404
-      );
+      return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Chat not found' } }, 404);
     }
 
-    const allMessages = await messageRepository.findByChatId(chatId);
-    const exportedAt = new Date().toISOString();
-    const chatTitle = chat.title || 'Untitled';
+    // Get all messages (no pagination limit for export)
+    const allMessages = await messageRepository.findByChatId(id);
 
-    if (format === 'json') {
-      const exportData = {
-        chat: { id: chat.id, title: chatTitle, createdAt: chat.createdAt },
-        messages: allMessages.map((m) => ({
-          role: m.role,
-          content: m.content,
-          ...(m.characterId ? { characterId: m.characterId } : {}),
-          sentAt: m.sentAt,
-        })),
-        exportedAt,
-      };
-      c.header('Content-Disposition', `attachment; filename="chat-${chatId}.json"`);
-      return c.json(exportData);
-    }
+    const safeName = (chat.title || 'chat').replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    if (format === 'markdown') {
-      const lines: string[] = [
-        `# Chat: ${chatTitle}`,
-        `Created: ${chat.createdAt.toISOString()}`,
-        '',
-        '---',
-        '',
-      ];
-      for (const m of allMessages) {
-        const label = m.role === 'user' ? 'You' : 'Assistant';
-        lines.push(`**${label}**: ${m.content}`, '');
+    if (format === 'txt') {
+      // Plain text format
+      let text = `# ${chat.title || 'Untitled Chat'}\n`;
+      text += `# Exported: ${new Date().toISOString()}\n\n`;
+
+      for (const msg of allMessages) {
+        const role = msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'Character' : 'System';
+        const time = new Date(msg.sentAt).toLocaleString();
+        text += `[${time}] ${role}:\n${msg.content}\n\n`;
       }
-      lines.push('---', `Exported at ${exportedAt}`);
-      const body = lines.join('\n');
-      return new Response(body, {
-        headers: {
-          'Content-Type': 'text/markdown; charset=utf-8',
-          'Content-Disposition': `attachment; filename="chat-${chatId}.md"`,
-        },
-      });
+
+      c.header('Content-Type', 'text/plain; charset=utf-8');
+      c.header('Content-Disposition', `attachment; filename="${safeName}.txt"`);
+      return c.body(text);
     }
 
-    // txt format
-    const lines: string[] = [
-      `Chat: ${chatTitle}`,
-      `Created: ${chat.createdAt.toISOString()}`,
-      '---',
-    ];
-    for (const m of allMessages) {
-      const label = m.role === 'user' ? 'You' : 'Assistant';
-      lines.push(`[${label}]: ${m.content}`);
-    }
-    lines.push('---', `Exported at ${exportedAt}`);
-    const body = lines.join('\n');
-    return new Response(body, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Content-Disposition': `attachment; filename="chat-${chatId}.txt"`,
+    // JSON format
+    const exportData = {
+      chat: {
+        id: chat.id,
+        title: chat.title,
+        characterId: chat.characterId,
+        createdAt: chat.createdAt,
+        updatedAt: chat.updatedAt,
       },
-    });
+      messages: allMessages.map(msg => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        characterId: msg.characterId,
+        sentAt: msg.sentAt,
+        attachments: msg.attachments,
+      })),
+      exportedAt: new Date().toISOString(),
+      messageCount: allMessages.length,
+    };
+
+    c.header('Content-Type', 'application/json; charset=utf-8');
+    c.header('Content-Disposition', `attachment; filename="${safeName}.json"`);
+    return c.body(JSON.stringify(exportData, null, 2));
+  } catch (error) {
+    logger.error('Failed to export chat', { error: String(error), chatId: id });
+    return c.json({ success: false, error: { code: 'EXPORT_ERROR', message: 'Failed to export chat' } }, 500);
   }
-);
+});
 
 // 获取用户的书签列表 (must be before /:id to avoid matching "bookmarks" as id)
 const bookmarkListQuerySchema = z.object({
@@ -858,4 +838,198 @@ chatRoutes.delete(
       200
     );
   }
+);
+
+// --- Chat snapshot endpoints ---
+
+import crypto from 'crypto';
+import { db } from '../../db';
+import { eq } from 'drizzle-orm';
+import { chatSnapshots } from '../../db/schema/chat-snapshots';
+import { characters } from '../../db/schema/characters';
+
+const createSnapshotSchema = z.object({
+  title: z.string().max(500).optional(),
+  expiresAt: z.string().datetime().optional(),
+});
+
+// POST /:id/snapshot — Create a chat snapshot
+chatRoutes.post(
+  '/:id/snapshot',
+  authMiddleware(),
+  zValidator('json', createSnapshotSchema),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const body = c.req.valid('json');
+
+    try {
+      // Verify chat ownership
+      const chat = await chatRepository.findById(chatId);
+      if (!chat || chat.userId !== user.id) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Chat not found' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          404,
+        );
+      }
+
+      // Fetch all messages
+      const allMessages = await messageRepository.findByChatId(chatId);
+
+      // Get character info
+      let characterName: string | null = null;
+      let characterAvatar: string | null = null;
+      if (chat.characterId) {
+        const charResult = await db
+          .select({ name: characters.name, avatarUrl: characters.avatarUrl })
+          .from(characters)
+          .where(eq(characters.id, chat.characterId));
+        if (charResult[0]) {
+          characterName = charResult[0].name;
+          characterAvatar = charResult[0].avatarUrl;
+        }
+      }
+
+      const shareToken = crypto.randomBytes(32).toString('hex');
+
+      const [snapshot] = await db
+        .insert(chatSnapshots)
+        .values({
+          chatId,
+          userId: user.id,
+          shareToken,
+          title: body.title || chat.title || 'Untitled Snapshot',
+          messages: allMessages,
+          messageCount: allMessages.length,
+          characterName,
+          characterAvatar,
+          expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
+        })
+        .returning();
+
+      return c.json<ApiResponse>(
+        {
+          success: true,
+          data: snapshot,
+          meta: { timestamp: new Date().toISOString() },
+        },
+        201,
+      );
+    } catch (error) {
+      logger.error('Failed to create chat snapshot', { error: String(error), chatId });
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to create snapshot' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        500,
+      );
+    }
+  },
+);
+
+// GET /:id/snapshots — List snapshots for a chat
+chatRoutes.get(
+  '/:id/snapshots',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+
+    try {
+      // Verify chat ownership
+      const chat = await chatRepository.findById(chatId);
+      if (!chat || chat.userId !== user.id) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Chat not found' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          404,
+        );
+      }
+
+      const snapshots = await db
+        .select()
+        .from(chatSnapshots)
+        .where(eq(chatSnapshots.chatId, chatId));
+
+      return c.json<ApiResponse>(
+        {
+          success: true,
+          data: snapshots,
+          meta: { timestamp: new Date().toISOString() },
+        },
+        200,
+      );
+    } catch (error) {
+      logger.error('Failed to list chat snapshots', { error: String(error), chatId });
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to list snapshots' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        500,
+      );
+    }
+  },
+);
+
+// DELETE /snapshots/:snapshotId — Delete a snapshot
+chatRoutes.delete(
+  '/snapshots/:snapshotId',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user');
+    const snapshotId = c.req.param('snapshotId');
+
+    try {
+      const result = await db
+        .select()
+        .from(chatSnapshots)
+        .where(eq(chatSnapshots.id, snapshotId));
+
+      const snapshot = result[0];
+      if (!snapshot || snapshot.userId !== user.id) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Snapshot not found' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          404,
+        );
+      }
+
+      await db
+        .delete(chatSnapshots)
+        .where(eq(chatSnapshots.id, snapshotId));
+
+      return c.json<ApiResponse>(
+        {
+          success: true,
+          data: { message: 'Snapshot deleted successfully' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        200,
+      );
+    } catch (error) {
+      logger.error('Failed to delete snapshot', { error: String(error), snapshotId });
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to delete snapshot' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        500,
+      );
+    }
+  },
 );

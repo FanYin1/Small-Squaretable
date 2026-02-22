@@ -40,8 +40,10 @@ import { adminRoutes } from './routes/admin';
 import { gdprRoutes } from './routes/gdpr';
 import { recommendationRoutes } from './routes/recommendations';
 import { chatTemplatesRouter } from './routes/chat-templates';
+import { shareRoutes } from './routes/share';
 import { characterRelationshipsRouter } from './routes/character-relationships';
 import { characterGrowthRouter } from './routes/character-growth';
+import { searchRoutes } from './routes/search';
 import { pluginBridge } from './services/plugin-bridge';
 import { kafkaBridge } from './services/kafka-bridge.service';
 import { activityService } from './services/activity.service';
@@ -99,6 +101,7 @@ app.use('/api/v1/social/comments', socialCommentRateLimit);
 app.use('/api/v1/reports', reportRateLimit);
 app.use('/api/v1/account/export', exportRateLimit);
 app.use('/api/v1/analytics/events', analyticsIngestionRateLimit);
+app.use('/api/v1/search/*', searchRateLimit);
 
 // Tenant middleware 只应用到需要租户隔离的 API 路由
 // 注意：/api/v1/characters/search 和 /api/v1/characters/marketplace 是公开端点，不需要租户 ID
@@ -113,6 +116,7 @@ const publicPaths = [
   '/api/v1/plugins/marketplace/:id',
   '/api/v1/recommendations/trending',
   '/api/v1/recommendations/similar',
+  '/api/v1/share',
 ];
 
 app.use('/api/v1/users/*', tenantMiddleware({ publicPaths }));
@@ -136,6 +140,7 @@ app.use('/api/v1/recommendations/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/chat-templates/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-relationships/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-growth/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/search/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -187,6 +192,7 @@ app.use('/api/v1/recommendations', csrfProtection());
 app.use('/api/v1/chat-templates', csrfProtection());
 app.use('/api/v1/character-relationships', csrfProtection());
 app.use('/api/v1/character-growth', csrfProtection());
+app.use('/api/v1/search', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
@@ -210,7 +216,9 @@ app.route('/api/v1/recommendations', recommendationRoutes);
 app.route('/api/v1/chat-templates', chatTemplatesRouter);
 app.route('/api/v1/character-relationships', characterRelationshipsRouter);
 app.route('/api/v1/character-growth', characterGrowthRouter);
+app.route('/api/v1/search', searchRoutes);
 app.route('/api/v1', intelligenceRoutes);
+app.route('/api/v1/share', shareRoutes);
 
 app.get('/api/v1', (c) => {
   return c.json({
@@ -241,6 +249,7 @@ app.get('/api/v1', (c) => {
       chatTemplates: '/api/v1/chat-templates',
       characterRelationships: '/api/v1/character-relationships',
       characterGrowth: '/api/v1/character-growth',
+      search: '/api/v1/search',
       docs: '/api/v1/docs',
       ws: '/ws',
     },

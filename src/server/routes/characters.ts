@@ -5,7 +5,9 @@
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
+import archiver from 'archiver';
 import { characterService } from '../services/character.service';
 import { characterVersionService } from '../services/character-version.service';
 import { logger } from '../services/logger.service';
@@ -353,6 +355,220 @@ characterRoutes.get(
     }
   }
 );
+
+// POST /import/batch — Batch import characters from JSON/PNG files
+characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
+  const user = c.get('user') as { id: string; tenantId: string };
+
+  try {
+    const body = await c.req.parseBody({ all: true });
+    const files = body['files'];
+
+    if (!files) {
+      return c.json({ success: false, error: { code: 'NO_FILES', message: 'No files provided' } }, 400);
+    }
+
+    // Normalize to array
+    const fileList = Array.isArray(files) ? files : [files];
+
+    // Limit to 20 files
+    if (fileList.length > 20) {
+      return c.json({ success: false, error: { code: 'TOO_MANY_FILES', message: 'Maximum 20 files per batch' } }, 400);
+    }
+
+    const imported: Array<{ id: string; name: string }> = [];
+    const failed: Array<{ filename: string; error: string }> = [];
+
+    for (const file of fileList) {
+      if (!(file instanceof File)) {
+        failed.push({ filename: 'unknown', error: 'Invalid file' });
+        continue;
+      }
+
+      try {
+        let cardData: Record<string, unknown>;
+        let name: string;
+        let description: string;
+        let tags: string[];
+        let avatarUrl: string | undefined;
+
+        if (file.name.endsWith('.json')) {
+          // Parse JSON character card
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+
+          // Handle V2 format
+          const data = parsed.data || parsed;
+          name = data.name || parsed.name || file.name.replace('.json', '');
+          description = data.description || parsed.description || '';
+          tags = data.tags || parsed.tags || [];
+          cardData = parsed;
+          avatarUrl = data.avatar || undefined;
+
+        } else if (file.name.endsWith('.png')) {
+          // Extract JSON from PNG tEXt chunk
+          const arrayBuffer = await file.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+
+          // Verify PNG signature
+          const sig = buffer.slice(0, 8);
+          if (sig.compare(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) !== 0) {
+            failed.push({ filename: file.name, error: 'Invalid PNG file' });
+            continue;
+          }
+
+          // Find tEXt chunk with 'chara' keyword
+          let pos = 8;
+          let found = false;
+          while (pos < buffer.length) {
+            const chunkLength = buffer.readUInt32BE(pos);
+            const chunkType = buffer.slice(pos + 4, pos + 8).toString('ascii');
+
+            if (chunkType === 'tEXt' || chunkType === 'iTXt') {
+              const chunkData = buffer.slice(pos + 8, pos + 8 + chunkLength);
+              const nullIdx = chunkData.indexOf(0);
+              if (nullIdx > 0) {
+                const keyword = chunkData.slice(0, nullIdx).toString('ascii');
+                if (keyword === 'chara') {
+                  const base64Data = chunkData.slice(nullIdx + 1).toString('ascii');
+                  const jsonStr = Buffer.from(base64Data, 'base64').toString('utf-8');
+                  const parsed = JSON.parse(jsonStr);
+                  const data = parsed.data || parsed;
+                  name = data.name || parsed.name || file.name.replace('.png', '');
+                  description = data.description || parsed.description || '';
+                  tags = data.tags || parsed.tags || [];
+                  cardData = parsed;
+                  // Use the PNG itself as avatar
+                  avatarUrl = `data:image/png;base64,${buffer.toString('base64')}`;
+                  found = true;
+                  break;
+                }
+              }
+            }
+
+            if (chunkType === 'IEND') break;
+            pos += 12 + chunkLength;
+          }
+
+          if (!found) {
+            failed.push({ filename: file.name, error: 'No character data found in PNG' });
+            continue;
+          }
+        } else {
+          failed.push({ filename: file.name, error: 'Unsupported file format (use .json or .png)' });
+          continue;
+        }
+
+        // Create character
+        const character = await characterService.create(user.id, user.tenantId, {
+          name: name!,
+          description: description!,
+          cardData: cardData! as any,
+          tags: tags!,
+          avatarUrl,
+          isNsfw: false,
+        });
+
+        imported.push({ id: character.id, name: character.name });
+      } catch (err) {
+        failed.push({ filename: file.name, error: String(err) });
+      }
+    }
+
+    return c.json({
+      success: true,
+      data: { imported, failed, total: fileList.length },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    charLogger.error('Batch import failed', { error: String(error) });
+    return c.json({ success: false, error: { code: 'IMPORT_ERROR', message: 'Failed to import characters' } }, 500);
+  }
+});
+
+// POST /export/batch — Batch export characters as a ZIP file
+const batchExportSchema = z.object({
+  characterIds: z.array(z.string().uuid()).min(1).max(50),
+  format: z.enum(['json', 'png']).default('json'),
+});
+
+characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batchExportSchema), async (c) => {
+  const user = c.get('user') as { id: string; tenantId: string };
+  const { characterIds, format } = c.req.valid('json');
+
+  try {
+    // Fetch all requested characters
+    const results: Array<{ name: string; data: Buffer }> = [];
+
+    for (const charId of characterIds) {
+      try {
+        const character = await characterService.getById(charId);
+        // Only export own characters or public ones
+        if (!character.isPublic && character.creatorId !== user.id) continue;
+
+        const safeName = character.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+        if (format === 'png') {
+          const { embedJsonInPng, avatarToBuffer } = await import('../utils/png-embed');
+          const cardData = {
+            ...(character.cardData as Record<string, unknown>),
+            name: character.name,
+            description: character.description || '',
+            tags: character.tags || [],
+            spec: 'chara_card_v2',
+            spec_version: '2.0',
+          };
+          const pngBuffer = avatarToBuffer(character.avatarUrl);
+          const result = embedJsonInPng(pngBuffer, cardData);
+          results.push({ name: `${safeName}.png`, data: result });
+        } else {
+          const cardData = {
+            ...(character.cardData as Record<string, unknown>),
+            name: character.name,
+            description: character.description || '',
+            tags: character.tags || [],
+            spec: 'chara_card_v2',
+            spec_version: '2.0',
+          };
+          results.push({ name: `${safeName}.json`, data: Buffer.from(JSON.stringify(cardData, null, 2)) });
+        }
+      } catch (err) {
+        charLogger.warn('Failed to export character in batch', { characterId: charId, error: String(err) });
+      }
+    }
+
+    if (results.length === 0) {
+      return c.json({ success: false, error: { code: 'NO_CHARACTERS', message: 'No characters found to export' } }, 404);
+    }
+
+    // Create ZIP archive
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    const chunks: Buffer[] = [];
+
+    archive.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+    const finishPromise = new Promise<void>((resolve, reject) => {
+      archive.on('end', resolve);
+      archive.on('error', reject);
+    });
+
+    for (const item of results) {
+      archive.append(item.data, { name: item.name });
+    }
+
+    await archive.finalize();
+    await finishPromise;
+
+    const zipBuffer = Buffer.concat(chunks);
+
+    c.header('Content-Type', 'application/zip');
+    c.header('Content-Disposition', `attachment; filename="characters-export.zip"`);
+    return c.body(new Uint8Array(zipBuffer));
+  } catch (error) {
+    charLogger.error('Batch export failed', { error: String(error) });
+    return c.json({ success: false, error: { code: 'EXPORT_ERROR', message: 'Failed to export characters' } }, 500);
+  }
+});
 
 // 获取单个角色
 characterRoutes.get('/:id', authMiddleware(), async (c) => {
@@ -731,3 +947,232 @@ characterRoutes.post('/:id/versions', authMiddleware(), async (c) => {
   );
 });
 
+// GET /:id/export/png — Download character as PNG with embedded JSON
+characterRoutes.get('/:id/export/png', optionalAuthMiddleware(), async (c) => {
+  const { id } = c.req.param();
+  const user = c.get('user') as { id: string } | undefined;
+
+  try {
+    const character = await characterService.getById(id);
+
+    // Check access: public characters or own characters
+    if (!character.isPublic && (!user || character.creatorId !== user.id)) {
+      return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Access denied' } }, 403);
+    }
+
+    const { embedJsonInPng, avatarToBuffer } = await import('../utils/png-embed');
+
+    // Build SillyTavern format card data
+    const cardData = {
+      ...(character.cardData as Record<string, unknown>),
+      name: character.name,
+      description: character.description || '',
+      tags: character.tags || [],
+      spec: 'chara_card_v2',
+      spec_version: '2.0',
+    };
+
+    const pngBuffer = avatarToBuffer(character.avatarUrl);
+    const result = embedJsonInPng(pngBuffer, cardData);
+
+    const safeName = character.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    c.header('Content-Type', 'image/png');
+    c.header('Content-Disposition', `attachment; filename="${safeName}.png"`);
+    return c.body(new Uint8Array(result));
+  } catch (error: any) {
+    if (error?.name === 'NotFoundError' || error?.statusCode === 404) {
+      return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Character not found' } }, 404);
+    }
+    charLogger.error('Failed to export character as PNG', { error: String(error), characterId: id });
+    return c.json({ success: false, error: { code: 'EXPORT_ERROR', message: 'Failed to export character' } }, 500);
+  }
+});
+
+// --- Character share link endpoints ---
+
+import crypto from 'crypto';
+import { db } from '../../db';
+import { eq, sql } from 'drizzle-orm';
+import { characters } from '../../db/schema/characters';
+
+// POST /:id/share — Generate a share token for a character
+characterRoutes.post(
+  '/:id/share',
+  authMiddleware(),
+  requireFeature('character_share'),
+  async (c) => {
+    const user = c.get('user');
+    const characterId = c.req.param('id');
+
+    try {
+      const character = await characterService.getById(characterId);
+
+      if (character.creatorId !== user.id) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'You do not own this character' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          403,
+        );
+      }
+
+      const token = crypto.randomBytes(32).toString('hex');
+
+      await db
+        .update(characters)
+        .set({ shareToken: token, updatedAt: new Date() })
+        .where(eq(characters.id, characterId));
+
+      return c.json<ApiResponse>(
+        {
+          success: true,
+          data: { shareToken: token },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        200,
+      );
+    } catch (error: any) {
+      if (error?.name === 'NotFoundError' || error?.statusCode === 404) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Character not found' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          404,
+        );
+      }
+      charLogger.error('Failed to generate share token', { error: String(error), characterId });
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to generate share token' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        500,
+      );
+    }
+  },
+);
+
+// DELETE /:id/share — Revoke a share link
+characterRoutes.delete(
+  '/:id/share',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user');
+    const characterId = c.req.param('id');
+
+    try {
+      const character = await characterService.getById(characterId);
+
+      if (character.creatorId !== user.id) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'You do not own this character' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          403,
+        );
+      }
+
+      await db
+        .update(characters)
+        .set({ shareToken: null, updatedAt: new Date() })
+        .where(eq(characters.id, characterId));
+
+      return c.json<ApiResponse>(
+        {
+          success: true,
+          data: { message: 'Share link revoked' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        200,
+      );
+    } catch (error: any) {
+      if (error?.name === 'NotFoundError' || error?.statusCode === 404) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Character not found' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          404,
+        );
+      }
+      charLogger.error('Failed to revoke share link', { error: String(error), characterId });
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to revoke share link' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        500,
+      );
+    }
+  },
+);
+
+// GET /shared/:token — Get a character by share token (public, no auth)
+characterRoutes.get(
+  '/shared/:token',
+  async (c) => {
+    const token = c.req.param('token');
+
+    try {
+      const result = await db
+        .select()
+        .from(characters)
+        .where(eq(characters.shareToken, token));
+
+      const character = result[0];
+      if (!character) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Shared character not found' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          404,
+        );
+      }
+
+      // Increment view count
+      await db
+        .update(characters)
+        .set({ viewCount: sql`${characters.viewCount} + 1` })
+        .where(eq(characters.id, character.id));
+
+      return c.json<ApiResponse>(
+        {
+          success: true,
+          data: {
+            name: character.name,
+            description: character.description,
+            avatarUrl: character.avatarUrl,
+            tags: character.tags,
+            category: character.category,
+            cardData: character.cardData,
+            creatorId: character.creatorId,
+            createdAt: character.createdAt,
+          },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        200,
+      );
+    } catch (error) {
+      charLogger.error('Failed to get shared character', { error: String(error), token });
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to get shared character' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        500,
+      );
+    }
+  },
+);
