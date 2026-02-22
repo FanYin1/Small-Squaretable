@@ -30,12 +30,14 @@ import {
   type WSMemoryRetrievalEvent,
   type WSMemoryExtractionEvent,
   type WSPromptBuildEvent,
+  type WSAbortGenerationMessage,
 } from '../../types/websocket';
 import { nanoid } from 'nanoid';
 
 export class WebSocketHandler {
   private wss: WebSocketServer | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private activeGenerations = new Map<string, AbortController>();
 
   /**
    * 初始化 WebSocket 服务器
@@ -136,6 +138,10 @@ export class WebSocketHandler {
 
         case WSMessageType.PING:
           await this.handlePing(clientId, message as WSPingMessage);
+          break;
+
+        case WSMessageType.ABORT_GENERATION:
+          await this.handleAbortGeneration(message as WSAbortGenerationMessage);
           break;
 
         default:
@@ -246,7 +252,18 @@ export class WebSocketHandler {
     const contextResult = contextManager.buildContext(systemPrompt, chatMessages, model);
 
     const assistantMessageId = nanoid();
-    const fullContent = await this.streamLlmResponse(chatId, assistantMessageId, contextResult.messages, undefined, undefined, model);
+    const abortController = new AbortController();
+    this.activeGenerations.set(chatId, abortController);
+
+    let fullContent: string;
+    try {
+      fullContent = await this.streamLlmResponse(chatId, assistantMessageId, contextResult.messages, undefined, undefined, model, abortController.signal);
+    } finally {
+      this.activeGenerations.delete(chatId);
+    }
+
+    // Don't save empty message if aborted before any content was generated
+    if (!fullContent) return;
 
     const assistantMessage = await chatService.addMessage(chatId, {
       role: 'assistant',
@@ -322,9 +339,20 @@ export class WebSocketHandler {
 
       // Stream LLM response with character identification
       const tempMessageId = nanoid();
-      const fullContent = await this.streamLlmResponse(
-        chatId, tempMessageId, contextResult.messages, character.id, character.name, model
-      );
+      const abortController = new AbortController();
+      this.activeGenerations.set(chatId, abortController);
+
+      let fullContent: string;
+      try {
+        fullContent = await this.streamLlmResponse(
+          chatId, tempMessageId, contextResult.messages, character.id, character.name, model, abortController.signal
+        );
+      } finally {
+        this.activeGenerations.delete(chatId);
+      }
+
+      // Don't save empty message if aborted before any content was generated
+      if (!fullContent) break;
 
       // Save message with characterId
       const savedMessage = await messageRepository.create({
@@ -357,7 +385,8 @@ export class WebSocketHandler {
     llmMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
     characterId?: string,
     characterName?: string,
-    model?: string
+    model?: string,
+    signal?: AbortSignal
   ): Promise<string> {
     const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
     const meta = getModelMeta(selectedModel);
@@ -369,7 +398,7 @@ export class WebSocketHandler {
       stream: true,
       presence_penalty: 0,
       frequency_penalty: 0,
-    });
+    }, signal);
 
     let fullContent = '';
     let chunkIndex = 0;
@@ -377,47 +406,74 @@ export class WebSocketHandler {
     const decoder = new TextDecoder();
 
     if (reader) {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter((line) => line.trim() !== '');
+          // Check if aborted between chunks
+          if (signal?.aborted) break;
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n').filter((line) => line.trim() !== '');
 
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
 
-              if (content) {
-                fullContent += content;
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
 
-                websocketService.broadcastToChat(chatId, {
-                  type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
-                  timestamp: new Date().toISOString(),
-                  data: {
-                    chatId,
-                    messageId,
-                    chunk: content,
-                    index: chunkIndex++,
-                    ...(characterId && { characterId }),
-                    ...(characterName && { characterName }),
-                  },
-                });
+                if (content) {
+                  fullContent += content;
+
+                  websocketService.broadcastToChat(chatId, {
+                    type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
+                    timestamp: new Date().toISOString(),
+                    data: {
+                      chatId,
+                      messageId,
+                      chunk: content,
+                      index: chunkIndex++,
+                      ...(characterId && { characterId }),
+                      ...(characterName && { characterName }),
+                    },
+                  });
+                }
+              } catch (e) {
+                wsLogger.error('Error parsing SSE data', e as Error);
               }
-            } catch (e) {
-              wsLogger.error('Error parsing SSE data', e as Error);
             }
           }
         }
+      } catch (e) {
+        // AbortError is expected when generation is cancelled
+        if ((e as Error).name !== 'AbortError') {
+          throw e;
+        }
+        wsLogger.info('LLM stream aborted', { chatId });
+      } finally {
+        // Ensure the reader is released
+        try { reader.cancel(); } catch { /* ignore */ }
       }
     }
 
     return fullContent;
+  }
+
+  /**
+   * 处理中止生成
+   */
+  private async handleAbortGeneration(message: WSAbortGenerationMessage): Promise<void> {
+    const { chatId } = message.data;
+    const controller = this.activeGenerations.get(chatId);
+    if (controller) {
+      wsLogger.info('Aborting generation', { chatId });
+      controller.abort();
+      this.activeGenerations.delete(chatId);
+    }
   }
 
   /**

@@ -74,6 +74,17 @@
         </button>
       </template>
 
+      <!-- Stop generation button -->
+      <button
+        v-else-if="!isUploading && props.isStreaming"
+        class="stop-btn"
+        type="button"
+        @click="emit('stopGeneration')"
+        :aria-label="t('chat.stopGeneration')"
+      >
+        <el-icon :size="18"><VideoPause /></el-icon>
+      </button>
+
       <!-- Normal send button -->
       <button
         v-else-if="!isUploading"
@@ -95,7 +106,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Position, Upload, Microphone, Close, Check, Loading, Headset } from '@element-plus/icons-vue';
+import { Position, Upload, Microphone, Close, Check, Loading, Headset, VideoPause } from '@element-plus/icons-vue';
 import { useAudioRecorder } from '@client/composables/useAudioRecorder';
 import { useSpeechToText } from '@client/composables/useSpeechToText';
 import { uploadApi } from '@client/services/upload.api';
@@ -107,6 +118,7 @@ interface Props {
   maxLength?: number;
   disabled?: boolean;
   sending?: boolean;
+  isStreaming?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -114,10 +126,12 @@ const props = withDefaults(defineProps<Props>(), {
   maxLength: 4000,
   disabled: false,
   sending: false,
+  isStreaming: false,
 });
 
 const emit = defineEmits<{
   (e: 'send', content: string, attachments?: MessageAttachment[]): void;
+  (e: 'stopGeneration'): void;
 }>();
 
 const { t } = useI18n();
@@ -384,6 +398,26 @@ const handleSendRecording = async () => {
 .send-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.stop-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse-stop 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-stop {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .input-hint {

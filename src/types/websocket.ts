@@ -13,6 +13,7 @@ export enum WSMessageType {
   JOIN_CHAT = 'join_chat',
   LEAVE_CHAT = 'leave_chat',
   PING = 'ping',
+  ABORT_GENERATION = 'abort_generation',
 
   // 服务器 -> 客户端
   ASSISTANT_MESSAGE = 'assistant_message',
@@ -167,6 +168,16 @@ export interface WSPingMessage extends WSMessage {
   type: WSMessageType.PING;
 }
 
+/**
+ * 中止生成消息
+ */
+export interface WSAbortGenerationMessage extends WSMessage {
+  type: WSMessageType.ABORT_GENERATION;
+  data: {
+    chatId: string;
+  };
+}
+
 export interface WSPongMessage extends WSMessage {
   type: WSMessageType.PONG;
 }
@@ -222,6 +233,7 @@ export type WSMessageUnion =
   | WSChatControlMessage
   | WSErrorMessage
   | WSPingMessage
+  | WSAbortGenerationMessage
   | WSPongMessage
   | WSConnectedMessage
   | WSEmotionChangeEvent

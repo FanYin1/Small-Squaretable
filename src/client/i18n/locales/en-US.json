@@ -90,6 +90,7 @@
     "renameEmpty": "Chat name cannot be empty",
     "inputPlaceholder": "Type your message...",
     "inputHint": "Press Enter to send, Shift + Enter for new line",
+    "stopGeneration": "Stop generating",
     "typing": "{name} is typing...",
     "scrollToBottom": "Scroll to bottom",
     "emotion": "Emotion",

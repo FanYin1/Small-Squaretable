@@ -631,6 +631,19 @@ export const useChatStore = defineStore('chat', () => {
     searchResults.value = [];
   }
 
+  function abortGeneration(): void {
+    if (!isStreaming.value || !currentChatId.value) return;
+    if (wsConnected.value && wsClient) {
+      wsClient.sendAbortGeneration(currentChatId.value);
+    }
+    // Reset streaming state immediately on client side
+    streamingMessage.value = '';
+    streamingCharacterId.value = null;
+    streamingCharacterName.value = null;
+    isStreaming.value = false;
+    sending.value = false;
+  }
+
   async function rollbackToMessage(messageId: string) {
     if (!currentChatId.value) return;
     const result = await chatApi.rollbackChat(currentChatId.value, Number(messageId));
@@ -705,6 +718,7 @@ export const useChatStore = defineStore('chat', () => {
     clearMessages,
     searchMessages,
     clearSearch,
+    abortGeneration,
     rollbackToMessage,
     fetchModels,
     switchModel,

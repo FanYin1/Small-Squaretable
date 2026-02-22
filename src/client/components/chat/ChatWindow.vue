@@ -210,7 +210,9 @@
       <MessageInput
         :disabled="!currentChat"
         :sending="sending"
+        :is-streaming="isStreaming"
         @send="handleSendMessage"
+        @stop-generation="chatStore.abortGeneration()"
       />
     </div>
 

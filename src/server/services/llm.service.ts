@@ -61,7 +61,7 @@ export class LLMService {
   /**
    * 流式聊天补全
    */
-  async streamChatCompletion(request: ChatCompletionRequest): Promise<Response> {
+  async streamChatCompletion(request: ChatCompletionRequest, signal?: AbortSignal): Promise<Response> {
     const model = request.model || getDefaultModel();
     if (!model) {
       throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
@@ -82,6 +82,7 @@ export class LLMService {
       method: 'POST',
       headers,
       body: JSON.stringify({ ...request, stream: true }),
+      signal,
     });
 
     if (!response.ok) {

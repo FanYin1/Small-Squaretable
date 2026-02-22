@@ -15,6 +15,7 @@ import {
   type WSPingMessage,
   type WSChatReadMessage,
   type WSAttachment,
+  type WSAbortGenerationMessage,
 } from '../../types/websocket';
 import { createLogger } from '@client/utils/logger';
 
@@ -178,6 +179,19 @@ export class WebSocketClient {
       type: WSMessageType.CHAT_READ,
       timestamp: new Date().toISOString(),
       data: { chatId, lastReadMessageId },
+    };
+
+    this.send(message);
+  }
+
+  /**
+   * 发送中止生成请求
+   */
+  sendAbortGeneration(chatId: string): void {
+    const message: WSAbortGenerationMessage = {
+      type: WSMessageType.ABORT_GENERATION,
+      timestamp: new Date().toISOString(),
+      data: { chatId },
     };
 
     this.send(message);
