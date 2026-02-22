@@ -166,12 +166,14 @@
             :user-name="userStore.user?.name"
             :editing="editingMessageId === message.id"
             :voice-config="characterVoiceConfig"
+            :branch-info="chatStore.getBranchInfo(Number(message.id))"
             @delete="handleDeleteMessage"
             @edit="handleEditMessage"
             @regenerate="handleRegenerateMessage"
             @save-edit="handleSaveEdit"
             @cancel-edit="handleCancelEdit"
             @rollback="handleRollback"
+            @switch-branch="handleSwitchBranch"
           />
         </template>
 
@@ -703,6 +705,14 @@ const handleRegenerateMessage = async (messageId: string) => {
   }
 };
 
+const handleSwitchBranch = async (messageId: number, direction: 'prev' | 'next') => {
+  try {
+    await chatStore.switchBranch(messageId, direction);
+  } catch (error: unknown) {
+    logger.error('Failed to switch branch', error);
+  }
+};
+
 const openIntelligenceTab = (tab: string) => {
   activeIntelligenceTab.value = tab;
   showIntelligenceDrawer.value = true;
@@ -741,9 +751,20 @@ watch(() => props.currentChat, async (newChat, oldChat) => {
   scrollToBottom(false);
 }, { immediate: true });
 
-// Watch for new messages and scroll to bottom
-watch(messages, () => {
+// Watch for new messages and scroll to bottom + pre-fetch branches
+watch(messages, (newMessages) => {
   scrollToBottom();
+  // Pre-fetch branch info for messages that have parentMessageId (potential siblings)
+  if (newMessages.length > 0) {
+    for (const msg of newMessages) {
+      if (msg.parentMessageId != null) {
+        const msgId = Number(msg.id);
+        if (!chatStore.getBranchInfo(msgId)) {
+          chatStore.fetchBranches(msgId);
+        }
+      }
+    }
+  }
 }, { deep: true });
 
 // Watch for streaming updates

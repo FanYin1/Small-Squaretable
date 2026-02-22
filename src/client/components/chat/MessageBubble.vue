@@ -12,6 +12,24 @@
         <template v-else>
           <span class="message-author">{{ t('chat.you') || 'You' }}</span>
         </template>
+        <!-- Branch navigation indicator -->
+        <div v-if="branchInfo && branchInfo.total > 1" class="branch-indicator">
+          <el-button
+            :icon="ArrowLeft"
+            size="small"
+            text
+            :disabled="branchInfo.currentIndex === 0"
+            @click="emit('switchBranch', Number(message.id), 'prev')"
+          />
+          <span class="branch-count">{{ branchInfo.currentIndex + 1 }}/{{ branchInfo.total }}</span>
+          <el-button
+            :icon="ArrowRight"
+            size="small"
+            text
+            :disabled="branchInfo.currentIndex === branchInfo.total - 1"
+            @click="emit('switchBranch', Number(message.id), 'next')"
+          />
+        </div>
       </div>
       <div class="message-body">
         <template v-if="message.role === 'assistant'">
@@ -344,5 +362,20 @@ const handleBookmark = () => {
   to {
     opacity: 1;
   }
+}
+
+.branch-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-left: auto;
+}
+
+.branch-count {
+  min-width: 30px;
+  text-align: center;
+  user-select: none;
 }
 </style>
