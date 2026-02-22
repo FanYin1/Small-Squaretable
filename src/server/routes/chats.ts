@@ -363,7 +363,15 @@ chatRoutes.post(
       );
     }
 
-    const message = await chatService.addMessage(chatId, input);
+    const message = input.parentMessageId
+      ? await messageRepository.createWithParent({
+          chatId,
+          role: input.role,
+          content: input.content,
+          attachments: input.attachments,
+          parentMessageId: input.parentMessageId,
+        })
+      : await chatService.addMessage(chatId, input);
 
 
     eventBus.emit('chat.message.sent', { chatId, messageId: message.id, userId: user.id, role: input.role });
@@ -579,6 +587,52 @@ chatRoutes.post(
       {
         success: true,
         data: { deletedCount },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
+
+// 获取消息分支（兄弟消息）
+chatRoutes.get(
+  '/:id/branches/:messageId',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const messageId = parseInt(c.req.param('messageId'));
+
+    if (isNaN(messageId)) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid message ID' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        400
+      );
+    }
+
+    // Verify chat ownership
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== user.id) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    const siblings = await messageRepository.findSiblings(messageId);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: siblings,
         meta: { timestamp: new Date().toISOString() },
       },
       200

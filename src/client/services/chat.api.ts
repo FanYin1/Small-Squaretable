@@ -45,6 +45,7 @@ interface BackendMessage {
   content: string;
   characterId?: string;
   characterName?: string;
+  parentMessageId?: number;
   sentAt: string;  // Backend uses sentAt, not createdAt
 }
 
@@ -97,6 +98,7 @@ function transformMessage(item: BackendMessage): Message {
     content: item.content,
     characterId: item.characterId,
     characterName: item.characterName,
+    parentMessageId: item.parentMessageId,
     createdAt: item.sentAt,  // Map sentAt to createdAt for frontend
   };
 }
@@ -261,5 +263,13 @@ export const chatApi = {
   getBookmarks: async (limit = 50, offset = 0) => {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     return api.get<any[]>(`/chats/bookmarks?${params}`);
+  },
+
+  /**
+   * 获取消息的分支兄弟节点
+   */
+  getBranches: async (chatId: string, messageId: number): Promise<Message[]> => {
+    const response = await api.get<BackendMessage[]>(`/chats/${chatId}/branches/${messageId}`);
+    return (Array.isArray(response) ? response : []).map(transformMessage);
   },
 };

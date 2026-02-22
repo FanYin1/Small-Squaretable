@@ -223,11 +223,22 @@ export class WebSocketHandler {
       ? await characterRepository.findById(chat.characterId)
       : null;
 
-    const messages = await chatService.getMessages(chatId);
-    const chatMessages = messages.map(m => ({
-      role: m.role as 'user' | 'assistant' | 'system',
-      content: m.content,
-    }));
+    const chatMetadata = (chat.metadata as Record<string, unknown>) || {};
+    const activeBranchLeaf = chatMetadata.activeBranchLeafId as number | undefined;
+
+    let chatMessages;
+    if (activeBranchLeaf) {
+      chatMessages = (await messageRepository.findBranch(chatId, activeBranchLeaf)).map(m => ({
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+      }));
+    } else {
+      const messages = await chatService.getMessages(chatId);
+      chatMessages = messages.map(m => ({
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+      }));
+    }
 
     // Determine model from chat metadata or default
     const model = getChatModel(chat) || getDefaultModel() || 'glm-4.5-air';

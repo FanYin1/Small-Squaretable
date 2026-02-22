@@ -33,6 +33,9 @@ export const useChatStore = defineStore('chat', () => {
   const searching = ref(false);
   const availableModels = ref<ModelMeta[]>([]);
 
+  // Branch navigation state
+  const branchCache = ref<Map<number, { siblings: Message[]; currentIndex: number }>>(new Map());
+
   // WebSocket client
   let wsClient: WebSocketClient | null = null;
 
@@ -564,6 +567,7 @@ export const useChatStore = defineStore('chat', () => {
 
     currentChatId.value = chatId;
     chatCharacters.value = [];
+    clearBranchCache();
 
     if (chatId) {
       await fetchMessages(chatId);
@@ -680,6 +684,92 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  /**
+   * Fetch branch siblings for a message
+   */
+  async function fetchBranches(messageId: number): Promise<void> {
+    if (!currentChatId.value) return;
+    try {
+      const siblings = await chatApi.getBranches(currentChatId.value, messageId);
+      if (siblings.length > 1) {
+        const currentIndex = siblings.findIndex(s => String(s.id) === String(messageId));
+        branchCache.value.set(messageId, {
+          siblings,
+          currentIndex: currentIndex >= 0 ? currentIndex : 0,
+        });
+      }
+    } catch (e) {
+      logger.error('Failed to fetch branches', e);
+    }
+  }
+
+  /**
+   * Check if a message has branches (2+ siblings)
+   */
+  function hasBranches(messageId: number): boolean {
+    const entry = branchCache.value.get(messageId);
+    return !!entry && entry.siblings.length > 1;
+  }
+
+  /**
+   * Get branch info for a message (for UI display)
+   */
+  function getBranchInfo(messageId: number): { currentIndex: number; total: number } | null {
+    const entry = branchCache.value.get(messageId);
+    if (!entry || entry.siblings.length < 2) return null;
+    return { currentIndex: entry.currentIndex, total: entry.siblings.length };
+  }
+
+  /**
+   * Switch to a sibling branch message
+   */
+  async function switchBranch(messageId: number, direction: 'prev' | 'next'): Promise<void> {
+    const entry = branchCache.value.get(messageId);
+    if (!entry || entry.siblings.length < 2) return;
+
+    const newIndex = direction === 'prev' ? entry.currentIndex - 1 : entry.currentIndex + 1;
+    if (newIndex < 0 || newIndex >= entry.siblings.length) return;
+
+    const newMessage = entry.siblings[newIndex];
+    const oldMessageIdStr = String(messageId);
+
+    // Replace the message in the displayed messages array
+    const msgIndex = messages.value.findIndex(m => m.id === oldMessageIdStr);
+    if (msgIndex === -1) return;
+
+    messages.value[msgIndex] = newMessage;
+
+    // Update the branch cache: remove old key, add new key
+    branchCache.value.delete(messageId);
+    const newMsgId = Number(newMessage.id);
+    branchCache.value.set(newMsgId, {
+      siblings: entry.siblings,
+      currentIndex: newIndex,
+    });
+
+    // Reload messages after the switched message to show the correct branch path
+    if (currentChatId.value) {
+      try {
+        const response = await chatApi.getMessages(currentChatId.value, {
+          after: newMsgId,
+          limit: 50,
+        });
+        // Keep messages up to and including the switched message, then append the new tail
+        const kept = messages.value.slice(0, msgIndex + 1);
+        messages.value = [...kept, ...response.messages];
+      } catch (e) {
+        logger.error('Failed to reload branch messages', e);
+      }
+    }
+  }
+
+  /**
+   * Clear branch cache (e.g. when switching chats)
+   */
+  function clearBranchCache(): void {
+    branchCache.value.clear();
+  }
+
   return {
     chats,
     currentChatId,
@@ -722,6 +812,12 @@ export const useChatStore = defineStore('chat', () => {
     rollbackToMessage,
     fetchModels,
     switchModel,
+    branchCache,
+    fetchBranches,
+    hasBranches,
+    getBranchInfo,
+    switchBranch,
+    clearBranchCache,
     initWebSocket,
     disconnectWebSocket,
   };

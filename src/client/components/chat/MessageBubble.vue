@@ -100,6 +100,7 @@ import { useDateTime } from '@client/composables';
 import { useTextToSpeech, type VoiceConfig } from '@client/composables/useTextToSpeech';
 import { createLogger } from '@client/utils/logger';
 import { useBookmarkStore } from '@client/stores/bookmark';
+import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import AudioPlayer from './AudioPlayer.vue';
 import MessageImage from './MessageImage.vue';
@@ -115,6 +116,7 @@ interface Props {
   userName?: string;
   editing?: boolean;
   voiceConfig?: VoiceConfig;
+  branchInfo?: { currentIndex: number; total: number } | null;
 }
 
 const props = defineProps<Props>();
@@ -126,6 +128,7 @@ const emit = defineEmits<{
   (e: 'save-edit', messageId: string, content: string): void;
   (e: 'cancel-edit'): void;
   (e: 'rollback', messageId: string): void;
+  (e: 'switchBranch', messageId: number, direction: 'prev' | 'next'): void;
 }>();
 
 const { t } = useI18n();

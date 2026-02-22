@@ -40,6 +40,7 @@ export interface Message {
   attachments?: MessageAttachment[];
   characterId?: string;
   characterName?: string;
+  parentMessageId?: number;
   createdAt: string;
 }
 

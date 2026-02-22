@@ -53,6 +53,7 @@ export const createMessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system']),
   content: z.string().min(1).max(50000).trim(),
   attachments: z.array(attachmentSchema).max(10).optional(),
+  parentMessageId: z.number().optional(),
 });
 
 export const updateMessageSchema = z.object({
