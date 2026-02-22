@@ -64,10 +64,11 @@ export class MessageRepository extends BaseRepository {
   }
 
   async searchByChatId(chatId: string, query: string, limit = 50): Promise<Message[]> {
-    return this.db.select().from(messages)
+    const escaped = query.replace(/[%_\\]/g, '\\$&');
+    return await this.db.select().from(messages)
       .where(and(
         eq(messages.chatId, chatId),
-        sql`${messages.content} ILIKE ${'%' + query + '%'}`
+        sql`${messages.content} ILIKE ${'%' + escaped + '%'}`
       ))
       .orderBy(desc(messages.sentAt))
       .limit(limit);
