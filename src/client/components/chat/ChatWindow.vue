@@ -153,29 +153,42 @@
         <div v-else-if="!chatStore.hasMoreMessages && messages.length > 0" class="no-more-messages">
           <span>{{ t('chat.noMoreMessages') }}</span>
         </div>
-        <template v-for="(message, index) in messages" :key="message.id">
+
+        <!-- Top spacer for virtual scroll -->
+        <div :style="{ height: topSpacerHeight + 'px' }" aria-hidden="true" />
+
+        <template v-for="(message, vIdx) in visibleMessages" :key="message.id">
           <DateDivider
-            v-if="shouldShowDateDivider(index)"
+            v-if="shouldShowDateDivider(visibleRange.start + vIdx)"
             :label="getDateLabel(message.createdAt)"
           />
-          <MessageBubble
-            :message="message"
-            :character-avatar="getMessageCharacterAvatar(message)"
-            :character-name="getMessageCharacterName(message)"
-            :user-avatar="userStore.user?.avatar"
-            :user-name="userStore.user?.name"
-            :editing="editingMessageId === message.id"
-            :voice-config="characterVoiceConfig"
-            :branch-info="chatStore.getBranchInfo(Number(message.id))"
-            @delete="handleDeleteMessage"
-            @edit="handleEditMessage"
-            @regenerate="handleRegenerateMessage"
-            @save-edit="handleSaveEdit"
-            @cancel-edit="handleCancelEdit"
-            @rollback="handleRollback"
-            @switch-branch="handleSwitchBranch"
-          />
+          <div
+            v-observe-height
+            :data-message-id="String(message.id)"
+            class="message-wrapper"
+          >
+            <MessageBubble
+              :message="message"
+              :character-avatar="getMessageCharacterAvatar(message)"
+              :character-name="getMessageCharacterName(message)"
+              :user-avatar="userStore.user?.avatar"
+              :user-name="userStore.user?.name"
+              :editing="editingMessageId === message.id"
+              :voice-config="characterVoiceConfig"
+              :branch-info="chatStore.getBranchInfo(Number(message.id))"
+              @delete="handleDeleteMessage"
+              @edit="handleEditMessage"
+              @regenerate="handleRegenerateMessage"
+              @save-edit="handleSaveEdit"
+              @cancel-edit="handleCancelEdit"
+              @rollback="handleRollback"
+              @switch-branch="handleSwitchBranch"
+            />
+          </div>
         </template>
+
+        <!-- Bottom spacer for virtual scroll -->
+        <div :style="{ height: bottomSpacerHeight + 'px' }" aria-hidden="true" />
 
         <!-- Streaming message -->
         <div v-if="isStreaming" class="message-bubble message-assistant streaming">
@@ -462,31 +475,51 @@ const handleRemoveCharacter = async (characterId: string) => {
   }
 };
 
+let scrollRafId: number | null = null;
+
 const handleScroll = () => {
   if (!messagesContainer.value) return;
-  const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
 
-  // Show scroll-to-bottom button
-  showScrollButton.value = scrollHeight - scrollTop - clientHeight > 200;
-
-  // Load older messages when near top
-  if (scrollTop < 100 && chatStore.hasMoreMessages && !chatStore.loadingOlder) {
-    loadOlderMessages();
+  if (scrollRafId !== null) {
+    cancelAnimationFrame(scrollRafId);
   }
+
+  scrollRafId = requestAnimationFrame(() => {
+    if (!messagesContainer.value) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
+
+    currentScrollTop.value = scrollTop;
+
+    // Show scroll-to-bottom button
+    showScrollButton.value = scrollHeight - scrollTop - clientHeight > 200;
+
+    // Load older messages when near top
+    if (scrollTop < 100 && chatStore.hasMoreMessages && !chatStore.loadingOlder) {
+      loadOlderMessages();
+    }
+
+    scrollRafId = null;
+  });
 };
 
 const loadOlderMessages = async () => {
   if (!messagesContainer.value) return;
 
-  const container = messagesContainer.value;
-  const previousScrollHeight = container.scrollHeight;
+  const previousMessageCount = messages.value.length;
 
   await chatStore.fetchOlderMessages();
-
-  // Preserve scroll position after prepending messages
   await nextTick();
-  const newScrollHeight = container.scrollHeight;
-  container.scrollTop = newScrollHeight - previousScrollHeight;
+
+  // Preserve scroll position: offset by estimated height of newly prepended messages
+  const newMessageCount = messages.value.length - previousMessageCount;
+  if (newMessageCount > 0 && messagesContainer.value) {
+    let addedHeight = 0;
+    for (let i = 0; i < newMessageCount; i++) {
+      addedHeight += getMsgHeight(messages.value[i].id);
+    }
+    messagesContainer.value.scrollTop = addedHeight;
+    currentScrollTop.value = addedHeight;
+  }
 };
 
 // Intelligence drawer state
@@ -507,6 +540,104 @@ const loading = computed(() => chatStore.loading);
 const sending = computed(() => chatStore.sending);
 const isStreaming = computed(() => chatStore.isStreaming);
 const streamingMessage = computed(() => chatStore.streamingMessage);
+
+// ---------------------------------------------------------------------------
+// Virtual scroll state
+// ---------------------------------------------------------------------------
+const ESTIMATED_HEIGHT = 100; // px per message (default estimate)
+const BUFFER_COUNT = 5; // extra messages above/below viewport
+const messageHeightsMap = new Map<string, number>(); // non-reactive for perf
+const heightsVersion = ref(0); // bump to trigger recomputation
+const currentScrollTop = ref(0);
+
+let messageObserver: ResizeObserver | null = null;
+
+// Custom directive: observe each message wrapper's height via ResizeObserver
+const vObserveHeight = {
+  mounted(el: HTMLElement) {
+    messageObserver?.observe(el);
+  },
+  beforeUnmount(el: HTMLElement) {
+    messageObserver?.unobserve(el);
+  },
+};
+
+const getMsgHeight = (id: string | number): number => {
+  return messageHeightsMap.get(String(id)) || ESTIMATED_HEIGHT;
+};
+
+const totalEstimatedHeight = computed(() => {
+  heightsVersion.value; // reactive dependency
+  let height = 0;
+  for (const msg of messages.value) {
+    height += getMsgHeight(msg.id);
+  }
+  return height;
+});
+
+const visibleRange = computed(() => {
+  heightsVersion.value; // reactive dependency
+  if (!messagesContainer.value || messages.value.length === 0) {
+    return { start: 0, end: messages.value.length };
+  }
+
+  const containerHeight = messagesContainer.value.clientHeight;
+  const scrollTop = currentScrollTop.value;
+  const msgs = messages.value;
+
+  // Find first visible message
+  let accHeight = 0;
+  let start = 0;
+  for (let i = 0; i < msgs.length; i++) {
+    const h = getMsgHeight(msgs[i].id);
+    if (accHeight + h >= scrollTop) {
+      start = Math.max(0, i - BUFFER_COUNT);
+      break;
+    }
+    accHeight += h;
+    // If we reach the end without finding, show last messages
+    if (i === msgs.length - 1) {
+      start = Math.max(0, msgs.length - BUFFER_COUNT);
+    }
+  }
+
+  // Find last visible message
+  let end = start;
+  let visibleHeight = 0;
+  for (let i = start; i < msgs.length; i++) {
+    const h = getMsgHeight(msgs[i].id);
+    visibleHeight += h;
+    end = i + 1;
+    if (visibleHeight > containerHeight + BUFFER_COUNT * ESTIMATED_HEIGHT * 2) break;
+  }
+
+  return { start, end: Math.min(end + BUFFER_COUNT, msgs.length) };
+});
+
+const visibleMessages = computed(() => {
+  const { start, end } = visibleRange.value;
+  return messages.value.slice(start, end);
+});
+
+const topSpacerHeight = computed(() => {
+  heightsVersion.value; // reactive dependency
+  const { start } = visibleRange.value;
+  let height = 0;
+  for (let i = 0; i < start; i++) {
+    height += getMsgHeight(messages.value[i].id);
+  }
+  return height;
+});
+
+const bottomSpacerHeight = computed(() => {
+  heightsVersion.value; // reactive dependency
+  const { end } = visibleRange.value;
+  let height = 0;
+  for (let i = end; i < messages.value.length; i++) {
+    height += getMsgHeight(messages.value[i].id);
+  }
+  return height;
+});
 
 // Greeting swipe state
 const greetingIndex = ref(0);
@@ -566,6 +697,9 @@ const shouldShowDateDivider = (index: number): boolean => {
 };
 
 const scrollToBottom = (smooth = true) => {
+  // Ensure the last messages are in the visible range before scrolling
+  currentScrollTop.value = totalEstimatedHeight.value;
+
   nextTick(() => {
     if (messagesContainer.value) {
       const container = messagesContainer.value;
@@ -577,6 +711,7 @@ const scrollToBottom = (smooth = true) => {
       } else {
         container.scrollTop = container.scrollHeight;
       }
+      currentScrollTop.value = container.scrollTop;
     }
   });
 };
@@ -841,10 +976,27 @@ const handleTouchEnd = async () => {
   }
 };
 
-// Auto-scroll on mount
+// Auto-scroll on mount + set up ResizeObserver for virtual scroll
 onMounted(() => {
+  messageObserver = new ResizeObserver((entries) => {
+    let changed = false;
+    for (const entry of entries) {
+      const el = entry.target as HTMLElement;
+      const msgId = el.dataset.messageId;
+      if (msgId) {
+        const newHeight = entry.contentRect.height;
+        if (messageHeightsMap.get(msgId) !== newHeight) {
+          messageHeightsMap.set(msgId, newHeight);
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      heightsVersion.value++;
+    }
+  });
+
   scrollToBottom(false);
-  messagesContainer.value?.addEventListener('scroll', handleScroll);
   chatStore.fetchModels();
 });
 
@@ -859,7 +1011,11 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
-  messagesContainer.value?.removeEventListener('scroll', handleScroll);
+  messageObserver?.disconnect();
+  messageObserver = null;
+  if (scrollRafId !== null) {
+    cancelAnimationFrame(scrollRafId);
+  }
 });
 </script>
 
@@ -931,6 +1087,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   position: relative;
+  will-change: transform;
 }
 
 .loading-container {
@@ -1026,6 +1183,10 @@ onUnmounted(() => {
 .messages-list {
   display: flex;
   flex-direction: column;
+}
+
+.message-wrapper {
+  contain: content;
 }
 
 .streaming {
