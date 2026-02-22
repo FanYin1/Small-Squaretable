@@ -107,6 +107,8 @@ export interface WSAssistantMessageChunk extends WSMessage {
     messageId: string;
     chunk: string;
     index: number;
+    characterId?: string;
+    characterName?: string;
   };
 }
 
@@ -119,6 +121,8 @@ export interface WSAssistantMessageDone extends WSMessage {
     chatId: string;
     messageId: string;
     totalTokens?: number;
+    characterId?: string;
+    characterName?: string;
   };
 }
 

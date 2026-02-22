@@ -16,6 +16,8 @@ import { getDefaultModel } from '../config/llm.config';
 import { chatService } from '../services/chat.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { characterRepository } from '../../db/repositories/character.repository';
+import { messageRepository } from '../../db/repositories/message.repository';
+import { groupChatService } from '../services/group-chat.service';
 import {
   WSMessageType,
   type WSMessageUnion,
@@ -175,144 +177,15 @@ export class WebSocketHandler {
         },
       });
 
-      // 获取聊天和角色信息
-      const chat = await chatRepository.findById(chatId);
-      if (!chat) {
-        throw new Error('Chat not found');
-      }
+      // Check if this is a group chat (multiple characters)
+      const isGroup = await groupChatService.isGroupChat(chatId);
 
-      const character = chat.characterId
-        ? await characterRepository.findById(chat.characterId)
-        : null;
-
-      // 获取聊天上下文
-      const messages = await chatService.getMessages(chatId);
-
-      // 构建消息数组，包含智能系统增强的 system prompt
-      const llmMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
-
-      if (character) {
-        // 使用智能系统构建增强的 system prompt
-        const enhancedPrompt = await chatService.buildEnhancedSystemPrompt({
-          character,
-          characterId: character.id,
-          userId: clientInfo.userId,
-          chatId,
-          userMessage: content,
-        });
-        llmMessages.push({ role: 'system', content: enhancedPrompt.systemPrompt });
-
-        // 更新情感状态
-        await chatService.updateEmotionFromMessage(
-          character.id,
-          clientInfo.userId,
-          chatId,
-          content,
-          userMessage.id
-        );
-      }
-
-      // 添加历史消息
-      for (const m of messages) {
-        llmMessages.push({
-          role: m.role as 'user' | 'assistant' | 'system',
-          content: m.content,
-        });
-      }
-
-      // 调用 LLM 生成回复（流式）
-      const assistantMessageId = nanoid();
-      const response = await llmService.streamChatCompletion({
-        messages: llmMessages,
-        model: getDefaultModel() || 'glm-4.5-air',
-        temperature: 0.7,
-        n: 1,
-        stream: true,
-        presence_penalty: 0,
-        frequency_penalty: 0,
-      });
-
-      // 处理流式响应
-      let fullContent = '';
-      let chunkIndex = 0;
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter((line) => line.trim() !== '');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
-
-              try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
-
-                if (content) {
-                  fullContent += content;
-
-                  // 广播消息块
-                  websocketService.broadcastToChat(chatId, {
-                    type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
-                    timestamp: new Date().toISOString(),
-                    data: {
-                      chatId,
-                      messageId: assistantMessageId,
-                      chunk: content,
-                      index: chunkIndex++,
-                    },
-                  });
-                }
-              } catch (e) {
-                wsLogger.error('Error parsing SSE data', e as Error);
-              }
-            }
-          }
-        }
-      }
-
-      // 保存助手消息到数据库
-      const assistantMessage = await chatService.addMessage(chatId, {
-        role: 'assistant',
-        content: fullContent,
-      });
-
-      // 广播消息完成
-      websocketService.broadcastToChat(chatId, {
-        type: WSMessageType.ASSISTANT_MESSAGE_DONE,
-        timestamp: new Date().toISOString(),
-        data: {
-          chatId,
-          messageId: assistantMessage.id.toString(),
-        },
-      });
-
-      // 智能系统: 提取记忆 (每 5 条消息)
-      if (character) {
-        const allMessages = await chatService.getMessages(chatId);
-        await chatService.checkAndExtractMemories(
-          chatId,
-          character.id,
-          clientInfo.userId,
-          allMessages
-        );
-
-        // 更新情感状态 (基于助手回复)
-        await chatService.updateEmotionFromMessage(
-          character.id,
-          clientInfo.userId,
-          chatId,
-          fullContent,
-          assistantMessage.id
-        );
+      if (isGroup) {
+        // --- Group chat: multi-character response loop ---
+        await this.handleGroupChatResponse(chatId, content, clientInfo.userId);
+      } else {
+        // --- Single-character path (unchanged) ---
+        await this.handleSingleCharacterResponse(chatId, content, clientInfo.userId, userMessage.id);
       }
     } catch (error) {
       wsLogger.error('Error handling user message', error as Error);
@@ -325,6 +198,219 @@ export class WebSocketHandler {
         },
       });
     }
+  }
+
+  /**
+   * Single-character response (original behavior, unchanged)
+   */
+  private async handleSingleCharacterResponse(
+    chatId: string,
+    content: string,
+    userId: string,
+    userMessageId: number
+  ): Promise<void> {
+    const chat = await chatRepository.findById(chatId);
+    if (!chat) throw new Error('Chat not found');
+
+    const character = chat.characterId
+      ? await characterRepository.findById(chat.characterId)
+      : null;
+
+    const messages = await chatService.getMessages(chatId);
+    const llmMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+
+    if (character) {
+      const enhancedPrompt = await chatService.buildEnhancedSystemPrompt({
+        character,
+        characterId: character.id,
+        userId,
+        chatId,
+        userMessage: content,
+      });
+      llmMessages.push({ role: 'system', content: enhancedPrompt.systemPrompt });
+
+      await chatService.updateEmotionFromMessage(
+        character.id, userId, chatId, content, userMessageId
+      );
+    }
+
+    for (const m of messages) {
+      llmMessages.push({
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+      });
+    }
+
+    const assistantMessageId = nanoid();
+    const fullContent = await this.streamLlmResponse(chatId, assistantMessageId, llmMessages);
+
+    const assistantMessage = await chatService.addMessage(chatId, {
+      role: 'assistant',
+      content: fullContent,
+    });
+
+    websocketService.broadcastToChat(chatId, {
+      type: WSMessageType.ASSISTANT_MESSAGE_DONE,
+      timestamp: new Date().toISOString(),
+      data: {
+        chatId,
+        messageId: assistantMessage.id.toString(),
+      },
+    });
+
+    if (character) {
+      const allMessages = await chatService.getMessages(chatId);
+      await chatService.checkAndExtractMemories(chatId, character.id, userId, allMessages);
+      await chatService.updateEmotionFromMessage(
+        character.id, userId, chatId, fullContent, assistantMessage.id
+      );
+    }
+  }
+
+  /**
+   * Group chat: sequentially generate responses for each responding character
+   */
+  private async handleGroupChatResponse(
+    chatId: string,
+    userContent: string,
+    userId: string
+  ): Promise<void> {
+    // Determine who responded last to feed round-robin
+    const recentMessages = await chatService.getMessages(chatId);
+    let lastResponderId: string | undefined;
+    for (let i = recentMessages.length - 1; i >= 0; i--) {
+      if (recentMessages[i].role === 'assistant' && recentMessages[i].characterId) {
+        lastResponderId = recentMessages[i].characterId!;
+        break;
+      }
+    }
+
+    const respondentIds = await groupChatService.selectRespondents(
+      chatId, 'round_robin', lastResponderId
+    );
+
+    for (const charId of respondentIds) {
+      const character = await characterRepository.findById(charId);
+      if (!character) {
+        wsLogger.warn('Group chat character not found, skipping', { charId });
+        continue;
+      }
+
+      // Build system prompt for this character
+      const enhancedPrompt = await chatService.buildEnhancedSystemPrompt({
+        character,
+        characterId: character.id,
+        userId,
+        chatId,
+        userMessage: userContent,
+      });
+
+      // Build LLM message array
+      const chatMessages = await chatService.getMessages(chatId);
+      const llmMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+      llmMessages.push({ role: 'system', content: enhancedPrompt.systemPrompt });
+      for (const m of chatMessages) {
+        llmMessages.push({
+          role: m.role as 'user' | 'assistant' | 'system',
+          content: m.content,
+        });
+      }
+
+      // Stream LLM response with character identification
+      const tempMessageId = nanoid();
+      const fullContent = await this.streamLlmResponse(
+        chatId, tempMessageId, llmMessages, character.id, character.name
+      );
+
+      // Save message with characterId
+      const savedMessage = await messageRepository.create({
+        chatId,
+        role: 'assistant',
+        content: fullContent,
+        characterId: character.id,
+      });
+
+      websocketService.broadcastToChat(chatId, {
+        type: WSMessageType.ASSISTANT_MESSAGE_DONE,
+        timestamp: new Date().toISOString(),
+        data: {
+          chatId,
+          messageId: savedMessage.id.toString(),
+          characterId: character.id,
+          characterName: character.name,
+        },
+      });
+    }
+  }
+
+  /**
+   * Shared helper: call LLM and stream chunks to the chat room.
+   * Returns the full accumulated content.
+   */
+  private async streamLlmResponse(
+    chatId: string,
+    messageId: string,
+    llmMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
+    characterId?: string,
+    characterName?: string
+  ): Promise<string> {
+    const response = await llmService.streamChatCompletion({
+      messages: llmMessages,
+      model: getDefaultModel() || 'glm-4.5-air',
+      temperature: 0.7,
+      n: 1,
+      stream: true,
+      presence_penalty: 0,
+      frequency_penalty: 0,
+    });
+
+    let fullContent = '';
+    let chunkIndex = 0;
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (reader) {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter((line) => line.trim() !== '');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') continue;
+
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+
+              if (content) {
+                fullContent += content;
+
+                websocketService.broadcastToChat(chatId, {
+                  type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
+                  timestamp: new Date().toISOString(),
+                  data: {
+                    chatId,
+                    messageId,
+                    chunk: content,
+                    index: chunkIndex++,
+                    ...(characterId && { characterId }),
+                    ...(characterName && { characterName }),
+                  },
+                });
+              }
+            } catch (e) {
+              wsLogger.error('Error parsing SSE data', e as Error);
+            }
+          }
+        }
+      }
+    }
+
+    return fullContent;
   }
 
   /**
