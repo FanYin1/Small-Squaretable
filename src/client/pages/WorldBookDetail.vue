@@ -2,12 +2,13 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { Plus, ArrowLeft, Search, Delete, Edit, Check } from '@element-plus/icons-vue';
+import { Plus, ArrowLeft, Search, Delete, Edit, Check, Download, Upload } from '@element-plus/icons-vue';
 import { ElMessageBox } from 'element-plus';
 import { useToast } from '@client/composables/useToast';
 import { useWorldBookStore } from '@client/stores/worldbook';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import type { WorldBookEntry, CreateEntryInput } from '@client/services/worldbook.api';
+import { worldbookApi } from '@client/services/worldbook.api';
 
 const route = useRoute();
 const router = useRouter();
@@ -232,6 +233,47 @@ async function handleDeleteEntry(entry: WorldBookEntry) {
     if (expandedEntryId.value === entry.id) expandedEntryId.value = null;
   } catch (e) { if (e !== 'cancel') toast.error(t('worldBookEditor.deleteFailed')); }
 }
+
+// Import / Export
+const importFileInput = ref<HTMLInputElement | null>(null);
+
+async function handleExport() {
+  try {
+    const data = await worldbookApi.exportWorldBook(worldbookId.value);
+    const name = store.currentWorldBook?.name || 'worldbook';
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(t('worldBookEditor.exportSuccess', 'Export successful'));
+  } catch {
+    toast.error(t('worldBookEditor.exportFailed', 'Export failed'));
+  }
+}
+
+function triggerImport() {
+  importFileInput.value?.click();
+}
+
+async function handleImportFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    await worldbookApi.importEntries(worldbookId.value, data);
+    await store.fetchEntries(worldbookId.value);
+    toast.success(t('worldBookEditor.importSuccess', 'Import successful'));
+  } catch {
+    toast.error(t('worldBookEditor.importFailed', 'Import failed'));
+  } finally {
+    input.value = '';
+  }
+}
 </script>
 
 <template>
@@ -259,9 +301,17 @@ async function handleDeleteEntry(entry: WorldBookEntry) {
       </div>
     </template>
     <template #actions>
+      <el-button :icon="Upload" @click="triggerImport">
+        {{ t('worldBookEditor.import', 'Import') }}
+      </el-button>
+      <el-button :icon="Download" @click="handleExport">
+        {{ t('worldBookEditor.export', 'Export') }}
+      </el-button>
       <el-button type="primary" :icon="Plus" @click="openNewEntry">
         {{ t('worldBookEditor.addEntry') }}
       </el-button>
+      <input ref="importFileInput" type="file" accept=".json" style="display: none"
+        @change="handleImportFile" />
     </template>
 
     <div class="worldbook-detail" v-loading="store.loading">

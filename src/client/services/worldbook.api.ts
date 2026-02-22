@@ -58,4 +58,8 @@ export const worldbookApi = {
     api.patch<WorldBookEntry>(`/worldbooks/${worldbookId}/entries/${entryId}`, data),
   deleteEntry: (worldbookId: string, entryId: string) =>
     api.delete(`/worldbooks/${worldbookId}/entries/${entryId}`),
+  importEntries: (worldbookId: string, data: Record<string, unknown>) =>
+    api.post(`/worldbooks/${worldbookId}/import`, data),
+  exportWorldBook: (worldbookId: string) =>
+    api.get<Record<string, unknown>>(`/worldbooks/${worldbookId}/export`),
 };

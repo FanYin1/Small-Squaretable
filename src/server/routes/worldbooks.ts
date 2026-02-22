@@ -304,6 +304,152 @@ worldbooksRouter.patch(
   }
 );
 
+// --- Import / Export ---
+
+// Import entries from SillyTavern character_book format
+worldbooksRouter.post('/:id/import', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+
+  const worldbook = await worldBookRepository.findById(id);
+  if (!worldbook || worldbook.userId !== user.id) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'World book not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404
+    );
+  }
+
+  const body = await c.req.json();
+  const entries = body.entries;
+  if (!entries || typeof entries !== 'object') {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid character_book format: missing entries object' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400
+    );
+  }
+
+  const positionMap: Record<number, string> = {
+    0: 'before', 1: 'after', 2: 'EMTop', 3: 'EMBottom',
+    4: 'atDepth', 5: 'ANTop', 6: 'ANBottom',
+  };
+
+  const selectiveLogicMap: Record<number, string> = {
+    0: 'AND_ANY', 1: 'AND_ALL', 2: 'NOT_ANY', 3: 'NOT_ALL',
+  };
+
+  const created: unknown[] = [];
+  const entryKeys = Object.keys(entries).sort((a, b) => Number(a) - Number(b));
+
+  for (const key of entryKeys) {
+    const e = entries[key];
+    if (!e || typeof e !== 'object') continue;
+
+    const entry = await worldBookEntryRepository.create({
+      worldBookId: id,
+      keys: Array.isArray(e.keys) ? e.keys : [],
+      keysSecondary: Array.isArray(e.secondary_keys) ? e.secondary_keys : undefined,
+      selectiveLogic: selectiveLogicMap[e.selectiveLogic] ?? 'AND_ANY',
+      content: typeof e.content === 'string' ? e.content : '',
+      comment: typeof e.comment === 'string' ? e.comment : null,
+      position: positionMap[e.position] ?? 'before',
+      depth: typeof e.depth === 'number' ? e.depth : 4,
+      order: typeof e.insertion_order === 'number' ? e.insertion_order : 100,
+      enabled: e.enabled !== false,
+      constant: e.constant === true,
+      probability: typeof e.probability === 'number' ? e.probability : 100,
+      sticky: typeof e.sticky === 'number' ? e.sticky : 0,
+      cooldown: typeof e.cooldown === 'number' ? e.cooldown : 0,
+      delay: typeof e.delay === 'number' ? e.delay : 0,
+      caseSensitive: e.case_sensitive === true,
+      matchWholeWords: e.match_whole_words === true,
+      preventRecursion: e.prevent_recursion === true,
+      excludeRecursion: e.exclude_recursion === true,
+    });
+    created.push(entry);
+  }
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: { imported: created.length },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    201
+  );
+});
+
+// Export world book in SillyTavern character_book format
+worldbooksRouter.get('/:id/export', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+
+  const worldbook = await worldBookRepository.findById(id);
+  if (!worldbook || worldbook.userId !== user.id) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'World book not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404
+    );
+  }
+
+  const dbEntries = await worldBookEntryRepository.findByWorldBook(id);
+
+  const positionReverseMap: Record<string, number> = {
+    before: 0, after: 1, EMTop: 2, EMBottom: 3,
+    atDepth: 4, ANTop: 5, ANBottom: 6,
+  };
+
+  const selectiveLogicReverseMap: Record<string, number> = {
+    AND_ANY: 0, AND_ALL: 1, NOT_ANY: 2, NOT_ALL: 3,
+  };
+
+  const exportEntries: Record<string, unknown> = {};
+  dbEntries.forEach((entry, index) => {
+    const s = (entry.settings ?? {}) as Record<string, unknown>;
+    const keys = Array.isArray(s.keys) ? s.keys : entry.keyword ? entry.keyword.split(',').map((k: string) => k.trim()).filter(Boolean) : [];
+    const secondaryKeys = Array.isArray(s.keysSecondary) ? s.keysSecondary : [];
+    const posStr = typeof s.position === 'string' ? s.position : 'before';
+    const logicStr = typeof s.selectiveLogic === 'string' ? s.selectiveLogic : 'AND_ANY';
+
+    exportEntries[String(index)] = {
+      keys,
+      secondary_keys: secondaryKeys,
+      selectiveLogic: selectiveLogicReverseMap[logicStr] ?? 0,
+      content: entry.content,
+      comment: typeof s.comment === 'string' ? s.comment : '',
+      position: positionReverseMap[posStr] ?? 0,
+      depth: typeof s.depth === 'number' ? s.depth : 4,
+      insertion_order: typeof s.order === 'number' ? s.order : entry.position,
+      enabled: entry.isEnabled,
+      constant: s.constant === true,
+      probability: typeof s.probability === 'number' ? s.probability : 100,
+      sticky: typeof s.sticky === 'number' ? s.sticky : 0,
+      cooldown: typeof s.cooldown === 'number' ? s.cooldown : 0,
+      delay: typeof s.delay === 'number' ? s.delay : 0,
+      case_sensitive: s.caseSensitive === true,
+      match_whole_words: s.matchWholeWords === true,
+      prevent_recursion: s.preventRecursion === true,
+      exclude_recursion: s.excludeRecursion === true,
+    };
+  });
+
+  return c.json({
+    name: worldbook.name,
+    entries: exportEntries,
+  });
+});
+
 // Delete entry
 worldbooksRouter.delete('/:id/entries/:entryId', authMiddleware(), async (c) => {
   const user = c.get('user');
