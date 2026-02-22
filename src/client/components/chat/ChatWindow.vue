@@ -306,7 +306,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { More, Loading, Search } from '@element-plus/icons-vue';
@@ -324,8 +324,9 @@ import DateDivider from './DateDivider.vue';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import EmotionIndicator from '@client/components/EmotionIndicator.vue';
 import MemoryPanel from '@client/components/MemoryPanel.vue';
-import IntelligenceDebugPanel from '@client/components/debug/IntelligenceDebugPanel.vue';
-import GrowthPanel from '@client/components/character/GrowthPanel.vue';
+// Lazy-load heavy panels to break circular chunk deps and reduce initial chat bundle
+const IntelligenceDebugPanel = defineAsyncComponent(() => import('@client/components/debug/IntelligenceDebugPanel.vue'));
+const GrowthPanel = defineAsyncComponent(() => import('@client/components/character/GrowthPanel.vue'));
 import { createLogger } from '@client/utils/logger';
 import type { Chat, Message, MessageAttachment, Character } from '@client/types';
 
