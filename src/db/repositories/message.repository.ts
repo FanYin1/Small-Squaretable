@@ -103,7 +103,7 @@ export class MessageRepository extends BaseRepository {
       )
       SELECT * FROM branch ORDER BY sent_at ASC
     `);
-    return result.rows as Message[];
+    return result as unknown as Message[];
   }
 
   async findSiblings(messageId: number): Promise<Message[]> {
