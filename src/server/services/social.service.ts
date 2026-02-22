@@ -9,6 +9,7 @@ import type { FollowRepository } from '@db/repositories/follow.repository';
 import type { FavoriteRepository } from '@db/repositories/favorite.repository';
 import type { CommentRepository } from '@db/repositories/comment.repository';
 import type { NotificationRepository } from '@db/repositories/notification.repository';
+import type { UserRepository } from '@db/repositories/user.repository';
 import type { EventBus } from './event-bus.service';
 import type { FollowInfo, FavoriteInfo } from '@/types/social';
 import { NotFoundError, BadRequestError } from '@/core/errors';
@@ -20,6 +21,7 @@ export class SocialService {
     private commentRepo: CommentRepository,
     private notificationRepo: NotificationRepository,
     private eventBus: EventBus,
+    private userRepo: UserRepository,
   ) {}
 
   // --- Follow ---
@@ -114,6 +116,18 @@ export class SocialService {
   async getReplies(commentId: string, limit: number, offset: number) {
     return this.commentRepo.getReplies(commentId, limit, offset);
   }
+
+  // --- User Profile ---
+
+  async getUserProfile(userId: string) {
+    const user = await this.userRepo.findById(userId);
+    if (!user) throw new NotFoundError('User');
+    return {
+      id: user.id,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+    };
+  }
 }
 
 // Singleton
@@ -121,8 +135,9 @@ import { followRepository } from '@db/repositories/follow.repository';
 import { favoriteRepository } from '@db/repositories/favorite.repository';
 import { commentRepository } from '@db/repositories/comment.repository';
 import { notificationRepository } from '@db/repositories/notification.repository';
+import { userRepository } from '@db/repositories/user.repository';
 import { eventBus } from './event-bus.service';
 
 export const socialService = new SocialService(
-  followRepository, favoriteRepository, commentRepository, notificationRepository, eventBus,
+  followRepository, favoriteRepository, commentRepository, notificationRepository, eventBus, userRepository,
 );

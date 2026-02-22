@@ -356,3 +356,19 @@ socialRoutes.get(
     200
   );
 });
+
+// =====================
+// User Profile Routes
+// =====================
+
+// GET /users/:userId/profile - Get user public profile
+socialRoutes.get('/users/:userId/profile', authMiddleware(), async (c) => {
+  const userId = c.req.param('userId');
+  const profile = await socialService.getUserProfile(userId);
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: profile,
+    meta: { timestamp: new Date().toISOString() },
+  }, 200);
+});
