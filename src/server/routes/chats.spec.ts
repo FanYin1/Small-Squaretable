@@ -23,6 +23,15 @@ vi.mock('../services/event-bus.service', () => ({
   },
 }));
 
+vi.mock('../services/group-chat.service', () => ({
+  groupChatService: {
+    addCharacter: vi.fn().mockResolvedValue(undefined),
+    removeCharacter: vi.fn().mockResolvedValue(undefined),
+    getChatCharacters: vi.fn().mockResolvedValue([]),
+    isGroupChat: vi.fn().mockResolvedValue(false),
+  },
+}));
+
 vi.mock('../../core/jwt', () => ({
   verifyAccessToken: vi.fn(),
   extractTokenFromHeader: vi.fn((header) => {
