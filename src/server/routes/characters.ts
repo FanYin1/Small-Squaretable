@@ -7,6 +7,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { characterService } from '../services/character.service';
+import { characterVersionService } from '../services/character-version.service';
 import { logger } from '../services/logger.service';
 
 const charLogger = logger.child({ module: 'characters' });
@@ -420,6 +421,18 @@ characterRoutes.patch(
     const user = c.get('user');
     const characterId = c.req.param('id');
     const input = c.req.valid('json');
+
+    // Auto-save version before update
+    try {
+      const current = await characterService.getById(characterId);
+      if (current.cardData) {
+        await characterVersionService.saveVersion(characterId, current.cardData as Record<string, unknown>, user.id, 'Auto-save before edit');
+      }
+    } catch (e) {
+      // Don't block the update if version save fails
+      charLogger.warn('Failed to auto-save version', { characterId, error: e });
+    }
+
     const character = await characterService.update(characterId, user.id, user.tenantId, input);
 
     // Invalidate relevant caches
@@ -629,6 +642,92 @@ characterRoutes.delete('/:id/ratings', authMiddleware(), async (c) => {
       meta: { timestamp: new Date().toISOString() },
     },
     200
+  );
+});
+
+// ── Version History Endpoints ──
+
+// List versions for a character
+characterRoutes.get('/:id/versions', authMiddleware(), async (c) => {
+  const characterId = c.req.param('id');
+  const limit = Number(c.req.query('limit') || 20);
+  const offset = Number(c.req.query('offset') || 0);
+
+  const versions = await characterVersionService.listVersions(characterId, limit, offset);
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: versions,
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200,
+  );
+});
+
+// Get a specific version
+characterRoutes.get('/:id/versions/:version', authMiddleware(), async (c) => {
+  const characterId = c.req.param('id');
+  const version = Number(c.req.param('version'));
+
+  const versionData = await characterVersionService.getVersion(characterId, version);
+
+  if (!versionData) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Version not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404,
+    );
+  }
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: versionData,
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200,
+  );
+});
+
+// Manually save a version snapshot
+characterRoutes.post('/:id/versions', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const characterId = c.req.param('id');
+
+  const current = await characterService.getById(characterId);
+
+  if (!current.cardData) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NO_CARD_DATA', message: 'Character has no card data to snapshot' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400,
+    );
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const changeNote = body?.changeNote as string | undefined;
+
+  const version = await characterVersionService.saveVersion(
+    characterId,
+    current.cardData as Record<string, unknown>,
+    user.id,
+    changeNote,
+  );
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: version,
+      meta: { timestamp: new Date().toISOString() },
+    },
+    201,
   );
 });
 
