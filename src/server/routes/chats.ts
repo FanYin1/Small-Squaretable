@@ -27,7 +27,7 @@ import { messageBookmarkRepository } from '../../db/repositories/message-bookmar
 import { characterGrowthRepository } from '../../db/repositories/character-growth.repository';
 import { createLogger } from '../services/logger.service';
 
-const logger = createLogger('chats-route');
+const logger = createLogger({ service: 'chats-route' });
 
 export const chatRoutes = new Hono();
 
