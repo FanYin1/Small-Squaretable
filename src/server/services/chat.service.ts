@@ -566,3 +566,12 @@ export class ChatService {
 }
 
 export const chatService = new ChatService();
+
+/**
+ * Extract the selected model from a chat's metadata JSONB.
+ * Returns null if no model has been set.
+ */
+export function getChatModel(chat: Chat): string | null {
+  const metadata = chat.metadata as Record<string, unknown>;
+  return typeof metadata?.model === 'string' ? metadata.model : null;
+}

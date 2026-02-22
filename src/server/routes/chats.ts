@@ -25,6 +25,7 @@ import type { Chat } from '../../db/schema/chats';
 import { eventBus } from '../services/event-bus.service';
 import { messageBookmarkRepository } from '../../db/repositories/message-bookmark.repository';
 import { characterGrowthRepository } from '../../db/repositories/character-growth.repository';
+import { getAvailableModels } from '../config/llm.config';
 import { createLogger } from '../services/logger.service';
 
 const logger = createLogger({ service: 'chats-route' });
@@ -269,6 +270,74 @@ chatRoutes.delete('/:id', authMiddleware(), async (c) => {
     200
   );
 });
+
+// 更新聊天模型选择
+const updateModelSchema = z.object({
+  model: z.string().min(1),
+});
+
+chatRoutes.patch(
+  '/:id/model',
+  authMiddleware(),
+  zValidator('json', updateModelSchema),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const { model } = c.req.valid('json');
+
+    // Verify the chat belongs to the user
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== user.id) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    // Verify the model is available
+    const availableModels = getAvailableModels();
+    if (!availableModels.includes(model)) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: `Model '${model}' is not available` },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        400
+      );
+    }
+
+    // Merge model into existing metadata
+    const existingMetadata = (chat.metadata as Record<string, unknown>) || {};
+    const updatedChat = await chatRepository.update(chatId, chat.tenantId, {
+      metadata: { ...existingMetadata, model },
+    });
+
+    if (!updatedChat) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: updatedChat,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
 
 // 发送消息
 chatRoutes.post(
