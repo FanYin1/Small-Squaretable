@@ -7,6 +7,16 @@
 import { api } from './api';
 import type { FollowInfo, FavoriteInfo, CommentWithAuthor, ListCommentsQuery } from '@/types/social';
 
+export interface ActivityItem {
+  id: string;
+  userId: string;
+  type: string;
+  targetType?: string;
+  targetId?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
 export const socialApi = {
   // Follows
   follow: (userId: string) => api.post('/social/follows', { followingId: userId }),
@@ -42,9 +52,9 @@ export const socialApi = {
 
   // Activity Feed
   getFeed: (limit = 20, offset = 0) =>
-    api.get(`/social/feed?limit=${limit}&offset=${offset}`),
+    api.get<ActivityItem[]>(`/social/feed?limit=${limit}&offset=${offset}`),
   getUserActivities: (userId: string, limit = 20, offset = 0) =>
-    api.get(`/social/users/${userId}/activities?limit=${limit}&offset=${offset}`),
+    api.get<ActivityItem[]>(`/social/users/${userId}/activities?limit=${limit}&offset=${offset}`),
 
   // Comment Likes
   likeComment: (commentId: string) => api.post(`/social/comments/${commentId}/like`),

@@ -8,18 +8,11 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { createLogger } from '@client/utils/logger';
 import { socialApi } from '@client/services/social.api';
+import type { ActivityItem } from '@client/services/social.api';
+
+export type { ActivityItem };
 
 const logger = createLogger('SocialStore');
-
-export interface ActivityItem {
-  id: string;
-  userId: string;
-  type: string;
-  targetType?: string;
-  targetId?: string;
-  metadata?: Record<string, unknown>;
-  createdAt: string;
-}
 
 export const useSocialStore = defineStore('social', () => {
   // Activity feed state
