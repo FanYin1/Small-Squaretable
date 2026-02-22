@@ -74,6 +74,16 @@ export class MessageRepository extends BaseRepository {
       .limit(limit);
   }
 
+  async deleteAfter(chatId: string, messageId: number): Promise<number> {
+    const result = await this.db.delete(messages)
+      .where(and(
+        eq(messages.chatId, chatId),
+        gt(messages.id, messageId)
+      ))
+      .returning();
+    return result.length;
+  }
+
   async countByChatId(chatId: string): Promise<number> {
     const result = await this.db
       .select({ count: sql<number>`count(*)` })

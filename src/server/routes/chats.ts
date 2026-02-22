@@ -420,6 +420,57 @@ chatRoutes.get(
   );
 });
 
+// 会话回滚
+const rollbackSchema = z.object({
+  messageId: z.number().int().positive(),
+});
+
+chatRoutes.post(
+  '/:id/rollback',
+  authMiddleware(),
+  zValidator('json', rollbackSchema),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const { messageId } = c.req.valid('json');
+
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== user.id) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    const msg = await messageRepository.findById(messageId);
+    if (!msg || msg.chatId !== chatId) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Message not found in this chat' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    const deletedCount = await messageRepository.deleteAfter(chatId, messageId);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: { deletedCount },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
+
 // --- Group chat character management ---
 
 const addCharacterSchema = z.object({
