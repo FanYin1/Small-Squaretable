@@ -19,9 +19,8 @@ import {
   completionRequestSchema,
   type ChatCompletionResponse,
   type CompletionResponse,
-  type ModelsResponse,
 } from '../../types/llm';
-import { getAvailableModels } from '../config/llm.config';
+import { getAvailableModelsWithMeta } from '../config/llm.config';
 
 export const llmRoutes = new Hono();
 
@@ -139,20 +138,13 @@ llmRoutes.post(
 
 /**
  * GET /api/v1/llm/models
- * 获取可用模型列表
+ * 获取可用模型列表（含元数据）
  */
 llmRoutes.get('/models', authMiddleware(), async (c) => {
-  const models = getAvailableModels();
+  const models = getAvailableModelsWithMeta();
 
-  const response: ModelsResponse = {
-    object: 'list',
-    data: models.map((model) => ({
-      id: model,
-      object: 'model',
-      created: Date.now(),
-      owned_by: 'system',
-    })),
-  };
-
-  return c.json(response, 200);
+  return c.json({
+    success: true,
+    data: models,
+  }, 200);
 });

@@ -43,8 +43,19 @@ vi.mock('../services/feature.service', () => ({
 
 vi.mock('../config/llm.config', () => ({
   getAvailableModels: vi.fn(() => ['gpt-3.5-turbo', 'gpt-4']),
+  getAvailableModelsWithMeta: vi.fn(() => [
+    { id: 'gpt-3.5-turbo', provider: 'openai', contextWindow: 16385, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+    { id: 'gpt-4', provider: 'openai', contextWindow: 8192, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  ]),
   findProviderForModel: vi.fn(),
   getDefaultModel: vi.fn(() => 'gpt-3.5-turbo'),
+  getModelMeta: vi.fn((model: string) => ({
+    id: model,
+    provider: 'openai',
+    contextWindow: 4096,
+    maxOutputTokens: 2048,
+    defaultTemperature: 0.7,
+  })),
 }));
 
 describe('LLM Routes', () => {
@@ -279,9 +290,14 @@ describe('LLM Routes', () => {
       expect(res.status).toBe(200);
 
       const data = await res.json();
-      expect(data).toHaveProperty('object', 'list');
+      expect(data).toHaveProperty('success', true);
       expect(data).toHaveProperty('data');
       expect(Array.isArray(data.data)).toBe(true);
+      expect(data.data[0]).toHaveProperty('id');
+      expect(data.data[0]).toHaveProperty('provider');
+      expect(data.data[0]).toHaveProperty('contextWindow');
+      expect(data.data[0]).toHaveProperty('maxOutputTokens');
+      expect(data.data[0]).toHaveProperty('defaultTemperature');
     });
   });
 });

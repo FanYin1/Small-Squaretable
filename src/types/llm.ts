@@ -141,6 +141,17 @@ export interface ModelsResponse {
 }
 
 /**
+ * 模型元数据
+ */
+export interface ModelMeta {
+  id: string;
+  provider: string;
+  contextWindow: number;    // max context tokens
+  maxOutputTokens: number;  // max response tokens
+  defaultTemperature: number;
+}
+
+/**
  * LLM 提供商类型
  */
 export type LLMProvider = 'openai' | 'anthropic' | 'custom';

@@ -4,7 +4,7 @@
  * 管理 LLM 提供商配置和模型映射
  */
 
-import type { LLMProviderConfig } from '../../types/llm';
+import type { LLMProviderConfig, ModelMeta } from '../../types/llm';
 
 /**
  * 从环境变量加载 LLM 配置
@@ -100,4 +100,51 @@ export function getDefaultModel(): string | null {
     return null;
   }
   return llmConfigs[0].defaultModel || llmConfigs[0].models[0];
+}
+
+/**
+ * 已知模型元数据注册表
+ */
+const MODEL_REGISTRY: Record<string, Omit<ModelMeta, 'id' | 'provider'>> = {
+  // OpenAI
+  'gpt-4': { contextWindow: 8192, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'gpt-4-turbo': { contextWindow: 128000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'gpt-4-turbo-preview': { contextWindow: 128000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'gpt-3.5-turbo': { contextWindow: 16385, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'gpt-3.5-turbo-16k': { contextWindow: 16385, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  // Anthropic
+  'claude-3-opus-20240229': { contextWindow: 200000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'claude-3-sonnet-20240229': { contextWindow: 200000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'claude-3-haiku-20240307': { contextWindow: 200000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'claude-2.1': { contextWindow: 200000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'claude-2.0': { contextWindow: 100000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+};
+
+/**
+ * 未知模型的默认元数据
+ */
+const DEFAULT_MODEL_META: Omit<ModelMeta, 'id' | 'provider'> = {
+  contextWindow: 4096,
+  maxOutputTokens: 2048,
+  defaultTemperature: 0.7,
+};
+
+/**
+ * 获取单个模型的元数据
+ */
+export function getModelMeta(model: string): ModelMeta {
+  const provider = findProviderForModel(model);
+  const meta = MODEL_REGISTRY[model] || DEFAULT_MODEL_META;
+  return {
+    id: model,
+    provider: provider?.provider || 'unknown',
+    ...meta,
+  };
+}
+
+/**
+ * 获取所有可用模型及其元数据
+ */
+export function getAvailableModelsWithMeta(): ModelMeta[] {
+  return getAvailableModels().map(getModelMeta);
 }
