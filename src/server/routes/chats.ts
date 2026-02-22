@@ -89,6 +89,94 @@ chatRoutes.get(
   }
 );
 
+// 导出聊天
+const exportQuerySchema = z.object({
+  format: z.enum(['json', 'markdown', 'txt']).default('json'),
+});
+
+chatRoutes.get(
+  '/:id/export',
+  authMiddleware(),
+  zValidator('query', exportQuerySchema),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const { format } = c.req.valid('query');
+
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== user.id) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    const allMessages = await messageRepository.findByChatId(chatId);
+    const exportedAt = new Date().toISOString();
+    const chatTitle = chat.title || 'Untitled';
+
+    if (format === 'json') {
+      const exportData = {
+        chat: { id: chat.id, title: chatTitle, createdAt: chat.createdAt },
+        messages: allMessages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          ...(m.characterId ? { characterId: m.characterId } : {}),
+          sentAt: m.sentAt,
+        })),
+        exportedAt,
+      };
+      c.header('Content-Disposition', `attachment; filename="chat-${chatId}.json"`);
+      return c.json(exportData);
+    }
+
+    if (format === 'markdown') {
+      const lines: string[] = [
+        `# Chat: ${chatTitle}`,
+        `Created: ${chat.createdAt.toISOString()}`,
+        '',
+        '---',
+        '',
+      ];
+      for (const m of allMessages) {
+        const label = m.role === 'user' ? 'You' : 'Assistant';
+        lines.push(`**${label}**: ${m.content}`, '');
+      }
+      lines.push('---', `Exported at ${exportedAt}`);
+      const body = lines.join('\n');
+      return new Response(body, {
+        headers: {
+          'Content-Type': 'text/markdown; charset=utf-8',
+          'Content-Disposition': `attachment; filename="chat-${chatId}.md"`,
+        },
+      });
+    }
+
+    // txt format
+    const lines: string[] = [
+      `Chat: ${chatTitle}`,
+      `Created: ${chat.createdAt.toISOString()}`,
+      '---',
+    ];
+    for (const m of allMessages) {
+      const label = m.role === 'user' ? 'You' : 'Assistant';
+      lines.push(`[${label}]: ${m.content}`);
+    }
+    lines.push('---', `Exported at ${exportedAt}`);
+    const body = lines.join('\n');
+    return new Response(body, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Disposition': `attachment; filename="chat-${chatId}.txt"`,
+      },
+    });
+  }
+);
+
 // 获取单个聊天
 chatRoutes.get('/:id', authMiddleware(), async (c) => {
   const user = c.get('user');
