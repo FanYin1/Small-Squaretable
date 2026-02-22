@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Plus, Edit, Delete, Search } from '@element-plus/icons-vue';
 import { ElMessageBox } from 'element-plus';
 import { useToast } from '@client/composables/useToast';
-import { api } from '@client/services/api';
+import { worldbookApi } from '@client/services/worldbook.api';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 
+const router = useRouter();
 const { t } = useI18n();
 const toast = useToast();
 
@@ -43,8 +45,8 @@ onMounted(() => fetchWorldBooks());
 async function fetchWorldBooks() {
   loading.value = true;
   try {
-    const data = await api.get<WorldBook[]>('/worldbooks');
-    worldbooks.value = Array.isArray(data) ? data : [];
+    const data = await worldbookApi.list();
+    worldbooks.value = Array.isArray(data) ? (data as WorldBook[]) : [];
   } catch {
     toast.error(t('worldBooks.loadFailed'));
   } finally {
@@ -81,6 +83,10 @@ function openEdit(book: WorldBook) {
   dialogVisible.value = true;
 }
 
+function openDetail(book: WorldBook) {
+  router.push({ name: 'WorldBookDetail', params: { id: book.id } });
+}
+
 async function handleSubmit() {
   if (!form.value.name.trim()) {
     toast.error(t('worldBooks.nameRequired'));
@@ -89,10 +95,10 @@ async function handleSubmit() {
   submitting.value = true;
   try {
     if (dialogMode.value === 'create') {
-      await api.post('/worldbooks', form.value);
+      await worldbookApi.create(form.value);
       toast.success(t('worldBooks.created'));
     } else {
-      await api.patch(`/worldbooks/${editingId.value}`, form.value);
+      await worldbookApi.update(editingId.value!, form.value);
       toast.success(t('common.save'));
     }
     dialogVisible.value = false;
@@ -106,7 +112,7 @@ async function handleSubmit() {
 
 async function toggleEnabled(book: WorldBook) {
   try {
-    await api.patch(`/worldbooks/${book.id}`, { isEnabled: book.isEnabled });
+    await worldbookApi.update(book.id, { isEnabled: book.isEnabled });
     toast.success(book.isEnabled ? t('worldBooks.enabled') : t('worldBooks.disabled'));
   } catch {
     book.isEnabled = !book.isEnabled;
@@ -121,7 +127,7 @@ async function handleDelete(book: WorldBook) {
       t('worldBooks.deleteTitle'),
       { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
     );
-    await api.delete(`/worldbooks/${book.id}`);
+    await worldbookApi.delete(book.id);
     toast.success(t('worldBooks.deleted'));
     await fetchWorldBooks();
   } catch (e) {
@@ -158,7 +164,18 @@ async function handleDelete(book: WorldBook) {
         class="worldbooks-table"
         :empty-text="t('worldBooks.empty')"
       >
-        <el-table-column prop="name" :label="t('worldBooks.name')" min-width="180" />
+        <el-table-column prop="name" :label="t('worldBooks.name')" min-width="180">
+          <template #default="{ row }">
+            <el-link type="primary" :underline="false" @click="openDetail(row)">
+              {{ row.name }}
+            </el-link>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('worldBookEditor.entryCount')" width="100" align="center">
+          <template #default="{ row }">
+            {{ row.entriesCount ?? '—' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="scope" :label="t('worldBooks.scope')" width="120">
           <template #default="{ row }">
             <el-tag :type="scopeTagType(row.scope)" size="small">
@@ -233,6 +250,10 @@ async function handleDelete(book: WorldBook) {
 .worldbooks-table {
   border-radius: 8px;
   overflow: hidden;
+}
+
+.worldbooks-table :deep(.el-link) {
+  font-weight: 500;
 }
 
 @media (max-width: 640px) {
