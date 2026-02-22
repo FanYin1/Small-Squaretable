@@ -74,6 +74,9 @@
             Edit
           </button>
         </template>
+        <button class="action-btn" @click="handleRollback" :aria-label="t('chat.rollbackToHere')">
+          {{ t('chat.rollbackToHere') }}
+        </button>
         <button class="action-btn delete-btn" @click="handleDelete" :aria-label="t('chat.deleteMessage') || 'Delete'">
           Delete
         </button>
@@ -113,6 +116,7 @@ const emit = defineEmits<{
   (e: 'delete', messageId: string): void;
   (e: 'save-edit', messageId: string, content: string): void;
   (e: 'cancel-edit'): void;
+  (e: 'rollback', messageId: string): void;
 }>();
 
 const { t } = useI18n();
@@ -176,6 +180,10 @@ const handleRegenerate = () => {
 
 const handleDelete = () => {
   emit('delete', props.message.id);
+};
+
+const handleRollback = () => {
+  emit('rollback', props.message.id);
 };
 </script>
 

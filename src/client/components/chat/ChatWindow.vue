@@ -49,12 +49,34 @@
           <el-button link :icon="More" />
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="rename">{{ t('chat.renameTitle') }}</el-dropdown-item>
+              <el-dropdown-item command="search">{{ t('chat.searchMessages') }}</el-dropdown-item>
+              <el-dropdown-item command="export-json">{{ t('chat.exportJson') }}</el-dropdown-item>
+              <el-dropdown-item command="export-md">{{ t('chat.exportMarkdown') }}</el-dropdown-item>
+              <el-dropdown-item command="export-txt">{{ t('chat.exportText') }}</el-dropdown-item>
+              <el-dropdown-item command="rename" divided>{{ t('chat.renameTitle') }}</el-dropdown-item>
               <el-dropdown-item command="delete" divided>{{ t('chat.deleteTitle') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
       </div>
+    </div>
+
+    <div v-if="showSearch" class="chat-search-bar">
+      <el-input
+        v-model="chatStore.searchQuery"
+        :placeholder="t('chat.searchMessages')"
+        clearable
+        size="small"
+        @input="handleSearchInput"
+        @clear="chatStore.clearSearch()"
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
+      <span v-if="chatStore.searchResults.length" class="search-count">
+        {{ chatStore.searchResults.length }} {{ t('chat.results') }}
+      </span>
     </div>
 
     <div class="chat-messages" ref="messagesContainer" @scroll="handleScroll" aria-live="polite"
@@ -123,6 +145,7 @@
             @regenerate="handleRegenerateMessage"
             @save-edit="handleSaveEdit"
             @cancel-edit="handleCancelEdit"
+            @rollback="handleRollback"
           />
         </template>
 
@@ -244,8 +267,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessageBox } from 'element-plus';
-import { More, Loading } from '@element-plus/icons-vue';
+import { ElMessageBox, ElMessage } from 'element-plus';
+import { More, Loading, Search } from '@element-plus/icons-vue';
 import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
 import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
@@ -281,6 +304,7 @@ const messagesEnd = ref<HTMLElement | null>(null);
 const { formatRelativeTime } = useDateTime();
 const showScrollButton = ref(false);
 const editingMessageId = ref<string | null>(null);
+const showSearch = ref(false);
 
 // Group chat state
 const isGroupChat = computed(() => chatStore.chatCharacters.length > 1);
@@ -516,7 +540,18 @@ const handleSendMessage = async (content: string, attachments?: MessageAttachmen
 
 const handleMenuCommand = async (command: string) => {
   if (!props.currentChat) return;
-  if (command === 'rename') {
+  if (command === 'search') {
+    showSearch.value = !showSearch.value;
+    if (!showSearch.value) {
+      chatStore.clearSearch();
+    }
+  } else if (command === 'export-json') {
+    await handleExport('json');
+  } else if (command === 'export-md') {
+    await handleExport('markdown');
+  } else if (command === 'export-txt') {
+    await handleExport('txt');
+  } else if (command === 'rename') {
     try {
       const { value } = await ElMessageBox.prompt(t('chat.renamePrompt'), t('chat.renameTitle'), {
         confirmButtonText: t('common.confirm'),
@@ -536,6 +571,44 @@ const handleMenuCommand = async (command: string) => {
       });
       await chatStore.deleteChat(props.currentChat.id);
     } catch { /* cancelled */ }
+  }
+};
+
+const handleExport = async (format: 'json' | 'markdown' | 'txt') => {
+  if (!props.currentChat) return;
+  try {
+    const blob = await chatApi.exportChat(props.currentChat.id, format);
+    const ext = format === 'markdown' ? 'md' : format;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chat-${props.currentChat.id}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    ElMessage.error(t('chat.exportFailed'));
+  }
+};
+
+let searchTimer: ReturnType<typeof setTimeout>;
+const handleSearchInput = (value: string) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    chatStore.searchMessages(value);
+  }, 300);
+};
+
+const handleRollback = async (messageId: string) => {
+  try {
+    await ElMessageBox.confirm(
+      t('chat.rollbackConfirm'),
+      t('common.confirm'),
+      { type: 'warning' }
+    );
+    const count = await chatStore.rollbackToMessage(messageId);
+    ElMessage.success(t('chat.rollbackSuccess', { count }));
+  } catch {
+    // User cancelled or error
   }
 };
 
@@ -749,6 +822,20 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.chat-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--chat-divider);
+}
+
+.search-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .chat-messages {
