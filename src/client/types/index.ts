@@ -40,6 +40,22 @@ export interface Message {
   createdAt: string;
 }
 
+export interface CharacterCardData {
+  name?: string;
+  description?: string;
+  personality?: string;
+  scenario?: string;
+  first_mes?: string;
+  mes_example?: string;
+  system_prompt?: string;
+  creator_notes?: string;
+  creator?: string;
+  character_version?: string;
+  tags?: string[];
+  character_book?: Record<string, unknown>;
+  extensions?: Record<string, unknown>;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -53,7 +69,7 @@ export interface Character {
   viewCount?: number;
   isPublic: boolean;
   isNsfw?: boolean;
-  cardData?: Record<string, any>;
+  cardData?: CharacterCardData;
   createdAt: string;
   updatedAt?: string;
 }

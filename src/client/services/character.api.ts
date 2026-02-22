@@ -5,7 +5,7 @@
  */
 
 import { api } from './api';
-import type { Character } from '@client/types';
+import type { Character, CharacterCardData } from '@client/types';
 import type { SearchResult, SearchResultItem } from '@/types/search';
 
 export interface GetCharactersParams {
@@ -52,17 +52,21 @@ export const mapSearchItemToCharacter = (item: SearchResultItem): Character => (
 export interface CreateCharacterRequest {
   name: string;
   description?: string;
-  avatar?: string;
+  avatarUrl?: string;
+  cardData: CharacterCardData;
   tags?: string[];
-  isPublic: boolean;
+  category?: string;
+  isNsfw?: boolean;
 }
 
 export interface UpdateCharacterRequest {
   name?: string;
   description?: string;
-  avatar?: string;
+  avatarUrl?: string;
+  cardData?: CharacterCardData;
   tags?: string[];
-  isPublic?: boolean;
+  category?: string;
+  isNsfw?: boolean;
 }
 
 // Backend character format
