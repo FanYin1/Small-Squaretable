@@ -63,6 +63,16 @@ export class MessageRepository extends BaseRepository {
     return result.length;
   }
 
+  async searchByChatId(chatId: string, query: string, limit = 50): Promise<Message[]> {
+    return this.db.select().from(messages)
+      .where(and(
+        eq(messages.chatId, chatId),
+        sql`${messages.content} ILIKE ${'%' + query + '%'}`
+      ))
+      .orderBy(desc(messages.sentAt))
+      .limit(limit);
+  }
+
   async countByChatId(chatId: string): Promise<number> {
     const result = await this.db
       .select({ count: sql<number>`count(*)` })

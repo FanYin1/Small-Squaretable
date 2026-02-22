@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { chatService } from '../services/chat.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
+import { messageRepository } from '../../db/repositories/message.repository';
 import { groupChatService } from '../services/group-chat.service';
 import { authMiddleware } from '../middleware/auth';
 import { requireQuota } from '../middleware/feature-gate';
@@ -239,6 +240,46 @@ chatRoutes.patch(
       {
         success: true,
         data: message,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
+
+// 搜索聊天消息
+const searchQuerySchema = z.object({
+  q: z.string().min(1).max(200),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+chatRoutes.get(
+  '/:id/messages/search',
+  authMiddleware(),
+  zValidator('query', searchQuerySchema),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const { q, limit } = c.req.valid('query');
+
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== user.id) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    const results = await messageRepository.searchByChatId(chatId, q, limit);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: results,
         meta: { timestamp: new Date().toISOString() },
       },
       200
