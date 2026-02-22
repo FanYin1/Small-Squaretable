@@ -6,44 +6,59 @@
       <el-button size="small" @click="refresh" :icon="Refresh" :loading="loading">{{ t('common.refresh') }}</el-button>
     </div>
 
-    <!-- Current State -->
-    <div v-if="currentEmotion" class="current-state">
-      <div class="state-label">{{ t('debug.emotion.currentState') }}</div>
-      <div class="state-content">
-        <span class="emotion-emoji">{{ getEmoji(currentEmotion.label) }}</span>
-        <span class="emotion-label">{{ currentEmotion.label }}</span>
-        <div class="emotion-values">
-          <span :class="['valence', toNumber(currentEmotion.valence) > 0 ? 'positive' : 'negative']">
-            V: {{ formatValue(currentEmotion.valence) }}
-          </span>
-          <span class="arousal">A: {{ formatValue(currentEmotion.arousal) }}</span>
-        </div>
-      </div>
+    <div class="view-toggle">
+      <el-radio-group v-model="viewMode" size="small">
+        <el-radio-button value="timeline">{{ t('debug.emotion.timeline') }}</el-radio-button>
+        <el-radio-button value="scatter">{{ t('debug.emotion.scatterPlot') }}</el-radio-button>
+      </el-radio-group>
     </div>
 
-    <!-- Chart -->
-    <div class="chart-container">
-      <div ref="chartRef" class="chart"></div>
-    </div>
-
-    <!-- History List -->
-    <div class="history-section">
-      <div class="section-label">{{ t('debug.emotion.history') }} ({{ emotionHistory.length }})</div>
-      <div class="history-list">
-        <div
-          v-for="(item, index) in emotionHistory.slice(0, 10)"
-          :key="index"
-          class="history-item"
-        >
-          <span class="history-emoji">{{ getEmoji(item.label) }}</span>
-          <span class="history-label">{{ item.label }}</span>
-          <span class="history-values">
-            V:{{ formatValue(item.valence) }} A:{{ formatValue(item.arousal) }}
-          </span>
-          <span class="history-time">{{ formatTime(item.timestamp) }}</span>
+    <template v-if="viewMode === 'timeline'">
+      <!-- Current State -->
+      <div v-if="currentEmotion" class="current-state">
+        <div class="state-label">{{ t('debug.emotion.currentState') }}</div>
+        <div class="state-content">
+          <span class="emotion-emoji">{{ getEmoji(currentEmotion.label) }}</span>
+          <span class="emotion-label">{{ currentEmotion.label }}</span>
+          <div class="emotion-values">
+            <span :class="['valence', toNumber(currentEmotion.valence) > 0 ? 'positive' : 'negative']">
+              V: {{ formatValue(currentEmotion.valence) }}
+            </span>
+            <span class="arousal">A: {{ formatValue(currentEmotion.arousal) }}</span>
+          </div>
         </div>
       </div>
-    </div>
+
+      <!-- Chart -->
+      <div class="chart-container">
+        <div ref="chartRef" class="chart"></div>
+      </div>
+
+      <!-- History List -->
+      <div class="history-section">
+        <div class="section-label">{{ t('debug.emotion.history') }} ({{ emotionHistory.length }})</div>
+        <div class="history-list">
+          <div
+            v-for="(item, index) in emotionHistory.slice(0, 10)"
+            :key="index"
+            class="history-item"
+          >
+            <span class="history-emoji">{{ getEmoji(item.label) }}</span>
+            <span class="history-label">{{ item.label }}</span>
+            <span class="history-values">
+              V:{{ formatValue(item.valence) }} A:{{ formatValue(item.arousal) }}
+            </span>
+            <span class="history-time">{{ formatTime(item.timestamp) }}</span>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <EmotionScatterPlot
+      v-else
+      :current-emotion="currentEmotion"
+      :emotion-history="emotionHistory"
+    />
   </div>
 </template>
 
@@ -54,6 +69,7 @@ import { Refresh } from '@element-plus/icons-vue';
 import { api } from '../../services/api';
 import { createLogger } from '@client/utils/logger';
 import { useDateTime } from '@client/composables';
+import EmotionScatterPlot from './EmotionScatterPlot.vue';
 
 const logger = createLogger('EmotionTimeline');
 const { t } = useI18n();
@@ -75,6 +91,7 @@ const loading = ref(false);
 const currentEmotion = ref<EmotionState | null>(null);
 const emotionHistory = ref<EmotionState[]>([]);
 const chartRef = ref<HTMLElement | null>(null);
+const viewMode = ref<'timeline' | 'scatter'>('timeline');
 
 const EMOJI_MAP: Record<string, string> = {
   excited: '🤩',
@@ -269,6 +286,10 @@ onUnmounted(() => {
 .timeline-title {
   font-weight: 600;
   font-size: 14px;
+}
+
+.view-toggle {
+  margin-bottom: 12px;
 }
 
 .current-state {

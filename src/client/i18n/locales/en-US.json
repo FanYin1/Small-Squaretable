@@ -772,7 +772,9 @@
     "emotion": {
       "title": "Emotion Timeline",
       "currentState": "Current State",
-      "history": "History"
+      "history": "History",
+      "timeline": "Timeline",
+      "scatterPlot": "2D Map"
     },
     "retrieval": {
       "title": "Memory Retrieval Log",

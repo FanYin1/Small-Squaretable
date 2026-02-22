@@ -772,7 +772,9 @@
     "emotion": {
       "title": "情感变化时间线",
       "currentState": "当前状态",
-      "history": "历史记录"
+      "history": "历史记录",
+      "timeline": "时间线",
+      "scatterPlot": "2D 分布图"
     },
     "retrieval": {
       "title": "记忆检索日志",
