@@ -22,7 +22,14 @@
     "retry": "请稍后重试",
     "refresh": "刷新",
     "later": "稍后再说",
-    "upgradeNow": "立即升级"
+    "upgradeNow": "立即升级",
+    "loadFailed": "加载数据失败",
+    "createSuccess": "创建成功",
+    "createFailed": "创建失败",
+    "updateSuccess": "更新成功",
+    "updateFailed": "更新失败",
+    "deleteSuccess": "删除成功",
+    "deleteFailed": "删除失败"
   },
   "time": {
     "justNow": "刚刚",
@@ -1318,5 +1325,47 @@
     "roundRobin": "轮流回复",
     "allRespond": "全部回复",
     "randomRespond": "随机回复"
+  },
+  "character": {
+    "relationships": "角色关系",
+    "addRelationship": "添加关系",
+    "editRelationship": "编辑关系",
+    "noRelationships": "暂无关系",
+    "targetCharacter": "目标角色",
+    "searchCharacter": "搜索角色...",
+    "relationshipType": "关系类型",
+    "affinity": "亲密度",
+    "relationshipLabel": "标签",
+    "relationshipLabelPlaceholder": "自定义标签（可选）",
+    "relationshipDescription": "描述",
+    "relationshipDescriptionPlaceholder": "描述这段关系...",
+    "relType": {
+      "friend": "朋友",
+      "rival": "对手",
+      "mentor": "导师",
+      "student": "学生",
+      "lover": "恋人",
+      "family": "家人",
+      "acquaintance": "熟人"
+    },
+    "growth": "成长",
+    "level": "等级",
+    "experience": "经验值",
+    "totalMessages": "总消息数",
+    "totalChats": "总对话数",
+    "milestones": "里程碑",
+    "voiceSettings": "语音设置",
+    "voiceLanguage": "语言",
+    "voiceLanguagePlaceholder": "自动检测",
+    "voiceName": "语音",
+    "voiceNamePlaceholder": "默认",
+    "voiceRate": "语速",
+    "voicePitch": "音调",
+    "voiceTest": "测试语音",
+    "voiceStop": "停止",
+    "voiceTestSample": "你好！这是角色语音设置的测试。",
+    "voiceUnsupported": "此浏览器不支持语音合成。",
+    "emotionMap": "情感图谱",
+    "emotionTimeline": "时间线"
   }
 }

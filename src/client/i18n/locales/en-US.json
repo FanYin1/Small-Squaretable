@@ -22,7 +22,14 @@
     "retry": "Please try again later",
     "refresh": "Refresh",
     "later": "Later",
-    "upgradeNow": "Upgrade Now"
+    "upgradeNow": "Upgrade Now",
+    "loadFailed": "Failed to load data",
+    "createSuccess": "Created successfully",
+    "createFailed": "Failed to create",
+    "updateSuccess": "Updated successfully",
+    "updateFailed": "Failed to update",
+    "deleteSuccess": "Deleted successfully",
+    "deleteFailed": "Failed to delete"
   },
   "time": {
     "justNow": "Just now",
@@ -1318,5 +1325,47 @@
     "roundRobin": "Take Turns",
     "allRespond": "All Respond",
     "randomRespond": "Random"
+  },
+  "character": {
+    "relationships": "Relationships",
+    "addRelationship": "Add Relationship",
+    "editRelationship": "Edit Relationship",
+    "noRelationships": "No relationships yet",
+    "targetCharacter": "Target Character",
+    "searchCharacter": "Search characters...",
+    "relationshipType": "Relationship Type",
+    "affinity": "Affinity",
+    "relationshipLabel": "Label",
+    "relationshipLabelPlaceholder": "Custom label (optional)",
+    "relationshipDescription": "Description",
+    "relationshipDescriptionPlaceholder": "Describe this relationship...",
+    "relType": {
+      "friend": "Friend",
+      "rival": "Rival",
+      "mentor": "Mentor",
+      "student": "Student",
+      "lover": "Lover",
+      "family": "Family",
+      "acquaintance": "Acquaintance"
+    },
+    "growth": "Growth",
+    "level": "Level",
+    "experience": "Experience",
+    "totalMessages": "Total Messages",
+    "totalChats": "Total Chats",
+    "milestones": "Milestones",
+    "voiceSettings": "Voice Settings",
+    "voiceLanguage": "Language",
+    "voiceLanguagePlaceholder": "Auto-detect",
+    "voiceName": "Voice",
+    "voiceNamePlaceholder": "Default",
+    "voiceRate": "Rate",
+    "voicePitch": "Pitch",
+    "voiceTest": "Test Voice",
+    "voiceStop": "Stop",
+    "voiceTestSample": "Hello! This is a test of the character voice settings.",
+    "voiceUnsupported": "Speech synthesis is not supported in this browser.",
+    "emotionMap": "Emotion Map",
+    "emotionTimeline": "Timeline"
   }
 }
