@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { characterApi } from '@client/services/character.api';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
+import CharacterPreview from '@client/components/character/CharacterPreview.vue';
 import type { CharacterCardData } from '@client/types';
 
 const route = useRoute();
@@ -175,7 +176,9 @@ onMounted(() => {
     </template>
 
     <div v-loading="loading" class="editor-container">
-      <el-form
+      <el-row :gutter="24">
+        <el-col :xs="24" :sm="24" :md="14" :lg="14">
+          <el-form
         ref="formRef"
         :model="form"
         :rules="formRules"
@@ -277,13 +280,27 @@ onMounted(() => {
           </el-button>
         </div>
       </el-form>
+        </el-col>
+
+        <el-col :xs="24" :sm="24" :md="10" :lg="10" class="preview-col">
+          <CharacterPreview
+            :name="form.name"
+            :description="form.description"
+            :avatar-url="form.avatarUrl"
+            :personality="form.personality"
+            :first-message="form.firstMessage"
+            :tags="form.tags"
+            :category="form.category"
+          />
+        </el-col>
+      </el-row>
     </div>
   </DashboardLayout>
 </template>
 
 <style scoped>
 .editor-container {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
 }
@@ -303,6 +320,10 @@ onMounted(() => {
 
 .editor-form :deep(.el-select) {
   width: 100%;
+}
+
+.preview-col {
+  display: block;
 }
 
 .avatar-upload-area {
@@ -360,6 +381,10 @@ onMounted(() => {
 
   .form-actions .el-button {
     width: 100%;
+  }
+
+  .preview-col {
+    margin-top: 24px;
   }
 }
 </style>
