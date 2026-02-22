@@ -24,6 +24,10 @@ import type { ApiResponse, PaginatedResponse } from '../../types/api';
 import type { Chat } from '../../db/schema/chats';
 import { eventBus } from '../services/event-bus.service';
 import { messageBookmarkRepository } from '../../db/repositories/message-bookmark.repository';
+import { characterGrowthRepository } from '../../db/repositories/character-growth.repository';
+import { createLogger } from '../services/logger.service';
+
+const logger = createLogger('chats-route');
 
 export const chatRoutes = new Hono();
 
@@ -57,6 +61,13 @@ chatRoutes.post(
     }
 
     eventBus.emit('chat.created', { chatId: chat.id, userId: user.id, characterId: primaryCharacterId });
+
+    // Fire-and-forget: increment character growth for new chat
+    if (primaryCharacterId) {
+      characterGrowthRepository.getOrCreate(primaryCharacterId, user.id)
+        .then((growth) => characterGrowthRepository.incrementChats(growth.id))
+        .catch((err) => logger.warn('Failed to increment chat growth', { error: err }));
+    }
 
     return c.json<ApiResponse>(
       {
@@ -287,6 +298,13 @@ chatRoutes.post(
 
 
     eventBus.emit('chat.message.sent', { chatId, messageId: message.id, userId: user.id, role: input.role });
+
+    // Fire-and-forget: increment character growth for new message
+    if (chat.characterId) {
+      characterGrowthRepository.getOrCreate(chat.characterId, user.id)
+        .then((growth) => characterGrowthRepository.incrementMessages(growth.id))
+        .catch((err) => logger.warn('Failed to increment message growth', { error: err }));
+    }
 
     return c.json<ApiResponse>(
       {
