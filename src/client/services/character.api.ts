@@ -124,6 +124,16 @@ function transformCharacter(item: BackendCharacter): Character {
   };
 }
 
+export interface CharacterVersion {
+  id: string;
+  characterId: string;
+  version: number;
+  cardData: Record<string, unknown>;
+  changeNote?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
 export const characterApi = {
   /**
    * 获取角色列表
@@ -188,4 +198,16 @@ export const characterApi = {
    */
   deleteCharacter: (id: string) =>
     api.delete(`/characters/${id}`),
+
+  /**
+   * 获取角色版本列表
+   */
+  getVersions: (characterId: string, limit = 20, offset = 0) =>
+    api.get<CharacterVersion[]>(`/characters/${characterId}/versions?limit=${limit}&offset=${offset}`),
+
+  /**
+   * 获取角色指定版本
+   */
+  getVersion: (characterId: string, version: number) =>
+    api.get<CharacterVersion>(`/characters/${characterId}/versions/${version}`),
 };

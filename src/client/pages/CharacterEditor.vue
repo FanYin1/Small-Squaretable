@@ -2,10 +2,11 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { characterApi } from '@client/services/character.api';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import CharacterPreview from '@client/components/character/CharacterPreview.vue';
+import VersionHistory from '@client/components/character/VersionHistory.vue';
 import type { CharacterCardData } from '@client/types';
 
 const route = useRoute();
@@ -167,6 +168,25 @@ onMounted(() => {
     fetchCharacter();
   }
 });
+
+async function handleRestoreVersion(cardData: Record<string, unknown>) {
+  try {
+    await ElMessageBox.confirm(
+      t('characterEditor.restoreConfirmMessage', 'This will replace the current form fields with the selected version. Continue?'),
+      t('characterEditor.restoreConfirmTitle', 'Restore Version'),
+      { confirmButtonText: t('common.confirm', 'Confirm'), cancelButtonText: t('common.cancel', 'Cancel'), type: 'warning' }
+    );
+  } catch {
+    return; // user cancelled
+  }
+  form.personality = (cardData.personality as string) || '';
+  form.scenario = (cardData.scenario as string) || '';
+  form.systemPrompt = (cardData.system_prompt as string) || '';
+  form.firstMessage = (cardData.first_mes as string) || '';
+  form.exampleMessages = (cardData.mes_example as string) || '';
+  form.creatorNotes = (cardData.creator_notes as string) || '';
+  ElMessage.success(t('characterEditor.restoreSuccess', 'Version restored'));
+}
 </script>
 
 <template>
@@ -280,6 +300,12 @@ onMounted(() => {
           </el-button>
         </div>
       </el-form>
+
+          <VersionHistory
+            v-if="isEditMode && characterId"
+            :character-id="characterId"
+            @restore="handleRestoreVersion"
+          />
         </el-col>
 
         <el-col :xs="24" :sm="24" :md="10" :lg="10" class="preview-col">
