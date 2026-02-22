@@ -12,6 +12,7 @@ const loadOAuthCallback = () => import('../pages/auth/OAuthCallback.vue');
 const loadChat = () => import(/* webpackChunkName: "chat" */ '../pages/Chat.vue');
 const loadMarket = () => import(/* webpackPrefetch: true */ '../pages/Market.vue');
 const loadMyCharacters = () => import(/* webpackChunkName: "characters" */ '../pages/MyCharacters.vue');
+const loadCharacterEditor = () => import(/* webpackChunkName: "character-editor" */ '../pages/CharacterEditor.vue');
 const loadProfile = () => import(/* webpackChunkName: "profile" */ '../pages/Profile.vue');
 const loadSubscription = () => import(/* webpackChunkName: "subscription" */ '../pages/Subscription.vue');
 const loadWorldBooks = () => import(/* webpackChunkName: "worldbooks" */ '../pages/WorldBooks.vue');
@@ -147,6 +148,24 @@ export const routes: RouteRecordRaw[] = [
     path: '/my-characters',
     name: 'MyCharacters',
     component: loadMyCharacters,
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/characters/new',
+    name: 'CharacterCreate',
+    component: loadCharacterEditor,
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/characters/:id/edit',
+    name: 'CharacterEdit',
+    component: loadCharacterEditor,
     meta: {
       requiresAuth: true,
       guestOnly: false,

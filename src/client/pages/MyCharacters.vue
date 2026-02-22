@@ -86,8 +86,7 @@ function handleBrowseAll() {
 }
 
 function handleCreateNew() {
-  // Navigate to character creation page or open dialog
-  toast.info(t('myCharacters.createComingSoon'));
+  router.push({ name: 'CharacterCreate' });
 }
 
 function handlePublish(character: Character) {
