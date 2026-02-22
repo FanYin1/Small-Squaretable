@@ -855,7 +855,23 @@
     "activityTab": "动态",
     "noActivity": "暂无最近动态。",
     "noFollowers": "暂无粉丝。",
-    "noFollowing": "暂未关注任何人。"
+    "noFollowing": "暂未关注任何人。",
+    "like": "点赞",
+    "unlike": "取消点赞",
+    "likes": "{count} 个赞"
+  },
+  "activity": {
+    "feed": "动态",
+    "feedEmpty": "暂无动态。关注一些用户来查看他们的动态。",
+    "loadMore": "加载更多",
+    "followed": "关注了",
+    "favorited": "收藏了",
+    "commented": "评论了",
+    "createdCharacter": "创建了角色",
+    "justNow": "刚刚",
+    "minutesAgo": "{count} 分钟前",
+    "hoursAgo": "{count} 小时前",
+    "daysAgo": "{count} 天前"
   },
   "developer": {
     "title": "开发者设置",

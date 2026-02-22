@@ -855,7 +855,23 @@
     "activityTab": "Activity",
     "noActivity": "No recent activity.",
     "noFollowers": "No followers yet.",
-    "noFollowing": "Not following anyone yet."
+    "noFollowing": "Not following anyone yet.",
+    "like": "Like",
+    "unlike": "Unlike",
+    "likes": "{count} likes"
+  },
+  "activity": {
+    "feed": "Activity Feed",
+    "feedEmpty": "No activity yet. Follow some users to see their activity here.",
+    "loadMore": "Load more",
+    "followed": "followed",
+    "favorited": "favorited",
+    "commented": "commented on",
+    "createdCharacter": "created character",
+    "justNow": "just now",
+    "minutesAgo": "{count} min ago",
+    "hoursAgo": "{count}h ago",
+    "daysAgo": "{count}d ago"
   },
   "developer": {
     "title": "Developer Settings",
