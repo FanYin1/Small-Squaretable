@@ -205,4 +205,54 @@ export const chatApi = {
    */
   removeChatCharacter: (chatId: string, characterId: string) =>
     api.delete(`/chats/${chatId}/characters/${characterId}`),
+
+  /**
+   * 搜索聊天消息
+   */
+  searchMessages: async (chatId: string, q: string, limit = 50): Promise<Message[]> => {
+    const params = new URLSearchParams({ q, limit: String(limit) });
+    const response = await api.get<BackendMessage[]>(`/chats/${chatId}/messages/search?${params}`);
+    return (Array.isArray(response) ? response : []).map(transformMessage);
+  },
+
+  /**
+   * 导出聊天（返回 Blob 用于下载）
+   */
+  exportChat: async (chatId: string, format: 'json' | 'markdown' | 'txt' = 'json'): Promise<Blob> => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/api/v1/chats/${chatId}/export?format=${format}`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!response.ok) throw new Error('Export failed');
+    return response.blob();
+  },
+
+  /**
+   * 回滚聊天到指定消息
+   */
+  rollbackChat: async (chatId: string, messageId: number): Promise<{ deletedCount: number }> => {
+    return api.post<{ deletedCount: number }>(`/chats/${chatId}/rollback`, { messageId });
+  },
+
+  /**
+   * 收藏消息
+   */
+  bookmarkMessage: (chatId: string, messageId: string) =>
+    api.post(`/chats/${chatId}/messages/${messageId}/bookmark`),
+
+  /**
+   * 取消收藏消息
+   */
+  unbookmarkMessage: (chatId: string, messageId: string) =>
+    api.delete(`/chats/${chatId}/messages/${messageId}/bookmark`),
+
+  /**
+   * 获取用户收藏列表
+   */
+  getBookmarks: async (limit = 50, offset = 0) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    return api.get<any[]>(`/chats/bookmarks?${params}`);
+  },
 };

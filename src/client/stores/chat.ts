@@ -27,6 +27,9 @@ export const useChatStore = defineStore('chat', () => {
   const isStreaming = ref(false);
   const hasMoreMessages = ref(true);
   const loadingOlder = ref(false);
+  const searchResults = ref<Message[]>([]);
+  const searchQuery = ref('');
+  const searching = ref(false);
 
   // WebSocket client
   let wsClient: WebSocketClient | null = null;
@@ -599,6 +602,34 @@ export const useChatStore = defineStore('chat', () => {
     messages.value = [];
   }
 
+  async function searchMessages(query: string) {
+    if (!currentChatId.value || !query.trim()) {
+      searchResults.value = [];
+      return;
+    }
+    searching.value = true;
+    try {
+      searchResults.value = await chatApi.searchMessages(currentChatId.value, query);
+    } catch {
+      searchResults.value = [];
+    } finally {
+      searching.value = false;
+    }
+  }
+
+  function clearSearch() {
+    searchQuery.value = '';
+    searchResults.value = [];
+  }
+
+  async function rollbackToMessage(messageId: string) {
+    if (!currentChatId.value) return;
+    const result = await chatApi.rollbackChat(currentChatId.value, Number(messageId));
+    // Refresh messages after rollback
+    await fetchMessages(currentChatId.value);
+    return result.deletedCount;
+  }
+
   return {
     chats,
     currentChatId,
@@ -617,6 +648,9 @@ export const useChatStore = defineStore('chat', () => {
     isStreaming,
     hasMoreMessages,
     loadingOlder,
+    searchResults,
+    searchQuery,
+    searching,
     fetchChats,
     fetchMessages,
     fetchOlderMessages,
@@ -630,6 +664,9 @@ export const useChatStore = defineStore('chat', () => {
     setCurrentChat,
     addMessage,
     clearMessages,
+    searchMessages,
+    clearSearch,
+    rollbackToMessage,
     initWebSocket,
     disconnectWebSocket,
   };
