@@ -72,6 +72,8 @@ export default defineConfig(async () => {
       sourcemap: false,
       // Optimize chunk size warnings
       chunkSizeWarningLimit: 1000,
+      // TODO: For production, consider adding vite-plugin-compression for gzip/brotli
+      // pre-compression of static assets (reduces server CPU at the cost of build time).
       rollupOptions: {
         output: {
           // Manual chunk splitting for better caching
@@ -101,6 +103,24 @@ export default defineConfig(async () => {
               return 'utils';
             }
 
+            // Heavy third-party libs — split out of chat-components for lazy loading
+            // ECharts (large charting library)
+            if (id.includes('node_modules/echarts/') || id.includes('node_modules/vue-echarts/') || id.includes('node_modules/zrender/')) {
+              return 'echarts';
+            }
+            // Highlight.js (code syntax highlighting)
+            if (id.includes('node_modules/highlight.js/') || id.includes('node_modules/@highlightjs/')) {
+              return 'highlight';
+            }
+            // KaTeX (math rendering)
+            if (id.includes('node_modules/katex/')) {
+              return 'katex';
+            }
+            // i18n
+            if (id.includes('node_modules/vue-i18n/') || id.includes('node_modules/@intlify/')) {
+              return 'i18n';
+            }
+
             // Route-based chunks (pages)
             if (id.includes('/src/client/pages/')) {
               const match = id.match(/\/pages\/([^/]+)\.vue/);
@@ -109,11 +129,19 @@ export default defineConfig(async () => {
               }
             }
 
-            // Component chunks
+            // Component chunks — split by directory for better caching
             if (id.includes('/src/client/components/')) {
-              // Large components that benefit from separate chunks
-              if (id.includes('ChatWindow.vue') || id.includes('ChatSidebar.vue')) {
+              // Chat components (ChatWindow, ChatSidebar, MessageBubble, etc.)
+              if (id.includes('/components/chat/')) {
                 return 'chat-components';
+              }
+              // Debug/intelligence components (loaded on demand)
+              if (id.includes('/components/debug/')) {
+                return 'debug-components';
+              }
+              // Character components
+              if (id.includes('/components/character/')) {
+                return 'character-components';
               }
               if (id.includes('Market.vue') || id.includes('CharacterCard.vue')) {
                 return 'market-components';

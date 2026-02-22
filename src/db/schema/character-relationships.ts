@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, decimal, text, integer, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, decimal, text, integer, timestamp, index } from 'drizzle-orm/pg-core';
 import { characters } from './characters';
 import { users } from './users';
 
@@ -17,7 +17,9 @@ export const characterRelationships = pgTable('character_relationships', {
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+  characterIdUserIdIdx: index('idx_character_relationships_character_id_user_id').on(table.characterId, table.userId),
+}));
 
 export type CharacterRelationship = typeof characterRelationships.$inferSelect;
 export type NewCharacterRelationship = typeof characterRelationships.$inferInsert;
