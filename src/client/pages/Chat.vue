@@ -3,6 +3,7 @@
     <WelcomePage
       v-if="!currentChatId"
       @select-character="handleSelectCharacter"
+      @select-characters="handleSelectCharacters"
     />
     <ChatWindow
       v-else
@@ -49,6 +50,17 @@ const handleSelectCharacter = async (characterId: string) => {
     localStorage.setItem('lastChatId', chat.id);
   } catch (error) {
     logger.error('Failed to create chat:', error);
+  }
+};
+
+const handleSelectCharacters = async (characterIds: string[]) => {
+  try {
+    const firstId = characterIds[0];
+    const chat = await chatStore.createChat(firstId, undefined, characterIds);
+    await chatStore.setCurrentChat(chat.id);
+    localStorage.setItem('lastChatId', chat.id);
+  } catch (error) {
+    logger.error('Failed to create group chat:', error);
   }
 };
 

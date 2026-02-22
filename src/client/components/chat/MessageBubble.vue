@@ -3,10 +3,10 @@
     <div class="message-inner">
       <div class="message-header">
         <template v-if="message.role === 'assistant'">
-          <el-avatar :size="36" :src="characterAvatar">
-            {{ characterName?.[0]?.toUpperCase() || '?' }}
+          <el-avatar :size="36" :src="displayCharacterAvatar">
+            {{ displayCharacterName?.[0]?.toUpperCase() || '?' }}
           </el-avatar>
-          <span class="message-author">{{ characterName }}</span>
+          <span class="message-author">{{ displayCharacterName }}</span>
           <span v-if="(message as any).emotion" class="emotion-tag">{{ (message as any).emotion }}</span>
         </template>
         <template v-else>
@@ -119,6 +119,10 @@ const { t } = useI18n();
 const { formatRelativeTime } = useDateTime();
 const copied = ref(false);
 const editContent = ref('');
+
+// For group chats, prefer per-message character info over chat-level props
+const displayCharacterName = computed(() => props.message.characterName || props.characterName);
+const displayCharacterAvatar = computed(() => props.characterAvatar);
 
 const { isSpeaking: ttsSpeaking, isSupported: ttsSupported, speak: ttsSpeak, stop: ttsStop } = useTextToSpeech();
 

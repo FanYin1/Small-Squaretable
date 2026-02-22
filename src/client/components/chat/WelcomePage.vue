@@ -3,6 +3,13 @@
     <h1 class="welcome-title">{{ t('chat.welcomeTitle') }}</h1>
     <p class="welcome-subtitle">{{ t('chat.welcomeSubtitle') }}</p>
 
+    <!-- Chat mode toggle -->
+    <div class="mode-toggle">
+      <span :class="['mode-label', { active: !isGroupMode }]">{{ t('groupChat.singleMode') }}</span>
+      <el-switch v-model="isGroupMode" :aria-label="t('groupChat.groupMode')" />
+      <span :class="['mode-label', { active: isGroupMode }]">{{ t('groupChat.groupMode') }}</span>
+    </div>
+
     <div class="welcome-search">
       <el-input
         v-model="searchQuery"
@@ -10,6 +17,14 @@
         :prefix-icon="Search"
         clearable
       />
+    </div>
+
+    <!-- Group mode selection bar -->
+    <div v-if="isGroupMode && selectedCharacterIds.length > 0" class="group-selection-bar">
+      <span class="selection-count">{{ t('groupChat.selectCharacters') }}: {{ selectedCharacterIds.length }} / 10</span>
+      <el-button type="primary" size="small" :disabled="selectedCharacterIds.length < 2" @click="startGroupChat">
+        {{ t('groupChat.groupMode') }}
+      </el-button>
     </div>
 
     <!-- Loading state -->
@@ -45,13 +60,20 @@
         <div
           v-for="character in filteredCharacters"
           :key="character.id"
-          class="character-card"
+          :class="['character-card', { selected: isGroupMode && selectedCharacterIds.includes(character.id) }]"
           role="button"
           :tabindex="0"
           :aria-label="character.name"
-          @click="selectCharacter(character.id)"
-          @keydown.enter="selectCharacter(character.id)"
+          @click="handleCardClick(character.id)"
+          @keydown.enter="handleCardClick(character.id)"
         >
+          <div v-if="isGroupMode" class="card-checkbox">
+            <el-checkbox
+              :model-value="selectedCharacterIds.includes(character.id)"
+              @click.stop
+              @change="toggleCharacterSelection(character.id)"
+            />
+          </div>
           <el-avatar :size="64" :src="character.avatar">
             {{ character.name?.charAt(0) }}
           </el-avatar>
@@ -77,6 +99,7 @@ import type { Character } from '@client/types';
 
 const emit = defineEmits<{
   (e: 'select-character', characterId: string): void;
+  (e: 'select-characters', characterIds: string[]): void;
 }>();
 
 const router = useRouter();
@@ -85,6 +108,8 @@ const { t } = useI18n();
 const searchQuery = ref('');
 const characters = ref<Character[]>([]);
 const loading = ref(true);
+const isGroupMode = ref(false);
+const selectedCharacterIds = ref<string[]>([]);
 
 const filteredCharacters = computed(() => {
   if (!searchQuery.value) return characters.value;
@@ -96,6 +121,30 @@ const filteredCharacters = computed(() => {
 
 const selectCharacter = (characterId: string) => {
   emit('select-character', characterId);
+};
+
+const toggleCharacterSelection = (characterId: string) => {
+  const idx = selectedCharacterIds.value.indexOf(characterId);
+  if (idx >= 0) {
+    selectedCharacterIds.value.splice(idx, 1);
+  } else if (selectedCharacterIds.value.length < 10) {
+    selectedCharacterIds.value.push(characterId);
+  }
+};
+
+const handleCardClick = (characterId: string) => {
+  if (isGroupMode.value) {
+    toggleCharacterSelection(characterId);
+  } else {
+    selectCharacter(characterId);
+  }
+};
+
+const startGroupChat = () => {
+  if (selectedCharacterIds.value.length >= 2) {
+    emit('select-characters', [...selectedCharacterIds.value]);
+    selectedCharacterIds.value = [];
+  }
 };
 
 const goToMarket = () => {
@@ -220,6 +269,57 @@ onMounted(async () => {
 
 .browse-link:hover {
   opacity: 0.8;
+}
+
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mode-label {
+  font-size: 14px;
+  color: var(--text-color-secondary);
+  transition: color 0.2s;
+}
+
+.mode-label.active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.group-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 600px;
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  background: var(--bg-color);
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+}
+
+.selection-count {
+  font-size: 14px;
+  color: var(--text-color-primary);
+}
+
+.character-card.selected {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--bg-color));
+}
+
+.card-checkbox {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.character-card {
+  position: relative;
 }
 
 .empty-state {

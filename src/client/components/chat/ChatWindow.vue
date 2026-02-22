@@ -2,12 +2,35 @@
   <div class="chat-window">
     <div class="chat-header" v-if="currentChat">
       <div class="chat-info">
-        <div class="chat-details">
-          <h3 class="chat-title">{{ currentChat.characterName }}</h3>
-          <span class="chat-subtitle">{{ emotionEmoji }} {{ intelligenceStore.emotionLabel }}</span>
-        </div>
+        <!-- Group chat: stacked avatars + character count -->
+        <template v-if="isGroupChat">
+          <div class="stacked-avatars">
+            <el-avatar
+              v-for="(char, idx) in chatStore.chatCharacters.slice(0, 3)"
+              :key="char.id"
+              :size="32"
+              :src="char.avatar"
+              :style="{ marginLeft: idx > 0 ? '-10px' : '0', zIndex: 3 - idx }"
+              class="stacked-avatar"
+            >{{ char.name?.[0]?.toUpperCase() || '?' }}</el-avatar>
+          </div>
+          <div class="chat-details">
+            <h3 class="chat-title">{{ currentChat.title || currentChat.characterName }}</h3>
+            <span class="chat-subtitle">{{ t('groupChat.characters', { count: chatStore.chatCharacters.length }) }}</span>
+          </div>
+        </template>
+        <!-- Single chat: original display -->
+        <template v-else>
+          <div class="chat-details">
+            <h3 class="chat-title">{{ currentChat.characterName }}</h3>
+            <span class="chat-subtitle">{{ emotionEmoji }} {{ intelligenceStore.emotionLabel }}</span>
+          </div>
+        </template>
       </div>
       <div class="chat-actions">
+        <el-tooltip v-if="isGroupChat" :content="t('groupChat.manageCharacters')" placement="bottom">
+          <el-button size="small" @click="showManageDialog = true">{{ t('groupChat.manageCharacters') }}</el-button>
+        </el-tooltip>
         <el-tooltip :content="t('chat.memory')" placement="bottom">
           <el-button
             size="small"
@@ -90,8 +113,8 @@
           />
           <MessageBubble
             :message="message"
-            :character-avatar="currentChat?.characterAvatar"
-            :character-name="currentChat?.characterName"
+            :character-avatar="getMessageCharacterAvatar(message)"
+            :character-name="getMessageCharacterName(message)"
             :user-avatar="userStore.user?.avatar"
             :user-name="userStore.user?.name"
             :editing="editingMessageId === message.id"
@@ -105,6 +128,12 @@
 
         <!-- Streaming message -->
         <div v-if="isStreaming" class="message-bubble message-assistant streaming">
+          <div class="streaming-header" v-if="chatStore.streamingCharacterName">
+            <el-avatar :size="28" :src="streamingCharacterAvatar">
+              {{ chatStore.streamingCharacterName?.[0]?.toUpperCase() || '?' }}
+            </el-avatar>
+            <span class="streaming-author">{{ chatStore.streamingCharacterName }}</span>
+          </div>
           <div class="message-content">
             <MarkdownRenderer :content="streamingMessage" />
             <span class="typing-cursor">|</span>
@@ -113,7 +142,7 @@
 
         <!-- Typing indicator -->
         <div v-else-if="sending && !isStreaming" class="typing-indicator" aria-live="assertive">
-          <span class="typing-text">{{ t('chat.typing', { name: currentChat?.characterName || '' }) }}</span>
+          <span class="typing-text">{{ t('chat.typing', { name: typingCharacterName }) }}</span>
           <div class="typing-dot"></div>
           <div class="typing-dot"></div>
           <div class="typing-dot"></div>
@@ -135,6 +164,57 @@
         @send="handleSendMessage"
       />
     </div>
+
+    <!-- Manage Characters Dialog (Group Chat) -->
+    <el-dialog
+      v-model="showManageDialog"
+      :title="t('groupChat.manageCharacters')"
+      width="480px"
+      append-to-body
+    >
+      <div class="manage-characters-list">
+        <div v-for="char in chatStore.chatCharacters" :key="char.id" class="manage-character-item">
+          <el-avatar :size="36" :src="char.avatar">{{ char.name?.[0]?.toUpperCase() || '?' }}</el-avatar>
+          <span class="manage-character-name">{{ char.name }}</span>
+          <el-button
+            v-if="chatStore.chatCharacters.length > 1"
+            size="small"
+            type="danger"
+            text
+            @click="handleRemoveCharacter(char.id)"
+          >{{ t('groupChat.removeCharacter') }}</el-button>
+        </div>
+      </div>
+      <div class="manage-add-section">
+        <el-button size="small" @click="showAddCharacterDialog = true">{{ t('groupChat.addCharacter') }}</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- Add Character Dialog -->
+    <el-dialog
+      v-model="showAddCharacterDialog"
+      :title="t('groupChat.addCharacter')"
+      width="480px"
+      append-to-body
+    >
+      <div class="add-character-search">
+        <el-input v-model="addCharacterSearch" :placeholder="t('chat.searchCharacters')" clearable />
+      </div>
+      <div class="add-character-list">
+        <div
+          v-for="char in availableCharactersFiltered"
+          :key="char.id"
+          class="manage-character-item clickable"
+          @click="handleAddCharacter(char.id)"
+        >
+          <el-avatar :size="36" :src="char.avatar">{{ char.name?.[0]?.toUpperCase() || '?' }}</el-avatar>
+          <span class="manage-character-name">{{ char.name }}</span>
+        </div>
+        <div v-if="availableCharactersFiltered.length === 0" class="add-character-empty">
+          {{ t('chat.noResults') || 'No characters found' }}
+        </div>
+      </div>
+    </el-dialog>
 
     <!-- Intelligence Drawer -->
     <el-drawer
@@ -170,6 +250,8 @@ import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
 import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
 import { useDateTime } from '@client/composables';
+import { chatApi } from '@client/services/chat.api';
+import { characterApi } from '@client/services/character.api';
 import MessageBubble from './MessageBubble.vue';
 import MessageInput from './MessageInput.vue';
 import ScrollToBottom from './ScrollToBottom.vue';
@@ -179,7 +261,7 @@ import EmotionIndicator from '@client/components/EmotionIndicator.vue';
 import MemoryPanel from '@client/components/MemoryPanel.vue';
 import IntelligenceDebugPanel from '@client/components/debug/IntelligenceDebugPanel.vue';
 import { createLogger } from '@client/utils/logger';
-import type { Chat, MessageAttachment } from '@client/types';
+import type { Chat, Message, MessageAttachment, Character } from '@client/types';
 
 const logger = createLogger('ChatWindow');
 
@@ -199,6 +281,110 @@ const messagesEnd = ref<HTMLElement | null>(null);
 const { formatRelativeTime } = useDateTime();
 const showScrollButton = ref(false);
 const editingMessageId = ref<string | null>(null);
+
+// Group chat state
+const isGroupChat = computed(() => chatStore.chatCharacters.length > 1);
+const showManageDialog = ref(false);
+const showAddCharacterDialog = ref(false);
+const addCharacterSearch = ref('');
+const availableCharacters = ref<Character[]>([]);
+
+// Build a lookup map for character info by ID
+const characterMap = computed(() => {
+  const map = new Map<string, Character>();
+  for (const char of chatStore.chatCharacters) {
+    map.set(char.id, char);
+  }
+  return map;
+});
+
+// Get character name for a message (group chat lookup or fallback to chat-level)
+const getMessageCharacterName = (message: Message): string => {
+  if (message.characterName) return message.characterName;
+  if (message.characterId) {
+    const char = characterMap.value.get(message.characterId);
+    if (char) return char.name;
+  }
+  return props.currentChat?.characterName || '';
+};
+
+// Get character avatar for a message (group chat lookup or fallback to chat-level)
+const getMessageCharacterAvatar = (message: Message): string | undefined => {
+  if (message.characterId) {
+    const char = characterMap.value.get(message.characterId);
+    if (char) return char.avatar;
+  }
+  return props.currentChat?.characterAvatar;
+};
+
+// Streaming character avatar lookup
+const streamingCharacterAvatar = computed(() => {
+  if (chatStore.streamingCharacterId) {
+    const char = characterMap.value.get(chatStore.streamingCharacterId);
+    if (char) return char.avatar;
+  }
+  return props.currentChat?.characterAvatar;
+});
+
+// Typing indicator character name
+const typingCharacterName = computed(() => {
+  return chatStore.streamingCharacterName || props.currentChat?.characterName || '';
+});
+
+// Available characters for add dialog (exclude already in chat)
+const availableCharactersFiltered = computed(() => {
+  const existingIds = new Set(chatStore.chatCharacters.map(c => c.id));
+  let chars = availableCharacters.value.filter(c => !existingIds.has(c.id));
+  if (addCharacterSearch.value) {
+    const q = addCharacterSearch.value.toLowerCase();
+    chars = chars.filter(c => c.name.toLowerCase().includes(q));
+  }
+  return chars;
+});
+
+// Load available characters when add dialog opens
+watch(showAddCharacterDialog, async (open) => {
+  if (open && availableCharacters.value.length === 0) {
+    try {
+      const res = await characterApi.getCharacters({ limit: 50 });
+      availableCharacters.value = res.characters;
+    } catch {
+      availableCharacters.value = [];
+    }
+  }
+});
+
+const handleAddCharacter = async (characterId: string) => {
+  if (!props.currentChat) return;
+  try {
+    await chatApi.addChatCharacter(props.currentChat.id, characterId);
+    // Refresh chat characters
+    const characters = await chatApi.getChatCharacters(props.currentChat.id);
+    if (Array.isArray(characters)) {
+      chatStore.chatCharacters = characters.map(c => ({
+        id: c.id,
+        name: c.name,
+        avatar: c.avatarUrl,
+        cardData: c.cardData as Character['cardData'],
+        isPublic: false,
+        createdAt: '',
+      }));
+    }
+    showAddCharacterDialog.value = false;
+  } catch (error) {
+    logger.error('Failed to add character', error);
+  }
+};
+
+const handleRemoveCharacter = async (characterId: string) => {
+  if (!props.currentChat) return;
+  try {
+    await chatApi.removeChatCharacter(props.currentChat.id, characterId);
+    chatStore.chatCharacters = chatStore.chatCharacters.filter(c => c.id !== characterId);
+  } catch (error) {
+    logger.error('Failed to remove character', error);
+  }
+};
 
 const handleScroll = () => {
   if (!messagesContainer.value) return;
@@ -798,5 +984,88 @@ onUnmounted(() => {
   padding: 12px;
   color: var(--text-tertiary);
   font-size: var(--font-size-sm);
+}
+
+/* Group chat header styles */
+.stacked-avatars {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.stacked-avatar {
+  border: 2px solid var(--surface-card);
+  position: relative;
+}
+
+/* Streaming header for group chat */
+.streaming-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.streaming-author {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* Manage characters dialog */
+.manage-characters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.manage-character-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.manage-character-item.clickable {
+  cursor: pointer;
+}
+
+.manage-character-item.clickable:hover {
+  background: var(--surface-hover);
+}
+
+.manage-character-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.manage-add-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+}
+
+.add-character-search {
+  margin-bottom: 12px;
+}
+
+.add-character-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.add-character-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 </style>
