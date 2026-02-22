@@ -290,3 +290,103 @@ chatRoutes.get(
     200
   );
 });
+
+// --- Group chat character management ---
+
+const addCharacterSchema = z.object({
+  characterId: z.string().uuid(),
+});
+
+// 获取聊天中的角色列表
+chatRoutes.get('/:id/characters', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const chatId = c.req.param('id');
+
+  const chat = await chatRepository.findById(chatId);
+  if (!chat || chat.userId !== user.id) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Chat not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404
+    );
+  }
+
+  const characters = await groupChatService.getChatCharacters(chatId);
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: characters,
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200
+  );
+});
+
+// 添加角色到聊天
+chatRoutes.post(
+  '/:id/characters',
+  authMiddleware(),
+  zValidator('json', addCharacterSchema),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const { characterId } = c.req.valid('json');
+
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== user.id) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    const result = await groupChatService.addCharacter(chatId, characterId);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: result,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      201
+    );
+  }
+);
+
+// 从聊天中移除角色
+chatRoutes.delete('/:id/characters/:characterId', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const chatId = c.req.param('id');
+  const characterId = c.req.param('characterId');
+
+  const chat = await chatRepository.findById(chatId);
+  if (!chat || chat.userId !== user.id) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Chat not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404
+    );
+  }
+
+  await groupChatService.removeCharacter(chatId, characterId);
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: { message: 'Character removed from chat' },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200
+  );
+});
