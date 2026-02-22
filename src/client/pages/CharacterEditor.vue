@@ -12,6 +12,8 @@ import TemplateSelector from '@client/components/character/TemplateSelector.vue'
 import VoiceSettings from '@client/components/character/VoiceSettings.vue';
 import type { CharacterCardData } from '@client/types';
 import type { VoiceConfig } from '@client/composables/useTextToSpeech';
+import { characterTemplateApi } from '@client/services/character-template.api';
+import CollaboratorPanel from '@client/components/character/CollaboratorPanel.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -23,6 +25,7 @@ const loading = ref(false);
 const saving = ref(false);
 const showVoiceSettings = ref(false);
 const voiceConfig = ref<VoiceConfig>({});
+const isOwner = ref(false);
 
 // Form data
 const form = reactive({
@@ -168,6 +171,7 @@ async function fetchCharacter() {
         showVoiceSettings.value = true;
       }
     }
+    isOwner.value = true;
   } catch (error: unknown) {
     ElMessage.error(t('characterEditor.loadFailed'));
     router.push({ name: 'MyCharacters' });
@@ -176,9 +180,29 @@ async function fetchCharacter() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (isEditMode.value) {
-    fetchCharacter();
+    await fetchCharacter();
+  } else {
+    const templateId = route.query.templateId as string | undefined;
+    if (templateId) {
+      try {
+        const template = await characterTemplateApi.useTemplate(templateId);
+        form.name = template.cardData.name || template.name;
+        form.description = template.cardData.description || template.description || '';
+        form.personality = template.cardData.personality || '';
+        form.scenario = template.cardData.scenario || '';
+        form.systemPrompt = template.cardData.system_prompt || '';
+        form.firstMessage = template.cardData.first_mes || '';
+        form.exampleMessages = template.cardData.mes_example || '';
+        form.creatorNotes = template.cardData.creator_notes || '';
+        if (template.category) form.category = template.category;
+        if (template.tags) form.tags = template.tags;
+        if (template.avatarUrl) form.avatarUrl = template.avatarUrl;
+      } catch {
+        // Template not found, continue with empty form
+      }
+    }
   }
 });
 
@@ -346,6 +370,12 @@ function handleTemplateSelect(cardData: CharacterCardData) {
             v-if="isEditMode && characterId"
             :character-id="characterId"
             @restore="handleRestoreVersion"
+          />
+
+          <CollaboratorPanel
+            v-if="isEditMode && characterId && isOwner"
+            :character-id="characterId"
+            :is-owner="isOwner"
           />
         </el-col>
 

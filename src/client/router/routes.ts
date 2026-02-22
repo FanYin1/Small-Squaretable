@@ -27,6 +27,7 @@ const loadUserProfile = () => import(/* webpackChunkName: "user-profile" */ '../
 const loadDeveloperSettings = () => import(/* webpackChunkName: "developer" */ '../pages/DeveloperSettings.vue');
 const loadPluginMarketplace = () => import(/* webpackChunkName: "plugins" */ '../pages/PluginMarketplace.vue');
 const loadActivityFeed = () => import(/* webpackChunkName: "activity-feed" */ '../pages/ActivityFeed.vue');
+const loadSearch = () => import(/* webpackChunkName: "search" */ '../pages/Search.vue');
 const loadAnalytics = () => import(/* webpackChunkName: "analytics" */ '../pages/analytics/AnalyticsDashboard.vue');
 const loadSecuritySettings = () => import(/* webpackChunkName: "security" */ '../pages/SecuritySettings.vue');
 const loadAccountSettings = () => import(/* webpackChunkName: "account" */ '../pages/AccountSettings.vue');
@@ -36,6 +37,7 @@ const loadAdminContent = () => import(/* webpackChunkName: "admin" */ '../pages/
 const loadAdminSystem = () => import(/* webpackChunkName: "admin" */ '../pages/admin/SystemDashboard.vue');
 const loadAdminAuditLogs = () => import(/* webpackChunkName: "admin" */ '../pages/admin/AuditLogs.vue');
 const loadAdminExperiments = () => import(/* webpackChunkName: "admin" */ '../pages/admin/Experiments.vue');
+const loadCharacterTemplates = () => import(/* webpackChunkName: "character-templates" */ '../pages/CharacterTemplates.vue');
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -272,6 +274,15 @@ export const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/search',
+    name: 'Search',
+    component: loadSearch,
+    meta: {
+      requiresAuth: true,
+      layout: 'chat',
+    },
+  },
+  {
     path: '/developer',
     name: 'DeveloperSettings',
     component: loadDeveloperSettings,
@@ -370,6 +381,15 @@ export const routes: RouteRecordRaw[] = [
     path: '/characters/:id',
     name: 'CharacterDetail',
     component: loadCharacterDetail,
+    meta: {
+      requiresAuth: false,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/character-templates',
+    name: 'CharacterTemplates',
+    component: loadCharacterTemplates,
     meta: {
       requiresAuth: false,
       guestOnly: false,
