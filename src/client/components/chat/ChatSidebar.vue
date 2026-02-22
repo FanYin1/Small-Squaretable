@@ -34,7 +34,39 @@
       </el-input>
     </div>
 
+    <div class="sidebar-tabs">
+      <button
+        :class="['tab-btn', { active: sidebarView === 'chats' }]"
+        @click="sidebarView = 'chats'"
+      >{{ t('chat.title') }}</button>
+      <button
+        :class="['tab-btn', { active: sidebarView === 'bookmarks' }]"
+        @click="handleShowBookmarks"
+      >{{ t('chat.bookmarks') }}</button>
+    </div>
+
     <div class="sidebar-content">
+      <template v-if="sidebarView === 'bookmarks'">
+        <div v-if="bookmarkStore.loading" class="loading-container">
+          <el-skeleton :rows="3" animated />
+        </div>
+        <div v-else-if="bookmarkStore.bookmarks.length === 0" class="empty-state">
+          <el-empty :description="t('chat.noBookmarks')" />
+        </div>
+        <div v-else class="bookmarks-list">
+          <div
+            v-for="bookmark in bookmarkStore.bookmarks"
+            :key="bookmark.id"
+            class="bookmark-item"
+            @click="navigateToBookmark(bookmark)"
+          >
+            <div class="bookmark-content">{{ bookmark.note || t('chat.bookmarkedMessage') }}</div>
+            <div class="bookmark-time">{{ formatRelativeTime(bookmark.createdAt) }}</div>
+          </div>
+        </div>
+      </template>
+
+      <template v-else>
       <div v-if="loading" class="loading-container">
         <el-skeleton :rows="5" animated />
       </div>
@@ -94,6 +126,7 @@
           </div>
         </div>
       </div>
+      </template>
     </div>
 
     <div class="sidebar-footer">
@@ -144,6 +177,8 @@ import { Plus, Search, More, Edit, Delete, Shop, Setting, UserFilled, User, Fold
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
+import { useBookmarkStore } from '@client/stores/bookmark';
+import type { BookmarkItem } from '@client/stores/bookmark';
 import { useDateTime } from '@client/composables';
 import { createLogger } from '@client/utils/logger';
 import type { Chat } from '@client/types';
@@ -163,7 +198,9 @@ const router = useRouter();
 const { formatRelativeTime } = useDateTime();
 const chatStore = useChatStore();
 const userStore = useUserStore();
+const bookmarkStore = useBookmarkStore();
 const searchQuery = ref('');
+const sidebarView = ref<'chats' | 'bookmarks'>('chats');
 
 const chats = computed(() => chatStore.chats);
 const currentChatId = computed(() => chatStore.currentChatId);
@@ -285,6 +322,16 @@ const handleUserMenuCommand = async (command: string) => {
   } else {
     router.push({ name: command });
   }
+};
+
+const handleShowBookmarks = () => {
+  sidebarView.value = 'bookmarks';
+  bookmarkStore.fetchBookmarks();
+};
+
+const navigateToBookmark = (_bookmark: BookmarkItem) => {
+  // Navigate back to chats view — bookmark navigation can be extended later
+  sidebarView.value = 'chats';
 };
 </script>
 
@@ -497,6 +544,56 @@ const handleUserMenuCommand = async (command: string) => {
 .footer-btn:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
+}
+
+.sidebar-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px 8px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.bookmark-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 2px 8px;
+  transition: background 0.15s;
+}
+
+.bookmark-item:hover {
+  background: var(--surface-hover);
+}
+
+.bookmark-content {
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookmark-time {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
 }
 
 /* Scrollbar styling */

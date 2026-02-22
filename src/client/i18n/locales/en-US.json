@@ -128,7 +128,15 @@
     "sidebar": {
       "collapse": "Collapse sidebar",
       "expand": "Expand sidebar"
-    }
+    },
+    "bookmark": "Bookmark",
+    "bookmarked": "Bookmarked",
+    "bookmarkMessage": "Bookmark this message",
+    "unbookmarkMessage": "Remove bookmark",
+    "bookmarks": "Bookmarks",
+    "noBookmarks": "No bookmarks yet",
+    "bookmarkedMessage": "Bookmarked message",
+    "rollbackToHere": "Rollback to here"
   },
   "market": {
     "title": "Character Market",

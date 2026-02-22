@@ -74,6 +74,13 @@
             Edit
           </button>
         </template>
+        <button
+          :class="['action-btn', { 'action-btn--active': bookmarkStore.isBookmarked(message.id) }]"
+          @click="handleBookmark"
+          :aria-label="bookmarkStore.isBookmarked(message.id) ? t('chat.unbookmarkMessage') : t('chat.bookmarkMessage')"
+        >
+          {{ bookmarkStore.isBookmarked(message.id) ? t('chat.bookmarked') : t('chat.bookmark') }}
+        </button>
         <button class="action-btn" @click="handleRollback" :aria-label="t('chat.rollbackToHere')">
           {{ t('chat.rollbackToHere') }}
         </button>
@@ -92,6 +99,7 @@ import { useI18n } from 'vue-i18n';
 import { useDateTime } from '@client/composables';
 import { useTextToSpeech } from '@client/composables/useTextToSpeech';
 import { createLogger } from '@client/utils/logger';
+import { useBookmarkStore } from '@client/stores/bookmark';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import AudioPlayer from './AudioPlayer.vue';
 import MessageImage from './MessageImage.vue';
@@ -121,6 +129,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const { formatRelativeTime } = useDateTime();
+const bookmarkStore = useBookmarkStore();
 const copied = ref(false);
 const editContent = ref('');
 
@@ -184,6 +193,10 @@ const handleDelete = () => {
 
 const handleRollback = () => {
   emit('rollback', props.message.id);
+};
+
+const handleBookmark = () => {
+  bookmarkStore.toggleBookmark(props.message.chatId, props.message.id);
 };
 </script>
 
