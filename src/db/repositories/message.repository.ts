@@ -91,6 +91,51 @@ export class MessageRepository extends BaseRepository {
       .where(eq(messages.chatId, chatId));
     return result[0]?.count ?? 0;
   }
+
+  async findBranch(chatId: string, leafMessageId: number): Promise<Message[]> {
+    const result = await this.db.execute(sql`
+      WITH RECURSIVE branch AS (
+        SELECT * FROM messages WHERE id = ${leafMessageId} AND chat_id = ${chatId}
+        UNION ALL
+        SELECT m.* FROM messages m
+        INNER JOIN branch b ON m.id = b.parent_message_id
+        WHERE m.chat_id = ${chatId}
+      )
+      SELECT * FROM branch ORDER BY sent_at ASC
+    `);
+    return result.rows as Message[];
+  }
+
+  async findSiblings(messageId: number): Promise<Message[]> {
+    const [msg] = await this.db.select().from(messages)
+      .where(eq(messages.id, messageId));
+    if (!msg || !msg.parentMessageId) return [msg].filter(Boolean);
+
+    return this.db.select().from(messages)
+      .where(eq(messages.parentMessageId, msg.parentMessageId))
+      .orderBy(messages.sentAt);
+  }
+
+  async createWithParent(data: NewMessage & { parentMessageId?: number }): Promise<Message> {
+    const [row] = await this.db.insert(messages)
+      .values({
+        chatId: data.chatId,
+        role: data.role,
+        content: data.content,
+        attachments: data.attachments,
+        characterId: data.characterId,
+        parentMessageId: data.parentMessageId,
+      })
+      .returning();
+    return row;
+  }
+
+  async countSiblings(parentMessageId: number): Promise<number> {
+    const result = await this.db.select({ count: sql<number>`count(*)` })
+      .from(messages)
+      .where(eq(messages.parentMessageId, parentMessageId));
+    return Number(result[0]?.count || 0);
+  }
 }
 
 export const messageRepository = new MessageRepository(db);

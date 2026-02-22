@@ -4,7 +4,7 @@
  * 存储用户与角色的对话记录
  */
 
-import { pgTable, uuid, varchar, timestamp, jsonb, text, bigserial, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, text, bigserial, bigint, pgEnum } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 import { users } from './users';
 import { characters } from './characters';
@@ -41,6 +41,7 @@ export const messages = pgTable('messages', {
   attachments: jsonb('attachments'),
   extra: jsonb('extra'),
   characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
+  parentMessageId: bigint('parent_message_id', { mode: 'number' }),
 
   sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow().notNull(),
 });
