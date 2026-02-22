@@ -43,6 +43,7 @@
   "nav": {
     "home": "首页",
     "chat": "会话",
+    "characters": "角色",
     "market": "角色市场",
     "myCharacters": "我的角色",
     "worldBooks": "世界书",
@@ -152,6 +153,7 @@
     "results": "条结果",
     "noSearchResults": "未找到消息",
     "exportJson": "导出为 JSON",
+    "exportTxt": "导出为 TXT",
     "exportMarkdown": "导出为 Markdown",
     "exportText": "导出为文本",
     "exportSuccess": "聊天导出成功",
@@ -327,9 +329,18 @@
     "startChat": "开始聊天",
     "loginAccount": "登录账户",
     "features": {
-      "smartChat": { "title": "智能对话", "description": "与 AI 角色进行自然流畅的对话体验" },
-      "richCharacters": { "title": "丰富角色", "description": "海量精选 AI 角色，满足不同场景需求" },
-      "continuousLearning": { "title": "持续学习", "description": "AI 角色会记住对话历史，提供个性化体验" }
+      "smartChat": {
+        "title": "智能对话",
+        "description": "与 AI 角色进行自然流畅的对话体验"
+      },
+      "richCharacters": {
+        "title": "丰富角色",
+        "description": "海量精选 AI 角色，满足不同场景需求"
+      },
+      "continuousLearning": {
+        "title": "持续学习",
+        "description": "AI 角色会记住对话历史，提供个性化体验"
+      }
     },
     "stats": {
       "activeUsers": "活跃用户",
@@ -398,7 +409,15 @@
     "deleteFailed": "删除失败",
     "exported": "角色已导出",
     "imported": "角色已导入",
-    "importFailed": "导入失败"
+    "importFailed": "导入失败",
+    "batchMode": "批量选择",
+    "batchImport": "批量导入",
+    "batchImportSuccess": "成功导入 {count} 个角色",
+    "exportSuccess": "导出成功",
+    "exportFailed": "导出失败",
+    "exportJson": "导出 JSON",
+    "exportPng": "导出 PNG",
+    "selected": "已选择 {count} 个"
   },
   "subscription": {
     "title": "订阅管理",
@@ -1160,14 +1179,13 @@
       "resolution": "处理结果",
       "createdAt": "举报时间",
       "pending": "待处理",
-      "resolved": "已处理",
+      "resolved": "举报已处理",
       "dismissed": "已驳回",
       "all": "全部",
       "action_approve": "通过",
       "action_reject": "拒绝",
       "action_dismiss": "驳回",
-      "resolveConfirm": "确定要{action}此举报吗？",
-      "resolved": "举报已处理"
+      "resolveConfirm": "确定要{action}此举报吗？"
     },
     "system": {
       "title": "系统概览",
@@ -1212,7 +1230,7 @@
       "description": "描述",
       "status": "状态",
       "variants": "变体",
-      "started": "开始时间",
+      "started": "实验已启动",
       "ended": "结束时间",
       "actions": "操作",
       "start": "启动",
@@ -1226,7 +1244,6 @@
       "namePlaceholder": "例如 homepage-layout",
       "created": "实验已创建",
       "createFailed": "创建实验失败",
-      "started": "实验已启动",
       "stopped": "实验已停止",
       "updateFailed": "更新实验失败",
       "loadResultsFailed": "加载结果失败"
@@ -1368,5 +1385,76 @@
     "voiceUnsupported": "此浏览器不支持语音合成。",
     "emotionMap": "情感图谱",
     "emotionTimeline": "时间线"
+  },
+  "search": {
+    "title": "搜索",
+    "placeholder": "搜索角色、消息、世界书...",
+    "noResults": "未找到结果",
+    "untitledChat": "未命名聊天",
+    "shortcut": "按 Ctrl+K 搜索",
+    "characterSuggestions": "角色建议",
+    "recentSearches": "最近搜索",
+    "tab": {
+      "all": "全部",
+      "characters": "角色",
+      "messages": "消息",
+      "worldbooks": "世界书"
+    },
+    "filters": {
+      "type": "类型",
+      "dateRange": "时间范围",
+      "startDate": "开始日期",
+      "endDate": "结束日期",
+      "category": "分类",
+      "allCategories": "全部分类",
+      "tags": "标签",
+      "tagsPlaceholder": "选择标签"
+    }
+  },
+  "share": {
+    "shareLink": "分享链接",
+    "generateLink": "生成链接",
+    "generateLinkDesc": "生成分享链接，让其他人可以查看此角色。",
+    "revokeLink": "撤销链接",
+    "copyLink": "复制链接",
+    "linkCopied": "链接已复制到剪贴板",
+    "shareCharacter": "分享角色",
+    "sharedCharacter": "分享的角色",
+    "forkToMine": "复制到我的角色",
+    "snapshotExpired": "此快照已过期",
+    "createSnapshot": "创建快照",
+    "snapshotTitle": "快照标题",
+    "snapshotExpiry": "过期时间",
+    "snapshotCreated": "快照创建成功",
+    "viewSnapshot": "查看快照",
+    "deleteSnapshot": "删除快照",
+    "noSnapshots": "暂无快照",
+    "characterNotFound": "角色未找到",
+    "snapshotNotFound": "快照未找到",
+    "expiryNever": "永不过期",
+    "expiry1Day": "1 天",
+    "expiry7Days": "7 天",
+    "expiry30Days": "30 天",
+    "loginToFork": "请登录后复制此角色"
+  },
+  "collaboration": {
+    "collaborators": "协作者",
+    "inviteCollaborator": "邀请协作者",
+    "removeCollaborator": "移除",
+    "roleEditor": "编辑者",
+    "roleViewer": "查看者",
+    "changeRole": "更改角色",
+    "collaboratorAdded": "协作者已添加",
+    "collaboratorRemoved": "协作者已移除",
+    "searchUsers": "通过邮箱或名称搜索用户",
+    "noCollaborators": "暂无协作者"
+  },
+  "characterTemplates": {
+    "title": "角色模板",
+    "useTemplate": "使用模板",
+    "createFromTemplate": "从模板创建",
+    "allCategories": "全部分类",
+    "usageCount": "已使用 {count} 次",
+    "noTemplates": "暂无可用模板"
   }
 }

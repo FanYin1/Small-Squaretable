@@ -41,9 +41,14 @@ Phase 7: 生产部署          ████████████████�
 迭代 23: 聊天体验优化             ████████████████████ 100% ✅
 迭代 24: 角色个性化增强            ████████████████████ 100% ✅
 迭代 25: AI 对话增强               ████████████████████ 100% ✅
+迭代 26: 性能优化                  ████████████████████ 100% ✅
+迭代 27: 搜索与发现增强             ████████████████████ 100% ✅
+迭代 28: 移动端适配优化             ████████████████████ 100% ✅
+迭代 29: 数据导入导出               ████████████████████ 100% ✅
+迭代 30: 协作与分享                  ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 25 完成
+**整体完成度**: 迭代 30 完成
 
 ---
 
@@ -502,6 +507,49 @@ Phase 7: 生产部署          ████████████████�
 - ✅ **WebSocket 集成** — 上下文管理器 + 模型感知 + 分支感知消息加载
 - **新增**: 1 新服务 + 3 新 API 端点 + 分支导航 UI + 1733 测试通过
 
+### 迭代 26: 性能优化 ✅ (2026-02-23)
+- ✅ **虚拟滚动** — ChatWindow 消息列表原生虚拟滚动 (ResizeObserver + spacer divs + requestAnimationFrame)
+- ✅ **Bundle 分离** — echarts (607KB), katex (265KB), highlight.js (72KB), i18n (69KB) 独立 chunk
+- ✅ **异步组件** — defineAsyncComponent 懒加载 debug/character 组件, chat-components 1.1MB → 142KB
+- ✅ **SWR 缓存** — useApiCache composable (stale-while-revalidate + TTL + 后台刷新 + 手动失效)
+- ✅ **数据库索引** — 9 个索引覆盖 5 张表 (messages, chats, characters, character-relationships, character-growth)
+- **新增**: 1 新 composable + 9 DB 索引 + 首屏 JS ~484KB gzip + 1733 测试通过
+
+### 迭代 27: 搜索与发现增强 ✅ (2026-02-23)
+- ✅ **消息全文搜索** — messages 表 tsvector 列 + GIN 索引 + 触发器自动更新 (simple 配置, CJK 兼容)
+- ✅ **全局搜索 API** — GET /api/v1/search 统一搜索 (角色 tsvector + 消息 tsvector + 世界书 ILIKE, 并行查询)
+- ✅ **搜索建议** — GET /api/v1/search/suggestions, pg_trgm similarity 模糊匹配 + Redis 最近搜索
+- ✅ **全局搜索栏** — Ctrl+K 快捷键触发, 防抖 typeahead, 角色建议 + 最近搜索
+- ✅ **搜索页面** — 分 tab 展示结果 (全部/角色/消息/世界书), 高级过滤器, 关键词高亮
+- ✅ **搜索高亮** — highlightText 工具函数, 多关键词 `<mark>` 标签包裹
+- **新增**: 2 新 API 端点 + 1 新页面 + 3 新组件 + 2 DB 迁移 + 1733 测试通过
+
+### 迭代 28: 移动端适配优化 ✅ (2026-02-23)
+- ✅ **聊天组件移动端 CSS** — ChatWindow/MessageBubble/MessageInput 添加 @media (max-width: 768px) 响应式样式
+- ✅ **BottomTabBar** — 5 tab 底部导航栏 (聊天/角色/市场/搜索/设置) + safe-area-inset 支持
+- ✅ **侧边栏滑动手势** — 左边缘 20px 滑动打开, 向左滑动关闭, 水平/垂直判断
+- ✅ **AppHeader 修复** — 移动端菜单图标修复 (string → 组件), 品牌名隐藏, 搜索快捷键隐藏
+- ✅ **PWA Meta** — viewport-fit=cover, theme-color, apple-mobile-web-app-capable
+- **新增**: 1 新组件实现 + 3 组件移动端 CSS + 触摸手势 + 1733 测试通过
+
+### 迭代 29: 数据导入导出 ✅ (2026-02-23)
+- ✅ **角色卡 PNG 导出** — 服务端 PNG tEXt chunk 嵌入 (SillyTavern 格式), GET /characters/:id/export/png
+- ✅ **聊天记录导出** — GET /chats/:id/export?format=json|txt, JSON 完整数据 + TXT 纯文本格式
+- ✅ **批量角色导入** — POST /characters/import/batch, 多文件 JSON/PNG 解析, 最多 20 文件
+- ✅ **批量角色导出** — POST /characters/export/batch, ZIP 打包 (JSON/PNG), 最多 50 角色
+- ✅ **前端 UI** — MyCharacters 批量选择模式 + 导入导出按钮, ChatWindow 导出下拉菜单
+- **新增**: 4 新 API 端点 + 1 新工具函数 + 批量操作 UI + 1733 测试通过
+
+### 迭代 30: 协作与分享 (Collaboration & Sharing) ✅ (2026-02-23)
+- ✅ **角色分享链接** — Token-based private sharing with generate/revoke/copy
+- ✅ **聊天快照分享** — Frozen chat snapshots with public viewer and expiry
+- ✅ **协作编辑角色** — Character collaborator management (editor/viewer roles, Team plan)
+- ✅ **公开角色模板** — Browsable character template gallery with category filters
+- **DB**: Migration 0022 — share_token, forked_from_id, chat_snapshots, character_collaborators, character_templates
+- **Routes**: share.ts (public), character-collaborators.ts, character-templates.ts + extensions to characters.ts and chats.ts
+- **UI**: ShareDialog, SharedCharacter, SnapshotViewer, CollaboratorPanel, CharacterTemplates pages
+- **i18n**: share.*, collaboration.*, characterTemplates.* keys (en-US + zh-CN)
+
 ---
 
 ## 📈 技术指标
@@ -547,5 +595,10 @@ Phase 7: 生产部署          ████████████████�
 2026-02-21  迭代 16 完成 (E2E 测试覆盖补全: +91 E2E 测试, 7 新 spec 文件)
 2026-02-22  迭代 17-23 完成 (语音多模态 + 记忆增强 + 社交增强 + 角色创作 + 多角色聊天 + 世界书UI + 聊天优化)
 2026-02-23  迭代 24 完成 (角色个性化增强: 语音定制 + 情感图谱 + 角色关系 + 成长系统)
-2026-02-23  迭代 25 完成 (AI 对话增强: 上下文管理 + 多模型切换 + 流式中止 + 对话分支) ← 当前
+2026-02-23  迭代 25 完成 (AI 对话增强: 上下文管理 + 多模型切换 + 流式中止 + 对话分支)
+2026-02-23  迭代 26 完成 (性能优化: 虚拟滚动 + Bundle 分离 + SWR 缓存 + DB 索引)
+2026-02-23  迭代 27 完成 (搜索与发现增强: 全文搜索 + 全局搜索 + 搜索建议 + 搜索页面)
+2026-02-23  迭代 28 完成 (移动端适配优化: 响应式 CSS + BottomTabBar + 滑动手势 + PWA Meta)
+2026-02-23  迭代 29 完成 (数据导入导出: PNG 导出 + 聊天导出 + 批量导入导出 + 前端 UI)
+2026-02-23  迭代 30 完成 (协作与分享: 角色分享链接 + 聊天快照 + 协作编辑 + 角色模板 + i18n) ← 当前
 ```

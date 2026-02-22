@@ -43,6 +43,7 @@
   "nav": {
     "home": "Home",
     "chat": "Chat",
+    "characters": "Characters",
     "market": "Market",
     "myCharacters": "My Characters",
     "worldBooks": "World Books",
@@ -152,6 +153,7 @@
     "results": "results",
     "noSearchResults": "No messages found",
     "exportJson": "Export as JSON",
+    "exportTxt": "Export as TXT",
     "exportMarkdown": "Export as Markdown",
     "exportText": "Export as Text",
     "exportSuccess": "Chat exported successfully",
@@ -327,9 +329,18 @@
     "startChat": "Start Chatting",
     "loginAccount": "Login",
     "features": {
-      "smartChat": { "title": "Smart Chat", "description": "Natural and fluid conversations with AI characters" },
-      "richCharacters": { "title": "Rich Characters", "description": "Curated AI characters for every scenario" },
-      "continuousLearning": { "title": "Continuous Learning", "description": "AI characters remember conversation history for personalized experiences" }
+      "smartChat": {
+        "title": "Smart Chat",
+        "description": "Natural and fluid conversations with AI characters"
+      },
+      "richCharacters": {
+        "title": "Rich Characters",
+        "description": "Curated AI characters for every scenario"
+      },
+      "continuousLearning": {
+        "title": "Continuous Learning",
+        "description": "AI characters remember conversation history for personalized experiences"
+      }
     },
     "stats": {
       "activeUsers": "Active Users",
@@ -398,7 +409,15 @@
     "deleteFailed": "Failed to delete",
     "exported": "Character exported",
     "imported": "Character imported",
-    "importFailed": "Failed to import"
+    "importFailed": "Failed to import",
+    "batchMode": "Batch Select",
+    "batchImport": "Batch Import",
+    "batchImportSuccess": "{count} characters imported successfully",
+    "exportSuccess": "Export successful",
+    "exportFailed": "Export failed",
+    "exportJson": "Export JSON",
+    "exportPng": "Export PNG",
+    "selected": "{count} selected"
   },
   "subscription": {
     "title": "Subscription",
@@ -1160,14 +1179,13 @@
       "resolution": "Resolution",
       "createdAt": "Reported",
       "pending": "Pending",
-      "resolved": "Resolved",
+      "resolved": "Report resolved",
       "dismissed": "Dismissed",
       "all": "All",
       "action_approve": "Approve",
       "action_reject": "Reject",
       "action_dismiss": "Dismiss",
-      "resolveConfirm": "Are you sure you want to {action} this report?",
-      "resolved": "Report resolved"
+      "resolveConfirm": "Are you sure you want to {action} this report?"
     },
     "system": {
       "title": "System Dashboard",
@@ -1212,7 +1230,7 @@
       "description": "Description",
       "status": "Status",
       "variants": "Variants",
-      "started": "Started",
+      "started": "Experiment started",
       "ended": "Ended",
       "actions": "Actions",
       "start": "Start",
@@ -1226,7 +1244,6 @@
       "namePlaceholder": "e.g. homepage-layout",
       "created": "Experiment created",
       "createFailed": "Failed to create experiment",
-      "started": "Experiment started",
       "stopped": "Experiment stopped",
       "updateFailed": "Failed to update experiment",
       "loadResultsFailed": "Failed to load results"
@@ -1368,5 +1385,76 @@
     "voiceUnsupported": "Speech synthesis is not supported in this browser.",
     "emotionMap": "Emotion Map",
     "emotionTimeline": "Timeline"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search characters, messages, worldbooks...",
+    "noResults": "No results found",
+    "untitledChat": "Untitled Chat",
+    "shortcut": "Press Ctrl+K to search",
+    "characterSuggestions": "Character Suggestions",
+    "recentSearches": "Recent Searches",
+    "tab": {
+      "all": "All",
+      "characters": "Characters",
+      "messages": "Messages",
+      "worldbooks": "World Books"
+    },
+    "filters": {
+      "type": "Type",
+      "dateRange": "Date Range",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "category": "Category",
+      "allCategories": "All Categories",
+      "tags": "Tags",
+      "tagsPlaceholder": "Select tags"
+    }
+  },
+  "share": {
+    "shareLink": "Share Link",
+    "generateLink": "Generate Link",
+    "generateLinkDesc": "Generate a share link to let others view this character.",
+    "revokeLink": "Revoke Link",
+    "copyLink": "Copy Link",
+    "linkCopied": "Link copied to clipboard",
+    "shareCharacter": "Share Character",
+    "sharedCharacter": "Shared Character",
+    "forkToMine": "Fork to My Characters",
+    "snapshotExpired": "This snapshot has expired",
+    "createSnapshot": "Create Snapshot",
+    "snapshotTitle": "Snapshot Title",
+    "snapshotExpiry": "Expires After",
+    "snapshotCreated": "Snapshot created successfully",
+    "viewSnapshot": "View Snapshot",
+    "deleteSnapshot": "Delete Snapshot",
+    "noSnapshots": "No snapshots yet",
+    "characterNotFound": "Character not found",
+    "snapshotNotFound": "Snapshot not found",
+    "expiryNever": "Never",
+    "expiry1Day": "1 Day",
+    "expiry7Days": "7 Days",
+    "expiry30Days": "30 Days",
+    "loginToFork": "Please log in to fork this character"
+  },
+  "collaboration": {
+    "collaborators": "Collaborators",
+    "inviteCollaborator": "Invite Collaborator",
+    "removeCollaborator": "Remove",
+    "roleEditor": "Editor",
+    "roleViewer": "Viewer",
+    "changeRole": "Change Role",
+    "collaboratorAdded": "Collaborator added",
+    "collaboratorRemoved": "Collaborator removed",
+    "searchUsers": "Search users by email or name",
+    "noCollaborators": "No collaborators yet"
+  },
+  "characterTemplates": {
+    "title": "Character Templates",
+    "useTemplate": "Use Template",
+    "createFromTemplate": "Create from Template",
+    "allCategories": "All Categories",
+    "usageCount": "Used {count} times",
+    "noTemplates": "No templates available"
   }
 }

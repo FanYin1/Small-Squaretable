@@ -54,6 +54,26 @@ vi.mock('../../db/repositories/subscription.repository', () => ({
   },
 }));
 
+vi.mock("../services/character-version.service", () => ({
+  characterVersionService: {
+    saveVersion: vi.fn().mockResolvedValue(undefined),
+    listVersions: vi.fn().mockResolvedValue([]),
+    getVersion: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+vi.mock("../../db", () => ({
+  db: {
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    }),
+  },
+}));
+
 describe('Character Routes', () => {
   let app: Hono;
 
@@ -287,6 +307,7 @@ describe('Character Routes', () => {
         email: 'test@example.com',
         isActive: true,
       } as any);
+      vi.mocked(characterService.getById).mockResolvedValue({ id: "char-123", creatorId: "user-123", tenantId: "tenant-123" } as any);
       vi.mocked(characterService.update).mockResolvedValue(mockUpdatedCharacter as any);
 
       const res = await app.request('/api/v1/characters/char-123', {
@@ -318,6 +339,7 @@ describe('Character Routes', () => {
         email: 'test@example.com',
         isActive: true,
       } as any);
+      vi.mocked(characterService.getById).mockResolvedValue({ id: "char-123", creatorId: "other-user", tenantId: "tenant-123" } as any);
       vi.mocked(characterService.update).mockRejectedValue(
         new ForbiddenError('Only creator can update this character')
       );
