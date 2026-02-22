@@ -23,6 +23,7 @@ import { paginationSchema } from '../../types/api';
 import type { ApiResponse, PaginatedResponse } from '../../types/api';
 import type { Chat } from '../../db/schema/chats';
 import { eventBus } from '../services/event-bus.service';
+import { messageBookmarkRepository } from '../../db/repositories/message-bookmark.repository';
 
 export const chatRoutes = new Hono();
 
@@ -174,6 +175,33 @@ chatRoutes.get(
         'Content-Disposition': `attachment; filename="chat-${chatId}.txt"`,
       },
     });
+  }
+);
+
+// 获取用户的书签列表 (must be before /:id to avoid matching "bookmarks" as id)
+const bookmarkListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+chatRoutes.get(
+  '/bookmarks',
+  authMiddleware(),
+  zValidator('query', bookmarkListQuerySchema),
+  async (c) => {
+    const user = c.get('user');
+    const { limit, offset } = c.req.valid('query');
+
+    const bookmarks = await messageBookmarkRepository.findByUser(user.id, limit, offset);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: bookmarks,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
   }
 );
 
@@ -570,3 +598,123 @@ chatRoutes.delete('/:id/characters/:characterId', authMiddleware(), async (c) =>
     200
   );
 });
+
+// --- Message bookmarks ---
+
+// ブックマーク作成
+chatRoutes.post(
+  '/:id/messages/:messageId/bookmark',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const messageId = Number(c.req.param('messageId'));
+
+    if (isNaN(messageId)) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid message ID' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        400
+      );
+    }
+
+    // Verify chat ownership
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== user.id) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    // Verify message belongs to chat
+    const msg = await messageRepository.findById(messageId);
+    if (!msg || msg.chatId !== chatId) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Message not found in this chat' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    // Check if already bookmarked
+    const existing = await messageBookmarkRepository.findByMessage(user.id, messageId);
+    if (existing) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'CONFLICT', message: 'Message already bookmarked' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        409
+      );
+    }
+
+    let note: string | undefined;
+    try {
+      const body = await c.req.json();
+      if (body && typeof body.note === 'string') {
+        note = body.note;
+      }
+    } catch {
+      // No body or invalid JSON — that's fine, note is optional
+    }
+
+    const bookmark = await messageBookmarkRepository.create({
+      userId: user.id,
+      messageId,
+      note,
+    });
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: bookmark,
+        meta: { timestamp: new Date().toISOString() },
+      },
+      201
+    );
+  }
+);
+
+// ブックマーク削除
+chatRoutes.delete(
+  '/:id/messages/:messageId/bookmark',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user');
+    const messageId = Number(c.req.param('messageId'));
+
+    if (isNaN(messageId)) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid message ID' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        400
+      );
+    }
+
+    await messageBookmarkRepository.deleteByMessage(user.id, messageId);
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: { message: 'Bookmark removed' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
