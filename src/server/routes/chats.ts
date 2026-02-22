@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { chatService } from '../services/chat.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
+import { groupChatService } from '../services/group-chat.service';
 import { authMiddleware } from '../middleware/auth';
 import { requireQuota } from '../middleware/feature-gate';
 import {
@@ -32,10 +33,28 @@ chatRoutes.post(
   async (c) => {
     const user = c.get('user');
     const input = c.req.valid('json');
-    const chat = await chatService.create(user.id, user.tenantId, input);
 
+    // Resolve the list of character IDs (backwards compatible)
+    const allCharacterIds: string[] = input.characterIds
+      ? input.characterIds
+      : input.characterId
+        ? [input.characterId]
+        : [];
 
-    eventBus.emit('chat.created', { chatId: chat.id, userId: user.id, characterId: input.characterId });
+    // Set characterId to the first character for backwards compatibility
+    const primaryCharacterId = allCharacterIds[0];
+    const chat = await chatService.create(user.id, user.tenantId, {
+      characterId: primaryCharacterId,
+      title: input.title,
+      metadata: input.metadata,
+    });
+
+    // Insert into chat_characters for each character
+    for (let i = 0; i < allCharacterIds.length; i++) {
+      await groupChatService.addCharacter(chat.id, allCharacterIds[i], i);
+    }
+
+    eventBus.emit('chat.created', { chatId: chat.id, userId: user.id, characterId: primaryCharacterId });
 
     return c.json<ApiResponse>(
       {

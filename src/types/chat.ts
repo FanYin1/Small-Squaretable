@@ -24,10 +24,14 @@ export const metadataValueSchema: z.ZodType<MetadataValue> = z.lazy(() =>
 );
 
 export const createChatSchema = z.object({
-  characterId: z.string().uuid(),
+  characterId: z.string().uuid().optional(),
+  characterIds: z.array(z.string().uuid()).min(1).max(10).optional(),
   title: z.string().max(500).trim().optional(),
   metadata: z.record(metadataValueSchema).optional(),
-});
+}).refine(
+  (data) => data.characterId || data.characterIds,
+  { message: 'Either characterId or characterIds is required' }
+);
 
 export const updateChatSchema = z.object({
   title: z.string().max(500).trim().optional(),
