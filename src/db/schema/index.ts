@@ -28,3 +28,4 @@ export * from './user-consents';
 export * from './experiments';
 export * from './activities';
 export * from './character-versions';
+export * from './chat-characters';

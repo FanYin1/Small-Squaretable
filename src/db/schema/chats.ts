@@ -40,6 +40,7 @@ export const messages = pgTable('messages', {
   content: text('content').notNull(),
   attachments: jsonb('attachments'),
   extra: jsonb('extra'),
+  characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
 
   sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow().notNull(),
 });
