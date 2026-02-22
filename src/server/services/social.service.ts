@@ -117,6 +117,21 @@ export class SocialService {
     return this.commentRepo.getReplies(commentId, limit, offset);
   }
 
+  // --- Comment Likes ---
+
+  async likeComment(userId: string, commentId: string) {
+    await this.commentRepo.likeComment(userId, commentId);
+    await this.eventBus.emit('social.commentLike', { userId, commentId });
+  }
+
+  async unlikeComment(userId: string, commentId: string) {
+    const result = await this.commentRepo.unlikeComment(userId, commentId);
+    if (result) {
+      await this.eventBus.emit('social.commentUnlike', { userId, commentId });
+    }
+    return result;
+  }
+
   // --- User Profile ---
 
   async getUserProfile(userId: string) {

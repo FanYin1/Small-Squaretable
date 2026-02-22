@@ -357,6 +357,38 @@ socialRoutes.get(
   );
 });
 
+// POST /comments/:commentId/like - Like a comment
+socialRoutes.post('/comments/:commentId/like', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const commentId = c.req.param('commentId');
+  await socialService.likeComment(user.id, commentId);
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: { liked: true },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    201
+  );
+});
+
+// DELETE /comments/:commentId/like - Unlike a comment
+socialRoutes.delete('/comments/:commentId/like', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const commentId = c.req.param('commentId');
+  await socialService.unlikeComment(user.id, commentId);
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: { unliked: true },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200
+  );
+});
+
 // =====================
 // User Profile Routes
 // =====================

@@ -4,10 +4,10 @@
  * 处理角色评论的数据访问（支持嵌套回复、软删除、计数器同步）
  */
 
-import { eq, and, sql, desc, asc, isNull } from 'drizzle-orm';
+import { eq, and, sql, desc, asc, isNull, count } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
-import { comments, type Comment } from '../schema/social';
+import { comments, commentLikes, type Comment } from '../schema/social';
 import { characters } from '../schema/characters';
 import { users } from '../schema/users';
 import type { CommentWithAuthor } from '@/types/social';
@@ -253,6 +253,62 @@ export class CommentRepository extends BaseRepository {
         avatarUrl: row.authorAvatarUrl,
       },
     };
+  }
+
+  // --- Comment Likes ---
+
+  /**
+   * Like a comment (idempotent — ON CONFLICT DO NOTHING)
+   */
+  async likeComment(userId: string, commentId: string): Promise<void> {
+    await this.db
+      .insert(commentLikes)
+      .values({ userId, commentId })
+      .onConflictDoNothing();
+  }
+
+  /**
+   * Unlike a comment
+   */
+  async unlikeComment(userId: string, commentId: string): Promise<boolean> {
+    const result = await this.db
+      .delete(commentLikes)
+      .where(
+        and(
+          eq(commentLikes.userId, userId),
+          eq(commentLikes.commentId, commentId),
+        ),
+      )
+      .returning();
+    return result.length > 0;
+  }
+
+  /**
+   * Get like count for a comment
+   */
+  async getLikeCount(commentId: string): Promise<number> {
+    const [result] = await this.db
+      .select({ count: count() })
+      .from(commentLikes)
+      .where(eq(commentLikes.commentId, commentId));
+    return result.count;
+  }
+
+  /**
+   * Check if a user has liked a comment
+   */
+  async isLiked(userId: string, commentId: string): Promise<boolean> {
+    const rows = await this.db
+      .select({ id: commentLikes.id })
+      .from(commentLikes)
+      .where(
+        and(
+          eq(commentLikes.userId, userId),
+          eq(commentLikes.commentId, commentId),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
   }
 }
 

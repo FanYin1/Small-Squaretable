@@ -77,6 +77,26 @@ export type Comment = typeof comments.$inferSelect;
 export type NewComment = typeof comments.$inferInsert;
 
 /**
+ * 评论点赞表 - 用户对评论的点赞
+ */
+export const commentLikes = pgTable('comment_likes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  commentId: uuid('comment_id')
+    .notNull()
+    .references(() => comments.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqueLikeIdx: uniqueIndex('idx_comment_likes_unique').on(table.userId, table.commentId),
+  commentIdx: index('idx_comment_likes_comment').on(table.commentId),
+}));
+
+export type CommentLike = typeof commentLikes.$inferSelect;
+export type NewCommentLike = typeof commentLikes.$inferInsert;
+
+/**
  * 通知表 - 用户通知（关注、收藏、评论、回复）
  */
 export const notifications = pgTable('notifications', {
