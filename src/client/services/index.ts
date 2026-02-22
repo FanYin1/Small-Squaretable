@@ -21,3 +21,4 @@ export * from './plugin.api';
 export * from './admin.api';
 export * from './gdpr.api';
 export * from './recommendation.api';
+export * from './character-relationship.api';
