@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { ChatDotRound, Download, Upload, ArrowLeft, Edit } from '@element-plus/icons-vue';
+import { ChatDotRound, Download, Upload, ArrowLeft, Edit, Share } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useCharacterStore, useUserStore } from '@client/stores';
 import { api } from '@client/services/api';
@@ -11,6 +11,7 @@ import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import RatingComponent from '@client/components/rating/RatingComponent.vue';
 import FavoriteButton from '@client/components/social/FavoriteButton.vue';
 import CommentSection from '@client/components/social/CommentSection.vue';
+import ShareDialog from '@client/components/character/ShareDialog.vue';
 import type { RatingInput, RatingResponseDto } from '@/types/rating';
 
 const route = useRoute();
@@ -35,6 +36,7 @@ const userRating = ref<RatingInput>({
 const showRatingDialog = ref(false);
 const submittingRating = ref(false);
 const importing = ref(false);
+const showShareDialog = ref(false);
 
 const avatarUrl = computed(() =>
   character.value?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${characterId.value}`
@@ -132,12 +134,26 @@ async function fetchRatings() {
             >
               {{ t('common.edit') }}
             </el-button>
+            <el-button
+              v-if="isOwner"
+              type="info"
+              :icon="Share"
+              @click="showShareDialog = true"
+            >
+              {{ t('share.shareLink') }}
+            </el-button>
             <el-button type="primary" :icon="ChatDotRound" @click="router.push({ name: 'Chat', query: { characterId: character.id } })">
               {{ t('market.startChat') }}
             </el-button>
           </div>
 
           <CommentSection :character-id="characterId" />
+          <ShareDialog
+            v-if="character"
+            v-model="showShareDialog"
+            :character="character"
+            @shared="fetchCharacter"
+          />
         </div>
       </template>
     </div>

@@ -21,6 +21,8 @@ const loadTerms = () => import('../pages/legal/Terms.vue');
 const loadPrivacy = () => import('../pages/legal/Privacy.vue');
 const loadAbout = () => import('../pages/legal/About.vue');
 const loadNotFound = () => import('../pages/NotFound.vue');
+const loadSharedCharacter = () => import(/* webpackChunkName: "share" */ '../pages/SharedCharacter.vue');
+const loadSnapshotViewer = () => import(/* webpackChunkName: "share" */ '../pages/SnapshotViewer.vue');
 const loadCharacterDetail = () => import(/* webpackChunkName: "character-detail" */ '../pages/CharacterDetail.vue');
 const loadNotifications = () => import(/* webpackChunkName: "notifications" */ '../pages/Notifications.vue');
 const loadUserProfile = () => import(/* webpackChunkName: "user-profile" */ '../pages/UserProfile.vue');
@@ -390,6 +392,24 @@ export const routes: RouteRecordRaw[] = [
     path: '/character-templates',
     name: 'CharacterTemplates',
     component: loadCharacterTemplates,
+    meta: {
+      requiresAuth: false,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/share/character/:token',
+    name: 'SharedCharacter',
+    component: loadSharedCharacter,
+    meta: {
+      requiresAuth: false,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/share/snapshot/:token',
+    name: 'SnapshotViewer',
+    component: loadSnapshotViewer,
     meta: {
       requiresAuth: false,
       guestOnly: false,

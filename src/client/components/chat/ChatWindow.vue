@@ -70,6 +70,18 @@
             </span>
           </el-option>
         </el-select>
+        <el-dropdown trigger="click" @command="handleExportDropdown">
+          <el-button text>
+            <el-icon><Download /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="json">{{ t('chat.exportJson') }}</el-dropdown-item>
+              <el-dropdown-item command="txt">{{ t('chat.exportTxt') }}</el-dropdown-item>
+              <el-dropdown-item command="snapshot" divided>{{ t('share.createSnapshot') }}</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <el-dropdown trigger="click" @command="handleMenuCommand">
           <el-button link :icon="More" />
           <template #dropdown>
@@ -315,6 +327,35 @@
         </el-tab-pane>
       </el-tabs>
     </el-drawer>
+    <!-- Snapshot Dialog -->
+    <el-dialog v-model="showSnapshotDialog" :title="t('share.createSnapshot')" width="450px">
+      <el-form label-position="top">
+        <el-form-item :label="t('share.snapshotTitle')">
+          <el-input v-model="snapshotTitle" :placeholder="t('share.snapshotTitle')" />
+        </el-form-item>
+        <el-form-item :label="t('share.snapshotExpiry')">
+          <el-select v-model="snapshotExpiry" style="width: 100%">
+            <el-option label="1 day" value="1d" />
+            <el-option label="7 days" value="7d" />
+            <el-option label="30 days" value="30d" />
+            <el-option label="Never" value="never" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <div v-if="snapshotLink" class="snapshot-result">
+        <el-input :model-value="snapshotLink" readonly>
+          <template #append>
+            <el-button @click="copySnapshotLink">{{ t('share.copyLink') }}</el-button>
+          </template>
+        </el-input>
+      </div>
+      <template #footer>
+        <el-button @click="showSnapshotDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="creatingSnapshot" @click="createSnapshot" :disabled="!!snapshotLink">
+          {{ t('share.createSnapshot') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -322,12 +363,14 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessageBox, ElMessage } from 'element-plus';
-import { More, Loading, Search } from '@element-plus/icons-vue';
+import { More, Loading, Search, Download } from '@element-plus/icons-vue';
 import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
 import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
 import { useDateTime } from '@client/composables';
 import { chatApi } from '@client/services/chat.api';
+import { exportApi } from '@client/services/export.api';
+import { shareApi } from '@client/services/share.api';
 import { characterApi } from '@client/services/character.api';
 import { useTextToSpeech, type VoiceConfig } from '@client/composables/useTextToSpeech';
 import MessageBubble from './MessageBubble.vue';
@@ -774,6 +817,70 @@ const handleExport = async (format: 'json' | 'markdown' | 'txt') => {
     URL.revokeObjectURL(url);
   } catch {
     ElMessage.error(t('chat.exportFailed'));
+  }
+};
+
+const exportChatDirect = async (format: 'json' | 'txt') => {
+  if (!props.currentChat?.id) return;
+  try {
+    const blob = format === 'json'
+      ? await exportApi.exportChatJson(props.currentChat.id)
+      : await exportApi.exportChatTxt(props.currentChat.id);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${props.currentChat.title || 'chat'}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    ElMessage.error(t('chat.exportFailed'));
+  }
+};
+
+// Snapshot state
+const showSnapshotDialog = ref(false);
+const snapshotTitle = ref('');
+const snapshotExpiry = ref('7d');
+const snapshotLink = ref('');
+const creatingSnapshot = ref(false);
+
+const handleExportDropdown = async (command: string) => {
+  if (command === 'snapshot') {
+    snapshotTitle.value = '';
+    snapshotExpiry.value = '7d';
+    snapshotLink.value = '';
+    showSnapshotDialog.value = true;
+  } else {
+    await exportChatDirect(command as 'json' | 'txt');
+  }
+};
+
+const createSnapshot = async () => {
+  if (!props.currentChat) return;
+  creatingSnapshot.value = true;
+  try {
+    const expiresAt = snapshotExpiry.value !== 'never'
+      ? new Date(Date.now() + { '1d': 86400000, '7d': 604800000, '30d': 2592000000 }[snapshotExpiry.value]!).toISOString()
+      : undefined;
+    const res = await shareApi.createSnapshot(props.currentChat.id, {
+      title: snapshotTitle.value || undefined,
+      expiresAt,
+    });
+    snapshotLink.value = `${window.location.origin}/share/snapshot/${res.shareToken}`;
+    ElMessage.success(t('share.snapshotCreated'));
+  } catch {
+    ElMessage.error('Failed to create snapshot');
+  } finally {
+    creatingSnapshot.value = false;
+  }
+};
+
+const copySnapshotLink = async () => {
+  try {
+    await navigator.clipboard.writeText(snapshotLink.value);
+    ElMessage.success(t('share.linkCopied'));
+  } catch {
+    ElMessage.error('Failed to copy');
   }
 };
 
@@ -1401,5 +1508,34 @@ onUnmounted(() => {
   padding: 24px;
   color: var(--text-secondary);
   font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .chat-header {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .chat-header .chat-title {
+    font-size: 14px;
+  }
+  .chat-actions {
+    gap: 4px;
+  }
+  .chat-actions .el-select {
+    width: 120px;
+  }
+  .chat-messages {
+    padding: 12px;
+  }
+  .intelligence-drawer :deep(.el-drawer) {
+    width: 100% !important;
+  }
+  .pull-refresh-indicator {
+    font-size: 12px;
+  }
+}
+
+.snapshot-result {
+  margin-top: 16px;
 }
 </style>
