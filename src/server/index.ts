@@ -29,6 +29,7 @@ import { uploadRoutes } from './routes/uploads';
 import { webhookRoutes } from './routes/webhooks';
 import { notificationRoutes } from './routes/notifications';
 import { socialRoutes } from './routes/social';
+import { activityRoutes } from './routes/activity';
 import { developerRoutes } from './routes/developer';
 import { pluginRoutes } from './routes/plugins';
 import { analyticsRoutes } from './routes/analytics';
@@ -40,6 +41,7 @@ import { gdprRoutes } from './routes/gdpr';
 import { recommendationRoutes } from './routes/recommendations';
 import { pluginBridge } from './services/plugin-bridge';
 import { kafkaBridge } from './services/kafka-bridge.service';
+import { activityService } from './services/activity.service';
 import { scheduler } from './services/scheduler.service';
 import { registerJobs } from './jobs';
 import { WebhookWorker } from './workers/webhook.worker';
@@ -188,6 +190,7 @@ app.route('/api/v1/uploads', uploadRoutes);
 app.route('/api/v1/webhooks', webhookRoutes);
 app.route('/api/v1/notifications', notificationRoutes);
 app.route('/api/v1/social', socialRoutes);
+app.route('/api/v1/social', activityRoutes);
 app.route('/api/v1/developer', developerRoutes);
 app.route('/api/v1/plugins', pluginRoutes);
 app.route('/api/v1/analytics', analyticsRoutes);
@@ -309,6 +312,9 @@ if (process.env.NODE_ENV !== 'test') {
 
   // Start plugin event bridge
   pluginBridge.start();
+
+  // Register activity feed event listeners
+  activityService.registerListeners();
 
   // Start Kafka event bridge
   kafkaBridge.start().then(() => {
