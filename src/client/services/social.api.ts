@@ -39,4 +39,14 @@ export const socialApi = {
   },
   getReplies: (commentId: string, limit = 20, offset = 0) =>
     api.get<CommentWithAuthor[]>(`/social/comments/${commentId}/replies?limit=${limit}&offset=${offset}`),
+
+  // Activity Feed
+  getFeed: (limit = 20, offset = 0) =>
+    api.get(`/social/feed?limit=${limit}&offset=${offset}`),
+  getUserActivities: (userId: string, limit = 20, offset = 0) =>
+    api.get(`/social/users/${userId}/activities?limit=${limit}&offset=${offset}`),
+
+  // Comment Likes
+  likeComment: (commentId: string) => api.post(`/social/comments/${commentId}/like`),
+  unlikeComment: (commentId: string) => api.delete(`/social/comments/${commentId}/like`),
 };
