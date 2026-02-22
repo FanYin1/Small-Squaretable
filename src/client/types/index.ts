@@ -54,6 +54,10 @@ export interface CharacterCardData {
   tags?: string[];
   character_book?: Record<string, unknown>;
   extensions?: Record<string, unknown>;
+  spec?: string;
+  spec_version?: string;
+  data?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export interface Character {
