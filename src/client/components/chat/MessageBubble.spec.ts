@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createPinia } from 'pinia';
 import MessageBubble from './MessageBubble.vue';
 import type { Message } from '@client/types';
 import i18n from '../../i18n';
@@ -13,16 +14,20 @@ describe('MessageBubble', () => {
     createdAt: new Date().toISOString(),
   });
 
+  const mountOptions = () => ({
+    global: {
+      plugins: [i18n, createPinia()],
+      stubs: {
+        'el-button': true,
+        MarkdownRenderer: true,
+      },
+    },
+  });
+
   it('renders component', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage() },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          'el-button': true,
-          MarkdownRenderer: true,
-        },
-      },
+      ...mountOptions(),
     });
 
     expect(wrapper.find('.message').exists()).toBe(true);
@@ -31,13 +36,7 @@ describe('MessageBubble', () => {
   it('renders user message correctly', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage('user') },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          'el-button': true,
-          MarkdownRenderer: true,
-        },
-      },
+      ...mountOptions(),
     });
 
     expect(wrapper.find('.message-user').exists()).toBe(true);
@@ -47,13 +46,7 @@ describe('MessageBubble', () => {
   it('renders assistant message', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage('assistant') },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          'el-button': true,
-          MarkdownRenderer: true,
-        },
-      },
+      ...mountOptions(),
     });
 
     expect(wrapper.find('.message-assistant').exists()).toBe(true);
@@ -62,13 +55,7 @@ describe('MessageBubble', () => {
   it('displays message content', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage() },
-      global: {
-        plugins: [i18n],
-        stubs: {
-          'el-button': true,
-          MarkdownRenderer: true,
-        },
-      },
+      ...mountOptions(),
     });
 
     expect(wrapper.find('.message-body').exists()).toBe(true);
