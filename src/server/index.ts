@@ -41,6 +41,7 @@ import { gdprRoutes } from './routes/gdpr';
 import { recommendationRoutes } from './routes/recommendations';
 import { chatTemplatesRouter } from './routes/chat-templates';
 import { characterRelationshipsRouter } from './routes/character-relationships';
+import { characterGrowthRouter } from './routes/character-growth';
 import { pluginBridge } from './services/plugin-bridge';
 import { kafkaBridge } from './services/kafka-bridge.service';
 import { activityService } from './services/activity.service';
@@ -134,6 +135,7 @@ app.use('/api/v1/account/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/recommendations/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/chat-templates/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-relationships/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/character-growth/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -184,6 +186,7 @@ app.use('/api/v1/account', csrfProtection());
 app.use('/api/v1/recommendations', csrfProtection());
 app.use('/api/v1/chat-templates', csrfProtection());
 app.use('/api/v1/character-relationships', csrfProtection());
+app.use('/api/v1/character-growth', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
@@ -206,6 +209,7 @@ app.route('/api/v1/account', gdprRoutes);
 app.route('/api/v1/recommendations', recommendationRoutes);
 app.route('/api/v1/chat-templates', chatTemplatesRouter);
 app.route('/api/v1/character-relationships', characterRelationshipsRouter);
+app.route('/api/v1/character-growth', characterGrowthRouter);
 app.route('/api/v1', intelligenceRoutes);
 
 app.get('/api/v1', (c) => {
@@ -236,6 +240,7 @@ app.get('/api/v1', (c) => {
       recommendations: '/api/v1/recommendations',
       chatTemplates: '/api/v1/chat-templates',
       characterRelationships: '/api/v1/character-relationships',
+      characterGrowth: '/api/v1/character-growth',
       docs: '/api/v1/docs',
       ws: '/ws',
     },
