@@ -42,6 +42,8 @@ describe('useTextToSpeech', () => {
       this.text = text;
       this.lang = '';
       this.rate = 1;
+      this.pitch = 1;
+      this.voice = undefined;
       this.onend = null;
       this.onerror = null;
       lastUtterance = this;
@@ -84,11 +86,57 @@ describe('useTextToSpeech', () => {
     expect(lastUtterance.rate).toBe(1);
   });
 
-  it('speak accepts custom lang and rate', () => {
+  it('speak accepts custom lang and rate via VoiceConfig', () => {
     const { speak } = useTextToSpeech();
-    speak('Hello', 'en-US', 1.5);
+    speak('Hello', { lang: 'en-US', rate: 1.5 });
     expect(lastUtterance.lang).toBe('en-US');
     expect(lastUtterance.rate).toBe(1.5);
+  });
+
+  it('speak accepts custom pitch via VoiceConfig', () => {
+    const { speak } = useTextToSpeech();
+    speak('Hello', { pitch: 1.5 });
+    expect(lastUtterance.pitch).toBe(1.5);
+  });
+
+  it('speak defaults pitch to 1 when not specified', () => {
+    const { speak } = useTextToSpeech();
+    speak('Hello');
+    expect(lastUtterance.pitch).toBe(1);
+  });
+
+  it('speak sets voice when voiceName matches an available voice', () => {
+    const mockVoice = { name: 'Google US English', lang: 'en-US' };
+    mockSynthesis.getVoices = vi.fn(() => [mockVoice]);
+    (window as any).speechSynthesis = mockSynthesis;
+
+    const { speak } = useTextToSpeech();
+    speak('Hello', { voiceName: 'Google US English' });
+    expect(lastUtterance.voice).toBe(mockVoice);
+  });
+
+  it('speak does not set voice when voiceName has no match', () => {
+    mockSynthesis.getVoices = vi.fn(() => [{ name: 'Other Voice', lang: 'en-US' }]);
+    (window as any).speechSynthesis = mockSynthesis;
+
+    const { speak } = useTextToSpeech();
+    speak('Hello', { voiceName: 'Nonexistent Voice' });
+    expect(lastUtterance.voice).toBeUndefined();
+  });
+
+  it('getAvailableVoices returns voices from speechSynthesis', () => {
+    const voices = [{ name: 'Voice A' }, { name: 'Voice B' }];
+    mockSynthesis.getVoices = vi.fn(() => voices);
+    (window as any).speechSynthesis = mockSynthesis;
+
+    const { getAvailableVoices } = useTextToSpeech();
+    expect(getAvailableVoices()).toEqual(voices);
+  });
+
+  it('getAvailableVoices returns empty array when not supported', () => {
+    delete (window as any).speechSynthesis;
+    const { getAvailableVoices } = useTextToSpeech();
+    expect(getAvailableVoices()).toEqual([]);
   });
 
   it('isSpeaking resets to false on utterance end', () => {

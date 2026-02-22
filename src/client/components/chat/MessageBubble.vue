@@ -97,7 +97,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useDateTime } from '@client/composables';
-import { useTextToSpeech } from '@client/composables/useTextToSpeech';
+import { useTextToSpeech, type VoiceConfig } from '@client/composables/useTextToSpeech';
 import { createLogger } from '@client/utils/logger';
 import { useBookmarkStore } from '@client/stores/bookmark';
 import MarkdownRenderer from './MarkdownRenderer.vue';
@@ -114,6 +114,7 @@ interface Props {
   userAvatar?: string;
   userName?: string;
   editing?: boolean;
+  voiceConfig?: VoiceConfig;
 }
 
 const props = defineProps<Props>();
@@ -143,7 +144,7 @@ const toggleTts = () => {
   if (ttsSpeaking.value) {
     ttsStop();
   } else {
-    ttsSpeak(props.message.content);
+    ttsSpeak(props.message.content, props.voiceConfig);
   }
 };
 

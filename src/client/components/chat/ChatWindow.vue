@@ -140,6 +140,7 @@
             :user-avatar="userStore.user?.avatar"
             :user-name="userStore.user?.name"
             :editing="editingMessageId === message.id"
+            :voice-config="characterVoiceConfig"
             @delete="handleDeleteMessage"
             @edit="handleEditMessage"
             @regenerate="handleRegenerateMessage"
@@ -275,6 +276,7 @@ import { useCharacterIntelligenceStore } from '@client/stores/characterIntellige
 import { useDateTime } from '@client/composables';
 import { chatApi } from '@client/services/chat.api';
 import { characterApi } from '@client/services/character.api';
+import { useTextToSpeech, type VoiceConfig } from '@client/composables/useTextToSpeech';
 import MessageBubble from './MessageBubble.vue';
 import MessageInput from './MessageInput.vue';
 import ScrollToBottom from './ScrollToBottom.vue';
@@ -353,6 +355,13 @@ const streamingCharacterAvatar = computed(() => {
 // Typing indicator character name
 const typingCharacterName = computed(() => {
   return chatStore.streamingCharacterName || props.currentChat?.characterName || '';
+});
+
+// Voice config from character's cardData extensions
+const characterVoiceConfig = computed((): VoiceConfig | undefined => {
+  const char = chatStore.currentCharacter;
+  if (!char?.cardData?.extensions?.voice) return undefined;
+  return char.cardData.extensions.voice as VoiceConfig;
 });
 
 // Available characters for add dialog (exclude already in chat)
