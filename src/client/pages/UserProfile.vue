@@ -2,12 +2,14 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { ChatDotRound, Star, Picture } from '@element-plus/icons-vue';
+import { ChatDotRound, Star, Picture, UserFilled } from '@element-plus/icons-vue';
 import { useUserStore } from '@client/stores/user';
+import { useSocialStore } from '@client/stores/social';
 import { socialApi } from '@client/services/social.api';
 import { api } from '@client/services/api';
 import { createLogger } from '@client/utils/logger';
 import FollowButton from '@client/components/social/FollowButton.vue';
+import ActivityItem from '@client/components/social/ActivityItem.vue';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import type { FollowInfo } from '@/types/social';
 import type { Character } from '@client/types';
@@ -17,6 +19,7 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const userStore = useUserStore();
+const socialStore = useSocialStore();
 
 const userId = computed(() => route.params.userId as string);
 const isOwnProfile = computed(() => userStore.user?.id === userId.value);
@@ -37,6 +40,22 @@ const charactersLoading = ref(false);
 // Favorites tab
 const favorites = ref<Character[]>([]);
 const favoritesLoading = ref(false);
+
+// Followers tab
+interface UserListItem {
+  id: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+const followers = ref<UserListItem[]>([]);
+const followersLoading = ref(false);
+
+// Following tab
+const following = ref<UserListItem[]>([]);
+const followingLoading = ref(false);
+
+// Activity tab
+const activitiesLoading = ref(false);
 
 const avatarUrl = computed(() => {
   if (userInfo.value?.avatarUrl) return userInfo.value.avatarUrl;
@@ -106,11 +125,65 @@ async function fetchFavorites() {
     favoritesLoading.value = false;
   }
 }
+
+// Fetch followers
+async function fetchFollowers() {
+  followersLoading.value = true;
+  try {
+    const result = await socialApi.getFollowers(userId.value, 20, 0);
+    followers.value = Array.isArray(result) ? result as UserListItem[] : [];
+  } catch {
+    followers.value = [];
+  } finally {
+    followersLoading.value = false;
+  }
+}
+
+// Fetch following
+async function fetchFollowing() {
+  followingLoading.value = true;
+  try {
+    const result = await socialApi.getFollowing(userId.value, 20, 0);
+    following.value = Array.isArray(result) ? result as UserListItem[] : [];
+  } catch {
+    following.value = [];
+  } finally {
+    followingLoading.value = false;
+  }
+}
+
+// Fetch activity
+async function fetchActivity() {
+  activitiesLoading.value = true;
+  try {
+    await socialStore.fetchUserActivities(userId.value, 20, 0);
+  } finally {
+    activitiesLoading.value = false;
+  }
+}
+
+function getUserAvatar(user: UserListItem): string {
+  return user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`;
+}
+
+function getUserDisplayName(user: UserListItem): string {
+  return user.displayName || user.id.slice(0, 8) + '...';
+}
+
+function navigateToUser(uid: string) {
+  router.push({ name: 'UserProfile', params: { userId: uid } });
+}
 function handleTabChange(tab: string) {
   if (tab === 'characters' && characters.value.length === 0 && !charactersLoading.value) {
     fetchCharacters();
   } else if (tab === 'favorites' && favorites.value.length === 0 && !favoritesLoading.value) {
     fetchFavorites();
+  } else if (tab === 'followers' && followers.value.length === 0 && !followersLoading.value) {
+    fetchFollowers();
+  } else if (tab === 'following' && following.value.length === 0 && !followingLoading.value) {
+    fetchFollowing();
+  } else if (tab === 'activity' && socialStore.activities.length === 0 && !activitiesLoading.value) {
+    fetchActivity();
   }
 }
 
@@ -131,6 +204,9 @@ watch(userId, () => {
   fetchUserData();
   characters.value = [];
   favorites.value = [];
+  followers.value = [];
+  following.value = [];
+  socialStore.activities.length = 0;
   activeTab.value = 'characters';
   fetchCharacters();
 });
@@ -266,6 +342,71 @@ watch(userId, () => {
                 </el-button>
               </div>
             </div>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane :label="t('social.followersTab')" name="followers">
+          <div v-if="followersLoading" v-loading="true" class="tab-loading" />
+          <div v-else-if="followers.length === 0" class="empty-state">
+            <el-icon :size="48" color="var(--text-tertiary)"><UserFilled /></el-icon>
+            <p>{{ t('social.noFollowers') }}</p>
+          </div>
+          <div v-else class="user-list">
+            <div
+              v-for="user in followers"
+              :key="user.id"
+              class="user-list-item"
+              role="button"
+              tabindex="0"
+              @click="navigateToUser(user.id)"
+              @keydown.enter="navigateToUser(user.id)"
+            >
+              <el-avatar :size="44" :src="getUserAvatar(user)" class="user-list-avatar" />
+              <span class="user-list-name">{{ getUserDisplayName(user) }}</span>
+              <div class="user-list-action" @click.stop>
+                <FollowButton :user-id="user.id" />
+              </div>
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane :label="t('social.followingTab')" name="following">
+          <div v-if="followingLoading" v-loading="true" class="tab-loading" />
+          <div v-else-if="following.length === 0" class="empty-state">
+            <el-icon :size="48" color="var(--text-tertiary)"><UserFilled /></el-icon>
+            <p>{{ t('social.noFollowing') }}</p>
+          </div>
+          <div v-else class="user-list">
+            <div
+              v-for="user in following"
+              :key="user.id"
+              class="user-list-item"
+              role="button"
+              tabindex="0"
+              @click="navigateToUser(user.id)"
+              @keydown.enter="navigateToUser(user.id)"
+            >
+              <el-avatar :size="44" :src="getUserAvatar(user)" class="user-list-avatar" />
+              <span class="user-list-name">{{ getUserDisplayName(user) }}</span>
+              <div class="user-list-action" @click.stop>
+                <FollowButton :user-id="user.id" />
+              </div>
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane :label="t('social.activityTab')" name="activity">
+          <div v-if="activitiesLoading" v-loading="true" class="tab-loading" />
+          <div v-else-if="socialStore.activities.length === 0" class="empty-state">
+            <el-icon :size="48" color="var(--text-tertiary)"><ChatDotRound /></el-icon>
+            <p>{{ t('social.noActivity') }}</p>
+          </div>
+          <div v-else class="activity-list">
+            <ActivityItem
+              v-for="activity in socialStore.activities"
+              :key="activity.id"
+              :activity="activity"
+            />
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -496,6 +637,58 @@ watch(userId, () => {
 
 .character-meta :deep(.el-button:hover) {
   opacity: 0.85;
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-base);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.user-list-item:hover {
+  border-color: var(--accent-purple);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+}
+
+.user-list-item:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: 2px;
+}
+
+.user-list-avatar {
+  flex-shrink: 0;
+}
+
+.user-list-name {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-list-action {
+  flex-shrink: 0;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* Tablet */

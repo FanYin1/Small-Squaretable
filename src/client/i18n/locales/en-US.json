@@ -849,7 +849,13 @@
     "noFavorites": "No favorites to show.",
     "noFavoritesOther": "This user's favorites are private.",
     "userNotFound": "User not found",
-    "loadFailed": "Failed to load user profile"
+    "loadFailed": "Failed to load user profile",
+    "followersTab": "Followers",
+    "followingTab": "Following",
+    "activityTab": "Activity",
+    "noActivity": "No recent activity.",
+    "noFollowers": "No followers yet.",
+    "noFollowing": "Not following anyone yet."
   },
   "developer": {
     "title": "Developer Settings",
