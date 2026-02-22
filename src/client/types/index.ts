@@ -37,6 +37,8 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   attachments?: MessageAttachment[];
+  characterId?: string;
+  characterName?: string;
   createdAt: string;
 }
 

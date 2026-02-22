@@ -15,13 +15,15 @@ export const useChatStore = defineStore('chat', () => {
   const chats = ref<Chat[]>([]);
   const currentChatId = ref<string | null>(null);
   const messages = ref<Message[]>([]);
-  const currentCharacter = ref<Character | null>(null);
+  const chatCharacters = ref<Character[]>([]);
   const loading = ref(false);
   const sending = ref(false);
   const error = ref<string | null>(null);
   const wsConnected = ref(false);
   const wsConnectionState = ref<WSConnectionState>(WSConnectionState.DISCONNECTED);
   const streamingMessage = ref<string>('');
+  const streamingCharacterId = ref<string | null>(null);
+  const streamingCharacterName = ref<string | null>(null);
   const isStreaming = ref(false);
   const hasMoreMessages = ref(true);
   const loadingOlder = ref(false);
@@ -32,6 +34,11 @@ export const useChatStore = defineStore('chat', () => {
   // Getters
   const currentChat = computed(() =>
     chats.value.find(c => c.id === currentChatId.value)
+  );
+
+  // Backwards compatible: first character in the group
+  const currentCharacter = computed<Character | null>(() =>
+    chatCharacters.value.length > 0 ? chatCharacters.value[0] : null
   );
 
   /**
@@ -141,27 +148,33 @@ export const useChatStore = defineStore('chat', () => {
 
     // 接收助手消息块（流式）
     wsClient.on('assistantMessageChunk', (data: unknown) => {
-      const chunkData = data as { chunk: string };
+      const chunkData = data as { chunk: string; characterId?: string; characterName?: string };
       if (!isStreaming.value) {
         isStreaming.value = true;
         streamingMessage.value = '';
+        streamingCharacterId.value = chunkData.characterId ?? null;
+        streamingCharacterName.value = chunkData.characterName ?? null;
       }
       streamingMessage.value += chunkData.chunk;
     });
 
     // 助手消息完成
     wsClient.on('assistantMessageDone', (data: unknown) => {
-      const doneData = data as { messageId: string; chatId: string };
+      const doneData = data as { messageId: string; chatId: string; characterId?: string; characterName?: string };
       if (isStreaming.value) {
         const message: Message = {
           id: doneData.messageId,
           chatId: doneData.chatId,
           role: 'assistant',
           content: streamingMessage.value,
+          characterId: doneData.characterId ?? streamingCharacterId.value ?? undefined,
+          characterName: doneData.characterName ?? streamingCharacterName.value ?? undefined,
           createdAt: new Date().toISOString(),
         };
         messages.value.push(message);
         streamingMessage.value = '';
+        streamingCharacterId.value = null;
+        streamingCharacterName.value = null;
         isStreaming.value = false;
         sending.value = false;
       }
@@ -407,11 +420,14 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function createChat(characterId: string, title?: string): Promise<Chat> {
+  async function createChat(characterId: string, title?: string, characterIds?: string[]): Promise<Chat> {
     loading.value = true;
     error.value = null;
     try {
-      const response = await chatApi.createChat({ characterId, title });
+      const payload = characterIds
+        ? { characterIds, title }
+        : { characterId, title };
+      const response = await chatApi.createChat(payload);
       chats.value.unshift(response.chat);
       return response.chat;
     } catch (e) {
@@ -535,18 +551,34 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     currentChatId.value = chatId;
-    currentCharacter.value = null;
+    chatCharacters.value = [];
 
     if (chatId) {
       await fetchMessages(chatId);
 
-      // 加载角色信息
-      const chat = chats.value.find(c => c.id === chatId);
-      if (chat?.characterId) {
-        try {
-          currentCharacter.value = await characterApi.getCharacter(chat.characterId);
-        } catch (err) {
-          logger.error('Failed to load character', err);
+      // 加载群聊角色列表
+      try {
+        const characters = await chatApi.getChatCharacters(chatId);
+        if (Array.isArray(characters) && characters.length > 0) {
+          chatCharacters.value = characters.map(c => ({
+            id: c.id,
+            name: c.name,
+            avatar: c.avatarUrl,
+            cardData: c.cardData as Character['cardData'],
+            isPublic: false,
+            createdAt: '',
+          }));
+        }
+      } catch {
+        // Fallback: load single character from chat
+        const chat = chats.value.find(c => c.id === chatId);
+        if (chat?.characterId) {
+          try {
+            const character = await characterApi.getCharacter(chat.characterId);
+            chatCharacters.value = [character];
+          } catch (err) {
+            logger.error('Failed to load character', err);
+          }
         }
       }
 
@@ -572,6 +604,7 @@ export const useChatStore = defineStore('chat', () => {
     currentChatId,
     currentChat,
     currentCharacter,
+    chatCharacters,
     messages,
     loading,
     sending,
@@ -579,6 +612,8 @@ export const useChatStore = defineStore('chat', () => {
     wsConnected,
     wsConnectionState,
     streamingMessage,
+    streamingCharacterId,
+    streamingCharacterName,
     isStreaming,
     hasMoreMessages,
     loadingOlder,

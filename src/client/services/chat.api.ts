@@ -8,7 +8,8 @@ import { api } from './api';
 import type { Chat, Message } from '@client/types';
 
 export interface CreateChatRequest {
-  characterId: string;
+  characterId?: string;
+  characterIds?: string[];
   title?: string;
 }
 
@@ -42,6 +43,8 @@ interface BackendMessage {
   chatId: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  characterId?: string;
+  characterName?: string;
   sentAt: string;  // Backend uses sentAt, not createdAt
 }
 
@@ -91,6 +94,8 @@ function transformMessage(item: BackendMessage): Message {
     chatId: item.chatId,
     role: item.role,
     content: item.content,
+    characterId: item.characterId,
+    characterName: item.characterName,
     createdAt: item.sentAt,  // Map sentAt to createdAt for frontend
   };
 }
@@ -182,4 +187,22 @@ export const chatApi = {
     const response = await api.patch<BackendMessage>(`/chats/${chatId}/messages/${messageId}`, { content });
     return { message: transformMessage(response) };
   },
+
+  /**
+   * 获取聊天角色列表（群聊）
+   */
+  getChatCharacters: (chatId: string) =>
+    api.get<{ id: string; name: string; avatarUrl?: string; cardData?: Record<string, unknown>; sortOrder: number }[]>(`/chats/${chatId}/characters`),
+
+  /**
+   * 添加角色到聊天（群聊）
+   */
+  addChatCharacter: (chatId: string, characterId: string) =>
+    api.post(`/chats/${chatId}/characters`, { characterId }),
+
+  /**
+   * 从聊天移除角色（群聊）
+   */
+  removeChatCharacter: (chatId: string, characterId: string) =>
+    api.delete(`/chats/${chatId}/characters/${characterId}`),
 };
