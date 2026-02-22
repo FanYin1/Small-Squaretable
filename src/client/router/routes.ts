@@ -24,6 +24,7 @@ const loadNotifications = () => import(/* webpackChunkName: "notifications" */ '
 const loadUserProfile = () => import(/* webpackChunkName: "user-profile" */ '../pages/UserProfile.vue');
 const loadDeveloperSettings = () => import(/* webpackChunkName: "developer" */ '../pages/DeveloperSettings.vue');
 const loadPluginMarketplace = () => import(/* webpackChunkName: "plugins" */ '../pages/PluginMarketplace.vue');
+const loadActivityFeed = () => import(/* webpackChunkName: "activity-feed" */ '../pages/ActivityFeed.vue');
 const loadAnalytics = () => import(/* webpackChunkName: "analytics" */ '../pages/analytics/AnalyticsDashboard.vue');
 const loadSecuritySettings = () => import(/* webpackChunkName: "security" */ '../pages/SecuritySettings.vue');
 const loadAccountSettings = () => import(/* webpackChunkName: "account" */ '../pages/AccountSettings.vue');
@@ -227,6 +228,15 @@ export const routes: RouteRecordRaw[] = [
     path: '/notifications',
     name: 'Notifications',
     component: loadNotifications,
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/feed',
+    name: 'ActivityFeed',
+    component: loadActivityFeed,
     meta: {
       requiresAuth: true,
       guestOnly: false,
