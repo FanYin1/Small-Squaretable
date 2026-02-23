@@ -1458,7 +1458,10 @@
     "commandPalette": "Quick Search",
     "pressEnterToSearch": "Press Enter to search",
     "viewAllResults": "View all results",
-    "noSuggestions": "No suggestions"
+    "noSuggestions": "No suggestions",
+    "clearHistory": "Clear History",
+    "historyCleared": "Search history cleared",
+    "removeHistoryItem": "Remove"
   },
   "share": {
     "shareLink": "Share Link",

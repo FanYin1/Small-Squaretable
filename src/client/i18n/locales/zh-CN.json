@@ -1458,7 +1458,10 @@
     "commandPalette": "快速搜索",
     "pressEnterToSearch": "按回车搜索",
     "viewAllResults": "查看全部结果",
-    "noSuggestions": "暂无建议"
+    "noSuggestions": "暂无建议",
+    "clearHistory": "清除历史",
+    "historyCleared": "搜索历史已清除",
+    "removeHistoryItem": "删除"
   },
   "share": {
     "shareLink": "分享链接",

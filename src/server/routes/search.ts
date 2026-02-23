@@ -50,6 +50,59 @@ function hashParams(...parts: string[]): string {
 
 export const searchRoutes = new Hono();
 
+// ── DELETE /history — Clear all recent searches ──
+
+searchRoutes.delete(
+  '/history',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user') as { id: string };
+    try {
+      const redisClient = await getRedisClient();
+      await redisClient.del(`search:recent:${user.id}`);
+      return c.json<ApiResponse>({
+        success: true,
+        data: null,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      searchLogger.error('Failed to clear search history', { error: String(error) });
+      return c.json<ApiResponse>({
+        success: false,
+        error: { code: 'CLEAR_HISTORY_ERROR', message: 'Failed to clear search history' },
+        meta: { timestamp: new Date().toISOString() },
+      }, 500);
+    }
+  },
+);
+
+// ── DELETE /history/:query — Remove a single recent search ──
+
+searchRoutes.delete(
+  '/history/:query',
+  authMiddleware(),
+  async (c) => {
+    const user = c.get('user') as { id: string };
+    const queryToRemove = decodeURIComponent(c.req.param('query'));
+    try {
+      const redisClient = await getRedisClient();
+      await redisClient.lRem(`search:recent:${user.id}`, 0, queryToRemove);
+      return c.json<ApiResponse>({
+        success: true,
+        data: null,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      searchLogger.error('Failed to remove search history item', { error: String(error) });
+      return c.json<ApiResponse>({
+        success: false,
+        error: { code: 'REMOVE_HISTORY_ERROR', message: 'Failed to remove search history item' },
+        meta: { timestamp: new Date().toISOString() },
+      }, 500);
+    }
+  },
+);
+
 // ── GET / — Unified global search ──
 
 searchRoutes.get(

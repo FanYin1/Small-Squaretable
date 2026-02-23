@@ -54,4 +54,14 @@ export const searchApi = {
   getSuggestions: (q: string) => {
     return api.get<SearchSuggestion>(`/search/suggestions?q=${encodeURIComponent(q)}`);
   },
+
+  /**
+   * Clear all recent search history.
+   */
+  clearSearchHistory: () => api.delete<null>('/search/history'),
+
+  /**
+   * Remove a single item from recent search history.
+   */
+  removeSearchHistoryItem: (query: string) => api.delete<null>(`/search/history/${encodeURIComponent(query)}`),
 };

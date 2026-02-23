@@ -37,6 +37,8 @@ vi.mock('../../core/redis', () => ({
     lPush: vi.fn(),
     lTrim: vi.fn(),
     lRange: vi.fn().mockResolvedValue([]),
+    del: vi.fn(),
+    lRem: vi.fn(),
   }),
 }));
 
@@ -317,6 +319,24 @@ describe('Search Routes', () => {
       const res = await app.request('/api/v1/search/suggestions?q=');
 
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('DELETE /api/v1/search/history', () => {
+    it('should clear recent searches', async () => {
+      const res = await app.request('/api/v1/search/history', { method: 'DELETE' });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+    });
+  });
+
+  describe('DELETE /api/v1/search/history/:query', () => {
+    it('should remove a single search history item', async () => {
+      const res = await app.request('/api/v1/search/history/test%20query', { method: 'DELETE' });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
     });
   });
 });

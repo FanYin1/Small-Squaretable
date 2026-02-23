@@ -70,6 +70,31 @@ function fillQuery(q: string) {
   query.value = q;
 }
 
+async function clearHistory() {
+  try {
+    await searchApi.clearSearchHistory();
+    if (suggestions.value) {
+      suggestions.value = { ...suggestions.value, recentSearches: [] };
+    }
+  } catch {
+    // silently fail
+  }
+}
+
+async function removeHistoryItem(term: string) {
+  try {
+    await searchApi.removeSearchHistoryItem(term);
+    if (suggestions.value) {
+      suggestions.value = {
+        ...suggestions.value,
+        recentSearches: suggestions.value.recentSearches.filter(s => s !== term),
+      };
+    }
+  } catch {
+    // silently fail
+  }
+}
+
 function close() {
   visible.value = false;
   query.value = '';
@@ -133,7 +158,10 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown));
             </div>
 
             <div v-if="suggestions.recentSearches.length" class="palette-section">
-              <div class="palette-section-title">{{ t('search.recentSearches') }}</div>
+              <div class="palette-section-header">
+                <span class="palette-section-title">{{ t('search.recentSearches') }}</span>
+                <span class="palette-clear-history" @click.stop="clearHistory">{{ t('search.clearHistory') }}</span>
+              </div>
               <div
                 v-for="term in suggestions.recentSearches"
                 :key="term"
@@ -142,6 +170,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown));
               >
                 <el-icon class="palette-item-icon"><SearchIcon /></el-icon>
                 <span class="palette-item-name">{{ term }}</span>
+                <span class="palette-remove-item" @click.stop="removeHistoryItem(term)">×</span>
               </div>
             </div>
           </div>
@@ -247,6 +276,35 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown));
   padding: 4px 16px 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.palette-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 16px 6px;
+}
+
+.palette-clear-history {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #909399);
+  cursor: pointer;
+}
+
+.palette-clear-history:hover {
+  color: var(--el-color-primary, #409eff);
+}
+
+.palette-remove-item {
+  margin-left: auto;
+  font-size: 16px;
+  color: var(--el-text-color-placeholder, #a8abb2);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.palette-remove-item:hover {
+  color: var(--el-color-danger, #f56c6c);
 }
 
 .palette-item {
