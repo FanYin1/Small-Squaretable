@@ -12,6 +12,7 @@ import { logger as appLogger, getLogConfig } from './services/logger.service';
 import { initializeSentry, closeSentry } from './services/sentry.service';
 import { errorHandler } from './middleware/error-handler';
 import { requestIdMiddleware } from './middleware/request-id';
+import { requestTimingMiddleware } from './middleware/request-timing';
 import { tenantMiddleware } from './middleware/tenant';
 import { securityHeaders, developmentSecurityHeaders } from './middleware/security';
 import { csrfProtection, getCsrfToken } from './middleware/csrf';
@@ -88,6 +89,9 @@ if (config.nodeEnv === 'production') {
 
 // Request ID middleware (must be first to set context)
 app.use('*', requestIdMiddleware);
+
+// Request timing middleware (after requestId so logger is available)
+app.use('*', requestTimingMiddleware);
 
 // General middleware
 app.use('*', logger());
