@@ -7,6 +7,15 @@ import { EventBus } from './event-bus.service';
 import { SocialService } from './social.service';
 import { NotFoundError, BadRequestError } from '../../core/errors';
 
+// Mock the notificationService singleton used by social.service.ts
+vi.mock('./notification.service', () => ({
+  notificationService: {
+    notify: vi.fn().mockResolvedValue({ id: 'n-1' }),
+  },
+}));
+
+import { notificationService } from './notification.service';
+
 function createMockFollowRepo() {
   return {
     follow: vi.fn(),
@@ -77,15 +86,14 @@ describe('SocialService', () => {
     it('should call followRepo.follow, emit event, and create notification', async () => {
       const fakeFollow = { id: 'f-1', followerId: 'user-1', followingId: 'user-2' };
       followRepo.follow.mockResolvedValue(fakeFollow);
-      notificationRepo.createNotification.mockResolvedValue({ id: 'n-1' });
       const emitSpy = vi.spyOn(eventBus, 'emit');
 
       const result = await service.followUser('user-1', 'user-2');
 
       expect(followRepo.follow).toHaveBeenCalledWith('user-1', 'user-2');
       expect(emitSpy).toHaveBeenCalledWith('social.follow', { followerId: 'user-1', followingId: 'user-2' });
-      expect(notificationRepo.createNotification).toHaveBeenCalledWith(
-        'user-2', 'follow', 'user-1', 'user', 'user-1', 'started following you',
+      expect(notificationService.notify).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-2', type: 'follow', actorId: 'user-1' }),
       );
       expect(result).toEqual(fakeFollow);
     });

@@ -28,6 +28,7 @@ import { worldbooksRouter } from './routes/worldbooks';
 import { uploadRoutes } from './routes/uploads';
 import { webhookRoutes } from './routes/webhooks';
 import { notificationRoutes } from './routes/notifications';
+import { notificationPreferenceRoutes } from './routes/notification-preferences';
 import { socialRoutes } from './routes/social';
 import { activityRoutes } from './routes/activity';
 import { developerRoutes } from './routes/developer';
@@ -133,6 +134,7 @@ app.use('/api/v1/worldbooks/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/uploads/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/webhooks/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/notifications/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/notification-preferences/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/social/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/developer/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/plugins/*', tenantMiddleware({ publicPaths }));
@@ -187,6 +189,7 @@ app.use('/api/v1/worldbooks', csrfProtection());
 app.use('/api/v1/uploads', csrfProtection());
 app.use('/api/v1/webhooks', csrfProtection());
 app.use('/api/v1/notifications', csrfProtection());
+app.use('/api/v1/notification-preferences', csrfProtection());
 app.use('/api/v1/social', csrfProtection());
 app.use('/api/v1/developer', csrfProtection());
 app.use('/api/v1/plugins', csrfProtection());
@@ -212,6 +215,7 @@ app.route('/api/v1/worldbooks', worldbooksRouter);
 app.route('/api/v1/uploads', uploadRoutes);
 app.route('/api/v1/webhooks', webhookRoutes);
 app.route('/api/v1/notifications', notificationRoutes);
+app.route('/api/v1/notification-preferences', notificationPreferenceRoutes);
 app.route('/api/v1/social', socialRoutes);
 app.route('/api/v1/social', activityRoutes);
 app.route('/api/v1/developer', developerRoutes);
@@ -248,6 +252,7 @@ app.get('/api/v1', (c) => {
       llm: '/api/v1/llm',
       uploads: '/api/v1/uploads',
       notifications: '/api/v1/notifications',
+      notificationPreferences: '/api/v1/notification-preferences',
       social: '/api/v1/social',
       developer: '/api/v1/developer',
       plugins: '/api/v1/plugins',

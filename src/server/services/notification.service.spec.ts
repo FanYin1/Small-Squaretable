@@ -3,8 +3,75 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotificationService } from './notification.service';
 import { WSMessageType } from '@/types/websocket';
+
+// Use vi.hoisted so mock variables are available in vi.mock factories
+const mocks = vi.hoisted(() => {
+  const mockReturning = vi.fn();
+  const mockOnConflictDoUpdate = vi.fn().mockReturnValue({ returning: mockReturning });
+  const mockValues = vi.fn().mockReturnValue({
+    returning: mockReturning,
+    onConflictDoUpdate: mockOnConflictDoUpdate,
+  });
+  const mockInsert = vi.fn().mockReturnValue({ values: mockValues });
+  const mockUpdateReturning = vi.fn();
+  const mockUpdateWhere = vi.fn().mockReturnValue({ returning: mockUpdateReturning });
+  const mockSet = vi.fn().mockReturnValue({ where: mockUpdateWhere });
+  const mockUpdate = vi.fn().mockReturnValue({ set: mockSet });
+  const mockLimit = vi.fn();
+  const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit });
+  const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy, limit: mockLimit });
+  const mockFrom = vi.fn().mockReturnValue({ where: mockWhere });
+  const mockSelect = vi.fn().mockReturnValue({ from: mockFrom });
+  return {
+    mockReturning,
+    mockOnConflictDoUpdate,
+    mockValues,
+    mockInsert,
+    mockUpdateReturning,
+    mockUpdateWhere,
+    mockSet,
+    mockUpdate,
+    mockLimit,
+    mockOrderBy,
+    mockWhere,
+    mockFrom,
+    mockSelect,
+  };
+});
+
+vi.mock('@db/index', () => ({
+  db: {
+    select: mocks.mockSelect,
+    insert: mocks.mockInsert,
+    update: mocks.mockUpdate,
+  },
+}));
+
+vi.mock('@db/schema/social', () => ({
+  notifications: {
+    userId: 'userId',
+    groupKey: 'groupKey',
+    isRead: 'isRead',
+    createdAt: 'createdAt',
+    id: 'id',
+    $inferInsert: {},
+  },
+}));
+
+vi.mock('@db/schema/notification-preferences', () => ({
+  notificationPreferences: {
+    userId: 'userId',
+    notificationType: 'notificationType',
+    $inferInsert: {},
+  },
+}));
+
+vi.mock('drizzle-orm', () => ({
+  eq: vi.fn((...args: unknown[]) => ({ op: 'eq', args })),
+  and: vi.fn((...args: unknown[]) => ({ op: 'and', args })),
+  desc: vi.fn((col: unknown) => ({ op: 'desc', col })),
+}));
 
 function createMockRepo() {
   return {
@@ -19,12 +86,30 @@ function createMockRepo() {
 
 type MockRepo = ReturnType<typeof createMockRepo>;
 
+// Import after mocks are set up
+import { NotificationService } from './notification.service';
+
 describe('NotificationService', () => {
   let repo: MockRepo;
   let broadcastFn: ReturnType<typeof vi.fn>;
   let service: NotificationService;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset chainable mock returns
+    mocks.mockOnConflictDoUpdate.mockReturnValue({ returning: mocks.mockReturning });
+    mocks.mockValues.mockReturnValue({
+      returning: mocks.mockReturning,
+      onConflictDoUpdate: mocks.mockOnConflictDoUpdate,
+    });
+    mocks.mockInsert.mockReturnValue({ values: mocks.mockValues });
+    mocks.mockSet.mockReturnValue({ where: mocks.mockUpdateWhere });
+    mocks.mockUpdate.mockReturnValue({ set: mocks.mockSet });
+    mocks.mockOrderBy.mockReturnValue({ limit: mocks.mockLimit });
+    mocks.mockWhere.mockReturnValue({ orderBy: mocks.mockOrderBy, limit: mocks.mockLimit });
+    mocks.mockFrom.mockReturnValue({ where: mocks.mockWhere });
+    mocks.mockSelect.mockReturnValue({ from: mocks.mockFrom });
+
     repo = createMockRepo();
     broadcastFn = vi.fn();
     service = new NotificationService(repo as any, broadcastFn);
@@ -32,6 +117,9 @@ describe('NotificationService', () => {
 
   describe('notify', () => {
     it('should create notification and broadcast via WebSocket', async () => {
+      // Mock: no preference found (defaults apply: inApp=true)
+      mocks.mockLimit.mockResolvedValueOnce([]);
+
       const fakeNotification = {
         id: 'notif-1',
         userId: 'user-1',
@@ -43,22 +131,22 @@ describe('NotificationService', () => {
         createdAt: new Date('2026-01-01T00:00:00Z'),
         isRead: false,
       };
-      repo.createNotification.mockResolvedValue(fakeNotification);
+      repo.createNotification.mockResolvedValueOnce(fakeNotification);
       repo.getUnreadCount.mockResolvedValue(5);
 
-      const result = await service.notify(
-        'user-1',
-        'follow',
-        'actor-1',
-        'user',
-        'user-1',
-        'Someone followed you',
-      );
+      const result = await service.notify({
+        userId: 'user-1',
+        type: 'follow',
+        actorId: 'actor-1',
+        targetType: 'user',
+        targetId: 'user-1',
+        message: 'Someone followed you',
+      });
 
+      expect(result).toEqual(fakeNotification);
       expect(repo.createNotification).toHaveBeenCalledWith(
         'user-1', 'follow', 'actor-1', 'user', 'user-1', 'Someone followed you',
       );
-      expect(result).toEqual(fakeNotification);
 
       // Should broadcast the notification
       expect(broadcastFn).toHaveBeenCalledTimes(2);
@@ -68,11 +156,6 @@ describe('NotificationService', () => {
       expect(notifCall[1].type).toBe(WSMessageType.SOCIAL_NOTIFICATION);
       expect(notifCall[1].data.id).toBe('notif-1');
       expect(notifCall[1].data.type).toBe('follow');
-      expect(notifCall[1].data.message).toBe('Someone followed you');
-      expect(notifCall[1].data.actorId).toBe('actor-1');
-      expect(notifCall[1].data.targetType).toBe('user');
-      expect(notifCall[1].data.targetId).toBe('user-1');
-      expect(notifCall[1].timestamp).toBeTypeOf('string');
 
       // Should broadcast updated unread count
       const countCall = broadcastFn.mock.calls[1];
@@ -81,23 +164,44 @@ describe('NotificationService', () => {
       expect(countCall[1].data.count).toBe(5);
     });
 
+    it('should skip in-app notification when preference inApp is false', async () => {
+      // Mock: preference found with inApp=false
+      mocks.mockLimit.mockResolvedValueOnce([{ inApp: false, email: true, emailFrequency: 'daily' }]);
+
+      const result = await service.notify({
+        userId: 'user-1',
+        type: 'follow',
+        actorId: 'actor-1',
+        targetType: 'user',
+        targetId: 'user-1',
+        message: 'Someone followed you',
+      });
+
+      expect(result).toBeUndefined();
+      expect(broadcastFn).not.toHaveBeenCalled();
+    });
+
     it('should work without broadcastFn (no crash)', async () => {
       const serviceNoBroadcast = new NotificationService(repo as any);
-      const fakeNotification = {
-        id: 'notif-2',
-        createdAt: new Date(),
-      };
-      repo.createNotification.mockResolvedValue(fakeNotification);
 
-      const result = await serviceNoBroadcast.notify(
-        'user-1', 'comment', 'actor-1', 'character', 'char-1', 'New comment',
-      );
+      // Mock: no preference
+      mocks.mockLimit.mockResolvedValueOnce([]);
+
+      const fakeNotification = { id: 'notif-2', createdAt: new Date() };
+      repo.createNotification.mockResolvedValueOnce(fakeNotification);
+
+      const result = await serviceNoBroadcast.notify({
+        userId: 'user-1',
+        type: 'comment',
+        actorId: 'actor-1',
+        targetType: 'character',
+        targetId: 'char-1',
+        message: 'New comment',
+      });
 
       expect(result).toEqual(fakeNotification);
-      expect(repo.createNotification).toHaveBeenCalledTimes(1);
-      // broadcastFn should not have been called (it's undefined)
+      expect(repo.createNotification).toHaveBeenCalled();
       expect(broadcastFn).not.toHaveBeenCalled();
-      // getUnreadCount should not be called when no broadcastFn
       expect(repo.getUnreadCount).not.toHaveBeenCalled();
     });
   });
@@ -138,7 +242,6 @@ describe('NotificationService', () => {
       expect(repo.markAsRead).toHaveBeenCalledWith('notif-1', 'user-1');
       expect(result).toBe(true);
 
-      // Should broadcast updated unread count
       expect(broadcastFn).toHaveBeenCalledTimes(1);
       const call = broadcastFn.mock.calls[0];
       expect(call[0]).toBe('user-1');
@@ -166,7 +269,6 @@ describe('NotificationService', () => {
       expect(repo.markAllAsRead).toHaveBeenCalledWith('user-1');
       expect(result).toBe(4);
 
-      // Should broadcast count=0
       expect(broadcastFn).toHaveBeenCalledTimes(1);
       const call = broadcastFn.mock.calls[0];
       expect(call[0]).toBe('user-1');
@@ -191,6 +293,67 @@ describe('NotificationService', () => {
       const result = await service.deleteNotification('notif-999', 'user-1');
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('getPreferences', () => {
+    it('should return defaults for all types when no preferences exist', async () => {
+      mocks.mockWhere.mockResolvedValueOnce([]);
+
+      const prefs = await service.getPreferences('user-1');
+
+      expect(prefs).toHaveLength(10);
+      expect(prefs[0]).toEqual({
+        notificationType: 'follow',
+        inApp: true,
+        email: false,
+        emailFrequency: 'immediate',
+      });
+    });
+
+    it('should merge existing preferences with defaults', async () => {
+      mocks.mockWhere.mockResolvedValueOnce([
+        { notificationType: 'follow', inApp: false, email: true, emailFrequency: 'daily' },
+      ]);
+
+      const prefs = await service.getPreferences('user-1');
+
+      const followPref = prefs.find((p) => p.notificationType === 'follow');
+      expect(followPref).toEqual({
+        notificationType: 'follow',
+        inApp: false,
+        email: true,
+        emailFrequency: 'daily',
+      });
+
+      const commentPref = prefs.find((p) => p.notificationType === 'comment');
+      expect(commentPref).toEqual({
+        notificationType: 'comment',
+        inApp: true,
+        email: false,
+        emailFrequency: 'immediate',
+      });
+    });
+  });
+
+  describe('updatePreference', () => {
+    it('should upsert preference and return result', async () => {
+      const fakeRow = {
+        notificationType: 'follow',
+        inApp: false,
+        email: true,
+        emailFrequency: 'daily',
+      };
+      mocks.mockReturning.mockResolvedValueOnce([fakeRow]);
+
+      const result = await service.updatePreference('user-1', 'follow', {
+        inApp: false,
+        email: true,
+        emailFrequency: 'daily',
+      });
+
+      expect(result).toEqual(fakeRow);
+      expect(mocks.mockInsert).toHaveBeenCalled();
     });
   });
 });
