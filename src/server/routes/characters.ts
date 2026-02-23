@@ -685,6 +685,18 @@ characterRoutes.patch(
     const isOwner = existing.creatorId === user.id;
 
     if (!isOwner) {
+      // Verify collaborator is in the same tenant
+      if (existing.tenantId !== user.tenantId) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'FORBIDDEN', message: 'Forbidden' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          403
+        );
+      }
+
       const collaborator = await db.select().from(characterCollaborators)
         .where(and(
           eq(characterCollaborators.characterId, characterId),
@@ -710,8 +722,18 @@ characterRoutes.patch(
     if (isOwner) {
       character = await characterService.update(characterId, user.id, user.tenantId, input);
     } else {
+      // Collaborators can only edit content fields, not publishing/visibility
+      const { name, description, avatarUrl, cardData, tags, category } = input;
+      const safeInput: Record<string, unknown> = {};
+      if (name !== undefined) safeInput.name = name;
+      if (description !== undefined) safeInput.description = description;
+      if (avatarUrl !== undefined) safeInput.avatarUrl = avatarUrl;
+      if (cardData !== undefined) safeInput.cardData = cardData;
+      if (tags !== undefined) safeInput.tags = tags;
+      if (category !== undefined) safeInput.category = category;
+
       const [updated] = await db.update(characters)
-        .set({ ...input, updatedAt: new Date() })
+        .set({ ...safeInput, updatedAt: new Date() })
         .where(eq(characters.id, characterId))
         .returning();
       if (!updated) {
