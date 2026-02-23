@@ -50,6 +50,7 @@
         :maxlength="maxLength"
         :disabled="disabled || sending"
         @keydown="handleKeyDown"
+        @input="handleTypingInput"
         class="input-textarea"
         resize="none"
       />
@@ -111,6 +112,7 @@ import { useAudioRecorder } from '@client/composables/useAudioRecorder';
 import { useSpeechToText } from '@client/composables/useSpeechToText';
 import { uploadApi } from '@client/services/upload.api';
 import { useToast } from '@client/composables/useToast';
+import { useChatStore } from '@client/stores/chat';
 import type { MessageAttachment } from '@client/types';
 
 interface Props {
@@ -136,10 +138,36 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const toast = useToast();
+const chatStore = useChatStore();
 const audioRecorder = useAudioRecorder();
 const stt = useSpeechToText();
 const inputValue = ref('');
 const isUploading = ref(false);
+
+// Debounced typing indicator
+let typingTimeout: ReturnType<typeof setTimeout> | null = null;
+let isCurrentlyTyping = false;
+
+function handleTypingInput() {
+  if (!isCurrentlyTyping) {
+    isCurrentlyTyping = true;
+    chatStore.sendTypingStart();
+  }
+  if (typingTimeout) clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    isCurrentlyTyping = false;
+    chatStore.sendTypingStop();
+  }, 2000);
+}
+
+function stopTypingIndicator() {
+  if (isCurrentlyTyping) {
+    isCurrentlyTyping = false;
+    if (typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = null;
+    chatStore.sendTypingStop();
+  }
+}
 
 const computedPlaceholder = computed(() => {
   if (stt.isListening.value && stt.interimTranscript.value) {
@@ -192,6 +220,7 @@ const formattedDuration = computed(() => {
 const handleSend = () => {
   if (!canSend.value) return;
 
+  stopTypingIndicator();
   const content = inputValue.value.trim();
   if (content) {
     emit('send', content);

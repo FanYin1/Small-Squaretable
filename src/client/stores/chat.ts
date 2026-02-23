@@ -37,6 +37,9 @@ export const useChatStore = defineStore('chat', () => {
   // Branch navigation state
   const branchCache = ref<Map<number, { siblings: Message[]; currentIndex: number }>>(new Map());
 
+  // Typing indicator state
+  const typingUsers = ref<Map<string, { userId: string; userName: string; timeout: ReturnType<typeof setTimeout> }>>(new Map());
+
   // WebSocket client
   let wsClient: WebSocketClient | null = null;
 
@@ -257,6 +260,12 @@ export const useChatStore = defineStore('chat', () => {
       const notifStore = useNotificationStore();
       notifStore.handleWsUnreadCount((data as { count: number }).count);
     });
+
+    // Remote user typing events
+    wsClient.on('userTyping', (data: unknown) => {
+      handleRemoteTyping(data as { chatId: string; userId: string; userName?: string; isTyping?: boolean });
+    });
+
     wsClient.connect();
   }
 
@@ -792,6 +801,54 @@ export const useChatStore = defineStore('chat', () => {
     branchCache.value.clear();
   }
 
+  /**
+   * Send typing start event via WebSocket
+   */
+  function sendTypingStart(): void {
+    const chatId = currentChatId.value;
+    if (!chatId || !wsClient) return;
+    wsClient.sendTyping(chatId, true);
+  }
+
+  /**
+   * Send typing stop event via WebSocket
+   */
+  function sendTypingStop(): void {
+    const chatId = currentChatId.value;
+    if (!chatId || !wsClient) return;
+    wsClient.sendTyping(chatId, false);
+  }
+
+  /**
+   * Mark a chat as read by sending a read receipt via WebSocket
+   */
+  function markChatAsRead(chatId: string, lastMessageId: string | number): void {
+    if (!wsClient) return;
+    wsClient.sendChatRead(chatId, String(lastMessageId));
+    // Optimistically update local state
+    const chat = chats.value.find((c: any) => c.id === chatId);
+    if (chat) chat.unreadCount = 0;
+  }
+
+  /**
+   * Handle remote user typing event from WebSocket
+   */
+  function handleRemoteTyping(data: { chatId: string; userId: string; userName?: string; isTyping?: boolean }): void {
+    if (data.chatId !== currentChatId.value) return;
+    const key = data.userId;
+    const existing = typingUsers.value.get(key);
+    if (existing) clearTimeout(existing.timeout);
+
+    if (data.isTyping !== false) {
+      const timeout = setTimeout(() => {
+        typingUsers.value.delete(key);
+      }, 5000);
+      typingUsers.value.set(key, { userId: data.userId, userName: data.userName || 'Someone', timeout });
+    } else {
+      typingUsers.value.delete(key);
+    }
+  }
+
   return {
     chats,
     currentChatId,
@@ -840,6 +897,11 @@ export const useChatStore = defineStore('chat', () => {
     getBranchInfo,
     switchBranch,
     clearBranchCache,
+    typingUsers,
+    sendTypingStart,
+    sendTypingStop,
+    markChatAsRead,
+    handleRemoteTyping,
     initWebSocket,
     disconnectWebSocket,
   };

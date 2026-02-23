@@ -234,6 +234,11 @@
     </div>
 
     <div class="chat-input-container">
+      <!-- Remote user typing indicator -->
+      <div v-if="remoteTypingNames.length > 0" class="remote-typing-indicator">
+        <span class="remote-typing-dots"><span></span><span></span><span></span></span>
+        <span class="remote-typing-text">{{ remoteTypingNames.join(', ') }} {{ remoteTypingNames.length === 1 ? 'is' : 'are' }} typing...</span>
+      </div>
       <MessageInput
         :disabled="!currentChat"
         :sending="sending"
@@ -454,6 +459,11 @@ const streamingCharacterAvatar = computed(() => {
 // Typing indicator character name
 const typingCharacterName = computed(() => {
   return chatStore.streamingCharacterName || props.currentChat?.characterName || '';
+});
+
+// Remote user typing indicator names
+const remoteTypingNames = computed(() => {
+  return Array.from(chatStore.typingUsers.values()).map(u => u.userName);
 });
 
 // Voice config from character's cardData extensions
@@ -1357,6 +1367,41 @@ onUnmounted(() => {
 
 .chat-input-container {
   flex-shrink: 0;
+}
+
+.remote-typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary, #909399);
+}
+
+.remote-typing-dots {
+  display: flex;
+  gap: 3px;
+}
+
+.remote-typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--el-text-color-placeholder, #a8abb2);
+  animation: remote-typing-bounce 1.4s infinite ease-in-out;
+}
+
+.remote-typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.remote-typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes remote-typing-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
 }
 
 /* Scrollbar styling */

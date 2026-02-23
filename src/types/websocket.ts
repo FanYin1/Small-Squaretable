@@ -136,6 +136,7 @@ export interface WSTypingMessage extends WSMessage {
     chatId: string;
     userId?: string;
     userName?: string;
+    isTyping?: boolean;
   };
 }
 
