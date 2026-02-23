@@ -35,6 +35,7 @@ import { activityRoutes } from './routes/activity';
 import { developerRoutes } from './routes/developer';
 import { pluginRoutes } from './routes/plugins';
 import { analyticsRoutes } from './routes/analytics';
+import { vitalsRoutes } from './routes/vitals';
 import { oauthRoutes } from './routes/oauth';
 import { mfaRoutes } from './routes/mfa';
 import { reportRoutes } from './routes/reports';
@@ -170,6 +171,9 @@ app.get('/health/ready', async (c) => {
   const statusCode = health.status === 'ok' ? 200 : health.status === 'degraded' ? 200 : 503;
   return c.json(health, statusCode);
 });
+
+// Web Vitals ingestion (no auth, no CSRF — sendBeacon cannot send headers)
+app.route('/api/v1/analytics/vitals', vitalsRoutes);
 
 // API 路由
 
