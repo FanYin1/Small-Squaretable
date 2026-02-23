@@ -23,6 +23,7 @@ export interface CacheOptions {
 export class CacheService {
   private readonly defaultPrefix = 'api';
   private readonly defaultTTL = config.cacheTtlDefault;
+  private readonly inflightRequests = new Map<string, Promise<unknown>>();
 
   /**
    * Generate cache key from parameters
@@ -89,21 +90,40 @@ export class CacheService {
   }
 
   /**
-   * Get or set cache (cache-aside pattern)
+   * Get or set cache (cache-aside pattern with singleflight protection)
+   *
+   * Concurrent requests for the same key are coalesced so that only one
+   * fetchFn invocation runs at a time, preventing cache stampede.
    */
   async getOrSet<T>(
     key: string,
     fetchFn: () => Promise<T>,
     ttl: number = this.defaultTTL
   ): Promise<T> {
+    // 1. Check cache first
     const cached = await this.get<T>(key);
     if (cached !== null) {
       return cached;
     }
 
-    const value = await fetchFn();
-    await this.set(key, value, ttl);
-    return value;
+    // 2. Check if there's already an in-flight request for this key
+    const inflight = this.inflightRequests.get(key);
+    if (inflight) {
+      return inflight as Promise<T>;
+    }
+
+    // 3. Create the fetch promise and register it
+    const fetchPromise = fetchFn()
+      .then(async (value) => {
+        await this.set(key, value, ttl);
+        return value;
+      })
+      .finally(() => {
+        this.inflightRequests.delete(key);
+      });
+
+    this.inflightRequests.set(key, fetchPromise);
+    return fetchPromise;
   }
 
   /**
