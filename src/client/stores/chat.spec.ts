@@ -296,6 +296,39 @@ describe('Chat Store', () => {
     });
   });
 
+  describe('addGreetingMessage', () => {
+    it('should create an assistant message via the API and add to messages', async () => {
+      const mockGreetingMessage: Message = {
+        id: '10',
+        chatId: 'chat1',
+        role: 'assistant',
+        content: 'Hello! I am your character.',
+        createdAt: '2024-01-01',
+      };
+
+      vi.mocked(chatApi.sendMessage).mockResolvedValue({ message: mockGreetingMessage });
+
+      const store = useChatStore();
+      await store.addGreetingMessage('chat1', 'Hello! I am your character.');
+
+      expect(chatApi.sendMessage).toHaveBeenCalledWith('chat1', {
+        role: 'assistant',
+        content: 'Hello! I am your character.',
+      });
+      expect(store.messages).toContainEqual(mockGreetingMessage);
+    });
+
+    it('should throw and not add message if API call fails', async () => {
+      const error = new ApiError(500, 'SERVER_ERROR', 'Server error');
+      vi.mocked(chatApi.sendMessage).mockRejectedValue(error);
+
+      const store = useChatStore();
+      await expect(store.addGreetingMessage('chat1', 'Hello!')).rejects.toThrow();
+
+      expect(store.messages).toEqual([]);
+    });
+  });
+
   describe('currentChat getter', () => {
     it('should return current chat', () => {
       const store = useChatStore();

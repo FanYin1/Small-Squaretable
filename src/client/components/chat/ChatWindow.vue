@@ -802,12 +802,24 @@ const scrollToBottom = (smooth = true) => {
 
 const handleSendMessage = async (content: string, attachments?: MessageAttachment[]) => {
   try {
+    // Persist the selected greeting as the first assistant message before sending
+    if (messages.value.length === 0 && currentGreeting.value) {
+      await persistGreeting();
+    }
     await chatStore.sendMessage(content, attachments);
     scrollToBottom();
   } catch (error: unknown) {
     logger.error('Failed to send message', error);
   }
 };
+
+async function persistGreeting() {
+  if (messages.value.length > 0) return;
+  if (!currentGreeting.value) return;
+  const chatId = chatStore.currentChatId;
+  if (!chatId) return;
+  await chatStore.addGreetingMessage(chatId, currentGreeting.value);
+}
 
 const handleMenuCommand = async (command: string) => {
   if (!props.currentChat) return;

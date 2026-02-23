@@ -631,6 +631,19 @@ export const useChatStore = defineStore('chat', () => {
     messages.value.push(message);
   }
 
+  async function addGreetingMessage(chatId: string, content: string): Promise<void> {
+    try {
+      const response = await chatApi.sendMessage(chatId, {
+        role: 'assistant',
+        content,
+      });
+      messages.value.push(response.message);
+    } catch (e) {
+      logger.error('Failed to persist greeting message', e);
+      throw e;
+    }
+  }
+
   function clearMessages(): void {
     messages.value = [];
   }
@@ -884,6 +897,7 @@ export const useChatStore = defineStore('chat', () => {
     renameChat,
     setCurrentChat,
     addMessage,
+    addGreetingMessage,
     clearMessages,
     searchMessages,
     clearSearch,
