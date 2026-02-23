@@ -200,6 +200,12 @@ export const characterApi = {
     api.delete(`/characters/${id}`),
 
   /**
+   * 批量删除角色
+   */
+  batchDelete: (characterIds: string[]) =>
+    api.post<{ deleted: number }>('/characters/batch-delete', { characterIds }),
+
+  /**
    * 获取角色版本列表
    */
   getVersions: (characterId: string, limit = 20, offset = 0) =>
@@ -210,4 +216,12 @@ export const characterApi = {
    */
   getVersion: (characterId: string, version: number) =>
     api.get<CharacterVersion>(`/characters/${characterId}/versions/${version}`),
+
+  /**
+   * 复制角色
+   */
+  duplicateCharacter: async (id: string): Promise<Character> => {
+    const res = await api.post<BackendCharacter>(`/characters/${id}/duplicate`);
+    return transformCharacter(res);
+  },
 };

@@ -417,7 +417,9 @@
     "exportFailed": "导出失败",
     "exportJson": "导出 JSON",
     "exportPng": "导出 PNG",
-    "selected": "已选择 {count} 个"
+    "selected": "已选择 {count} 个",
+    "duplicated": "角色已复制",
+    "duplicateFailed": "复制失败"
   },
   "subscription": {
     "title": "订阅管理",

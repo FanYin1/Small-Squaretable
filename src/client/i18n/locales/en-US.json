@@ -417,7 +417,9 @@
     "exportFailed": "Export failed",
     "exportJson": "Export JSON",
     "exportPng": "Export PNG",
-    "selected": "{count} selected"
+    "selected": "{count} selected",
+    "duplicated": "Character duplicated",
+    "duplicateFailed": "Failed to duplicate"
   },
   "subscription": {
     "title": "Subscription",

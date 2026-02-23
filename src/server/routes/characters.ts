@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import archiver from 'archiver';
 import { characterService } from '../services/character.service';
+import { characterRepository } from '../../db/repositories/character.repository';
 import { characterVersionService } from '../services/character-version.service';
 import { logger } from '../services/logger.service';
 
@@ -571,6 +572,25 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
   }
 });
 
+// POST /batch-delete — Batch delete characters by IDs
+const batchDeleteSchema = z.object({
+  characterIds: z.array(z.string().uuid()).min(1).max(50),
+});
+
+characterRoutes.post('/batch-delete', authMiddleware(), zValidator('json', batchDeleteSchema), async (c) => {
+  const user = c.get('user') as { id: string; tenantId: string };
+  const { characterIds } = c.req.valid('json');
+  const deleted = await characterRepository.bulkDelete(characterIds, user.tenantId);
+  for (const id of characterIds) {
+    await cacheService.invalidateCharacter(id);
+  }
+  return c.json<ApiResponse>({
+    success: true,
+    data: { deleted },
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
 // 获取单个角色
 characterRoutes.get('/:id', authMiddleware(), async (c) => {
   const user = c.get('user');
@@ -831,6 +851,36 @@ characterRoutes.post('/:id/fork', authMiddleware(), async (c) => {
     {
       success: true,
       data: character,
+      meta: { timestamp: new Date().toISOString() },
+    },
+    201
+  );
+});
+
+// 复制角色
+characterRoutes.post('/:id/duplicate', authMiddleware(), async (c) => {
+  const user = c.get('user') as { id: string; tenantId: string };
+  const characterId = c.req.param('id');
+
+  const original = await characterService.getById(characterId);
+
+  const duplicate = await characterRepository.create({
+    tenantId: user.tenantId,
+    creatorId: user.id,
+    name: `${original.name} (Copy)`,
+    description: original.description,
+    avatarUrl: original.avatarUrl,
+    cardData: original.cardData,
+    tags: original.tags,
+    category: original.category,
+    isPublic: false,
+    isNsfw: original.isNsfw,
+  });
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: duplicate,
       meta: { timestamp: new Date().toISOString() },
     },
     201

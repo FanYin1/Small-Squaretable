@@ -3,8 +3,9 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessageBox } from 'element-plus';
-import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound } from '@element-plus/icons-vue';
+import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound, CopyDocument } from '@element-plus/icons-vue';
 import { api } from '@client/services/api';
+import { characterApi } from '@client/services/character.api';
 import { exportApi } from '@client/services/export.api';
 import { useFeatureGate } from '@client/composables/useFeatureGate';
 import { useToast } from '@client/composables/useToast';
@@ -64,6 +65,29 @@ async function handleBatchImport(event: Event) {
     toast.error(t('myCharacters.importFailed'), { message: e.message || t('common.retry') });
   }
   input.value = '';
+}
+
+async function batchDelete() {
+  if (selectedIds.value.length === 0) return;
+  try {
+    await ElMessageBox.confirm(
+      t('myCharacters.batchDeleteConfirm'),
+      t('myCharacters.deleteTitle'),
+      {
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+        type: 'error',
+      }
+    );
+    const result = await characterApi.batchDelete(selectedIds.value);
+    toast.success(t('myCharacters.batchDeleteSuccess', { count: result.deleted }));
+    selectedIds.value = [];
+    await fetchCharacters();
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      toast.error(t('myCharacters.deleteFailed'), { message: e.message || t('common.retry') });
+    }
+  }
 }
 
 // Dialogs
@@ -186,6 +210,16 @@ async function handleDelete(character: Character) {
 function handleExport(character: Character) {
   downloadCharacterJson(character);
   toast.success(t('myCharacters.exported'));
+}
+
+async function handleDuplicate(character: Character) {
+  try {
+    await characterApi.duplicateCharacter(character.id);
+    toast.success(t('myCharacters.duplicated'));
+    await fetchCharacters();
+  } catch (error: any) {
+    toast.error(t('myCharacters.duplicateFailed'), { message: error.message || t('common.retry') });
+  }
 }
 
 async function handleImport() {
@@ -316,6 +350,7 @@ function handleStartChat(character: Character) {
       <span class="batch-count">{{ t('myCharacters.selected', { count: selectedIds.length }) }}</span>
       <el-button size="small" :icon="Download" @click="batchExport('json')">{{ t('myCharacters.exportJson') }}</el-button>
       <el-button size="small" :icon="Download" @click="batchExport('png')">{{ t('myCharacters.exportPng') }}</el-button>
+      <el-button size="small" type="danger" :icon="Delete" @click="batchDelete">{{ t('myCharacters.batchDelete') }}</el-button>
     </div>
 
     <div v-loading="loading" class="characters-section">
@@ -393,6 +428,13 @@ function handleStartChat(character: Character) {
               :icon="Download"
               circle
               @click.stop="handleExport(character)"
+            />
+
+            <el-button
+              size="small"
+              :icon="CopyDocument"
+              circle
+              @click.stop="handleDuplicate(character)"
             />
 
             <el-button
