@@ -1,4 +1,8 @@
 import { chatCharacterRepository } from '../../db/repositories/chat-character.repository';
+import { chatRepository } from '../../db/repositories/chat.repository';
+import { db } from '../../db';
+import { chats } from '../../db/schema/chats';
+import { eq } from 'drizzle-orm';
 import { logger } from './logger.service';
 
 const groupLogger = logger.child({ module: 'group-chat' });
@@ -47,6 +51,21 @@ export class GroupChatService {
 
   async removeCharacter(chatId: string, characterId: string) {
     return chatCharacterRepository.removeCharacter(chatId, characterId);
+  }
+
+  async getStrategy(chatId: string): Promise<TurnStrategy> {
+    const chat = await chatRepository.findById(chatId);
+    const meta = (chat?.metadata as Record<string, unknown>) || {};
+    return (meta.groupStrategy as TurnStrategy) || 'round_robin';
+  }
+
+  async setStrategy(chatId: string, strategy: TurnStrategy): Promise<void> {
+    const chat = await chatRepository.findById(chatId);
+    if (!chat) return;
+    const meta = (chat.metadata as Record<string, unknown>) || {};
+    await db.update(chats).set({
+      metadata: { ...meta, groupStrategy: strategy },
+    }).where(eq(chats.id, chatId));
   }
 }
 

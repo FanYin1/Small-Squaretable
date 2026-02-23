@@ -334,8 +334,9 @@ export class WebSocketHandler {
       }
     }
 
+    const strategy = await groupChatService.getStrategy(chatId);
     const respondentIds = await groupChatService.selectRespondents(
-      chatId, 'round_robin', lastResponderId
+      chatId, strategy, lastResponderId
     );
 
     for (const charId of respondentIds) {

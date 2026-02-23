@@ -720,6 +720,45 @@ chatRoutes.delete('/:id/characters/:characterId', authMiddleware(), async (c) =>
   );
 });
 
+// --- Group chat strategy ---
+
+const groupStrategySchema = z.object({
+  strategy: z.enum(['round_robin', 'all', 'random']),
+});
+
+chatRoutes.patch(
+  '/:id/group-strategy',
+  authMiddleware(),
+  zValidator('json', groupStrategySchema),
+  async (c) => {
+    const user = c.get('user');
+    const chatId = c.req.param('id');
+    const { strategy } = c.req.valid('json');
+
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== user.id) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        404
+      );
+    }
+
+    await groupChatService.setStrategy(chatId, strategy);
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: { strategy },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  }
+);
+
 // --- Message bookmarks ---
 
 // ブックマーク作成
