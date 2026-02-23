@@ -37,3 +37,4 @@ export * from './chat-snapshots';
 export * from './character-collaborators';
 export * from './character-templates';
 export * from './notification-preferences';
+export * from './character-collections';

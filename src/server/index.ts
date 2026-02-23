@@ -46,6 +46,7 @@ import { chatTemplatesRouter } from './routes/chat-templates';
 import { shareRoutes } from './routes/share';
 import { characterCollaboratorRoutes } from './routes/character-collaborators';
 import { characterTemplateRoutes } from './routes/character-templates';
+import { characterCollectionRoutes } from './routes/character-collections';
 import { characterRelationshipsRouter } from './routes/character-relationships';
 import { characterGrowthRouter } from './routes/character-growth';
 import { searchRoutes } from './routes/search';
@@ -153,6 +154,7 @@ app.use('/api/v1/character-relationships/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-growth/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-collaborators/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-templates/*', tenantMiddleware({ publicPaths }));
+app.use('/api/v1/character-collections/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/search/*', tenantMiddleware({ publicPaths }));
 
 // 健康检查端点
@@ -211,6 +213,7 @@ app.use('/api/v1/character-relationships', csrfProtection());
 app.use('/api/v1/character-growth', csrfProtection());
 app.use('/api/v1/character-collaborators', csrfProtection());
 app.use('/api/v1/character-templates', csrfProtection());
+app.use('/api/v1/character-collections', csrfProtection());
 app.use('/api/v1/search', csrfProtection());
 
 app.route('/api/v1/users', userRoutes);
@@ -238,6 +241,7 @@ app.route('/api/v1/character-relationships', characterRelationshipsRouter);
 app.route('/api/v1/character-growth', characterGrowthRouter);
 app.route('/api/v1/character-collaborators', characterCollaboratorRoutes);
 app.route('/api/v1/character-templates', characterTemplateRoutes);
+app.route('/api/v1/character-collections', characterCollectionRoutes);
 app.route('/api/v1/search', searchRoutes);
 app.route('/api/v1', intelligenceRoutes);
 app.route('/api/v1/share', shareRoutes);
@@ -274,6 +278,7 @@ app.get('/api/v1', (c) => {
       characterGrowth: '/api/v1/character-growth',
       characterCollaborators: '/api/v1/character-collaborators',
       characterTemplates: '/api/v1/character-templates',
+      characterCollections: '/api/v1/character-collections',
       search: '/api/v1/search',
       docs: '/api/v1/docs',
       ws: '/ws',
