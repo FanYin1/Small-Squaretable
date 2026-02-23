@@ -40,6 +40,7 @@ const loadAdminSystem = () => import(/* webpackChunkName: "admin" */ '../pages/a
 const loadAdminAuditLogs = () => import(/* webpackChunkName: "admin" */ '../pages/admin/AuditLogs.vue');
 const loadAdminExperiments = () => import(/* webpackChunkName: "admin" */ '../pages/admin/Experiments.vue');
 const loadCharacterTemplates = () => import(/* webpackChunkName: "character-templates" */ '../pages/CharacterTemplates.vue');
+const loadChatTemplates = () => import(/* webpackChunkName: "chat-templates" */ '../pages/ChatTemplates.vue');
 
 export const routes: RouteRecordRaw[] = [
   {
@@ -394,6 +395,15 @@ export const routes: RouteRecordRaw[] = [
     component: loadCharacterTemplates,
     meta: {
       requiresAuth: false,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/chat-templates',
+    name: 'ChatTemplates',
+    component: loadChatTemplates,
+    meta: {
+      requiresAuth: true,
       guestOnly: false,
     },
   },

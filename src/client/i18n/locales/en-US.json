@@ -1486,6 +1486,22 @@
     "usageCount": "Used {count} times",
     "noTemplates": "No templates available"
   },
+  "chatTemplates": {
+    "title": "Chat Templates",
+    "create": "Create Template",
+    "edit": "Edit Template",
+    "name": "Name",
+    "description": "Description",
+    "systemPrompt": "System Prompt",
+    "firstMessage": "First Message",
+    "tags": "Tags",
+    "isPublic": "Public",
+    "deleteConfirm": "Delete this template?",
+    "createSuccess": "Template created",
+    "updateSuccess": "Template updated",
+    "deleteSuccess": "Template deleted",
+    "empty": "No templates yet"
+  },
   "notificationPrefs": {
     "title": "Notification Preferences",
     "type": "Type",

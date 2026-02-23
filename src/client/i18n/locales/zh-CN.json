@@ -1486,6 +1486,22 @@
     "usageCount": "已使用 {count} 次",
     "noTemplates": "暂无可用模板"
   },
+  "chatTemplates": {
+    "title": "聊天模板",
+    "create": "创建模板",
+    "edit": "编辑模板",
+    "name": "名称",
+    "description": "描述",
+    "systemPrompt": "系统提示词",
+    "firstMessage": "首条消息",
+    "tags": "标签",
+    "isPublic": "公开",
+    "deleteConfirm": "确定删除此模板？",
+    "createSuccess": "模板已创建",
+    "updateSuccess": "模板已更新",
+    "deleteSuccess": "模板已删除",
+    "empty": "暂无模板"
+  },
   "notificationPrefs": {
     "title": "通知偏好设置",
     "type": "类型",
