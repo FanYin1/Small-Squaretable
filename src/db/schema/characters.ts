@@ -69,6 +69,7 @@ export const characters = pgTable('characters', {
   creatorIdIdx: index('idx_characters_creator_id').on(table.creatorId),
   isPublicIdx: index('idx_characters_is_public').on(table.isPublic),
   isPublicCreatedAtIdx: index('idx_characters_is_public_created_at').on(table.isPublic, table.createdAt),
+  isPublicDownloadsIdx: index('idx_characters_public_downloads').on(table.isPublic, table.downloadCount),
 }));
 
 export type Character = typeof characters.$inferSelect;
