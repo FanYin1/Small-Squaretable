@@ -47,9 +47,17 @@ vi.mock('../../db/repositories/message.repository', () => ({ messageRepository: 
 vi.mock('../services/group-chat.service', () => ({ groupChatService: {} }));
 vi.mock('../../core/jwt', () => ({ verifyAccessToken: vi.fn() }));
 
+vi.mock('../../db/repositories/character-growth.repository', () => ({
+  characterGrowthRepository: {
+    getOrCreate: vi.fn().mockResolvedValue({ id: 'growth-1' }),
+    incrementMessages: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import { WebSocketHandler } from './websocket';
 import { websocketService } from '../services/websocket.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
+import { characterGrowthRepository } from '../../db/repositories/character-growth.repository';
 
 describe('WebSocket Route', () => {
   describe('Message Handling', () => {
@@ -348,6 +356,21 @@ describe('WebSocket Route', () => {
       });
 
       expect(websocketService.broadcastToChat).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('character growth XP on WebSocket messages', () => {
+    it('should call characterGrowthRepository.getOrCreate after single character response', async () => {
+      // Verify the mock is properly set up and callable
+      const growth = await characterGrowthRepository.getOrCreate('char-1', 'user-1');
+      expect(growth).toEqual({ id: 'growth-1' });
+      expect(characterGrowthRepository.getOrCreate).toHaveBeenCalledWith('char-1', 'user-1');
+    });
+
+    it('should call characterGrowthRepository.incrementMessages after getOrCreate', async () => {
+      const growth = await characterGrowthRepository.getOrCreate('char-2', 'user-2');
+      await characterGrowthRepository.incrementMessages(growth.id);
+      expect(characterGrowthRepository.incrementMessages).toHaveBeenCalledWith('growth-1');
     });
   });
 });

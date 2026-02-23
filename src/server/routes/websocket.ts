@@ -21,6 +21,7 @@ import { contextManager } from '../services/context-manager.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
+import { characterGrowthRepository } from '../../db/repositories/character-growth.repository';
 import { groupChatService } from '../services/group-chat.service';
 import {
   WSMessageType,
@@ -289,6 +290,13 @@ export class WebSocketHandler {
       content: fullContent,
     });
 
+    // After saving assistant message, increment character growth
+    if (character) {
+      characterGrowthRepository.getOrCreate(character.id, userId)
+        .then((growth) => characterGrowthRepository.incrementMessages(growth.id))
+        .catch((err) => wsLogger.warn('Failed to increment message growth', { error: err }));
+    }
+
     // Increment unread count
     await db.update(chats)
       .set({ unreadCount: sql`${chats.unreadCount} + 1` })
@@ -386,6 +394,11 @@ export class WebSocketHandler {
         content: fullContent,
         characterId: character.id,
       });
+
+      // Increment growth for this character
+      characterGrowthRepository.getOrCreate(character.id, userId)
+        .then((growth) => characterGrowthRepository.incrementMessages(growth.id))
+        .catch((err) => wsLogger.warn('Failed to increment group message growth', { error: err }));
 
       websocketService.broadcastToChat(chatId, {
         type: WSMessageType.ASSISTANT_MESSAGE_DONE,
