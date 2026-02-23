@@ -2,10 +2,11 @@
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { Bell, Check, Delete, ChatLineSquare, Star, UserFilled, ChatDotRound } from '@element-plus/icons-vue';
+import { Bell, Check, Delete, ChatLineSquare, Star, UserFilled, ChatDotRound, Setting, Plus, CopyDocument } from '@element-plus/icons-vue';
 import { useNotificationStore } from '@client/stores/notification';
 import { useDateTime } from '@client/composables/useDateTime';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
+import NotificationPreferences from '@client/components/notification/NotificationPreferences.vue';
 import type { NotificationItem, NotificationType } from '@/types/social';
 
 const { t } = useI18n();
@@ -14,6 +15,7 @@ const notificationStore = useNotificationStore();
 const { formatRelativeTime } = useDateTime();
 
 const filter = ref<'all' | 'unread'>('all');
+const showPreferences = ref(false);
 
 const filteredNotifications = computed(() => {
   if (filter.value === 'unread') {
@@ -37,6 +39,18 @@ function getNotificationIcon(type: NotificationType) {
       return ChatLineSquare;
     case 'reply':
       return ChatDotRound;
+    case 'mention':
+      return ChatLineSquare;
+    case 'collaborator_invite':
+      return Plus;
+    case 'collaborator_role_change':
+      return Setting;
+    case 'collaborator_removed':
+      return Delete;
+    case 'character_forked':
+      return CopyDocument;
+    case 'system':
+      return Bell;
     default:
       return Bell;
   }
@@ -52,6 +66,18 @@ function getIconColor(type: NotificationType): string {
       return 'var(--color-success)';
     case 'reply':
       return 'var(--accent-cyan)';
+    case 'mention':
+      return 'var(--color-info, #409eff)';
+    case 'collaborator_invite':
+      return 'var(--color-success)';
+    case 'collaborator_role_change':
+      return 'var(--accent-purple)';
+    case 'collaborator_removed':
+      return 'var(--color-danger, #f56c6c)';
+    case 'character_forked':
+      return 'var(--accent-cyan)';
+    case 'system':
+      return 'var(--text-secondary)';
     default:
       return 'var(--text-secondary)';
   }
@@ -102,13 +128,21 @@ function loadMore() {
           <el-radio-button value="unread">{{ t('notification.unreadOnly') }}</el-radio-button>
         </el-radio-group>
 
-        <el-button
-          :icon="Check"
-          :disabled="!notificationStore.hasUnread"
-          @click="handleMarkAllRead"
-        >
-          {{ t('notification.markAllRead') }}
-        </el-button>
+        <div class="header-actions">
+          <el-button
+            :icon="Setting"
+            circle
+            @click="showPreferences = true"
+            :aria-label="t('notificationPrefs.title')"
+          />
+          <el-button
+            :icon="Check"
+            :disabled="!notificationStore.hasUnread"
+            @click="handleMarkAllRead"
+          >
+            {{ t('notification.markAllRead') }}
+          </el-button>
+        </div>
       </div>
 
       <!-- Loading state -->
@@ -180,6 +214,9 @@ function loadMore() {
         <p class="empty-title">{{ t('notification.empty') }}</p>
         <p class="empty-subtitle">{{ t('notification.emptyHint') }}</p>
       </div>
+
+      <!-- Preferences dialog -->
+      <NotificationPreferences v-model="showPreferences" />
     </div>
   </DashboardLayout>
 </template>
@@ -199,6 +236,12 @@ function loadMore() {
   margin-bottom: 24px;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Loading state */
@@ -370,6 +413,10 @@ function loadMore() {
   .notifications-header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .header-actions {
+    justify-content: flex-end;
   }
 
   .notification-item {

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { ElNotification } from 'element-plus';
 import { createLogger } from '@client/utils/logger';
 import { notificationApi } from '@client/services/notification.api';
 import type { NotificationItem } from '@/types/social';
@@ -87,6 +88,14 @@ export const useNotificationStore = defineStore('notification', () => {
   function handleWsNotification(data: NotificationItem) {
     notifications.value.unshift(data);
     unreadCount.value++;
+
+    // Show desktop toast for real-time notifications
+    ElNotification({
+      title: 'New Notification',
+      message: data.message,
+      type: 'info',
+      duration: 5000,
+    });
   }
 
   function handleWsUnreadCount(count: number) {

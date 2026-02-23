@@ -980,7 +980,8 @@
     "follow": "{actor} followed you",
     "favorite": "{actor} favorited your character",
     "comment": "{actor} commented on your character",
-    "reply": "{actor} replied to your comment"
+    "reply": "{actor} replied to your comment",
+    "newNotification": "New Notification"
   },
   "plugins": {
     "title": "Plugin Marketplace",
@@ -1456,5 +1457,27 @@
     "allCategories": "All Categories",
     "usageCount": "Used {count} times",
     "noTemplates": "No templates available"
+  },
+  "notificationPrefs": {
+    "title": "Notification Preferences",
+    "type": "Type",
+    "inApp": "In-App",
+    "email": "Email",
+    "emailFrequency": "Email Frequency",
+    "saved": "Notification preferences saved",
+    "immediate": "Immediate",
+    "daily": "Daily digest",
+    "weekly": "Weekly digest",
+    "never": "Never",
+    "follow": "Follow",
+    "favorite": "Favorite",
+    "comment": "Comment",
+    "reply": "Reply",
+    "mention": "Mention",
+    "collaboratorInvite": "Collaborator Invite",
+    "collaboratorRoleChange": "Role Change",
+    "collaboratorRemoved": "Collaborator Removed",
+    "characterForked": "Character Forked",
+    "system": "System"
   }
 }
