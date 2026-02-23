@@ -8,8 +8,10 @@
 import type { Character } from '@client/types';
 
 /**
- * SillyTavern Character Card Format (v2)
+ * SillyTavern Character Card Format (v2/v3)
  * Based on: https://github.com/malfoyslastname/character-card-spec-v2
+ * V3 adds: alternate_greetings, creator_notes_multilingual, source,
+ *          group_only_greetings, creation_date, modification_date, assets
  */
 export interface SillyTavernCharacter {
   name: string;
@@ -28,6 +30,15 @@ export interface SillyTavernCharacter {
     [key: string]: any;
   };
   extensions?: Record<string, any>;
+  // V3 fields
+  alternate_greetings?: string[];
+  post_history_instructions?: string;
+  creator_notes_multilingual?: Record<string, string>;
+  source?: string[];
+  group_only_greetings?: string[];
+  creation_date?: number;
+  modification_date?: number;
+  assets?: Array<{ type: string; uri: string; name: string; ext: string }>;
   [key: string]: any; // Allow custom fields
 }
 
@@ -98,6 +109,18 @@ export function exportToSillyTavern(character: Character): SillyTavernCharacter 
     }
   });
 
+  // Auto-detect V3 fields and upgrade spec accordingly
+  const hasV3Fields = cardData.alternate_greetings
+    || cardData.creator_notes_multilingual
+    || cardData.assets
+    || cardData.source
+    || cardData.group_only_greetings;
+
+  if (hasV3Fields) {
+    stCharacter.spec = 'chara_card_v3';
+    stCharacter.spec_version = '3.0';
+  }
+
   return stCharacter;
 }
 
@@ -146,8 +169,8 @@ export function importFromSillyTavern(stCharacter: SillyTavernCharacter | any): 
     cardData.extensions = normalized.extensions;
   }
 
-  // For V2 format, preserve the entire data block
-  if (isV2Format(stCharacter)) {
+  // For V2/V3 format, preserve the entire data block
+  if (isV2Format(stCharacter) || isV3Format(stCharacter)) {
     cardData.data = stCharacter.data;
   } else if (normalized.data) {
     cardData.data = normalized.data;
@@ -179,11 +202,18 @@ export function isV2Format(data: any): boolean {
 }
 
 /**
+ * Check if data is V3 format (data nested in 'data' block, spec is chara_card_v3)
+ */
+export function isV3Format(data: any): boolean {
+  return Boolean(data.spec === 'chara_card_v3' && data.data && typeof data.data === 'object' && data.data.name);
+}
+
+/**
  * Normalize SillyTavern character data to flat format
  * V2 format has data nested in 'data' block, V1 has it at top level
  */
 export function normalizeSillyTavernData(data: any): SillyTavernCharacter {
-  if (isV2Format(data)) {
+  if (isV2Format(data) || isV3Format(data)) {
     // V2 format: extract data from nested 'data' block
     const innerData = data.data;
     return {
@@ -221,8 +251,8 @@ export function normalizeSillyTavernData(data: any): SillyTavernCharacter {
 export function validateSillyTavernFormat(data: any): ValidationResult {
   const errors: string[] = [];
 
-  // Normalize V2 format first
-  const normalized = isV2Format(data) ? data.data : data;
+  // Normalize V2/V3 format first
+  const normalized = (isV2Format(data) || isV3Format(data)) ? data.data : data;
 
   // Check required fields
   if (!normalized.name) {

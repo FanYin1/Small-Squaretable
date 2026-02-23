@@ -519,16 +519,24 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
         if (!character.isPublic && character.creatorId !== user.id) continue;
 
         const safeName = character.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const rawCardData = (character.cardData as Record<string, unknown>) || {};
+        const batchHasV3Fields = rawCardData.alternate_greetings
+          || rawCardData.creator_notes_multilingual
+          || rawCardData.assets
+          || rawCardData.source
+          || rawCardData.group_only_greetings;
 
         if (format === 'png') {
           const { embedJsonInPng, avatarToBuffer } = await import('../utils/png-embed');
           const cardData: Record<string, unknown> = {
-            ...(character.cardData as Record<string, unknown>),
+            ...rawCardData,
             name: character.name,
             description: character.description || '',
             tags: character.tags || [],
-            spec: 'chara_card_v2',
-            spec_version: '2.0',
+            spec: batchHasV3Fields ? 'chara_card_v3' : 'chara_card_v2',
+            spec_version: batchHasV3Fields ? '3.0' : '2.0',
+            creation_date: character.createdAt ? Math.floor(new Date(character.createdAt).getTime() / 1000) : undefined,
+            modification_date: character.updatedAt ? Math.floor(new Date(character.updatedAt).getTime() / 1000) : undefined,
           };
           // Re-embed world book data
           const charBook = await buildCharacterBook(charId);
@@ -540,12 +548,14 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
           results.push({ name: `${safeName}.png`, data: result });
         } else {
           const cardData: Record<string, unknown> = {
-            ...(character.cardData as Record<string, unknown>),
+            ...rawCardData,
             name: character.name,
             description: character.description || '',
             tags: character.tags || [],
-            spec: 'chara_card_v2',
-            spec_version: '2.0',
+            spec: batchHasV3Fields ? 'chara_card_v3' : 'chara_card_v2',
+            spec_version: batchHasV3Fields ? '3.0' : '2.0',
+            creation_date: character.createdAt ? Math.floor(new Date(character.createdAt).getTime() / 1000) : undefined,
+            modification_date: character.updatedAt ? Math.floor(new Date(character.updatedAt).getTime() / 1000) : undefined,
           };
           // Re-embed world book data
           const charBook = await buildCharacterBook(charId);
@@ -1247,13 +1257,23 @@ characterRoutes.get('/:id/export/json', authMiddleware(), async (c) => {
   const characterId = c.req.param('id');
   const character = await characterService.getById(characterId);
 
+  const rawCardData = (character.cardData as Record<string, unknown>) || {};
+
+  const hasV3Fields = rawCardData.alternate_greetings
+    || rawCardData.creator_notes_multilingual
+    || rawCardData.assets
+    || rawCardData.source
+    || rawCardData.group_only_greetings;
+
   const cardData: Record<string, unknown> = {
-    ...(character.cardData as Record<string, unknown>),
+    ...rawCardData,
     name: character.name,
     description: character.description || '',
     tags: character.tags || [],
-    spec: 'chara_card_v2',
-    spec_version: '2.0',
+    spec: hasV3Fields ? 'chara_card_v3' : 'chara_card_v2',
+    spec_version: hasV3Fields ? '3.0' : '2.0',
+    creation_date: character.createdAt ? Math.floor(new Date(character.createdAt).getTime() / 1000) : undefined,
+    modification_date: character.updatedAt ? Math.floor(new Date(character.updatedAt).getTime() / 1000) : undefined,
   };
 
   // Re-embed world book data
@@ -1285,13 +1305,23 @@ characterRoutes.get('/:id/export/png', optionalAuthMiddleware(), async (c) => {
     const { embedJsonInPng, avatarToBuffer } = await import('../utils/png-embed');
 
     // Build SillyTavern format card data
+    const rawCardData = (character.cardData as Record<string, unknown>) || {};
+
+    const hasV3Fields = rawCardData.alternate_greetings
+      || rawCardData.creator_notes_multilingual
+      || rawCardData.assets
+      || rawCardData.source
+      || rawCardData.group_only_greetings;
+
     const cardData: Record<string, unknown> = {
-      ...(character.cardData as Record<string, unknown>),
+      ...rawCardData,
       name: character.name,
       description: character.description || '',
       tags: character.tags || [],
-      spec: 'chara_card_v2',
-      spec_version: '2.0',
+      spec: hasV3Fields ? 'chara_card_v3' : 'chara_card_v2',
+      spec_version: hasV3Fields ? '3.0' : '2.0',
+      creation_date: character.createdAt ? Math.floor(new Date(character.createdAt).getTime() / 1000) : undefined,
+      modification_date: character.updatedAt ? Math.floor(new Date(character.updatedAt).getTime() / 1000) : undefined,
     };
 
     // Re-embed world book data
