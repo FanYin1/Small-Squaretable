@@ -10,6 +10,7 @@ import CharacterPreview from '@client/components/character/CharacterPreview.vue'
 import VersionHistory from '@client/components/character/VersionHistory.vue';
 import TemplateSelector from '@client/components/character/TemplateSelector.vue';
 import VoiceSettings from '@client/components/character/VoiceSettings.vue';
+import ExpressionEditor from '@client/components/character/ExpressionEditor.vue';
 import type { CharacterCardData } from '@client/types';
 import type { VoiceConfig } from '@client/composables/useTextToSpeech';
 import { characterTemplateApi } from '@client/services/character-template.api';
@@ -25,6 +26,8 @@ const loading = ref(false);
 const saving = ref(false);
 const showVoiceSettings = ref(false);
 const voiceConfig = ref<VoiceConfig>({});
+const showExpressionEditor = ref(false);
+const expressionConfig = ref<Record<string, string>>({});
 const isOwner = ref(false);
 const originalCardData = ref<Record<string, unknown>>({});
 
@@ -115,6 +118,7 @@ async function handleSave() {
     extensions: {
       ...(originalCardData.value.extensions as Record<string, unknown> || {}),
       voice: voiceConfig.value,
+      expressions: Object.keys(expressionConfig.value).length > 0 ? expressionConfig.value : undefined,
     },
   };
 
@@ -176,6 +180,10 @@ async function fetchCharacter() {
         voiceConfig.value = cd.extensions.voice as VoiceConfig;
         showVoiceSettings.value = true;
       }
+      if (cd.extensions?.expressions) {
+        expressionConfig.value = { ...(cd.extensions.expressions as Record<string, string>) };
+        showExpressionEditor.value = true;
+      }
       if (cd.alternate_greetings && Array.isArray(cd.alternate_greetings)) {
         form.alternateGreetings = [...cd.alternate_greetings];
       }
@@ -207,6 +215,10 @@ onMounted(async () => {
         form.creatorNotes = template.cardData.creator_notes || '';
         if (template.cardData.alternate_greetings) {
           form.alternateGreetings = [...template.cardData.alternate_greetings];
+        }
+        if (template.cardData.extensions?.expressions) {
+          expressionConfig.value = { ...(template.cardData.extensions.expressions as Record<string, string>) };
+          showExpressionEditor.value = true;
         }
         if (template.category) form.category = template.category;
         if (template.tags) form.tags = template.tags;
@@ -377,6 +389,22 @@ function handleTemplateSelect(cardData: CharacterCardData) {
         <VoiceSettings
           v-if="showVoiceSettings"
           v-model="voiceConfig"
+        />
+
+        <!-- Expression Sprites -->
+        <el-divider content-position="left">
+          <span class="voice-toggle" @click="showExpressionEditor = !showExpressionEditor">
+            {{ t('expressionEditor.title') }}
+            <el-icon style="margin-left: 4px;">
+              <arrow-up v-if="showExpressionEditor" />
+              <arrow-down v-else />
+            </el-icon>
+          </span>
+        </el-divider>
+
+        <ExpressionEditor
+          v-if="showExpressionEditor"
+          v-model="expressionConfig"
         />
 
         <!-- Avatar -->

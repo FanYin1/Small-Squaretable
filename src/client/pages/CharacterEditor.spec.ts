@@ -55,6 +55,7 @@ const stubs = {
   VersionHistory: { template: '<div />' },
   TemplateSelector: { template: '<div />' },
   VoiceSettings: { template: '<div />' },
+  ExpressionEditor: { template: '<div />' },
   CollaboratorPanel: { template: '<div />' },
   'el-row': { template: '<div><slot /></div>' },
   'el-col': { template: '<div><slot /></div>' },
@@ -202,5 +203,43 @@ describe('CharacterEditor cardData round-trip', () => {
     expect(mockUpdateCharacter).toHaveBeenCalledTimes(1);
     const savedCardData = mockUpdateCharacter.mock.calls[0][1].cardData;
     expect(savedCardData.alternate_greetings).toEqual(['Hello world!', 'Greetings!', 'Howdy!']);
+  });
+
+  it('should load expressions from character cardData into expressionConfig', async () => {
+    const character = makeCharacter({
+      extensions: {
+        custom_field: 'custom_value',
+        expressions: { neutral: 'data:image/png;base64,neutral', happy: 'data:image/png;base64,happy' },
+      },
+    });
+    mockGetCharacter.mockResolvedValue(character);
+
+    const wrapper = mountEditor();
+    await flushPromises();
+    await nextTick();
+
+    const vm = wrapper.vm as any;
+    expect(vm.expressionConfig).toEqual({ neutral: 'data:image/png;base64,neutral', happy: 'data:image/png;base64,happy' });
+    expect(vm.showExpressionEditor).toBe(true);
+  });
+
+  it('should include expressions in save payload under extensions.expressions', async () => {
+    const character = makeCharacter();
+    mockGetCharacter.mockResolvedValue(character);
+
+    const wrapper = mountEditor();
+    await flushPromises();
+    await nextTick();
+
+    const vm = wrapper.vm as any;
+    vm.expressionConfig = { neutral: 'data:image/png;base64,n', sad: 'data:image/png;base64,s' };
+
+    vm.formRef = { validate: () => Promise.resolve(true) };
+    await vm.handleSave();
+    await flushPromises();
+
+    expect(mockUpdateCharacter).toHaveBeenCalledTimes(1);
+    const savedCardData = mockUpdateCharacter.mock.calls[0][1].cardData;
+    expect(savedCardData.extensions.expressions).toEqual({ neutral: 'data:image/png;base64,n', sad: 'data:image/png;base64,s' });
   });
 });
