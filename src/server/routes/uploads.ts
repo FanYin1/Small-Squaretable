@@ -1,7 +1,7 @@
 /**
  * Upload API Routes
  *
- * Handles file uploads (audio) with validation and tenant-isolated storage.
+ * Handles file uploads (audio, images) with validation and tenant-isolated storage.
  */
 
 import { Hono } from 'hono';
@@ -36,6 +36,19 @@ const MIME_TO_EXT: Record<string, string> = {
 };
 
 const MAX_AUDIO_SIZE = 25 * 1024 * 1024; // 25 MB
+
+const ALLOWED_IMAGE_MIMES = new Set([
+  'image/png', 'image/jpeg', 'image/webp', 'image/gif',
+]);
+
+const IMAGE_MIME_TO_EXT: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export const uploadRoutes = new Hono();
 
@@ -122,6 +135,100 @@ uploadRoutes.post('/audio', authMiddleware(), async (c) => {
 
   const url = `/uploads/${user.tenantId}/audio/${filename}`;
   uploadLogger.info('Audio uploaded', { tenantId: user.tenantId, filename, size: audioFile.size });
+
+  return c.json<ApiResponse<{ url: string }>>(
+    {
+      success: true,
+      data: { url },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200,
+  );
+});
+
+uploadRoutes.post('/image', authMiddleware(), async (c) => {
+  const user = c.get('user');
+
+  let formData: FormData;
+  try {
+    formData = await c.req.formData();
+  } catch {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'Invalid multipart form data' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400,
+    );
+  }
+
+  const imageFile = formData.get('image');
+  if (!imageFile || !(imageFile instanceof File)) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'MISSING_FILE', message: 'Missing image file' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400,
+    );
+  }
+
+  // Validate MIME type
+  if (!ALLOWED_IMAGE_MIMES.has(imageFile.type)) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_MIME_TYPE',
+          message: `Invalid image type: ${imageFile.type}. Allowed: ${[...ALLOWED_IMAGE_MIMES].join(', ')}`,
+        },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400,
+    );
+  }
+
+  // Validate file size
+  if (imageFile.size > MAX_IMAGE_SIZE) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: {
+          code: 'FILE_TOO_LARGE',
+          message: `File exceeds maximum size of 5MB`,
+        },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400,
+    );
+  }
+
+  const ext = IMAGE_MIME_TO_EXT[imageFile.type] || 'png';
+  const filename = `${randomUUID()}.${ext}`;
+  const relativeDir = path.join(user.tenantId, 'images');
+  const absoluteDir = path.resolve(config.storagePath, relativeDir);
+  const absolutePath = path.join(absoluteDir, filename);
+
+  try {
+    await fs.mkdir(absoluteDir, { recursive: true });
+    const buffer = Buffer.from(await imageFile.arrayBuffer());
+    await fs.writeFile(absolutePath, buffer);
+  } catch (error) {
+    uploadLogger.error('Failed to save image file', { error: String(error), tenantId: user.tenantId });
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'UPLOAD_FAILED', message: 'Failed to save image file' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      500,
+    );
+  }
+
+  const url = `/uploads/${user.tenantId}/images/${filename}`;
+  uploadLogger.info('Image uploaded', { tenantId: user.tenantId, filename, size: imageFile.size });
 
   return c.json<ApiResponse<{ url: string }>>(
     {

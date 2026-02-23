@@ -61,6 +61,19 @@ function buildAudioFormData(
   return form;
 }
 
+/** Helper to build a multipart FormData body with an image File */
+function buildImageFormData(
+  mime: string,
+  size: number = 1024,
+  fieldName: string = 'image',
+): FormData {
+  const buffer = new ArrayBuffer(size);
+  const file = new File([buffer], 'sprite.png', { type: mime });
+  const form = new FormData();
+  form.append(fieldName, file);
+  return form;
+}
+
 describe('Upload Routes', () => {
   let app: Hono;
 
@@ -147,6 +160,50 @@ describe('Upload Routes', () => {
       const data = await res.json();
       expect(data.success).toBe(false);
       expect(data.error.code).toBe('UPLOAD_FAILED');
+    });
+  });
+
+  describe('POST /uploads/image', () => {
+    it('should accept valid image upload and return correct URL path', async () => {
+      const form = buildImageFormData('image/png');
+      const res = await app.request('/uploads/image', {
+        method: 'POST',
+        body: form,
+      });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.success).toBe(true);
+      expect(data.data.url).toMatch(/^\/uploads\/tenant-123\/images\/[a-f0-9-]+\.png$/);
+      expect(fs.mkdir).toHaveBeenCalledWith(
+        expect.stringContaining('tenant-123'),
+        { recursive: true },
+      );
+      expect(fs.writeFile).toHaveBeenCalled();
+    });
+
+    it('should reject invalid MIME type with 400', async () => {
+      const form = buildImageFormData('application/pdf');
+      const res = await app.request('/uploads/image', {
+        method: 'POST',
+        body: form,
+      });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('INVALID_MIME_TYPE');
+    });
+
+    it('should reject file exceeding 5MB with 400', async () => {
+      const oversized = 6 * 1024 * 1024; // 6 MB
+      const form = buildImageFormData('image/png', oversized);
+      const res = await app.request('/uploads/image', {
+        method: 'POST',
+        body: form,
+      });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.success).toBe(false);
+      expect(data.error.code).toBe('FILE_TOO_LARGE');
     });
   });
 });
