@@ -462,14 +462,24 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
         }
 
         // Create character
-        const character = await characterService.create(user.id, user.tenantId, {
-          name: name!,
-          description: description!,
-          cardData: cardData! as any,
-          tags: tags!,
-          avatarUrl,
+        const validationResult = createCharacterSchema.safeParse({
+          name: name! || 'Unnamed',
+          description: description! || '',
+          avatarUrl: avatarUrl || undefined,
+          cardData: cardData! || {},
+          tags: Array.isArray(tags!) ? tags!.slice(0, 20) : [],
           isNsfw: false,
         });
+
+        if (!validationResult.success) {
+          failed.push({
+            filename: file.name,
+            error: `Validation: ${validationResult.error.issues[0]?.message || 'Invalid data'}`
+          });
+          continue;
+        }
+
+        const character = await characterService.create(user.id, user.tenantId, validationResult.data);
 
         imported.push({ id: character.id, name: character.name });
       } catch (err) {

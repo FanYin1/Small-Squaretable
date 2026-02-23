@@ -70,6 +70,7 @@ export default defineConfig({
             'src/core/**/*.spec.ts',
             'src/server/**/*.spec.ts',
             'src/db/**/*.spec.ts',
+            'src/types/**/*.spec.ts',
             'tests/**/*.ts',
           ],
           exclude: sharedExclude,

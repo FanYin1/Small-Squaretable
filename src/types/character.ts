@@ -32,10 +32,16 @@ export const createCharacterSchema = z.object({
   description: z.string().max(50000).trim().optional(),
   // Allow data URLs for base64 encoded images (can be very large for high-res images)
   // In production, consider using a file upload service instead
-  avatarUrl: z.string().url().max(5000000).optional(),
+  avatarUrl: z.string().max(5000000).refine(
+    (val) => val.startsWith('data:') || /^https?:\/\//.test(val),
+    'Must be a valid URL or data URI'
+  ).optional(),
   cardData: z.record(cardDataValueSchema).refine(
     (data) => Object.keys(data).length > 0,
     'cardData must not be empty'
+  ).refine(
+    (data) => JSON.stringify(data).length <= 10_000_000,
+    'cardData exceeds maximum size (10MB)'
   ),
   tags: z.array(z.string().max(50).trim()).max(20).optional(),
   category: z.string().max(50).trim().optional(),
@@ -45,7 +51,10 @@ export const createCharacterSchema = z.object({
 export const updateCharacterSchema = z.object({
   name: z.string().min(1).max(255).trim().optional(),
   description: z.string().max(50000).trim().optional(),
-  avatarUrl: z.string().url().max(5000000).optional(),
+  avatarUrl: z.string().max(5000000).refine(
+    (val) => val.startsWith('data:') || /^https?:\/\//.test(val),
+    'Must be a valid URL or data URI'
+  ).optional(),
   cardData: z.record(cardDataValueSchema).optional(),
   tags: z.array(z.string().max(50).trim()).max(20).optional(),
   category: z.string().max(50).trim().optional(),
