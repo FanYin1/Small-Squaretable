@@ -450,8 +450,12 @@
     "delete": "Delete Collection",
     "deleteConfirm": "Delete this collection? Characters in it will not be deleted.",
     "empty": "No characters in this collection",
+    "addToCollection": "Add to Collection",
     "addSuccess": "Added to collection",
-    "removeSuccess": "Removed from collection"
+    "removeSuccess": "Removed from collection",
+    "makePublic": "Make Public",
+    "publicCollection": "Public",
+    "shareLink": "Share Link"
   },
   "subscription": {
     "title": "Subscription",

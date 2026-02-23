@@ -2,17 +2,19 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { ChatDotRound, Download, Upload, ArrowLeft, Edit, Share } from '@element-plus/icons-vue';
+import { ChatDotRound, Download, Upload, ArrowLeft, Edit, Share, FolderAdd } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useCharacterStore, useUserStore } from '@client/stores';
 import { api } from '@client/services/api';
 import { downloadCharacterJson } from '@client/utils/sillytavern';
+import { characterCollectionApi } from '@client/services/character-collection.api';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import RatingComponent from '@client/components/rating/RatingComponent.vue';
 import FavoriteButton from '@client/components/social/FavoriteButton.vue';
 import CommentSection from '@client/components/social/CommentSection.vue';
 import ShareDialog from '@client/components/character/ShareDialog.vue';
 import type { RatingInput, RatingResponseDto } from '@/types/rating';
+import type { CharacterCollection } from '@client/types';
 
 const route = useRoute();
 const router = useRouter();
@@ -37,6 +39,8 @@ const showRatingDialog = ref(false);
 const submittingRating = ref(false);
 const importing = ref(false);
 const showShareDialog = ref(false);
+const collections = ref<CharacterCollection[]>([]);
+const addingToCollection = ref(false);
 
 const avatarUrl = computed(() =>
   character.value?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${characterId.value}`
@@ -50,6 +54,13 @@ const overallRating = computed(() => {
 onMounted(async () => {
   await Promise.all([fetchCharacter(), fetchRatings()]);
   loading.value = false;
+  if (userStore.isAuthenticated) {
+    try {
+      collections.value = await characterCollectionApi.getCollections();
+    } catch {
+      // Collections are supplementary, don't block
+    }
+  }
 });
 
 async function fetchCharacter() {
@@ -66,6 +77,19 @@ async function fetchRatings() {
     ratings.value = response;
     if (response?.userRating) userRating.value = response.userRating;
   } catch { /* ratings are optional */ }
+}
+
+async function handleAddToCollection(collectionId: string) {
+  addingToCollection.value = true;
+  try {
+    await characterCollectionApi.addCharacters(collectionId, [characterId.value]);
+    ElMessage.success(t('collections.addSuccess'));
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : t('common.retry');
+    ElMessage.error(msg);
+  } finally {
+    addingToCollection.value = false;
+  }
 }
 </script>
 
@@ -126,6 +150,18 @@ async function fetchRatings() {
 
           <div class="action-buttons">
             <FavoriteButton :character-id="characterId" />
+            <el-dropdown v-if="isAuthenticated && collections.length > 0" trigger="click" @command="handleAddToCollection">
+              <el-button :icon="FolderAdd" :loading="addingToCollection">
+                {{ t('collections.addToCollection') }}
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-for="col in collections" :key="col.id" :command="col.id">
+                    {{ col.name }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
             <el-button
               v-if="isOwner"
               type="warning"

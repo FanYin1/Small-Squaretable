@@ -450,8 +450,12 @@
     "delete": "删除收藏夹",
     "deleteConfirm": "删除此收藏夹？其中的角色不会被删除。",
     "empty": "此收藏夹中没有角色",
+    "addToCollection": "添加到收藏夹",
     "addSuccess": "已添加到收藏夹",
-    "removeSuccess": "已从收藏夹移除"
+    "removeSuccess": "已从收藏夹移除",
+    "makePublic": "设为公开",
+    "publicCollection": "公开",
+    "shareLink": "分享链接"
   },
   "subscription": {
     "title": "订阅管理",
