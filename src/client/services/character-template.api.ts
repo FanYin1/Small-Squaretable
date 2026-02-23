@@ -33,4 +33,10 @@ export const characterTemplateApi = {
 
   useTemplate: (id: string) =>
     api.post<CharacterTemplate>(`/character-templates/${id}/use`),
+
+  rateTemplate: (id: string, rating: number) =>
+    api.post<{ rating: number }>(`/character-templates/${id}/rate`, { rating }),
+
+  getTemplateRating: (id: string) =>
+    api.get<{ average: number; count: number }>(`/character-templates/${id}/rating`),
 };

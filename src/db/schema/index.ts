@@ -38,3 +38,4 @@ export * from './character-collaborators';
 export * from './character-templates';
 export * from './notification-preferences';
 export * from './character-collections';
+export * from './template-ratings';

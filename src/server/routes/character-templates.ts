@@ -10,6 +10,7 @@ import { zValidator } from '@hono/zod-validator';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { db } from '../../db';
 import { characterTemplates } from '../../db/schema/character-templates';
+import { templateRatings } from '../../db/schema/template-ratings';
 import { authMiddleware } from '../middleware/auth';
 import { createLogger } from '../services/logger.service';
 import { paginationSchema } from '../../types/api';
@@ -302,3 +303,89 @@ characterTemplateRoutes.post(
     }
   },
 );
+
+// POST /:id/rate — Rate a template (upsert)
+characterTemplateRoutes.post(
+  '/:id/rate',
+  authMiddleware(),
+  zValidator('json', z.object({ rating: z.number().int().min(1).max(5) })),
+  async (c) => {
+    const user = c.get('user');
+    const templateId = c.req.param('id');
+    const { rating } = c.req.valid('json');
+
+    try {
+      // Verify template exists
+      const [template] = await db
+        .select()
+        .from(characterTemplates)
+        .where(eq(characterTemplates.id, templateId))
+        .limit(1);
+
+      if (!template) {
+        return c.json<ApiResponse>(
+          { success: false, error: { code: 'NOT_FOUND', message: 'Template not found' }, meta: { timestamp: new Date().toISOString() } },
+          404,
+        );
+      }
+
+      // Upsert rating
+      const [existing] = await db
+        .select()
+        .from(templateRatings)
+        .where(and(eq(templateRatings.templateId, templateId), eq(templateRatings.userId, user.id)));
+
+      if (existing) {
+        await db.update(templateRatings).set({ rating }).where(eq(templateRatings.id, existing.id));
+      } else {
+        await db.insert(templateRatings).values({ templateId, userId: user.id, rating });
+      }
+
+      logger.info('Template rated', { templateId, userId: user.id, rating });
+
+      return c.json<ApiResponse>(
+        { success: true, data: { rating }, meta: { timestamp: new Date().toISOString() } },
+        200,
+      );
+    } catch (error) {
+      logger.error('Failed to rate template', { error: String(error), templateId });
+      return c.json<ApiResponse>(
+        { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to rate template' }, meta: { timestamp: new Date().toISOString() } },
+        500,
+      );
+    }
+  },
+);
+
+// GET /:id/rating — Get average rating and count for a template
+characterTemplateRoutes.get('/:id/rating', async (c) => {
+  const templateId = c.req.param('id');
+
+  try {
+    const avgResult = await db
+      .select({
+        avg: sql<number>`COALESCE(AVG(rating), 0)::float`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(templateRatings)
+      .where(eq(templateRatings.templateId, templateId));
+
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: {
+          average: Math.round((avgResult[0]?.avg || 0) * 10) / 10,
+          count: avgResult[0]?.count || 0,
+        },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200,
+    );
+  } catch (error) {
+    logger.error('Failed to get template rating', { error: String(error), templateId });
+    return c.json<ApiResponse>(
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to get rating' }, meta: { timestamp: new Date().toISOString() } },
+      500,
+    );
+  }
+});

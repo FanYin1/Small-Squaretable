@@ -1484,7 +1484,10 @@
     "createFromTemplate": "Create from Template",
     "allCategories": "All Categories",
     "usageCount": "Used {count} times",
-    "noTemplates": "No templates available"
+    "noTemplates": "No templates available",
+    "rating": "Rating",
+    "rateTemplate": "Rate",
+    "ratingSuccess": "Rating submitted"
   },
   "chatTemplates": {
     "title": "Chat Templates",

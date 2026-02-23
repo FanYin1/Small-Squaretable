@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { characterTemplateApi } from '@client/services/character-template.api';
+import { useToast } from '@client/composables/useToast';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import type { CharacterTemplate } from '@client/types';
 
 const router = useRouter();
 const { t } = useI18n();
+const toast = useToast();
 
 const templates = ref<CharacterTemplate[]>([]);
 const loading = ref(false);
@@ -15,6 +17,12 @@ const selectedCategory = ref('');
 const currentPage = ref(1);
 const pageSize = 12;
 const total = ref(0);
+
+// Rating state
+const ratings = reactive<Record<string, { average: number; count: number }>>({});
+const ratingDialogVisible = ref(false);
+const ratingTemplateId = ref('');
+const ratingValue = ref(0);
 
 async function loadTemplates() {
   loading.value = true;
@@ -27,10 +35,23 @@ async function loadTemplates() {
     templates.value = res.items;
     const pagination = res.pagination as { total?: number };
     total.value = pagination?.total ?? res.items.length;
+    // Load ratings for all templates
+    for (const tmpl of res.items) {
+      loadRating(tmpl.id);
+    }
   } catch {
     templates.value = [];
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadRating(templateId: string) {
+  try {
+    const data = await characterTemplateApi.getTemplateRating(templateId);
+    ratings[templateId] = data;
+  } catch {
+    // Silently ignore rating load failures
   }
 }
 
@@ -41,6 +62,24 @@ function handlePageChange(page: number) {
 
 function useTemplate(id: string) {
   router.push({ name: 'CharacterCreate', query: { templateId: id } });
+}
+
+function openRatingDialog(templateId: string) {
+  ratingTemplateId.value = templateId;
+  ratingValue.value = 0;
+  ratingDialogVisible.value = true;
+}
+
+async function submitRating() {
+  if (ratingValue.value < 1 || ratingValue.value > 5) return;
+  try {
+    await characterTemplateApi.rateTemplate(ratingTemplateId.value, ratingValue.value);
+    toast.success(t('characterTemplates.ratingSuccess'));
+    ratingDialogVisible.value = false;
+    loadRating(ratingTemplateId.value);
+  } catch {
+    // Error handled by API interceptor
+  }
 }
 
 onMounted(loadTemplates);
@@ -81,11 +120,21 @@ onMounted(loadTemplates);
             </div>
           </div>
           <p class="template-desc">{{ tmpl.description }}</p>
+          <div v-if="ratings[tmpl.id]" class="template-rating" @click.stop="openRatingDialog(tmpl.id)">
+            <span class="rating-stars" role="img" :aria-label="t('characterTemplates.rating')">&#9733;</span>
+            <span class="rating-value">{{ ratings[tmpl.id].average }}</span>
+            <span class="rating-count">({{ ratings[tmpl.id].count }})</span>
+          </div>
           <div class="template-footer">
             <span class="usage-count">{{ t('characterTemplates.usageCount', { count: tmpl.usageCount }) }}</span>
-            <el-button type="primary" size="small" @click="useTemplate(tmpl.id)">
-              {{ t('characterTemplates.useTemplate') }}
-            </el-button>
+            <div class="template-actions">
+              <el-button size="small" @click="openRatingDialog(tmpl.id)">
+                {{ t('characterTemplates.rateTemplate') }}
+              </el-button>
+              <el-button type="primary" size="small" @click="useTemplate(tmpl.id)">
+                {{ t('characterTemplates.useTemplate') }}
+              </el-button>
+            </div>
           </div>
         </el-card>
       </div>
@@ -100,6 +149,16 @@ onMounted(loadTemplates);
         class="pagination"
       />
     </div>
+
+    <el-dialog v-model="ratingDialogVisible" :title="t('characterTemplates.rateTemplate')" width="360px">
+      <div class="rating-dialog-body">
+        <el-rate v-model="ratingValue" :max="5" />
+      </div>
+      <template #footer>
+        <el-button @click="ratingDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="ratingValue < 1" @click="submitRating">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </DashboardLayout>
 </template>
 
@@ -151,6 +210,40 @@ onMounted(loadTemplates);
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.template-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.template-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.rating-stars {
+  color: #f7ba2a;
+  font-size: 16px;
+}
+
+.rating-value {
+  font-weight: 600;
+}
+
+.rating-count {
+  color: var(--text-secondary, #909399);
+  font-size: 12px;
+}
+
+.rating-dialog-body {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
 }
 
 .usage-count {
