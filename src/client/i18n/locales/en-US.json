@@ -1487,7 +1487,14 @@
     "noTemplates": "No templates available",
     "rating": "Rating",
     "rateTemplate": "Rate",
-    "ratingSuccess": "Rating submitted"
+    "ratingSuccess": "Rating submitted",
+    "myTemplates": "My Templates",
+    "browse": "Browse",
+    "editTemplate": "Edit Template",
+    "deleteConfirm": "Delete this template?",
+    "deleteSuccess": "Template deleted",
+    "updateSuccess": "Template updated",
+    "noMyTemplates": "You haven't created any templates yet"
   },
   "chatTemplates": {
     "title": "Chat Templates",

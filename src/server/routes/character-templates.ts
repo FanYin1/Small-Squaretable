@@ -93,6 +93,27 @@ characterTemplateRoutes.get(
   },
 );
 
+// GET /mine — List current user's templates
+characterTemplateRoutes.get('/mine', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  try {
+    const templates = await db.select().from(characterTemplates)
+      .where(eq(characterTemplates.creatorId, user.id))
+      .orderBy(desc(characterTemplates.updatedAt));
+    return c.json<ApiResponse>({
+      success: true,
+      data: templates,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    logger.error('Failed to list user templates', { error: String(error) });
+    return c.json<ApiResponse>(
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to list templates' }, meta: { timestamp: new Date().toISOString() } },
+      500,
+    );
+  }
+});
+
 // GET /:id — Get template by ID
 characterTemplateRoutes.get('/:id', async (c) => {
   const id = c.req.param('id');

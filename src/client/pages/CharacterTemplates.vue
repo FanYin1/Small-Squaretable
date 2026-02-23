@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+import { ElMessageBox } from 'element-plus';
 import { characterTemplateApi } from '@client/services/character-template.api';
 import { useToast } from '@client/composables/useToast';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
@@ -11,6 +12,10 @@ const router = useRouter();
 const { t } = useI18n();
 const toast = useToast();
 
+// Tab state
+const activeTab = ref('browse');
+
+// Browse state
 const templates = ref<CharacterTemplate[]>([]);
 const loading = ref(false);
 const selectedCategory = ref('');
@@ -18,11 +23,28 @@ const currentPage = ref(1);
 const pageSize = 12;
 const total = ref(0);
 
+// My Templates state
+const myTemplates = ref<CharacterTemplate[]>([]);
+const myTemplatesLoading = ref(false);
+
 // Rating state
 const ratings = reactive<Record<string, { average: number; count: number }>>({});
 const ratingDialogVisible = ref(false);
 const ratingTemplateId = ref('');
 const ratingValue = ref(0);
+
+// Edit dialog state
+const editDialogVisible = ref(false);
+const editForm = reactive({
+  id: '',
+  name: '',
+  description: '',
+  cardData: {} as Record<string, unknown>,
+  category: '',
+  tags: [] as string[],
+  isPublic: true,
+  avatarUrl: '',
+});
 
 async function loadTemplates() {
   loading.value = true;
@@ -35,7 +57,6 @@ async function loadTemplates() {
     templates.value = res.items;
     const pagination = res.pagination as { total?: number };
     total.value = pagination?.total ?? res.items.length;
-    // Load ratings for all templates
     for (const tmpl of res.items) {
       loadRating(tmpl.id);
     }
@@ -43,6 +64,17 @@ async function loadTemplates() {
     templates.value = [];
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadMyTemplates() {
+  myTemplatesLoading.value = true;
+  try {
+    myTemplates.value = await characterTemplateApi.getMyTemplates();
+  } catch {
+    myTemplates.value = [];
+  } finally {
+    myTemplatesLoading.value = false;
   }
 }
 
@@ -58,6 +90,12 @@ async function loadRating(templateId: string) {
 function handlePageChange(page: number) {
   currentPage.value = page;
   loadTemplates();
+}
+
+function handleTabChange(tab: string) {
+  if (tab === 'mine') {
+    loadMyTemplates();
+  }
 }
 
 function useTemplate(id: string) {
@@ -82,6 +120,48 @@ async function submitRating() {
   }
 }
 
+function openEditDialog(tmpl: CharacterTemplate) {
+  editForm.id = tmpl.id;
+  editForm.name = tmpl.name;
+  editForm.description = tmpl.description ?? '';
+  editForm.cardData = tmpl.cardData ?? {};
+  editForm.category = tmpl.category ?? '';
+  editForm.tags = tmpl.tags ?? [];
+  editForm.isPublic = tmpl.isPublic;
+  editForm.avatarUrl = tmpl.avatarUrl ?? '';
+  editDialogVisible.value = true;
+}
+
+async function submitEdit() {
+  try {
+    await characterTemplateApi.updateTemplate(editForm.id, {
+      name: editForm.name,
+      description: editForm.description || undefined,
+      cardData: editForm.cardData as CharacterTemplate['cardData'],
+      category: editForm.category || undefined,
+      tags: editForm.tags.length ? editForm.tags : undefined,
+      isPublic: editForm.isPublic,
+      avatarUrl: editForm.avatarUrl || undefined,
+    });
+    toast.success(t('characterTemplates.updateSuccess'));
+    editDialogVisible.value = false;
+    loadMyTemplates();
+  } catch {
+    // Error handled by API interceptor
+  }
+}
+
+async function deleteTemplate(id: string) {
+  try {
+    await ElMessageBox.confirm(t('characterTemplates.deleteConfirm'));
+    await characterTemplateApi.deleteTemplate(id);
+    toast.success(t('characterTemplates.deleteSuccess'));
+    myTemplates.value = myTemplates.value.filter((tmpl) => tmpl.id !== id);
+  } catch {
+    // Cancelled or error handled by API interceptor
+  }
+}
+
 onMounted(loadTemplates);
 </script>
 
@@ -92,62 +172,100 @@ onMounted(loadTemplates);
     </template>
 
     <div class="character-templates-page">
-      <div class="category-tabs">
-        <el-radio-group v-model="selectedCategory" @change="currentPage = 1; loadTemplates()">
-          <el-radio-button value="">{{ t('characterTemplates.allCategories') }}</el-radio-button>
-          <el-radio-button value="assistant">Assistant</el-radio-button>
-          <el-radio-button value="roleplay">Roleplay</el-radio-button>
-          <el-radio-button value="education">Education</el-radio-button>
-          <el-radio-button value="creative">Creative</el-radio-button>
-        </el-radio-group>
-      </div>
-
-      <div v-if="loading" class="loading">
-        <el-skeleton :rows="3" animated />
-      </div>
-
-      <div v-else-if="templates.length === 0" class="empty">
-        <el-empty :description="t('characterTemplates.noTemplates')" />
-      </div>
-
-      <div v-else class="template-grid">
-        <el-card v-for="tmpl in templates" :key="tmpl.id" class="template-card" shadow="hover">
-          <div class="template-header">
-            <el-avatar :src="tmpl.avatarUrl" :size="48">{{ tmpl.name[0] }}</el-avatar>
-            <div class="template-info">
-              <h3>{{ tmpl.name }}</h3>
-              <el-tag v-if="tmpl.category" size="small">{{ tmpl.category }}</el-tag>
-            </div>
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+        <el-tab-pane :label="t('characterTemplates.browse')" name="browse">
+          <div class="category-tabs">
+            <el-radio-group v-model="selectedCategory" @change="currentPage = 1; loadTemplates()">
+              <el-radio-button value="">{{ t('characterTemplates.allCategories') }}</el-radio-button>
+              <el-radio-button value="assistant">Assistant</el-radio-button>
+              <el-radio-button value="roleplay">Roleplay</el-radio-button>
+              <el-radio-button value="education">Education</el-radio-button>
+              <el-radio-button value="creative">Creative</el-radio-button>
+            </el-radio-group>
           </div>
-          <p class="template-desc">{{ tmpl.description }}</p>
-          <div v-if="ratings[tmpl.id]" class="template-rating" @click.stop="openRatingDialog(tmpl.id)">
-            <span class="rating-stars" role="img" :aria-label="t('characterTemplates.rating')">&#9733;</span>
-            <span class="rating-value">{{ ratings[tmpl.id].average }}</span>
-            <span class="rating-count">({{ ratings[tmpl.id].count }})</span>
-          </div>
-          <div class="template-footer">
-            <span class="usage-count">{{ t('characterTemplates.usageCount', { count: tmpl.usageCount }) }}</span>
-            <div class="template-actions">
-              <el-button size="small" @click="openRatingDialog(tmpl.id)">
-                {{ t('characterTemplates.rateTemplate') }}
-              </el-button>
-              <el-button type="primary" size="small" @click="useTemplate(tmpl.id)">
-                {{ t('characterTemplates.useTemplate') }}
-              </el-button>
-            </div>
-          </div>
-        </el-card>
-      </div>
 
-      <el-pagination
-        v-if="total > pageSize"
-        :current-page="currentPage"
-        :page-size="pageSize"
-        :total="total"
-        layout="prev, pager, next"
-        @current-change="handlePageChange"
-        class="pagination"
-      />
+          <div v-if="loading" class="loading">
+            <el-skeleton :rows="3" animated />
+          </div>
+
+          <div v-else-if="templates.length === 0" class="empty">
+            <el-empty :description="t('characterTemplates.noTemplates')" />
+          </div>
+
+          <div v-else class="template-grid">
+            <el-card v-for="tmpl in templates" :key="tmpl.id" class="template-card" shadow="hover">
+              <div class="template-header">
+                <el-avatar :src="tmpl.avatarUrl" :size="48">{{ tmpl.name[0] }}</el-avatar>
+                <div class="template-info">
+                  <h3>{{ tmpl.name }}</h3>
+                  <el-tag v-if="tmpl.category" size="small">{{ tmpl.category }}</el-tag>
+                </div>
+              </div>
+              <p class="template-desc">{{ tmpl.description }}</p>
+              <div v-if="ratings[tmpl.id]" class="template-rating" @click.stop="openRatingDialog(tmpl.id)">
+                <span class="rating-stars" role="img" :aria-label="t('characterTemplates.rating')">&#9733;</span>
+                <span class="rating-value">{{ ratings[tmpl.id].average }}</span>
+                <span class="rating-count">({{ ratings[tmpl.id].count }})</span>
+              </div>
+              <div class="template-footer">
+                <span class="usage-count">{{ t('characterTemplates.usageCount', { count: tmpl.usageCount }) }}</span>
+                <div class="template-actions">
+                  <el-button size="small" @click="openRatingDialog(tmpl.id)">
+                    {{ t('characterTemplates.rateTemplate') }}
+                  </el-button>
+                  <el-button type="primary" size="small" @click="useTemplate(tmpl.id)">
+                    {{ t('characterTemplates.useTemplate') }}
+                  </el-button>
+                </div>
+              </div>
+            </el-card>
+          </div>
+
+          <el-pagination
+            v-if="total > pageSize"
+            :current-page="currentPage"
+            :page-size="pageSize"
+            :total="total"
+            layout="prev, pager, next"
+            @current-change="handlePageChange"
+            class="pagination"
+          />
+        </el-tab-pane>
+
+        <el-tab-pane :label="t('characterTemplates.myTemplates')" name="mine">
+          <div v-if="myTemplatesLoading" class="loading">
+            <el-skeleton :rows="3" animated />
+          </div>
+
+          <div v-else-if="myTemplates.length === 0" class="empty">
+            <el-empty :description="t('characterTemplates.noMyTemplates')" />
+          </div>
+
+          <div v-else class="template-grid">
+            <el-card v-for="tmpl in myTemplates" :key="tmpl.id" class="template-card" shadow="hover">
+              <div class="template-header">
+                <el-avatar :src="tmpl.avatarUrl" :size="48">{{ tmpl.name[0] }}</el-avatar>
+                <div class="template-info">
+                  <h3>{{ tmpl.name }}</h3>
+                  <el-tag v-if="tmpl.category" size="small">{{ tmpl.category }}</el-tag>
+                </div>
+              </div>
+              <p class="template-desc">{{ tmpl.description }}</p>
+              <div class="template-footer">
+                <span class="usage-count">{{ t('characterTemplates.usageCount', { count: tmpl.usageCount }) }}</span>
+                <div class="template-actions">
+                  <el-button size="small" @click="openEditDialog(tmpl)">
+                    {{ t('characterTemplates.editTemplate') }}
+                  </el-button>
+                  <el-button type="danger" size="small" @click="deleteTemplate(tmpl.id)">
+                    {{ t('common.delete') }}
+                  </el-button>
+                </div>
+              </div>
+            </el-card>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
     </div>
 
     <el-dialog v-model="ratingDialogVisible" :title="t('characterTemplates.rateTemplate')" width="360px">
@@ -157,6 +275,30 @@ onMounted(loadTemplates);
       <template #footer>
         <el-button @click="ratingDialogVisible = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" :disabled="ratingValue < 1" @click="submitRating">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="editDialogVisible" :title="t('characterTemplates.editTemplate')" width="500px">
+      <el-form label-position="top">
+        <el-form-item :label="t('common.name')">
+          <el-input v-model="editForm.name" />
+        </el-form-item>
+        <el-form-item :label="t('common.description')">
+          <el-input v-model="editForm.description" type="textarea" :rows="3" />
+        </el-form-item>
+        <el-form-item :label="t('common.category')">
+          <el-input v-model="editForm.category" />
+        </el-form-item>
+        <el-form-item label="Avatar URL">
+          <el-input v-model="editForm.avatarUrl" />
+        </el-form-item>
+        <el-form-item>
+          <el-switch v-model="editForm.isPublic" :active-text="t('common.public')" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="submitEdit">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
   </DashboardLayout>

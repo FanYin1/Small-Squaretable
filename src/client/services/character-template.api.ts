@@ -19,6 +19,9 @@ export const characterTemplateApi = {
     );
   },
 
+  getMyTemplates: () =>
+    api.get<CharacterTemplate[]>('/character-templates/mine'),
+
   getTemplate: (id: string) =>
     api.get<CharacterTemplate>(`/character-templates/${id}`),
 
