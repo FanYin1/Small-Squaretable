@@ -6,6 +6,7 @@ import { chatApi, ApiError, llmApi, characterApi } from '@client/services';
 import { WebSocketClient } from '@client/services/websocket';
 import { WSConnectionState } from '../../types/websocket';
 import { useCharacterIntelligenceStore } from './characterIntelligence';
+import { useNotificationStore } from './notification';
 import { useDeviceSync } from '@client/composables/useDeviceSync';
 import { createLogger } from '@client/utils/logger';
 
@@ -246,6 +247,16 @@ export const useChatStore = defineStore('chat', () => {
       handleSyncMessage({ type: 'sync:chat_read', data: data as Record<string, unknown> });
     });
 
+    // Social notification events
+    wsClient.on('social:notification', (data: unknown) => {
+      const notifStore = useNotificationStore();
+      notifStore.handleWsNotification(data as import('@/types/social').NotificationItem);
+    });
+
+    wsClient.on('social:unread_count', (data: unknown) => {
+      const notifStore = useNotificationStore();
+      notifStore.handleWsUnreadCount((data as { count: number }).count);
+    });
     wsClient.connect();
   }
 

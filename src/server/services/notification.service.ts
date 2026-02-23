@@ -15,6 +15,13 @@ export class NotificationService {
   ) {}
 
   /**
+   * Set the WebSocket broadcast function (called after WS handler is initialized)
+   */
+  setBroadcastFn(fn: (userId: string, message: Record<string, unknown>) => void): void {
+    this.broadcastFn = fn;
+  }
+
+  /**
    * Create a notification and push it via WebSocket
    */
   async notify(

@@ -13,6 +13,7 @@ import type { UserRepository } from '@db/repositories/user.repository';
 import type { EventBus } from './event-bus.service';
 import type { FollowInfo, FavoriteInfo } from '@/types/social';
 import { NotFoundError, BadRequestError } from '@/core/errors';
+import { notificationService } from './notification.service';
 
 export class SocialService {
   constructor(
@@ -31,10 +32,8 @@ export class SocialService {
     const follow = await this.followRepo.follow(userId, targetId);
     await this.eventBus.emit('social.follow', { followerId: userId, followingId: targetId });
     // Create notification for the followed user
-    await this.notificationRepo.createNotification(
-      targetId, 'follow', userId, 'user', userId,
-      'started following you',
-    );
+    await notificationService.notify(targetId, 'follow', userId, 'user', userId, 'started following you');
+
     return follow;
   }
 

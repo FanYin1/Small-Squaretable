@@ -149,6 +149,17 @@ export class WebSocketService {
   }
 
   /**
+   * 向指定用户的所有连接发送消息
+   */
+  sendToUser(userId: string, message: WSMessageUnion): void {
+    for (const [clientId, client] of this.clients.entries()) {
+      if (client.info.userId === userId) {
+        this.sendToClient(clientId, message);
+      }
+    }
+  }
+
+  /**
    * 更新心跳时间戳
    */
   updateHeartbeat(clientId: string): void {

@@ -55,6 +55,8 @@ import { WebhookWorker } from './workers/webhook.worker';
 import { webhookRepository } from '../db/repositories/webhook.repository';
 import { basicHealthCheck, livenessCheck, readinessCheck } from './services/health';
 import { websocketHandler } from './routes/websocket';
+import { websocketService } from './services/websocket.service';
+import { notificationService } from './services/notification.service';
 import { verifyAccessToken, extractTokenFromHeader } from '../core/jwt';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -373,6 +375,11 @@ if (process.env.NODE_ENV !== 'test') {
   // 初始化 WebSocket
   // @ts-expect-error - Type mismatch between @hono/node-server and ws Server types
   websocketHandler.initialize(serverInstance);
+
+  // Wire notification WebSocket push
+  notificationService.setBroadcastFn((userId, data) => {
+    websocketService.sendToUser(userId, data as unknown as import('../types/websocket').WSMessageUnion);
+  });
 
   // 优雅关闭
   async function gracefulShutdown(signal: string) {
