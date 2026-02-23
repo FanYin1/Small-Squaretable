@@ -1574,5 +1574,17 @@
     "characterForked": "{actor} 复制了你的角色 {target}",
     "andOthers": "和其他 {count} 人",
     "preferences": "偏好设置"
+  },
+  "userProfile": {
+    "title": "用户资料",
+    "followers": "粉丝",
+    "following": "关注",
+    "characters": "角色",
+    "joinedAt": "加入于 {date}",
+    "follow": "关注",
+    "unfollow": "取消关注",
+    "noCharacters": "暂无公开角色",
+    "notFound": "用户不存在",
+    "editProfile": "编辑资料"
   }
 }

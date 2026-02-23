@@ -25,7 +25,7 @@ const userId = computed(() => route.params.userId as string);
 const isOwnProfile = computed(() => userStore.user?.id === userId.value);
 
 // User info
-const userInfo = ref<{ id: string; displayName: string | null; avatarUrl: string | null } | null>(null);
+const userInfo = ref<{ id: string; displayName: string | null; avatarUrl: string | null; bio?: string | null; createdAt?: string | null } | null>(null);
 const followInfo = ref<FollowInfo | null>(null);
 const loading = ref(true);
 const error = ref(false);
@@ -77,7 +77,7 @@ async function fetchUserData() {
     userInfo.value = { id: userId.value, displayName: null, avatarUrl: null };
 
     try {
-      const user = await api.get<{ id: string; displayName: string | null; avatarUrl: string | null }>(
+      const user = await api.get<{ id: string; displayName: string | null; avatarUrl: string | null; bio?: string | null; createdAt?: string | null }>(
         `/social/users/${userId.value}/profile`
       );
       if (user) {
@@ -233,6 +233,8 @@ watch(userId, () => {
           />
           <div class="profile-info">
             <h2 class="profile-name">{{ displayName }}</h2>
+            <p v-if="userInfo?.bio" class="profile-bio">{{ userInfo.bio }}</p>
+            <span v-if="userInfo?.createdAt" class="profile-joined">{{ t('userProfile.joinedAt', { date: new Date(userInfo.createdAt).toLocaleDateString() }) }}</span>
             <div class="profile-stats">
               <div class="stat-item">
                 <span class="stat-count">{{ followInfo?.followerCount ?? 0 }}</span>
@@ -252,6 +254,11 @@ watch(userId, () => {
           </div>
           <div v-if="!isOwnProfile" class="profile-actions">
             <FollowButton :user-id="userId" />
+          </div>
+          <div v-else class="profile-actions">
+            <router-link :to="{ name: 'Profile' }">
+              <el-button type="primary" plain>{{ t('userProfile.editProfile') }}</el-button>
+            </router-link>
           </div>
         </div>
       </div>
@@ -476,8 +483,22 @@ watch(userId, () => {
 .profile-name {
   font-size: 24px;
   font-weight: 700;
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--text-primary);
+}
+
+.profile-bio {
+  color: var(--text-secondary, #606266);
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.profile-joined {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--text-tertiary, #909399);
+  margin-bottom: 12px;
 }
 
 .profile-stats {
