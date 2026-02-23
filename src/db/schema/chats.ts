@@ -4,7 +4,7 @@
  * 存储用户与角色的对话记录
  */
 
-import { pgTable, uuid, varchar, timestamp, jsonb, text, bigserial, bigint, pgEnum, index, customType } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, text, bigserial, bigint, integer, pgEnum, index, customType } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 import { users } from './users';
 import { characters } from './characters';
@@ -32,6 +32,9 @@ export const chats = pgTable('chats', {
   title: varchar('title', { length: 500 }),
   summary: text('summary'),
   metadata: jsonb('metadata').default({}).notNull(),
+
+  lastReadMessageId: bigint('last_read_message_id', { mode: 'number' }),
+  unreadCount: integer('unread_count').default(0).notNull(),
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
