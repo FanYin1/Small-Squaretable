@@ -1,6 +1,13 @@
-import { pgTable, uuid, varchar, text, integer, boolean, timestamp, jsonb, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, integer, boolean, timestamp, jsonb, pgEnum, customType, index } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { characters } from './characters';
+
+// Define tsvector custom type for full-text search
+const tsvector = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return 'tsvector';
+  },
+});
 
 export const worldbookScopeEnum = pgEnum('worldbook_scope', ['global', 'character', 'persona', 'chat']);
 
@@ -28,4 +35,5 @@ export const worldbookEntries = pgTable('worldbook_entries', {
   settings: jsonb('settings').default({}).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  searchVector: tsvector('search_vector'),
 });

@@ -118,17 +118,38 @@ export class WorldBookEntryRepository extends BaseRepository {
   }
 
   /**
-   * Search worldbook entries belonging to a user by keyword/content ILIKE.
+   * Search worldbook entries belonging to a user.
+   * Uses full-text search for queries of 3+ chars, ILIKE fallback for shorter queries.
    */
   async searchByUser(
     userId: string,
     query: string,
     limit = 20,
   ): Promise<Array<{ id: string; keyword: string; content: string; worldbookId: string; worldbookName: string }>> {
-    const escaped = query.replace(/[%_\\]/g, '\\$&');
-    const pattern = `%${escaped}%`;
+    // Short queries (1-2 chars): fall back to ILIKE
+    if (query.length < 3) {
+      const escaped = query.replace(/[%_\\]/g, '\\$&');
+      const pattern = `%${escaped}%`;
 
-    const rows = await this.db
+      return await this.db
+        .select({
+          id: worldbookEntries.id,
+          keyword: worldbookEntries.keyword,
+          content: worldbookEntries.content,
+          worldbookId: worldbookEntries.worldbookId,
+          worldbookName: worldbooks.name,
+        })
+        .from(worldbookEntries)
+        .innerJoin(worldbooks, eq(worldbookEntries.worldbookId, worldbooks.id))
+        .where(
+          sql`${worldbooks.userId} = ${userId} AND (${worldbookEntries.keyword} ILIKE ${pattern} OR ${worldbookEntries.content} ILIKE ${pattern})`,
+        )
+        .limit(limit);
+    }
+
+    // Full-text search with ranking
+    const tsQuery = sql`plainto_tsquery('english', ${query})`;
+    return await this.db
       .select({
         id: worldbookEntries.id,
         keyword: worldbookEntries.keyword,
@@ -139,11 +160,10 @@ export class WorldBookEntryRepository extends BaseRepository {
       .from(worldbookEntries)
       .innerJoin(worldbooks, eq(worldbookEntries.worldbookId, worldbooks.id))
       .where(
-        sql`${worldbooks.userId} = ${userId} AND (${worldbookEntries.keyword} ILIKE ${pattern} OR ${worldbookEntries.content} ILIKE ${pattern})`,
+        sql`${worldbooks.userId} = ${userId} AND ${worldbookEntries.searchVector} @@ ${tsQuery}`,
       )
+      .orderBy(sql`ts_rank(${worldbookEntries.searchVector}, ${tsQuery}) DESC`)
       .limit(limit);
-
-    return rows;
   }
 }
 
