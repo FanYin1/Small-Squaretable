@@ -11,6 +11,15 @@ import { EventBus } from './event-bus.service';
 import { SocialService } from './social.service';
 import { NotFoundError, BadRequestError } from '../../core/errors';
 
+// Mock the notificationService singleton used by social.service.ts
+vi.mock('./notification.service', () => ({
+  notificationService: {
+    notify: vi.fn().mockResolvedValue({ id: 'n-1' }),
+  },
+}));
+
+import { notificationService } from './notification.service';
+
 // --- Mock repository factories (same pattern as social.service.spec.ts) ---
 
 function createMockFollowRepo() {
@@ -84,7 +93,6 @@ describe('Social Features Integration', () => {
       // Step 1: Follow user-2
       const fakeFollow = { id: 'f-1', followerId: 'user-1', followingId: 'user-2' };
       followRepo.follow.mockResolvedValue(fakeFollow);
-      notificationRepo.createNotification.mockResolvedValue({ id: 'n-1' });
 
       const followResult = await service.followUser('user-1', 'user-2');
       expect(followResult).toEqual(fakeFollow);
@@ -130,7 +138,7 @@ describe('Social Features Integration', () => {
       await expect(service.followUser('user-1', 'user-1')).rejects.toThrow(BadRequestError);
       await expect(service.followUser('user-1', 'user-1')).rejects.toThrow('Cannot follow yourself');
       expect(followRepo.follow).not.toHaveBeenCalled();
-      expect(notificationRepo.createNotification).not.toHaveBeenCalled();
+      expect(notificationService.notify).not.toHaveBeenCalled();
     });
   });
 
@@ -243,33 +251,26 @@ describe('Social Features Integration', () => {
     it('should create a notification with correct type/actorId/targetId when following a user', async () => {
       const fakeFollow = { id: 'f-1', followerId: 'user-1', followingId: 'user-2' };
       followRepo.follow.mockResolvedValue(fakeFollow);
-      notificationRepo.createNotification.mockResolvedValue({
-        id: 'n-1',
-        userId: 'user-2',
-        type: 'follow',
-        actorId: 'user-1',
-        targetType: 'user',
-        targetId: 'user-1',
-        message: 'started following you',
-      });
 
       await service.followUser('user-1', 'user-2');
 
-      // Verify notification was created with correct parameters
-      expect(notificationRepo.createNotification).toHaveBeenCalledTimes(1);
-      expect(notificationRepo.createNotification).toHaveBeenCalledWith(
-        'user-2',              // userId (the followed user receives the notification)
-        'follow',              // type
-        'user-1',              // actorId (the follower)
-        'user',                // targetType
-        'user-1',              // targetId
-        'started following you', // message
+      // Verify notification was created via notificationService.notify
+      expect(notificationService.notify).toHaveBeenCalledTimes(1);
+      expect(notificationService.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-2',
+          type: 'follow',
+          actorId: 'user-1',
+          targetType: 'user',
+          targetId: 'user-1',
+          message: 'started following you',
+        }),
       );
     });
 
     it('should not create a notification when self-follow is attempted', async () => {
       await expect(service.followUser('user-1', 'user-1')).rejects.toThrow(BadRequestError);
-      expect(notificationRepo.createNotification).not.toHaveBeenCalled();
+      expect(notificationService.notify).not.toHaveBeenCalled();
     });
   });
 
@@ -277,7 +278,6 @@ describe('Social Features Integration', () => {
   describe('Event emission', () => {
     it('should emit "social.follow" event when following a user', async () => {
       followRepo.follow.mockResolvedValue({ id: 'f-1' });
-      notificationRepo.createNotification.mockResolvedValue({ id: 'n-1' });
       const emitSpy = vi.spyOn(eventBus, 'emit');
 
       await service.followUser('user-1', 'user-2');
