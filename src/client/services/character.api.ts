@@ -218,6 +218,12 @@ export const characterApi = {
     api.get<CharacterVersion>(`/characters/${characterId}/versions/${version}`),
 
   /**
+   * 恢复角色到指定版本
+   */
+  restoreVersion: (characterId: string, version: number) =>
+    api.post(`/characters/${characterId}/versions/${version}/restore`),
+
+  /**
    * 复制角色
    */
   duplicateCharacter: async (id: string): Promise<Character> => {

@@ -1061,6 +1061,73 @@ characterRoutes.post('/:id/versions', authMiddleware(), async (c) => {
   );
 });
 
+// Restore a character to a previous version
+characterRoutes.post('/:id/versions/:version/restore', authMiddleware(), async (c) => {
+  const user = c.get('user') as { id: string; tenantId: string };
+  const characterId = c.req.param('id');
+  const version = Number(c.req.param('version'));
+
+  // Get the version to restore
+  const versionData = await characterVersionService.getVersion(characterId, version);
+  if (!versionData) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Version not found' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 404);
+  }
+
+  // Auto-save current state before restoring
+  try {
+    const current = await characterService.getById(characterId);
+    if (current.cardData) {
+      await characterVersionService.saveVersion(
+        characterId,
+        current.cardData as Record<string, unknown>,
+        user.id,
+        `Auto-save before restore to v${version}`,
+      );
+    }
+  } catch (e) {
+    charLogger.warn('Failed to auto-save before restore', { characterId, error: e });
+  }
+
+  // Update character with the version's cardData
+  await characterRepository.update(characterId, user.tenantId, {
+    cardData: versionData.cardData,
+    updatedAt: new Date(),
+  });
+
+  await cacheService.invalidateCharacter(characterId);
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: { restored: true, version },
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
+// GET /:id/export/json — Export character as JSON file
+characterRoutes.get('/:id/export/json', authMiddleware(), async (c) => {
+  const characterId = c.req.param('id');
+  const character = await characterService.getById(characterId);
+
+  const cardData = {
+    ...(character.cardData as Record<string, unknown>),
+    name: character.name,
+    description: character.description || '',
+    tags: character.tags || [],
+    spec: 'chara_card_v2',
+    spec_version: '2.0',
+  };
+
+  const safeName = character.name.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  c.header('Content-Type', 'application/json');
+  c.header('Content-Disposition', `attachment; filename="${safeName}.json"`);
+  return c.body(JSON.stringify(cardData, null, 2));
+});
+
 // GET /:id/export/png — Download character as PNG with embedded JSON
 characterRoutes.get('/:id/export/png', optionalAuthMiddleware(), async (c) => {
   const { id } = c.req.param();
