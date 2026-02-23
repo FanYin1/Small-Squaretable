@@ -495,6 +495,26 @@ export class WebSocketHandler {
     message: WSChatControlMessage
   ): Promise<void> {
     const { chatId } = message.data;
+
+    // Verify the client owns this chat before allowing them to join
+    const clientInfo = websocketService.getClientInfo(clientId);
+    if (!clientInfo) {
+      return;
+    }
+
+    const chat = await chatRepository.findById(chatId);
+    if (!chat || chat.userId !== clientInfo.userId) {
+      websocketService.sendToClient(clientId, {
+        type: WSMessageType.ERROR,
+        timestamp: new Date().toISOString(),
+        data: {
+          code: 'FORBIDDEN',
+          message: 'You do not have access to this chat',
+        },
+      });
+      return;
+    }
+
     websocketService.joinChat(clientId, chatId);
   }
 
