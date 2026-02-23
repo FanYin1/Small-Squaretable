@@ -34,6 +34,8 @@ export interface SearchOptions {
   userId?: string;
   page: number;
   limit: number;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 /**
@@ -55,6 +57,7 @@ export interface SearchResultItem {
   createdAt: Date;
   updatedAt: Date;
   rank?: number;
+  snippet?: string;
 }
 
 /**

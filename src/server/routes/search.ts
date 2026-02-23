@@ -30,6 +30,10 @@ const globalSearchSchema = z.object({
   type: z.enum(['all', 'characters', 'messages', 'worldbooks']).default('all'),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
+  category: z.string().max(50).optional(),
+  tags: z.string().max(500).optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
 });
 
 const suggestionsSchema = z.object({
@@ -54,11 +58,11 @@ searchRoutes.get(
   zValidator('query', globalSearchSchema),
   async (c) => {
     const user = c.get('user') as { id: string; tenantId: string };
-    const { q, type, page, limit } = c.req.valid('query');
+    const { q, type, page, limit, category, tags, dateFrom, dateTo } = c.req.valid('query');
 
     try {
       // Check cache
-      const cacheKey = `search:global:${user.id}:${hashParams(q, type, String(page), String(limit))}`;
+      const cacheKey = `search:global:${user.id}:${hashParams(q, type, String(page), String(limit), category || '', tags || '', dateFrom || '', dateTo || '')}`;
       const cached = await cacheService.get<Record<string, unknown>>(cacheKey);
       if (cached) {
         c.header('X-Cache', 'HIT');
@@ -83,6 +87,10 @@ searchRoutes.get(
               userId: user.id,
               page,
               limit,
+              category: category || undefined,
+              tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+              dateFrom: dateFrom || undefined,
+              dateTo: dateTo || undefined,
             })
           : null,
         searchMessages

@@ -61,6 +61,10 @@ async function doSearch() {
       type,
       page: currentPage.value,
       limit: pageSize.value,
+      category: filters.value.category || undefined,
+      tags: filters.value.tags.length ? filters.value.tags : undefined,
+      dateFrom: filters.value.dateRange?.[0] ? String(filters.value.dateRange[0]) : undefined,
+      dateTo: filters.value.dateRange?.[1] ? String(filters.value.dateRange[1]) : undefined,
     });
   } catch {
     results.value = null;
@@ -94,12 +98,16 @@ function goToWorldbook(worldbookId: string) {
   router.push({ name: 'WorldBookDetail', params: { id: worldbookId } });
 }
 
-// Watch for filter changes
+// Watch for filter changes with debounce
+let filterTimeout: ReturnType<typeof setTimeout>;
 watch(filters, () => {
-  currentPage.value = 1;
-  if (searchQuery.value.trim()) {
-    doSearch();
-  }
+  clearTimeout(filterTimeout);
+  filterTimeout = setTimeout(() => {
+    currentPage.value = 1;
+    if (searchQuery.value.trim()) {
+      doSearch();
+    }
+  }, 300);
 }, { deep: true });
 
 // Watch for route query changes
@@ -183,7 +191,7 @@ onMounted(() => {
                       </el-avatar>
                       <div class="character-info">
                         <div class="character-name" v-html="highlightText(char.name || '', searchQuery)" />
-                        <div class="character-desc" v-html="highlightText(char.description || '', searchQuery)" />
+                        <div class="character-desc" v-html="char.snippet || highlightText(char.description || '', searchQuery)" />
                         <div class="character-tags" v-if="char.tags?.length">
                           <el-tag v-for="tag in char.tags.slice(0, 3)" :key="tag" size="small" type="info">
                             {{ tag }}

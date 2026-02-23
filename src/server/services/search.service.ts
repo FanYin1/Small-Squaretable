@@ -17,7 +17,7 @@ export class SearchService {
    * @returns 搜索结果
    */
   async searchCharacters(options: SearchOptions): Promise<SearchResult> {
-    const { query, sort, filter, category, tags, isNsfw, userId, page, limit } = options;
+    const { query, sort, filter, category, tags, isNsfw, userId, page, limit, dateFrom, dateTo } = options;
     const offset = (page - 1) * limit;
 
     // 检查是否为通配符查询或空查询（浏览所有角色）
@@ -64,6 +64,14 @@ export class SearchService {
       conditions.push(sql`${characters.tags} && ARRAY[${sql.join(tags.map(t => sql`${t}`), sql`, `)}]`);
     }
 
+    // 日期范围过滤
+    if (dateFrom) {
+      conditions.push(sql`${characters.createdAt} >= ${dateFrom}::timestamptz`);
+    }
+    if (dateTo) {
+      conditions.push(sql`${characters.createdAt} <= ${dateTo}::timestamptz`);
+    }
+
     // 排序
     let orderBy;
     switch (sort) {
@@ -108,6 +116,9 @@ export class SearchService {
         rank: tsQuery
           ? sql<number>`ts_rank(${characters.searchVector}, ${tsQuery})`
           : sql<number>`1`,
+        snippet: tsQuery
+          ? sql<string>`ts_headline('english', coalesce(${characters.description}, ''), ${tsQuery}, 'MaxWords=35, MinWords=15, MaxFragments=1, StartSel=''<mark class="search-highlight">'', StopSel=''</mark>''')`
+          : sql<string>`substring(coalesce(${characters.description}, '') from 1 for 150)`,
       })
       .from(characters)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -140,6 +151,7 @@ export class SearchService {
       createdAt: result.createdAt,
       updatedAt: result.updatedAt,
       rank: result.rank,
+      snippet: result.snippet || undefined,
     }));
 
     return {
