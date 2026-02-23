@@ -975,13 +975,42 @@ characterRoutes.delete('/:id/ratings', authMiddleware(), async (c) => {
   );
 });
 
+/**
+ * Verify the user owns the character or is a collaborator
+ */
+async function verifyCharacterAccess(characterId: string, userId: string): Promise<boolean> {
+  try {
+    const character = await characterService.getById(characterId);
+    if (character.creatorId === userId) return true;
+  } catch {
+    return false;
+  }
+  const collab = await db.select().from(characterCollaborators)
+    .where(and(
+      eq(characterCollaborators.characterId, characterId),
+      eq(characterCollaborators.userId, userId),
+    ))
+    .limit(1);
+  return collab.length > 0;
+}
+
 // ── Version History Endpoints ──
 
 // List versions for a character
 characterRoutes.get('/:id/versions', authMiddleware(), async (c) => {
+  const user = c.get('user');
   const characterId = c.req.param('id');
   const limit = Number(c.req.query('limit') || 20);
   const offset = Number(c.req.query('offset') || 0);
+
+  const hasAccess = await verifyCharacterAccess(characterId, user.id);
+  if (!hasAccess) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'FORBIDDEN', message: 'Forbidden' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 403);
+  }
 
   const versions = await characterVersionService.listVersions(characterId, limit, offset);
 
@@ -997,8 +1026,18 @@ characterRoutes.get('/:id/versions', authMiddleware(), async (c) => {
 
 // Get a specific version
 characterRoutes.get('/:id/versions/:version', authMiddleware(), async (c) => {
+  const user = c.get('user');
   const characterId = c.req.param('id');
   const version = Number(c.req.param('version'));
+
+  const hasAccess = await verifyCharacterAccess(characterId, user.id);
+  if (!hasAccess) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'FORBIDDEN', message: 'Forbidden' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 403);
+  }
 
   const versionData = await characterVersionService.getVersion(characterId, version);
 
@@ -1027,6 +1066,15 @@ characterRoutes.get('/:id/versions/:version', authMiddleware(), async (c) => {
 characterRoutes.post('/:id/versions', authMiddleware(), async (c) => {
   const user = c.get('user');
   const characterId = c.req.param('id');
+
+  const hasAccess = await verifyCharacterAccess(characterId, user.id);
+  if (!hasAccess) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'FORBIDDEN', message: 'Forbidden' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 403);
+  }
 
   const current = await characterService.getById(characterId);
 
@@ -1066,6 +1114,15 @@ characterRoutes.post('/:id/versions/:version/restore', authMiddleware(), async (
   const user = c.get('user') as { id: string; tenantId: string };
   const characterId = c.req.param('id');
   const version = Number(c.req.param('version'));
+
+  const hasAccess = await verifyCharacterAccess(characterId, user.id);
+  if (!hasAccess) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'FORBIDDEN', message: 'Forbidden' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 403);
+  }
 
   // Get the version to restore
   const versionData = await characterVersionService.getVersion(characterId, version);

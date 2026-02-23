@@ -143,6 +143,7 @@ describe('Character Version Restore & JSON Export', () => {
 
       vi.mocked(characterService.getById).mockResolvedValue({
         id: 'char-1',
+        creatorId: 'user-123',
         cardData: { personality: 'current' },
       } as any);
 
@@ -166,6 +167,10 @@ describe('Character Version Restore & JSON Export', () => {
       await setupAuth();
       const { characterVersionService } = await import('../services/character-version.service');
 
+      vi.mocked(characterService.getById).mockResolvedValue({
+        id: 'char-1',
+        creatorId: 'user-123',
+      } as any);
       vi.mocked(characterVersionService.getVersion).mockResolvedValue(null);
 
       const res = await app.request('/api/v1/characters/char-1/versions/999/restore', {
@@ -194,6 +199,7 @@ describe('Character Version Restore & JSON Export', () => {
 
       vi.mocked(characterService.getById).mockResolvedValue({
         id: 'char-1',
+        creatorId: 'user-123',
         cardData: { personality: 'current-state' },
       } as any);
 
