@@ -1508,6 +1508,26 @@
     "characterForked": "Character Forks",
     "system": "System Notifications"
   },
+  "expressionEditor": {
+    "title": "Expression Sprites",
+    "preview": "Preview",
+    "noSprite": "No sprite for this emotion",
+    "fileTooLarge": "Image must be under 5MB",
+    "neutral": "Neutral",
+    "default": "Default",
+    "excited": "Excited",
+    "happy": "Happy",
+    "loving": "Loving",
+    "calm": "Calm",
+    "curious": "Curious",
+    "surprised": "Surprised",
+    "confused": "Confused",
+    "bored": "Bored",
+    "sad": "Sad",
+    "fearful": "Fearful",
+    "angry": "Angry",
+    "disgusted": "Disgusted"
+  },
   "notifications": {
     "title": "Notifications",
     "markAllRead": "Mark all as read",

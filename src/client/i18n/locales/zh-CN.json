@@ -1508,6 +1508,26 @@
     "characterForked": "角色复制",
     "system": "系统通知"
   },
+  "expressionEditor": {
+    "title": "表情精灵",
+    "preview": "预览",
+    "noSprite": "此情绪无精灵图",
+    "fileTooLarge": "图片不能超过5MB",
+    "neutral": "中性",
+    "default": "默认",
+    "excited": "兴奋",
+    "happy": "开心",
+    "loving": "爱意",
+    "calm": "平静",
+    "curious": "好奇",
+    "surprised": "惊讶",
+    "confused": "困惑",
+    "bored": "无聊",
+    "sad": "悲伤",
+    "fearful": "恐惧",
+    "angry": "愤怒",
+    "disgusted": "厌恶"
+  },
   "notifications": {
     "title": "通知",
     "markAllRead": "全部已读",
