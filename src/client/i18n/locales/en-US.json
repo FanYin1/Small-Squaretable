@@ -19,6 +19,7 @@
     "import": "Import",
     "export": "Export",
     "add": "Add",
+    "name": "Name",
     "retry": "Please try again later",
     "refresh": "Refresh",
     "later": "Later",
@@ -422,7 +423,20 @@
     "duplicateFailed": "Failed to duplicate",
     "batchDelete": "Delete Selected",
     "batchDeleteConfirm": "Are you sure you want to delete the selected characters? This action cannot be undone.",
-    "batchDeleteSuccess": "{count} characters deleted successfully"
+    "batchDeleteSuccess": "{count} characters deleted successfully",
+    "addToCollection": "Add to Collection"
+  },
+  "collections": {
+    "title": "Collections",
+    "all": "All Characters",
+    "create": "New Collection",
+    "rename": "Rename",
+    "changeColor": "Change Color",
+    "delete": "Delete Collection",
+    "deleteConfirm": "Delete this collection? Characters in it will not be deleted.",
+    "empty": "No characters in this collection",
+    "addSuccess": "Added to collection",
+    "removeSuccess": "Removed from collection"
   },
   "subscription": {
     "title": "Subscription",

@@ -146,3 +146,13 @@ export interface CharacterTemplate {
   creatorId?: string;
   createdAt: string;
 }
+
+export interface CharacterCollection {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  sortOrder: number;
+  itemCount: number;
+  createdAt: string;
+}

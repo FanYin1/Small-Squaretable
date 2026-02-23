@@ -19,6 +19,7 @@
     "import": "导入",
     "export": "导出",
     "add": "添加",
+    "name": "名称",
     "retry": "请稍后重试",
     "refresh": "刷新",
     "later": "稍后再说",
@@ -422,7 +423,20 @@
     "duplicateFailed": "复制失败",
     "batchDelete": "删除所选",
     "batchDeleteConfirm": "确定要删除所选角色吗？此操作不可恢复。",
-    "batchDeleteSuccess": "成功删除 {count} 个角色"
+    "batchDeleteSuccess": "成功删除 {count} 个角色",
+    "addToCollection": "添加到收藏夹"
+  },
+  "collections": {
+    "title": "收藏夹",
+    "all": "全部角色",
+    "create": "新建收藏夹",
+    "rename": "重命名",
+    "changeColor": "更改颜色",
+    "delete": "删除收藏夹",
+    "deleteConfirm": "删除此收藏夹？其中的角色不会被删除。",
+    "empty": "此收藏夹中没有角色",
+    "addSuccess": "已添加到收藏夹",
+    "removeSuccess": "已从收藏夹移除"
   },
   "subscription": {
     "title": "订阅管理",

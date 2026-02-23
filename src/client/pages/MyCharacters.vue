@@ -3,9 +3,10 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessageBox } from 'element-plus';
-import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound, CopyDocument } from '@element-plus/icons-vue';
+import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound, CopyDocument, FolderAdd } from '@element-plus/icons-vue';
 import { api } from '@client/services/api';
 import { characterApi } from '@client/services/character.api';
+import { characterCollectionApi } from '@client/services/character-collection.api';
 import { exportApi } from '@client/services/export.api';
 import { useFeatureGate } from '@client/composables/useFeatureGate';
 import { useToast } from '@client/composables/useToast';
@@ -13,8 +14,9 @@ import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import CharacterCard from '@client/components/character/CharacterCard.vue';
 import EmptyState from '@client/components/market/EmptyState.vue';
 import CharacterPublishForm from '@client/components/character/CharacterPublishForm.vue';
+import CollectionSidebar from '@client/components/character/CollectionSidebar.vue';
 import { downloadCharacterJson, readCharacterFile } from '@client/utils/sillytavern';
-import type { Character } from '@client/types';
+import type { Character, CharacterCollection } from '@client/types';
 
 const { t } = useI18n();
 const { hasFeature } = useFeatureGate();
@@ -26,6 +28,10 @@ const characters = ref<Character[]>([]);
 const loading = ref(false);
 const activeTab = ref<'private' | 'published'>('private');
 const searchQuery = ref('');
+
+// Collections
+const collections = ref<CharacterCollection[]>([]);
+const activeCollection = ref<string | null>(null);
 
 // Batch mode
 const batchMode = ref(false);
@@ -120,20 +126,74 @@ const displayCharacters = computed(() => {
 });
 
 onMounted(async () => {
-  await fetchCharacters();
+  await Promise.all([fetchCharacters(), fetchCollections()]);
 });
+
+async function fetchCollections() {
+  try {
+    collections.value = await characterCollectionApi.getCollections();
+  } catch {
+    // silently fail — collections are supplementary
+  }
+}
 
 async function fetchCharacters() {
   loading.value = true;
   try {
-    // api.get automatically extracts response.data, so we get { items, pagination } directly
-    const response = await api.get<{ items: Character[]; pagination: any }>('/characters');
-    characters.value = response.items || [];
+    if (activeCollection.value) {
+      characters.value = await characterCollectionApi.getCollectionCharacters(activeCollection.value);
+    } else {
+      const response = await api.get<{ items: Character[]; pagination: any }>('/characters');
+      characters.value = response.items || [];
+    }
   } catch (error) {
     console.error('Failed to fetch characters:', error);
     toast.error(t('myCharacters.loadFailed'), { message: t('myCharacters.loadListFailed') });
   } finally {
     loading.value = false;
+  }
+}
+
+function handleCollectionSelect(collectionId: string | null) {
+  activeCollection.value = collectionId;
+  fetchCharacters();
+}
+
+async function handleAddToCollection() {
+  if (selectedIds.value.length === 0 || collections.value.length === 0) return;
+  // Use first collection as default, or let user pick if multiple
+  if (collections.value.length === 1) {
+    try {
+      await characterCollectionApi.addCharacters(collections.value[0].id, selectedIds.value);
+      toast.success(t('collections.addSuccess'));
+      await fetchCollections();
+    } catch (e: any) {
+      toast.error(t('common.updateFailed'), { message: e.message || t('common.retry') });
+    }
+    return;
+  }
+  // Multiple collections — show a simple prompt
+  const choices = collections.value.map(c => c.name).join(', ');
+  try {
+    const result = await ElMessageBox.prompt(
+      t('myCharacters.addToCollection') + ': ' + choices,
+      {
+        inputValue: collections.value[0].name,
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
+      }
+    );
+    const value = (result as { value: string }).value;
+    const target = collections.value.find(c => c.name === value?.trim());
+    if (target) {
+      await characterCollectionApi.addCharacters(target.id, selectedIds.value);
+      toast.success(t('collections.addSuccess'));
+      await fetchCollections();
+    }
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      toast.error(t('common.updateFailed'), { message: e.message || t('common.retry') });
+    }
   }
 }
 
@@ -311,6 +371,15 @@ function handleStartChat(character: Character) {
       </el-button>
     </template>
 
+    <div class="my-characters-layout">
+      <CollectionSidebar
+        :active-collection="activeCollection"
+        :collections="collections"
+        @select="handleCollectionSelect"
+        @refresh="fetchCollections"
+      />
+
+      <div class="my-characters-main">
     <div class="tabs-section">
       <el-tabs v-model="activeTab" class="character-tabs">
         <el-tab-pane name="private">
@@ -350,6 +419,7 @@ function handleStartChat(character: Character) {
       <span class="batch-count">{{ t('myCharacters.selected', { count: selectedIds.length }) }}</span>
       <el-button size="small" :icon="Download" @click="batchExport('json')">{{ t('myCharacters.exportJson') }}</el-button>
       <el-button size="small" :icon="Download" @click="batchExport('png')">{{ t('myCharacters.exportPng') }}</el-button>
+      <el-button size="small" :icon="FolderAdd" @click="handleAddToCollection" :disabled="collections.length === 0">{{ t('myCharacters.addToCollection') }}</el-button>
       <el-button size="small" type="danger" :icon="Delete" @click="batchDelete">{{ t('myCharacters.batchDelete') }}</el-button>
     </div>
 
@@ -449,6 +519,9 @@ function handleStartChat(character: Character) {
       </div>
     </div>
 
+    </div>
+    </div>
+
     <CharacterPublishForm
       v-if="selectedCharacterForPublish && publishDialogVisible"
       :visible="publishDialogVisible"
@@ -460,6 +533,17 @@ function handleStartChat(character: Character) {
 </template>
 
 <style scoped>
+.my-characters-layout {
+  display: flex;
+  gap: 0;
+  min-height: 500px;
+}
+
+.my-characters-main {
+  flex: 1;
+  min-width: 0;
+}
+
 .search-combo {
   width: 100%;
   max-width: 520px;
@@ -655,6 +739,10 @@ function handleStartChat(character: Character) {
 
 /* 移动端适配 (1列) */
 @media (max-width: 767px) {
+  .my-characters-layout {
+    flex-direction: column;
+  }
+
   .search-combo {
     width: 100%;
   }
