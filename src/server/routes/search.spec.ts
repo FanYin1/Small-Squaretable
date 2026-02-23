@@ -239,6 +239,61 @@ describe('Search Routes', () => {
       const data = await res.json();
       expect(data.data).toEqual(cachedData);
     });
+
+    it('should include X-Search-Duration header on search responses', async () => {
+      const { searchService } = await import('../services/search.service');
+      const { messageRepository } = await import('../../db/repositories/message.repository');
+      const { worldBookEntryRepository } = await import('../../db/repositories/worldbook-entry.repository');
+      const { cacheService } = await import('../services/cache.service');
+
+      vi.mocked(cacheService.get).mockResolvedValue(null);
+      vi.mocked(searchService.searchCharacters).mockResolvedValue({
+        items: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false },
+      });
+      vi.mocked(messageRepository.searchGlobal).mockResolvedValue([]);
+      vi.mocked(worldBookEntryRepository.searchByUser).mockResolvedValue([]);
+
+      const res = await app.request('/api/v1/search?q=test');
+
+      expect(res.status).toBe(200);
+      const duration = res.headers.get('X-Search-Duration');
+      expect(duration).toBeTruthy();
+      expect(duration).toMatch(/^\d+ms$/);
+    });
+
+    it('should log search analytics with correct structure', async () => {
+      const { searchService } = await import('../services/search.service');
+      const { messageRepository } = await import('../../db/repositories/message.repository');
+      const { worldBookEntryRepository } = await import('../../db/repositories/worldbook-entry.repository');
+      const { cacheService } = await import('../services/cache.service');
+      const { createLogger } = await import('../services/logger.service');
+
+      const mockLogger = createLogger();
+
+      vi.mocked(cacheService.get).mockResolvedValue(null);
+      vi.mocked(searchService.searchCharacters).mockResolvedValue({
+        items: [{ id: 'c1', name: 'Test' }],
+        pagination: { page: 1, limit: 20, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
+      });
+      vi.mocked(messageRepository.searchGlobal).mockResolvedValue([]);
+      vi.mocked(worldBookEntryRepository.searchByUser).mockResolvedValue([]);
+
+      await app.request('/api/v1/search?q=wizard');
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Search executed',
+        expect.objectContaining({
+          search: expect.objectContaining({
+            query: 'wizard',
+            totalResults: 1,
+            hasResults: true,
+            cached: false,
+          }),
+          userId: 'user-1',
+        }),
+      );
+    });
   });
 
   describe('GET /api/v1/search/suggestions', () => {

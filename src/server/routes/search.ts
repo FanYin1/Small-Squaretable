@@ -61,11 +61,19 @@ searchRoutes.get(
     const { q, type, page, limit, category, tags, dateFrom, dateTo } = c.req.valid('query');
 
     try {
+      const searchStart = Date.now();
+
       // Check cache
       const cacheKey = `search:global:${user.id}:${hashParams(q, type, String(page), String(limit), category || '', tags || '', dateFrom || '', dateTo || '')}`;
       const cached = await cacheService.get<Record<string, unknown>>(cacheKey);
       if (cached) {
+        const searchDuration = Date.now() - searchStart;
+        searchLogger.info('Search executed', {
+          search: { query: q, type, cached: true, durationMs: searchDuration },
+          userId: user.id,
+        });
         c.header('X-Cache', 'HIT');
+        c.header('X-Search-Duration', `${searchDuration}ms`);
         return c.json<ApiResponse>({
           success: true,
           data: cached,
@@ -114,6 +122,24 @@ searchRoutes.get(
       // Cache result for 60s
       await cacheService.set(cacheKey, data, 60);
 
+      const searchDuration = Date.now() - searchStart;
+      searchLogger.info('Search executed', {
+        search: {
+          query: q,
+          type,
+          page,
+          limit,
+          totalResults: data.total,
+          characterCount: data.characters.length,
+          messageCount: data.messages.length,
+          worldbookCount: data.worldbooks.length,
+          durationMs: searchDuration,
+          hasResults: data.total > 0,
+          cached: false,
+        },
+        userId: user.id,
+      });
+
       // Store recent search in Redis
       try {
         const redisClient = await getRedisClient();
@@ -125,6 +151,7 @@ searchRoutes.get(
       }
 
       c.header('X-Cache', 'MISS');
+      c.header('X-Search-Duration', `${searchDuration}ms`);
       return c.json<ApiResponse>({
         success: true,
         data,
