@@ -35,6 +35,9 @@ const filters = ref<SearchFilters>({
 });
 
 const totalResults = computed(() => results.value?.total ?? 0);
+const characterCount = computed(() => results.value?.characters?.length ?? 0);
+const messageCount = computed(() => results.value?.messages?.length ?? 0);
+const worldbookCount = computed(() => results.value?.worldbooks?.length ?? 0);
 
 const showCharacters = computed(() =>
   activeTab.value === 'all' || activeTab.value === 'characters'
@@ -153,10 +156,30 @@ onMounted(() => {
         <div class="search-results">
           <!-- Tabs -->
           <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-            <el-tab-pane :label="t('search.tab.all')" name="all" />
-            <el-tab-pane :label="t('search.tab.characters')" name="characters" />
-            <el-tab-pane :label="t('search.tab.messages')" name="messages" />
-            <el-tab-pane :label="t('search.tab.worldbooks')" name="worldbooks" />
+            <el-tab-pane name="all">
+              <template #label>
+                {{ t('search.tab.all') }}
+                <el-badge v-if="totalResults > 0" :value="totalResults" :max="99" class="tab-badge" />
+              </template>
+            </el-tab-pane>
+            <el-tab-pane name="characters">
+              <template #label>
+                {{ t('search.tab.characters') }}
+                <el-badge v-if="characterCount > 0" :value="characterCount" :max="99" class="tab-badge" />
+              </template>
+            </el-tab-pane>
+            <el-tab-pane name="messages">
+              <template #label>
+                {{ t('search.tab.messages') }}
+                <el-badge v-if="messageCount > 0" :value="messageCount" :max="99" class="tab-badge" />
+              </template>
+            </el-tab-pane>
+            <el-tab-pane name="worldbooks">
+              <template #label>
+                {{ t('search.tab.worldbooks') }}
+                <el-badge v-if="worldbookCount > 0" :value="worldbookCount" :max="99" class="tab-badge" />
+              </template>
+            </el-tab-pane>
           </el-tabs>
 
           <!-- Loading -->
@@ -469,6 +492,14 @@ onMounted(() => {
   color: inherit;
   padding: 0 1px;
   border-radius: 2px;
+}
+
+.tab-badge {
+  margin-left: 6px;
+}
+
+.tab-badge :deep(.el-badge__content) {
+  font-size: 11px;
 }
 
 /* Responsive */

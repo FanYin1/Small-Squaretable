@@ -51,13 +51,14 @@ const stubs = {
   SearchFilterPanel: { template: '<div />' },
   ElInput: { template: '<input />', props: ['modelValue'] },
   ElTabs: { template: '<div><slot /></div>' },
-  ElTabPane: { template: '<div><slot /></div>' },
+  ElTabPane: { template: '<div><slot name="label" /><slot /></div>', props: ['name', 'label'] },
   ElEmpty: { template: '<div class="el-empty" />' },
   ElSkeleton: { template: '<div />' },
   ElCard: { template: '<div class="el-card"><slot /></div>' },
   ElAvatar: { template: '<span />' },
   ElTag: { template: '<span />' },
   ElPagination: { template: '<div />' },
+  ElBadge: { template: '<span class="el-badge"><slot /><sup v-if="value" class="badge-content">{{ value }}</sup></span>', props: ['value', 'max'] },
 };
 
 function mountSearch() {
@@ -142,5 +143,33 @@ describe('Search Page', () => {
     await flushPromises();
 
     expect(wrapper.find('.el-empty').exists()).toBe(true);
+  });
+
+  it('shows count badges on tabs when results exist', async () => {
+    mockGlobalSearch.mockResolvedValue({
+      characters: [
+        { id: 'c1', name: 'Test Char', description: 'desc', avatarUrl: null, tags: [] },
+      ],
+      messages: [
+        { id: 'm1', content: 'Hello', chatId: 'ch1', chatTitle: 'Chat', sentAt: '2026-01-01' },
+      ],
+      worldbooks: [],
+      total: 2,
+    });
+
+    const wrapper = mountSearch();
+    const vm = wrapper.vm as any;
+
+    vm.searchQuery = 'test';
+    await vm.doSearch();
+    await flushPromises();
+
+    const badges = wrapper.findAll('.badge-content');
+    // "all" tab badge shows total (2), characters badge shows 1, messages badge shows 1
+    // worldbooks has 0 results so no badge rendered
+    const badgeValues = badges.map((b) => b.text());
+    expect(badgeValues).toContain('2');
+    expect(badgeValues).toContain('1');
+    expect(badges.length).toBe(3); // all(2) + characters(1) + messages(1), no worldbooks badge
   });
 });
