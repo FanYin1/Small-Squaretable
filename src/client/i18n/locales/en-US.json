@@ -368,7 +368,7 @@
     "hasAccountLogin": "Already have an account? Login"
   },
   "profile": {
-    "title": "Profile",
+    "title": "Edit Profile",
     "subtitle": "Manage your account information and preferences",
     "basicInfo": "Basic Info",
     "security": "Security",
@@ -395,7 +395,16 @@
     "theme": "Theme",
     "language": "Language",
     "exportData": "Export Data",
-    "exportSuccess": "Data exported successfully"
+    "exportSuccess": "Data exported successfully",
+    "displayName": "Display Name",
+    "bio": "Bio",
+    "bioPlaceholder": "Tell others about yourself...",
+    "avatar": "Avatar",
+    "uploadAvatar": "Upload Avatar",
+    "updateSuccess": "Profile updated",
+    "viewPublicProfile": "View Public Profile",
+    "invalidImageType": "Invalid image type",
+    "avatarTooLarge": "Image must be under 5MB"
   },
   "myCharacters": {
     "title": "My Characters",
