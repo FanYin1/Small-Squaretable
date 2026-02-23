@@ -13,8 +13,22 @@ import { logger } from './logger.service';
 const wsServiceLogger = logger.child({ module: 'websocket-service' });
 
 export class WebSocketService {
+  private readonly MAX_CONNECTIONS_PER_USER = 5;
   private clients: Map<string, { ws: WebSocket; info: WSClientInfo }> = new Map();
   private chatRooms: Map<string, Set<string>> = new Map(); // chatId -> Set<clientId>
+
+  /**
+   * 获取指定用户的所有客户端连接
+   */
+  getClientsByUserId(userId: string): Array<{ id: string; info: WSClientInfo }> {
+    const result: Array<{ id: string; info: WSClientInfo }> = [];
+    for (const [id, client] of this.clients) {
+      if (client.info.userId === userId) {
+        result.push({ id, info: client.info });
+      }
+    }
+    return result;
+  }
 
   /**
    * 注册新客户端
@@ -22,6 +36,27 @@ export class WebSocketService {
   registerClient(ws: WebSocket, userId: string, tenantId: string): string {
     const clientId = nanoid();
     const now = new Date();
+
+    // Enforce per-user connection limit
+    const userClients = this.getClientsByUserId(userId);
+    if (userClients.length >= this.MAX_CONNECTIONS_PER_USER) {
+      // Evict the oldest connection
+      const oldest = userClients.sort(
+        (a, b) => a.info.connectedAt.getTime() - b.info.connectedAt.getTime()
+      )[0];
+      if (oldest) {
+        this.sendToClient(oldest.id, {
+          type: WSMessageType.ERROR,
+          timestamp: new Date().toISOString(),
+          data: { code: 'CONNECTION_REPLACED', message: 'Connection replaced by new device' },
+        } as WSMessageUnion);
+        const oldClient = this.clients.get(oldest.id);
+        if (oldClient) {
+          oldClient.ws.close();
+        }
+        this.unregisterClient(oldest.id);
+      }
+    }
 
     this.clients.set(clientId, {
       ws,
