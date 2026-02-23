@@ -230,4 +230,10 @@ export const characterApi = {
     const res = await api.post<BackendCharacter>(`/characters/${id}/duplicate`);
     return transformCharacter(res);
   },
+
+  /**
+   * 导出角色为 JSON 文件（触发下载）
+   */
+  exportJson: (characterId: string): string =>
+    `/api/v1/characters/${characterId}/export/json`,
 };
