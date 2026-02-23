@@ -5,7 +5,7 @@
 
 import { db } from '@/db';
 import { sql } from 'drizzle-orm';
-import { createClient } from 'redis';
+import { getRedisClient } from '@/core/redis';
 import { config } from '@/core/config';
 
 // Track server startup time
@@ -153,19 +153,13 @@ export async function readinessCheck(): Promise<HealthStatus> {
   // Check Redis connection
   try {
     const redisStart = Date.now();
-    const redisClient = createClient({
-      url: config.redisUrl,
-      password: config.redisPassword,
-    });
-
-    await redisClient.connect();
+    const client = await getRedisClient();
+    await client.ping();
     const redisLatency = Date.now() - redisStart;
-    await redisClient.ping();
-    const memoryInfo = await redisClient.info('memory').then((info: string) => {
+    const memoryInfo = await client.info('memory').then((info: string) => {
       const match = info.match(/used_memory_human:([^\r\n]+)/);
       return match ? match[1] : undefined;
     });
-    await redisClient.quit();
 
     checks.redis = {
       status: 'ok',
@@ -183,7 +177,6 @@ export async function readinessCheck(): Promise<HealthStatus> {
         connected: false,
       },
     };
-    // Redis failure is degraded, not error (can still serve some traffic)
     if (overallStatus === 'ok') {
       overallStatus = 'degraded';
     }
