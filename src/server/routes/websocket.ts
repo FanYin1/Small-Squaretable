@@ -6,8 +6,11 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server } from 'http';
+import { eq, and, sql } from 'drizzle-orm';
 import { verifyAccessToken } from '../../core/jwt';
 import { logger } from '../services/logger.service';
+import { db } from '../../db';
+import { chats } from '../../db/schema/chats';
 
 const wsLogger = logger.child({ module: 'websocket' });
 import { websocketService } from '../services/websocket.service';
@@ -31,6 +34,7 @@ import {
   type WSMemoryExtractionEvent,
   type WSPromptBuildEvent,
   type WSAbortGenerationMessage,
+  type WSChatReadMessage,
 } from '../../types/websocket';
 import { nanoid } from 'nanoid';
 
@@ -142,6 +146,10 @@ export class WebSocketHandler {
 
         case WSMessageType.ABORT_GENERATION:
           await this.handleAbortGeneration(message as WSAbortGenerationMessage);
+          break;
+
+        case WSMessageType.CHAT_READ:
+          await this.handleChatRead(clientId, message as WSChatReadMessage);
           break;
 
         default:
@@ -280,6 +288,11 @@ export class WebSocketHandler {
       role: 'assistant',
       content: fullContent,
     });
+
+    // Increment unread count
+    await db.update(chats)
+      .set({ unreadCount: sql`${chats.unreadCount} + 1` })
+      .where(eq(chats.id, chatId));
 
     websocketService.broadcastToChat(chatId, {
       type: WSMessageType.ASSISTANT_MESSAGE_DONE,
@@ -531,7 +544,7 @@ export class WebSocketHandler {
   /**
    * 处理打字状态
    */
-  private async handleTyping(clientId: string, _message: WSTypingMessage): Promise<void> {
+  private async handleTyping(clientId: string, parsed: WSTypingMessage): Promise<void> {
     const clientInfo = websocketService.getClientInfo(clientId);
     if (!clientInfo || !clientInfo.chatId) return;
 
@@ -544,10 +557,36 @@ export class WebSocketHandler {
         data: {
           chatId: clientInfo.chatId,
           userId: clientInfo.userId,
+          userName: clientInfo.displayName || 'User',
+          isTyping: parsed.type === WSMessageType.TYPING_START,
         },
       },
       clientId
     );
+  }
+
+  /**
+   * 处理已读回执
+   */
+  private async handleChatRead(clientId: string, message: WSChatReadMessage): Promise<void> {
+    const { chatId, lastReadMessageId } = message.data;
+    const clientInfo = websocketService.getClientInfo(clientId);
+    if (!clientInfo) return;
+
+    // Update read state in DB
+    await db.update(chats)
+      .set({
+        lastReadMessageId: Number(lastReadMessageId),
+        unreadCount: 0,
+      })
+      .where(and(eq(chats.id, chatId), eq(chats.userId, clientInfo.userId)));
+
+    // Broadcast to user's other devices
+    websocketService.sendToUser(clientInfo.userId, {
+      type: WSMessageType.CHAT_READ,
+      timestamp: new Date().toISOString(),
+      data: { chatId, lastReadMessageId },
+    });
   }
 
   /**

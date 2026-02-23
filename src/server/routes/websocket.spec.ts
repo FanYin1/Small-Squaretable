@@ -229,4 +229,125 @@ describe('WebSocket Route', () => {
       );
     });
   });
+
+  describe('handleTyping', () => {
+    let handler: WebSocketHandler;
+    const clientId = 'client-typing';
+    const chatId = 'chat-typing';
+    const userId = 'user-typer';
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      handler = new WebSocketHandler();
+    });
+
+    it('should broadcast USER_TYPING with isTyping=true for TYPING_START', async () => {
+      vi.mocked(websocketService.getClientInfo).mockReturnValue({
+        id: clientId,
+        userId,
+        tenantId: 'tenant-1',
+        displayName: 'Alice',
+        chatId,
+        connectedAt: new Date(),
+        lastHeartbeat: new Date(),
+      });
+
+      await (handler as any).handleTyping(clientId, {
+        type: WSMessageType.TYPING_START,
+        timestamp: new Date().toISOString(),
+        data: { chatId },
+      });
+
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(
+        chatId,
+        expect.objectContaining({
+          type: WSMessageType.USER_TYPING,
+          data: expect.objectContaining({
+            chatId,
+            userId,
+            userName: 'Alice',
+            isTyping: true,
+          }),
+        }),
+        clientId
+      );
+    });
+
+    it('should broadcast USER_TYPING with isTyping=false for TYPING_STOP', async () => {
+      vi.mocked(websocketService.getClientInfo).mockReturnValue({
+        id: clientId,
+        userId,
+        tenantId: 'tenant-1',
+        displayName: 'Bob',
+        chatId,
+        connectedAt: new Date(),
+        lastHeartbeat: new Date(),
+      });
+
+      await (handler as any).handleTyping(clientId, {
+        type: WSMessageType.TYPING_STOP,
+        timestamp: new Date().toISOString(),
+        data: { chatId },
+      });
+
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(
+        chatId,
+        expect.objectContaining({
+          type: WSMessageType.USER_TYPING,
+          data: expect.objectContaining({
+            chatId,
+            userId,
+            userName: 'Bob',
+            isTyping: false,
+          }),
+        }),
+        clientId
+      );
+    });
+
+    it('should fallback to "User" when displayName is not set', async () => {
+      vi.mocked(websocketService.getClientInfo).mockReturnValue({
+        id: clientId,
+        userId,
+        tenantId: 'tenant-1',
+        chatId,
+        connectedAt: new Date(),
+        lastHeartbeat: new Date(),
+      });
+
+      await (handler as any).handleTyping(clientId, {
+        type: WSMessageType.TYPING_START,
+        timestamp: new Date().toISOString(),
+        data: { chatId },
+      });
+
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(
+        chatId,
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userName: 'User',
+          }),
+        }),
+        clientId
+      );
+    });
+
+    it('should not broadcast when client has no chatId', async () => {
+      vi.mocked(websocketService.getClientInfo).mockReturnValue({
+        id: clientId,
+        userId,
+        tenantId: 'tenant-1',
+        connectedAt: new Date(),
+        lastHeartbeat: new Date(),
+      });
+
+      await (handler as any).handleTyping(clientId, {
+        type: WSMessageType.TYPING_START,
+        timestamp: new Date().toISOString(),
+        data: { chatId },
+      });
+
+      expect(websocketService.broadcastToChat).not.toHaveBeenCalled();
+    });
+  });
 });
