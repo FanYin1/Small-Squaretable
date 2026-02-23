@@ -44,6 +44,10 @@ export interface Message {
   createdAt: string;
 }
 
+export interface ExpressionConfig {
+  [emotionLabel: string]: string; // emotion label -> image URL
+}
+
 export interface CharacterCardData {
   name?: string;
   description?: string;
@@ -61,6 +65,14 @@ export interface CharacterCardData {
   spec?: string;
   spec_version?: string;
   data?: Record<string, unknown>;
+  alternate_greetings?: string[];
+  post_history_instructions?: string;
+  creation_date?: number;
+  modification_date?: number;
+  source?: string[];
+  group_only_greetings?: string[];
+  creator_notes_multilingual?: Record<string, string>;
+  assets?: Array<{ type: string; uri: string; name: string }>;
   [key: string]: unknown;
 }
 

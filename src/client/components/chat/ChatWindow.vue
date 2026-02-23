@@ -136,7 +136,14 @@
         <el-skeleton :rows="5" animated />
       </div>
 
-      <div v-else-if="messages.length === 0 && currentGreeting" class="greeting-container">
+      <template v-else>
+        <ExpressionSprite
+          v-if="characterExpressions"
+          :expressions="characterExpressions"
+          :emotion-label="intelligenceStore.emotionLabel || 'neutral'"
+        />
+
+        <div v-if="messages.length === 0 && currentGreeting" class="greeting-container">
         <div class="message-bubble message-assistant">
           <div class="message-content">
             <MarkdownRenderer :content="currentGreeting" />
@@ -224,6 +231,7 @@
           <div class="typing-dot"></div>
         </div>
       </div>
+      </template>
 
       <div ref="messagesEnd"></div>
 
@@ -383,6 +391,7 @@ import MessageInput from './MessageInput.vue';
 import ScrollToBottom from './ScrollToBottom.vue';
 import DateDivider from './DateDivider.vue';
 import MarkdownRenderer from './MarkdownRenderer.vue';
+import ExpressionSprite from './ExpressionSprite.vue';
 import EmotionIndicator from '@client/components/EmotionIndicator.vue';
 import MemoryPanel from '@client/components/MemoryPanel.vue';
 // Lazy-load heavy panels to break circular chunk deps and reduce initial chat bundle
@@ -471,6 +480,28 @@ const characterVoiceConfig = computed((): VoiceConfig | undefined => {
   const char = chatStore.currentCharacter;
   if (!char?.cardData?.extensions?.voice) return undefined;
   return char.cardData.extensions.voice as VoiceConfig;
+});
+
+// Expression sprites from character's cardData
+const characterExpressions = computed(() => {
+  const cardData = chatStore.currentCharacter?.cardData;
+  // Check extensions.expressions first
+  if (cardData?.extensions?.expressions) {
+    return cardData.extensions.expressions as Record<string, string>;
+  }
+  // Fall back to V3 assets
+  if (cardData?.assets && Array.isArray(cardData.assets)) {
+    const expressionAssets = (cardData.assets as Array<{ type: string; uri: string; name: string }>)
+      .filter((a) => a.type === 'expression');
+    if (expressionAssets.length > 0) {
+      const map: Record<string, string> = {};
+      for (const asset of expressionAssets) {
+        map[asset.name] = asset.uri;
+      }
+      return map;
+    }
+  }
+  return null;
 });
 
 // Available characters for add dialog (exclude already in chat)
