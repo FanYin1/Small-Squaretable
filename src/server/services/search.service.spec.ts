@@ -23,6 +23,7 @@ const wizardChar = {
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-01'),
   rank: 0.8,
+  snippet: 'A <mark class="search-highlight">powerful</mark> wizard with magical abilities',
 };
 
 const knightChar = {
@@ -37,6 +38,7 @@ const knightChar = {
   ratingCount: 40,
   createdAt: new Date('2026-01-02'),
   rank: 0.6,
+  snippet: 'A <mark class="search-highlight">brave</mark> knight on a heroic quest',
 };
 
 const sciFiChar = {
@@ -52,6 +54,7 @@ const sciFiChar = {
   ratingCount: 30,
   createdAt: new Date('2026-01-03'),
   rank: 0.4,
+  snippet: 'A <mark class="search-highlight">futuristic</mark> soldier from the year 2500',
 };
 // Mock results that the chainable db builder will return
 let mockSelectResults: any[] = [];
@@ -299,6 +302,45 @@ describe('SearchService', () => {
 
       expect(results.items.length).toBe(0);
       expect(results.pagination.total).toBe(0);
+    });
+
+    it('should return snippet field in result items', async () => {
+      mockSelectResults = [wizardChar];
+      mockCountResults = [{ count: 1 }];
+
+      const results = await service.searchCharacters({
+        query: 'powerful',
+        sort: 'relevance',
+        filter: 'public',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(results.items.length).toBe(1);
+      expect(results.items[0].snippet).toBeDefined();
+      expect(results.items[0].snippet).toContain('<mark class="search-highlight">');
+    });
+
+    it('should return truncated description as snippet for wildcard query', async () => {
+      const wildCardChar = {
+        ...wizardChar,
+        snippet: 'A powerful wizard with magical abilities',
+      };
+      mockSelectResults = [wildCardChar];
+      mockCountResults = [{ count: 1 }];
+
+      const results = await service.searchCharacters({
+        query: '*',
+        sort: 'popular',
+        filter: 'public',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(results.items.length).toBe(1);
+      expect(results.items[0].snippet).toBeDefined();
+      // For wildcard queries, snippet should be a truncated description without highlight marks
+      expect(results.items[0].snippet).not.toContain('<mark class="search-highlight">');
     });
   });
 });
