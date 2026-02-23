@@ -273,4 +273,54 @@ describe('Character Collection Routes', () => {
       expect(body.error.code).toBe('NOT_FOUND');
     });
   });
+
+  // ── GET /public/:userId (list public collections) ──
+
+  describe('GET /collections/public/:userId', () => {
+    it('should return only public collections for a user', async () => {
+      const mockPublicCollections = [
+        { id: 'col-1', name: 'Public RPG', isPublic: true, itemCount: 5 },
+      ];
+      const chain = mockChain(mockPublicCollections);
+      dbMock.select.mockReturnValue(chain);
+
+      const res = await app.request('/collections/public/user-456');
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      expect(body.data).toEqual(mockPublicCollections);
+    });
+  });
+
+  // ── GET /public/:userId/:id/characters (view public collection characters) ──
+
+  describe('GET /collections/public/:userId/:id/characters', () => {
+    it('should return character data for a public collection', async () => {
+      const mockChars = [
+        { id: 'char-1', name: 'Alice', description: 'A character', avatarUrl: null, tags: ['rpg'], category: 'fantasy' },
+      ];
+      // First select: verify public collection
+      const selectChain1 = mockChain([{ id: 'col-1' }]);
+      // Second select: character list
+      const selectChain2 = mockChain(mockChars);
+      dbMock.select.mockReturnValueOnce(selectChain1).mockReturnValueOnce(selectChain2);
+
+      const res = await app.request('/collections/public/user-456/col-1/characters');
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+      expect(body.data).toEqual(mockChars);
+    });
+
+    it('should return 404 for non-public collection', async () => {
+      const selectChain = mockChain([]);
+      dbMock.select.mockReturnValue(selectChain);
+
+      const res = await app.request('/collections/public/user-456/col-private/characters');
+      expect(res.status).toBe(404);
+      const body = await res.json();
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe('NOT_FOUND');
+    });
+  });
 });

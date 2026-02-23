@@ -20,6 +20,7 @@ characterCollectionRoutes.get('/', authMiddleware(), async (c) => {
       name: characterCollections.name,
       description: characterCollections.description,
       color: characterCollections.color,
+      isPublic: characterCollections.isPublic,
       sortOrder: characterCollections.sortOrder,
       createdAt: characterCollections.createdAt,
       updatedAt: characterCollections.updatedAt,
@@ -37,6 +38,7 @@ const createSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  isPublic: z.boolean().optional(),
 });
 
 characterCollectionRoutes.post('/', authMiddleware(), zValidator('json', createSchema), async (c) => {
@@ -48,6 +50,7 @@ characterCollectionRoutes.post('/', authMiddleware(), zValidator('json', createS
     name: input.name,
     description: input.description,
     color: input.color,
+    isPublic: input.isPublic ?? false,
   }).returning();
 
   return c.json<ApiResponse>({ success: true, data: collection, meta: { timestamp: new Date().toISOString() } }, 201);
@@ -59,6 +62,7 @@ const updateSchema = z.object({
   description: z.string().max(500).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   sortOrder: z.number().int().min(0).optional(),
+  isPublic: z.boolean().optional(),
 });
 
 characterCollectionRoutes.patch('/:id', authMiddleware(), zValidator('json', updateSchema), async (c) => {
@@ -176,6 +180,60 @@ characterCollectionRoutes.get('/:id/characters', authMiddleware(), async (c) => 
       isNsfw: characters.isNsfw,
       createdAt: characters.createdAt,
       updatedAt: characters.updatedAt,
+    })
+    .from(characterCollectionItems)
+    .innerJoin(characters, eq(characterCollectionItems.characterId, characters.id))
+    .where(eq(characterCollectionItems.collectionId, collectionId))
+    .orderBy(characterCollectionItems.sortOrder);
+
+  return c.json<ApiResponse>({ success: true, data: items, meta: { timestamp: new Date().toISOString() } });
+});
+
+// GET /public/:userId — list user's public collections
+characterCollectionRoutes.get('/public/:userId', async (c) => {
+  const userId = c.req.param('userId');
+
+  const collections = await db
+    .select({
+      id: characterCollections.id,
+      name: characterCollections.name,
+      description: characterCollections.description,
+      color: characterCollections.color,
+      isPublic: characterCollections.isPublic,
+      itemCount: sql<number>`(SELECT COUNT(*) FROM character_collection_items WHERE collection_id = ${characterCollections.id})`.as('item_count'),
+    })
+    .from(characterCollections)
+    .where(and(eq(characterCollections.userId, userId), eq(characterCollections.isPublic, true)))
+    .orderBy(characterCollections.sortOrder);
+
+  return c.json<ApiResponse>({ success: true, data: collections, meta: { timestamp: new Date().toISOString() } });
+});
+
+// GET /public/:userId/:id/characters — view public collection characters
+characterCollectionRoutes.get('/public/:userId/:id/characters', async (c) => {
+  const userId = c.req.param('userId');
+  const collectionId = c.req.param('id');
+
+  const [collection] = await db.select({ id: characterCollections.id })
+    .from(characterCollections)
+    .where(and(
+      eq(characterCollections.id, collectionId),
+      eq(characterCollections.userId, userId),
+      eq(characterCollections.isPublic, true),
+    ));
+
+  if (!collection) {
+    return c.json<ApiResponse>({ success: false, error: { code: 'NOT_FOUND', message: 'Collection not found' }, meta: { timestamp: new Date().toISOString() } }, 404);
+  }
+
+  const items = await db
+    .select({
+      id: characters.id,
+      name: characters.name,
+      description: characters.description,
+      avatarUrl: characters.avatarUrl,
+      tags: characters.tags,
+      category: characters.category,
     })
     .from(characterCollectionItems)
     .innerJoin(characters, eq(characterCollectionItems.characterId, characters.id))

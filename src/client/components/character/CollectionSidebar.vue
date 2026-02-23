@@ -23,6 +23,7 @@ const toast = useToast();
 const showCreateDialog = ref(false);
 const newName = ref('');
 const newColor = ref('#409EFF');
+const newIsPublic = ref(false);
 
 async function handleCreate() {
   if (!newName.value.trim()) return;
@@ -30,11 +31,13 @@ async function handleCreate() {
     await characterCollectionApi.createCollection({
       name: newName.value.trim(),
       color: newColor.value,
+      isPublic: newIsPublic.value,
     });
     toast.success(t('common.createSuccess'));
     showCreateDialog.value = false;
     newName.value = '';
     newColor.value = '#409EFF';
+    newIsPublic.value = false;
     emit('refresh');
   } catch (e: any) {
     toast.error(t('common.createFailed'), { message: e.message || t('common.retry') });
@@ -110,6 +113,7 @@ async function handleCommand(command: string, col: CharacterCollection) {
       >
         <span class="color-dot" :style="{ backgroundColor: col.color || '#909399' }" />
         <span class="collection-name">{{ col.name }}</span>
+        <el-tag v-if="col.isPublic" size="small" type="success" class="public-tag">{{ t('collections.publicCollection') }}</el-tag>
         <span class="item-count">{{ col.itemCount }}</span>
         <el-dropdown trigger="click" @command="handleCommand($event, col)" size="small">
           <el-icon class="more-icon" @click.stop><MoreFilled /></el-icon>
@@ -130,6 +134,9 @@ async function handleCommand(command: string, col: CharacterCollection) {
         </el-form-item>
         <el-form-item :label="t('collections.changeColor')">
           <el-color-picker v-model="newColor" />
+        </el-form-item>
+        <el-form-item :label="t('collections.makePublic')">
+          <el-switch v-model="newIsPublic" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -216,6 +223,11 @@ async function handleCommand(command: string, col: CharacterCollection) {
   color: var(--text-color-secondary);
   min-width: 20px;
   text-align: right;
+}
+
+.public-tag {
+  flex-shrink: 0;
+  margin-left: -4px;
 }
 
 .more-icon {

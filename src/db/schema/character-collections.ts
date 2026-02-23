@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp, integer, index, unique } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, integer, boolean, index, unique } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { characters } from './characters';
 
@@ -9,6 +9,7 @@ export const characterCollections = pgTable('character_collections', {
   description: text('description'),
   color: varchar('color', { length: 7 }),
   sortOrder: integer('sort_order').default(0).notNull(),
+  isPublic: boolean('is_public').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

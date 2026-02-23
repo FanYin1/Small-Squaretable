@@ -179,6 +179,7 @@ export interface CharacterCollection {
   description?: string;
   color?: string;
   sortOrder: number;
+  isPublic: boolean;
   itemCount: number;
   createdAt: string;
 }
