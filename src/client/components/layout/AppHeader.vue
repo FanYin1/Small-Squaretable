@@ -2,7 +2,8 @@
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { User, ChatDotRound, ShoppingBag } from '@element-plus/icons-vue';
+import { User, ChatDotRound, ShoppingBag, Search, Menu, Close } from '@element-plus/icons-vue';
+import GlobalSearchBar from '@client/components/layout/GlobalSearchBar.vue';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -42,6 +43,12 @@ const isMobileMenuOpen = ref(false);
 const toggleMobileMenu = () => {
   isMobileMenuOpen.value = !isMobileMenuOpen.value;
 };
+
+// Search bar
+const searchBarRef = ref<InstanceType<typeof GlobalSearchBar> | null>(null);
+const openSearch = () => {
+  searchBarRef.value?.open();
+};
 </script>
 
 <template>
@@ -78,6 +85,9 @@ const toggleMobileMenu = () => {
         </el-menu-item>
       </el-menu>
 
+      <!-- Search Button -->
+      <el-button class="search-trigger" circle :icon="Search" @click="openSearch" />
+
       <!-- User Menu -->
       <div class="user-menu">
         <template v-if="isAuthenticated">
@@ -101,10 +111,11 @@ const toggleMobileMenu = () => {
       <!-- Mobile Menu Button -->
       <el-button
         class="mobile-menu-button"
-        :icon="isMobileMenuOpen ? 'Close' : 'Menu'"
         circle
         @click="toggleMobileMenu"
-      />
+      >
+        <el-icon><Close v-if="isMobileMenuOpen" /><Menu v-else /></el-icon>
+      </el-button>
     </div>
 
     <!-- Mobile Menu Drawer -->
@@ -150,6 +161,9 @@ const toggleMobileMenu = () => {
         </template>
       </el-menu>
     </el-drawer>
+
+    <!-- Global Search Bar -->
+    <GlobalSearchBar ref="searchBarRef" />
   </el-header>
 </template>
 
@@ -197,6 +211,10 @@ const toggleMobileMenu = () => {
   gap: 12px;
 }
 
+.search-trigger {
+  margin-right: 4px;
+}
+
 .mobile-menu-button {
   display: none;
 }
@@ -212,7 +230,7 @@ const toggleMobileMenu = () => {
   }
 
   .brand-name {
-    font-size: 16px;
+    display: none;
   }
 
   .desktop-menu {

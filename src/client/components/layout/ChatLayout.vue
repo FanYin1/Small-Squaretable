@@ -1,5 +1,10 @@
 <template>
-  <div class="chat-layout">
+  <div
+    class="chat-layout"
+    @touchstart.passive="onTouchStart"
+    @touchmove.passive="onTouchMove"
+    @touchend="onTouchEnd"
+  >
     <!-- Mobile hamburger button -->
     <div class="mobile-header">
       <button class="mobile-hamburger" aria-label="Open sidebar" @click="openMobileSidebar">
@@ -87,6 +92,51 @@ const handleSelectChat = (chatId: string) => {
     mobileOpen.value = false;
   }
 };
+
+// Swipe gesture state
+const touchStartX = ref(0);
+const touchStartY = ref(0);
+const isSwiping = ref(false);
+const EDGE_ZONE = 20; // px from left edge to start swipe
+const SWIPE_THRESHOLD = 50; // px to trigger open/close
+
+function onTouchStart(e: TouchEvent) {
+  const touch = e.touches[0];
+  touchStartX.value = touch.clientX;
+  touchStartY.value = touch.clientY;
+  // Only start swipe tracking if near left edge (for open) or sidebar is open (for close)
+  isSwiping.value = touch.clientX < EDGE_ZONE || mobileOpen.value;
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (!isSwiping.value) return;
+  // Prevent default only if horizontal swipe is dominant
+  const touch = e.touches[0];
+  const dx = touch.clientX - touchStartX.value;
+  const dy = touch.clientY - touchStartY.value;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+    // Horizontal swipe detected — could add visual feedback here
+  }
+}
+
+function onTouchEnd(e: TouchEvent) {
+  if (!isSwiping.value) return;
+  isSwiping.value = false;
+  const touch = e.changedTouches[0];
+  const dx = touch.clientX - touchStartX.value;
+  const dy = touch.clientY - touchStartY.value;
+
+  // Only process if horizontal movement is dominant
+  if (Math.abs(dx) < Math.abs(dy)) return;
+
+  if (!mobileOpen.value && touchStartX.value < EDGE_ZONE && dx > SWIPE_THRESHOLD) {
+    // Swipe right from left edge → open sidebar
+    mobileOpen.value = true;
+  } else if (mobileOpen.value && dx < -SWIPE_THRESHOLD) {
+    // Swipe left → close sidebar
+    mobileOpen.value = false;
+  }
+}
 
 const onResize = () => {
   isMobile.value = window.innerWidth < MOBILE_BREAKPOINT;
@@ -220,7 +270,7 @@ onUnmounted(() => {
   }
 
   .chat-main {
-    padding-bottom: 56px;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   }
 }
 </style>

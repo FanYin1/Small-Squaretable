@@ -4,10 +4,10 @@
  * Handles data access for world book entries.
  */
 
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, or } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
-import { worldbookEntries } from '../schema/worldbooks';
+import { worldbookEntries, worldbooks } from '../schema/worldbooks';
 
 export class WorldBookEntryRepository extends BaseRepository {
   /**
@@ -115,6 +115,35 @@ export class WorldBookEntryRepository extends BaseRepository {
       .from(worldbookEntries)
       .where(eq(worldbookEntries.worldbookId, worldbookId));
     return result[0]?.count ?? 0;
+  }
+
+  /**
+   * Search worldbook entries belonging to a user by keyword/content ILIKE.
+   */
+  async searchByUser(
+    userId: string,
+    query: string,
+    limit = 20,
+  ): Promise<Array<{ id: string; keyword: string; content: string; worldbookId: string; worldbookName: string }>> {
+    const escaped = query.replace(/[%_\\]/g, '\\$&');
+    const pattern = `%${escaped}%`;
+
+    const rows = await this.db
+      .select({
+        id: worldbookEntries.id,
+        keyword: worldbookEntries.keyword,
+        content: worldbookEntries.content,
+        worldbookId: worldbookEntries.worldbookId,
+        worldbookName: worldbooks.name,
+      })
+      .from(worldbookEntries)
+      .innerJoin(worldbooks, eq(worldbookEntries.worldbookId, worldbooks.id))
+      .where(
+        sql`${worldbooks.userId} = ${userId} AND (${worldbookEntries.keyword} ILIKE ${pattern} OR ${worldbookEntries.content} ILIKE ${pattern})`,
+      )
+      .limit(limit);
+
+    return rows;
   }
 }
 

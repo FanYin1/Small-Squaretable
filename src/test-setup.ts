@@ -35,6 +35,15 @@ if (isBrowserEnv) {
     Element.prototype.scrollIntoView = () => {};
   }
 
+  // Mock ResizeObserver for jsdom
+  if (typeof globalThis.ResizeObserver === 'undefined') {
+    globalThis.ResizeObserver = class ResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof globalThis.ResizeObserver;
+  }
+
   // Mock matchMedia for jsdom
   Object.defineProperty(window, 'matchMedia', {
     writable: true,

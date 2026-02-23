@@ -1,7 +1,7 @@
 import { eq, desc, gt, lt, sql, asc, and } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
-import { messages, type Message, type NewMessage } from '../schema/chats';
+import { messages, chats, type Message, type NewMessage } from '../schema/chats';
 
 export interface MessagePagination {
   limit: number;
@@ -64,13 +64,76 @@ export class MessageRepository extends BaseRepository {
   }
 
   async searchByChatId(chatId: string, query: string, limit = 50): Promise<Message[]> {
-    const escaped = query.replace(/[%_\\]/g, '\\$&');
+    // For very short queries (1-2 chars), tsvector doesn't work well — fall back to ILIKE
+    if (query.length < 3) {
+      const escaped = query.replace(/[%_\\]/g, '\\$&');
+      return await this.db.select().from(messages)
+        .where(and(
+          eq(messages.chatId, chatId),
+          sql`${messages.content} ILIKE ${'%' + escaped + '%'}`
+        ))
+        .orderBy(desc(messages.sentAt))
+        .limit(limit);
+    }
+
     return await this.db.select().from(messages)
       .where(and(
         eq(messages.chatId, chatId),
-        sql`${messages.content} ILIKE ${'%' + escaped + '%'}`
+        sql`${messages.searchVector} @@ plainto_tsquery('simple', ${query})`
       ))
-      .orderBy(desc(messages.sentAt))
+      .orderBy(sql`ts_rank(${messages.searchVector}, plainto_tsquery('simple', ${query})) DESC`)
+      .limit(limit);
+  }
+
+  async searchGlobal(userId: string, query: string, limit = 50): Promise<(Message & { chatTitle: string | null })[]> {
+    // For very short queries (1-2 chars), fall back to ILIKE
+    if (query.length < 3) {
+      const escaped = query.replace(/[%_\\]/g, '\\$&');
+      return await this.db
+        .select({
+          id: messages.id,
+          chatId: messages.chatId,
+          role: messages.role,
+          content: messages.content,
+          attachments: messages.attachments,
+          extra: messages.extra,
+          characterId: messages.characterId,
+          parentMessageId: messages.parentMessageId,
+          searchVector: messages.searchVector,
+          sentAt: messages.sentAt,
+          chatTitle: chats.title,
+        })
+        .from(messages)
+        .innerJoin(chats, eq(messages.chatId, chats.id))
+        .where(and(
+          eq(chats.userId, userId),
+          sql`${messages.content} ILIKE ${'%' + escaped + '%'}`
+        ))
+        .orderBy(desc(messages.sentAt))
+        .limit(limit);
+    }
+
+    return await this.db
+      .select({
+        id: messages.id,
+        chatId: messages.chatId,
+        role: messages.role,
+        content: messages.content,
+        attachments: messages.attachments,
+        extra: messages.extra,
+        characterId: messages.characterId,
+        parentMessageId: messages.parentMessageId,
+        searchVector: messages.searchVector,
+        sentAt: messages.sentAt,
+        chatTitle: chats.title,
+      })
+      .from(messages)
+      .innerJoin(chats, eq(messages.chatId, chats.id))
+      .where(and(
+        eq(chats.userId, userId),
+        sql`${messages.searchVector} @@ plainto_tsquery('simple', ${query})`
+      ))
+      .orderBy(sql`ts_rank(${messages.searchVector}, plainto_tsquery('simple', ${query})) DESC`)
       .limit(limit);
   }
 

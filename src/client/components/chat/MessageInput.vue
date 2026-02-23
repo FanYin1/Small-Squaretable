@@ -426,4 +426,15 @@ const handleSendRecording = async () => {
   color: var(--text-tertiary);
   margin-top: 8px;
 }
+
+@media (max-width: 768px) {
+  .message-input {
+    padding: 8px 12px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .input-wrapper {
+    padding: 6px 8px;
+    border-radius: 20px;
+  }
+}
 </style>

@@ -326,6 +326,84 @@ export const api = {
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' }),
 
   /**
+   * GET 请求返回 Blob（用于文件下载）
+   */
+  getBlob: async (endpoint: string): Promise<Blob> => {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const token = localStorage.getItem('token');
+    const tenantId = localStorage.getItem('tenantId');
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (tenantId) headers['X-Tenant-ID'] = tenantId;
+
+    let config: RequestInit = { method: 'GET', headers };
+    config = await interceptors.applyRequestInterceptors(config, url);
+
+    const response = await fetch(url, config);
+    if (!response.ok) {
+      throw new ApiError(response.status, 'DOWNLOAD_ERROR', 'Download failed');
+    }
+    return response.blob();
+  },
+
+  /**
+   * POST 请求返回 Blob（用于批量导出等）
+   */
+  postBlob: async (endpoint: string, body: unknown): Promise<Blob> => {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const token = localStorage.getItem('token');
+    const tenantId = localStorage.getItem('tenantId');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (tenantId) headers['X-Tenant-ID'] = tenantId;
+
+    // Add CSRF token for POST
+    const csrfToken = await csrfTokenManager.getToken();
+    if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+
+    let config: RequestInit = { method: 'POST', headers, body: JSON.stringify(body) };
+    config = await interceptors.applyRequestInterceptors(config, url);
+
+    const response = await fetch(url, config);
+    if (!response.ok) {
+      throw new ApiError(response.status, 'DOWNLOAD_ERROR', 'Download failed');
+    }
+    return response.blob();
+  },
+
+  /**
+   * POST FormData 请求（用于文件上传）
+   */
+  postFormData: async <T = unknown>(endpoint: string, formData: FormData): Promise<T> => {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const token = localStorage.getItem('token');
+    const tenantId = localStorage.getItem('tenantId');
+    const headers: Record<string, string> = {};
+    // Don't set Content-Type — browser sets it with multipart boundary
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (tenantId) headers['X-Tenant-ID'] = tenantId;
+
+    // Add CSRF token for POST
+    const csrfToken = await csrfTokenManager.getToken();
+    if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+
+    let config: RequestInit = { method: 'POST', headers, body: formData };
+    config = await interceptors.applyRequestInterceptors(config, url);
+
+    const response = await fetch(url, config);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new ApiError(
+        response.status,
+        data?.error?.code || 'UPLOAD_ERROR',
+        data?.error?.message || 'Upload failed'
+      );
+    }
+    const data = await response.json();
+    return data.data ?? data;
+  },
+
+  /**
    * 添加请求拦截器
    */
   addRequestInterceptor: (interceptor: RequestInterceptor) => {

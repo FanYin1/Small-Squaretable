@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { ElMessageBox } from 'element-plus';
 import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound } from '@element-plus/icons-vue';
 import { api } from '@client/services/api';
+import { exportApi } from '@client/services/export.api';
 import { useFeatureGate } from '@client/composables/useFeatureGate';
 import { useToast } from '@client/composables/useToast';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
@@ -24,6 +25,46 @@ const characters = ref<Character[]>([]);
 const loading = ref(false);
 const activeTab = ref<'private' | 'published'>('private');
 const searchQuery = ref('');
+
+// Batch mode
+const batchMode = ref(false);
+const selectedIds = ref<string[]>([]);
+const importInput = ref<HTMLInputElement | null>(null);
+
+function toggleSelect(id: string) {
+  const idx = selectedIds.value.indexOf(id);
+  if (idx >= 0) selectedIds.value.splice(idx, 1);
+  else selectedIds.value.push(id);
+}
+
+async function batchExport(format: 'json' | 'png') {
+  if (selectedIds.value.length === 0) return;
+  try {
+    const blob = await exportApi.batchExportCharacters(selectedIds.value, format);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `characters-export.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(t('myCharacters.exportSuccess'));
+  } catch (e: any) {
+    toast.error(t('myCharacters.exportFailed'), { message: e.message || t('common.retry') });
+  }
+}
+
+async function handleBatchImport(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (!input.files?.length) return;
+  try {
+    const result = await exportApi.batchImportCharacters(Array.from(input.files));
+    toast.success(t('myCharacters.batchImportSuccess', { count: result.imported }));
+    await fetchCharacters();
+  } catch (e: any) {
+    toast.error(t('myCharacters.importFailed'), { message: e.message || t('common.retry') });
+  }
+  input.value = '';
+}
 
 // Dialogs
 const publishDialogVisible = ref(false);
@@ -257,10 +298,24 @@ function handleStartChat(character: Character) {
       </el-tabs>
 
       <div class="tabs-actions">
+        <el-button @click="batchMode = !batchMode" :type="batchMode ? 'primary' : 'default'" size="small">
+          {{ t('myCharacters.batchMode') }}
+        </el-button>
+        <input ref="importInput" type="file" multiple accept=".json,.png" style="display:none" @change="handleBatchImport" />
+        <el-button :icon="Upload" @click="importInput?.click()" size="small">
+          {{ t('myCharacters.batchImport') }}
+        </el-button>
         <el-button :icon="Upload" @click="handleImport">
           {{ $t('myCharacters.importCharacter') }}
         </el-button>
       </div>
+    </div>
+
+    <!-- Batch action bar -->
+    <div v-if="batchMode && selectedIds.length > 0" class="batch-actions">
+      <span class="batch-count">{{ t('myCharacters.selected', { count: selectedIds.length }) }}</span>
+      <el-button size="small" :icon="Download" @click="batchExport('json')">{{ t('myCharacters.exportJson') }}</el-button>
+      <el-button size="small" :icon="Download" @click="batchExport('png')">{{ t('myCharacters.exportPng') }}</el-button>
     </div>
 
     <div v-loading="loading" class="characters-section">
@@ -283,7 +338,15 @@ function handleStartChat(character: Character) {
           v-for="character in displayCharacters"
           :key="character.id"
           class="character-card-wrapper"
+          :class="{ 'batch-selected': batchMode && selectedIds.includes(character.id) }"
         >
+          <el-checkbox
+            v-if="batchMode"
+            class="batch-checkbox"
+            :model-value="selectedIds.includes(character.id)"
+            @change="toggleSelect(character.id)"
+            @click.stop
+          />
           <CharacterCard
             :character="character"
             @click="handleCardClick(character.id)"
@@ -456,6 +519,36 @@ function handleStartChat(character: Character) {
 
 .tabs-actions :deep(.el-button) {
   border-radius: 8px;
+}
+
+/* Batch mode */
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--color-primary-light-9, #ecf5ff);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.batch-count {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-primary);
+  margin-right: auto;
+}
+
+.batch-checkbox {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+}
+
+.character-card-wrapper.batch-selected {
+  outline: 2px solid var(--color-primary);
+  border-radius: 16px;
 }
 
 /* 角色区域 */

@@ -46,9 +46,10 @@ Phase 7: 生产部署          ████████████████�
 迭代 28: 移动端适配优化             ████████████████████ 100% ✅
 迭代 29: 数据导入导出               ████████████████████ 100% ✅
 迭代 30: 协作与分享                  ████████████████████ 100% ✅
+迭代 31: 通知与消息中心增强     ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 30 完成
+**整体完成度**: 迭代 31 完成
 
 ---
 
@@ -550,13 +551,23 @@ Phase 7: 生产部署          ████████████████�
 - **UI**: ShareDialog, SharedCharacter, SnapshotViewer, CollaboratorPanel, CharacterTemplates pages
 - **i18n**: share.*, collaboration.*, characterTemplates.* keys (en-US + zh-CN)
 
+### 迭代 31: 通知与消息中心增强 ✅ (2026-02-23)
+- ✅ **WebSocket 推送修复** — sendToUser 方法 + broadcastFn 注入 + 前端 WS 事件订阅
+- ✅ **通知偏好设置** — notification_preferences 表 + 偏好感知 notify() + 偏好设置 API
+- ✅ **通知类型扩展** — 10 种类型 (follow/favorite/comment/reply/mention/collaborator_*/character_forked/system)
+- ✅ **通知创建点** — 收藏/评论/回复/协作者变更/角色复制 全部触发通知
+- ✅ **@提及** — mention-parser 工具 + 评论中 @username 解析 + 提及通知
+- ✅ **前端增强** — NotificationPreferences 对话框 + 实时 toast 通知 + 类型图标
+- **DB**: Migration 0023 — notification_preferences 表 + notifications.group_key/priority
+- **新增**: 1 新表 + 1 新路由 + 1 新工具函数 + 1 新组件 + 1733 测试通过
+
 ---
 
 ## 📈 技术指标
 
 | 指标 | 数值 |
 |------|------|
-| 单元测试 | 1733 通过, 0 失败 (17 跳过) |
+| 单元测试 | 1734 通过, 0 失败 (17 跳过) |
 | E2E 测试 | 228 unique tests, 17 spec 文件 (Chromium + Mobile Chrome) |
 | i18n 覆盖 | 86 Vue 文件 100% 覆盖, ~490 locale 键 (en-US + zh-CN) |
 | 结构化日志 | 57+ console.* 替换为 pino child loggers |
@@ -600,5 +611,6 @@ Phase 7: 生产部署          ████████████████�
 2026-02-23  迭代 27 完成 (搜索与发现增强: 全文搜索 + 全局搜索 + 搜索建议 + 搜索页面)
 2026-02-23  迭代 28 完成 (移动端适配优化: 响应式 CSS + BottomTabBar + 滑动手势 + PWA Meta)
 2026-02-23  迭代 29 完成 (数据导入导出: PNG 导出 + 聊天导出 + 批量导入导出 + 前端 UI)
-2026-02-23  迭代 30 完成 (协作与分享: 角色分享链接 + 聊天快照 + 协作编辑 + 角色模板 + i18n) ← 当前
+2026-02-23  迭代 30 完成 (协作与分享: 角色分享链接 + 聊天快照 + 协作编辑 + 角色模板 + i18n)
+2026-02-23  迭代 31 完成 (通知与消息中心增强: WS推送 + 偏好设置 + 类型扩展 + @提及 + 前端增强) ← 当前
 ```

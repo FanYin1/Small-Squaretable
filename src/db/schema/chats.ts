@@ -4,10 +4,17 @@
  * 存储用户与角色的对话记录
  */
 
-import { pgTable, uuid, varchar, timestamp, jsonb, text, bigserial, bigint, pgEnum, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, text, bigserial, bigint, pgEnum, index, customType } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 import { users } from './users';
 import { characters } from './characters';
+
+// 定义 tsvector 自定义类型
+const tsvector = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return 'tsvector';
+  },
+});
 
 export const messageRoleEnum = pgEnum('message_role', ['user', 'assistant', 'system']);
 
@@ -45,6 +52,9 @@ export const messages = pgTable('messages', {
   extra: jsonb('extra'),
   characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
   parentMessageId: bigint('parent_message_id', { mode: 'number' }),
+
+  // Full-text search vector (auto-populated by DB trigger)
+  searchVector: tsvector('search_vector'),
 
   sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

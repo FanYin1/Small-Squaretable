@@ -378,4 +378,26 @@ const handleBookmark = () => {
   text-align: center;
   user-select: none;
 }
+
+@media (max-width: 768px) {
+  .message-inner {
+    padding: 0 12px;
+  }
+  .message-actions {
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+  .message-actions::-webkit-scrollbar {
+    display: none;
+  }
+  .message-header {
+    gap: 6px;
+  }
+  .branch-indicator {
+    font-size: 11px;
+  }
+}
 </style>
