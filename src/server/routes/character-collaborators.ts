@@ -16,6 +16,7 @@ import { users } from '../../db/schema/users';
 import { authMiddleware } from '../middleware/auth';
 import { requireFeature } from '../middleware/feature-gate';
 import { createLogger } from '../services/logger.service';
+import { notificationService } from '../services/notification.service';
 import type { ApiResponse } from '../../types/api';
 
 const logger = createLogger({ service: 'character-collaborators' });
@@ -75,6 +76,20 @@ characterCollaboratorRoutes.post(
         .returning();
 
       logger.info('Collaborator invited', { characterId, userId: body.userId, role: body.role });
+
+      // Notify the invited user
+      try {
+        await notificationService.notify({
+          userId: body.userId,
+          type: 'collaborator_invite',
+          actorId: user.id,
+          targetType: 'character',
+          targetId: characterId,
+          message: 'invited you to collaborate',
+        });
+      } catch {
+        // Notification failure should never break the main operation
+      }
 
       return c.json<ApiResponse>(
         { success: true, data: collaborator, meta: { timestamp: new Date().toISOString() } },
@@ -223,6 +238,20 @@ characterCollaboratorRoutes.patch(
 
       logger.info('Collaborator role updated', { characterId, userId: targetUserId, role: body.role });
 
+      // Notify the affected user about role change
+      try {
+        await notificationService.notify({
+          userId: targetUserId,
+          type: 'collaborator_role_change',
+          actorId: user.id,
+          targetType: 'character',
+          targetId: characterId,
+          message: `changed your role to ${body.role}`,
+        });
+      } catch {
+        // Notification failure should never break the main operation
+      }
+
       return c.json<ApiResponse>(
         { success: true, data: updated, meta: { timestamp: new Date().toISOString() } },
         200,
@@ -288,6 +317,22 @@ characterCollaboratorRoutes.delete(
       }
 
       logger.info('Collaborator removed', { characterId, userId: targetUserId, removedBy: user.id });
+
+      // Notify the removed user (unless they removed themselves)
+      if (targetUserId !== user.id) {
+        try {
+          await notificationService.notify({
+            userId: targetUserId,
+            type: 'collaborator_removed',
+            actorId: user.id,
+            targetType: 'character',
+            targetId: characterId,
+            message: 'removed you from collaboration',
+          });
+        } catch {
+          // Notification failure should never break the main operation
+        }
+      }
 
       return c.json<ApiResponse>(
         { success: true, data: { message: 'Collaborator removed successfully' }, meta: { timestamp: new Date().toISOString() } },

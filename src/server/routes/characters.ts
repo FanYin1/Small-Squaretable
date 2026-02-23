@@ -32,6 +32,7 @@ import { worldBookRepository } from '../../db/repositories/worldbook.repository'
 import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.repository';
 import { favoriteRepository } from '../../db/repositories/favorite.repository';
 import { eventBus } from '../services/event-bus.service';
+import { notificationService } from '../services/notification.service';
 
 /**
  * Create a world book from a SillyTavern character_book embedded in card data.
@@ -806,6 +807,24 @@ characterRoutes.post('/:id/fork', authMiddleware(), async (c) => {
       character.name,
       characterBook
     );
+  }
+
+  // Notify the original character creator about the fork
+  try {
+    const originalCharacter = await characterService.getById(characterId);
+    if (originalCharacter.creatorId && originalCharacter.creatorId !== user.id) {
+      await notificationService.notify({
+        userId: originalCharacter.creatorId,
+        type: 'character_forked',
+        actorId: user.id,
+        targetType: 'character',
+        targetId: characterId,
+        message: 'forked your character',
+        groupKey: `forked:${characterId}`,
+      });
+    }
+  } catch {
+    // Notification failure should never break the main operation
   }
 
   return c.json<ApiResponse>(

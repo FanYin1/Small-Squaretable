@@ -14,6 +14,10 @@ import type { EventBus } from './event-bus.service';
 import type { FollowInfo, FavoriteInfo } from '@/types/social';
 import { NotFoundError, BadRequestError } from '@/core/errors';
 import { notificationService } from './notification.service';
+import { db } from '@db/index';
+import { characters } from '@db/schema/characters';
+import { comments as commentsTable } from '@db/schema/social';
+import { eq } from 'drizzle-orm';
 
 export class SocialService {
   constructor(
@@ -32,7 +36,7 @@ export class SocialService {
     const follow = await this.followRepo.follow(userId, targetId);
     await this.eventBus.emit('social.follow', { followerId: userId, followingId: targetId });
     // Create notification for the followed user
-    await notificationService.notify(targetId, 'follow', userId, 'user', userId, 'started following you');
+    await notificationService.notify({ userId: targetId, type: 'follow', actorId: userId, targetType: 'user', targetId: userId, message: 'started following you' });
 
     return follow;
   }
@@ -66,6 +70,30 @@ export class SocialService {
   async favoriteCharacter(userId: string, characterId: string) {
     const fav = await this.favoriteRepo.favorite(userId, characterId);
     await this.eventBus.emit('social.favorite', { userId, characterId });
+
+    // Notify the character creator (not yourself)
+    try {
+      const [char] = await db
+        .select({ creatorId: characters.creatorId })
+        .from(characters)
+        .where(eq(characters.id, characterId))
+        .limit(1);
+
+      if (char?.creatorId && char.creatorId !== userId) {
+        await notificationService.notify({
+          userId: char.creatorId,
+          type: 'favorite',
+          actorId: userId,
+          targetType: 'character',
+          targetId: characterId,
+          message: 'favorited your character',
+          groupKey: `favorite:${characterId}`,
+        });
+      }
+    } catch {
+      // Notification failure should never break the main operation
+    }
+
     return fav;
   }
 
@@ -94,6 +122,55 @@ export class SocialService {
   async createComment(userId: string, characterId: string, content: string, parentId?: string) {
     const comment = await this.commentRepo.createComment(userId, characterId, content, parentId);
     await this.eventBus.emit('social.comment', { userId, characterId, commentId: comment.id, parentId });
+
+    // Notify the character creator for top-level comments
+    try {
+      const [char] = await db
+        .select({ creatorId: characters.creatorId })
+        .from(characters)
+        .where(eq(characters.id, characterId))
+        .limit(1);
+
+      if (char?.creatorId && char.creatorId !== userId) {
+        await notificationService.notify({
+          userId: char.creatorId,
+          type: 'comment',
+          actorId: userId,
+          targetType: 'character',
+          targetId: characterId,
+          message: 'commented on your character',
+          groupKey: `comment:${characterId}`,
+        });
+      }
+    } catch {
+      // Notification failure should never break the main operation
+    }
+
+    // Notify the parent comment author for replies
+    if (parentId) {
+      try {
+        const [parentComment] = await db
+          .select({ userId: commentsTable.userId })
+          .from(commentsTable)
+          .where(eq(commentsTable.id, parentId))
+          .limit(1);
+
+        if (parentComment && parentComment.userId !== userId) {
+          await notificationService.notify({
+            userId: parentComment.userId,
+            type: 'reply',
+            actorId: userId,
+            targetType: 'character',
+            targetId: characterId,
+            message: 'replied to your comment',
+            groupKey: `reply:${parentId}`,
+          });
+        }
+      } catch {
+        // Notification failure should never break the main operation
+      }
+    }
+
     return comment;
   }
 
