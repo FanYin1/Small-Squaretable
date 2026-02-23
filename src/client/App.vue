@@ -6,6 +6,7 @@ import zhCn from 'element-plus/dist/locale/zh-cn.mjs';
 import en from 'element-plus/dist/locale/en.mjs';
 import LoadingOverlay from './components/ui/LoadingOverlay.vue';
 import ToastContainer from './components/ui/ToastContainer.vue';
+import SearchCommandPalette from './components/search/SearchCommandPalette.vue';
 import { useLoading } from './composables';
 
 const { locale } = useI18n();
@@ -28,6 +29,7 @@ const loadingText = computed(() => visible.value.text);
     </router-view>
     <LoadingOverlay :visible="isLoading" :text="loadingText" />
     <ToastContainer />
+    <SearchCommandPalette />
   </el-config-provider>
 </template>
 

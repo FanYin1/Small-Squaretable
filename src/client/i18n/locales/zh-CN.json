@@ -1454,7 +1454,11 @@
       "allCategories": "全部分类",
       "tags": "标签",
       "tagsPlaceholder": "选择标签"
-    }
+    },
+    "commandPalette": "快速搜索",
+    "pressEnterToSearch": "按回车搜索",
+    "viewAllResults": "查看全部结果",
+    "noSuggestions": "暂无建议"
   },
   "share": {
     "shareLink": "分享链接",

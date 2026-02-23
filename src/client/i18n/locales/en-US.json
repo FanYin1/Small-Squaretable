@@ -1454,7 +1454,11 @@
       "allCategories": "All Categories",
       "tags": "Tags",
       "tagsPlaceholder": "Select tags"
-    }
+    },
+    "commandPalette": "Quick Search",
+    "pressEnterToSearch": "Press Enter to search",
+    "viewAllResults": "View all results",
+    "noSuggestions": "No suggestions"
   },
   "share": {
     "shareLink": "Share Link",
