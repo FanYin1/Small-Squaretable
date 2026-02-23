@@ -45,10 +45,10 @@ vi.mock('../services/notification.service', () => ({
 }));
 
 vi.mock('../../db/repositories/worldbook.repository', () => ({
-  worldBookRepository: { create: vi.fn() },
+  worldBookRepository: { create: vi.fn(), findByCharacter: vi.fn().mockResolvedValue([]) },
 }));
 vi.mock('../../db/repositories/worldbook-entry.repository', () => ({
-  worldBookEntryRepository: { create: vi.fn() },
+  worldBookEntryRepository: { create: vi.fn(), findByWorldBook: vi.fn().mockResolvedValue([]) },
 }));
 vi.mock('../../db/repositories/favorite.repository', () => ({
   favoriteRepository: { countByUser: vi.fn() },
