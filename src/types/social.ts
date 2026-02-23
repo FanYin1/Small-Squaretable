@@ -32,7 +32,17 @@ export const listCommentsQuerySchema = z.object({
 export type ListCommentsQuery = z.infer<typeof listCommentsQuerySchema>;
 
 // --- Notification ---
-export type NotificationType = 'follow' | 'favorite' | 'comment' | 'reply';
+export type NotificationType =
+  | 'follow'
+  | 'favorite'
+  | 'comment'
+  | 'reply'
+  | 'mention'
+  | 'collaborator_invite'
+  | 'collaborator_role_change'
+  | 'collaborator_removed'
+  | 'character_forked'
+  | 'system';
 
 export const listNotificationsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),

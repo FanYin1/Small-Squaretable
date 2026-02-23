@@ -110,6 +110,8 @@ export const notifications = pgTable('notifications', {
   targetType: varchar('target_type', { length: 50 }),
   targetId: uuid('target_id'),
   message: text('message').notNull(),
+  groupKey: varchar('group_key', { length: 255 }),
+  priority: varchar('priority', { length: 20 }).default('normal'),
   isRead: boolean('is_read').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
