@@ -419,7 +419,10 @@
     "exportPng": "导出 PNG",
     "selected": "已选择 {count} 个",
     "duplicated": "角色已复制",
-    "duplicateFailed": "复制失败"
+    "duplicateFailed": "复制失败",
+    "batchDelete": "删除所选",
+    "batchDeleteConfirm": "确定要删除所选角色吗？此操作不可恢复。",
+    "batchDeleteSuccess": "成功删除 {count} 个角色"
   },
   "subscription": {
     "title": "订阅管理",

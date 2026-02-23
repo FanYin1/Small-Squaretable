@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, sql, gt, lt } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, gt, lt, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { characters, type Character, type NewCharacter } from '../schema/characters';
@@ -151,6 +151,14 @@ export class CharacterRepository extends BaseRepository {
       .where(and(eq(characters.id, id), eq(characters.tenantId, tenantId)))
       .returning();
     return result.length > 0;
+  }
+
+  async bulkDelete(ids: string[], tenantId: string): Promise<number> {
+    const result = await this.db
+      .delete(characters)
+      .where(and(inArray(characters.id, ids), eq(characters.tenantId, tenantId)))
+      .returning({ id: characters.id });
+    return result.length;
   }
 
   async incrementDownloadCount(id: string): Promise<void> {

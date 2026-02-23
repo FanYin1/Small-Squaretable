@@ -419,7 +419,10 @@
     "exportPng": "Export PNG",
     "selected": "{count} selected",
     "duplicated": "Character duplicated",
-    "duplicateFailed": "Failed to duplicate"
+    "duplicateFailed": "Failed to duplicate",
+    "batchDelete": "Delete Selected",
+    "batchDeleteConfirm": "Are you sure you want to delete the selected characters? This action cannot be undone.",
+    "batchDeleteSuccess": "{count} characters deleted successfully"
   },
   "subscription": {
     "title": "Subscription",
