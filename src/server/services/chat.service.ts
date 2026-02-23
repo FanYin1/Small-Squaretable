@@ -209,6 +209,9 @@ export class ChatService {
       ],
       stream: false,
       temperature: 0.3,
+      n: 1,
+      presence_penalty: 0,
+      frequency_penalty: 0,
     });
 
     const summary =
