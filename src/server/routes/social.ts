@@ -18,6 +18,12 @@ import {
 import { socialService } from '../services/social.service';
 import { cacheService } from '../services/cache.service';
 import type { ApiResponse } from '../../types/api';
+import { parseMentions } from '../utils/mention-parser';
+import { notificationService } from '../services/notification.service';
+import { db } from '../../db';
+import { users } from '../../db/schema/users';
+import { eq } from 'drizzle-orm';
+
 
 export const socialRoutes = new Hono();
 
@@ -265,6 +271,30 @@ socialRoutes.post(
     const { content, parentId } = c.req.valid('json');
     const comment = await socialService.createComment(user.id, characterId, content, parentId);
 
+
+    // Parse @mentions and send notifications
+    try {
+      const mentionedNames = parseMentions(content);
+      if (mentionedNames.length > 0) {
+        for (const name of mentionedNames) {
+          const [mentionedUser] = await db.select().from(users)
+            .where(eq(users.displayName, name)).limit(1);
+
+          if (mentionedUser && mentionedUser.id !== user.id) {
+            await notificationService.notify({
+              userId: mentionedUser.id,
+              type: 'mention',
+              actorId: user.id,
+              targetType: 'comment',
+              targetId: comment.id,
+              message: `mentioned you in a comment`,
+            });
+          }
+        }
+      }
+    } catch {
+      // Mention notification failures should not break comment creation
+    }
     await cacheService.deletePattern(`social:*:${user.id}:*`);
 
     return c.json<ApiResponse>(
