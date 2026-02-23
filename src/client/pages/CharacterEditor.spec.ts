@@ -169,4 +169,38 @@ describe('CharacterEditor cardData round-trip', () => {
     expect(savedCardData.extensions.custom_field).toBe('custom_value');
     expect(savedCardData.extensions.voice).toBeDefined();
   });
+
+  it('should load alternate_greetings from character cardData into form', async () => {
+    const character = makeCharacter();
+    mockGetCharacter.mockResolvedValue(character);
+
+    const wrapper = mountEditor();
+    await flushPromises();
+    await nextTick();
+
+    const vm = wrapper.vm as any;
+    expect(vm.form.alternateGreetings).toEqual(['Hi there!', 'Hey!']);
+  });
+
+  it('should include edited alternate_greetings in save payload', async () => {
+    const character = makeCharacter();
+    mockGetCharacter.mockResolvedValue(character);
+
+    const wrapper = mountEditor();
+    await flushPromises();
+    await nextTick();
+
+    const vm = wrapper.vm as any;
+
+    // Modify the alternate greetings
+    vm.form.alternateGreetings = ['Hello world!', 'Greetings!', 'Howdy!'];
+
+    vm.formRef = { validate: () => Promise.resolve(true) };
+    await vm.handleSave();
+    await flushPromises();
+
+    expect(mockUpdateCharacter).toHaveBeenCalledTimes(1);
+    const savedCardData = mockUpdateCharacter.mock.calls[0][1].cardData;
+    expect(savedCardData.alternate_greetings).toEqual(['Hello world!', 'Greetings!', 'Howdy!']);
+  });
 });

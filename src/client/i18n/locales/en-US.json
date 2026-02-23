@@ -1352,7 +1352,10 @@
     "restoreConfirm": "Are you sure you want to restore this version?",
     "restoreTitle": "Restore Version",
     "restored": "Version restored",
-    "noVersions": "No version history"
+    "noVersions": "No version history",
+    "alternateGreetings": "Alternate Greetings",
+    "alternateGreetingPlaceholder": "Alternate greeting {n}...",
+    "addGreeting": "Add Greeting"
   },
   "groupChat": {
     "title": "Group Chat",

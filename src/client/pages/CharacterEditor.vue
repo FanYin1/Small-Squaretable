@@ -42,6 +42,7 @@ const form = reactive({
   exampleMessages: '',
   creatorNotes: '',
   avatarUrl: '',
+  alternateGreetings: [] as string[],
 });
 
 // Form rules
@@ -110,6 +111,7 @@ async function handleSave() {
     mes_example: form.exampleMessages || undefined,
     system_prompt: form.systemPrompt || undefined,
     creator_notes: form.creatorNotes || undefined,
+    alternate_greetings: form.alternateGreetings.length > 0 ? form.alternateGreetings : undefined,
     extensions: {
       ...(originalCardData.value.extensions as Record<string, unknown> || {}),
       voice: voiceConfig.value,
@@ -174,6 +176,9 @@ async function fetchCharacter() {
         voiceConfig.value = cd.extensions.voice as VoiceConfig;
         showVoiceSettings.value = true;
       }
+      if (cd.alternate_greetings && Array.isArray(cd.alternate_greetings)) {
+        form.alternateGreetings = [...cd.alternate_greetings];
+      }
     }
     isOwner.value = true;
   } catch (error: unknown) {
@@ -200,6 +205,9 @@ onMounted(async () => {
         form.firstMessage = template.cardData.first_mes || '';
         form.exampleMessages = template.cardData.mes_example || '';
         form.creatorNotes = template.cardData.creator_notes || '';
+        if (template.cardData.alternate_greetings) {
+          form.alternateGreetings = [...template.cardData.alternate_greetings];
+        }
         if (template.category) form.category = template.category;
         if (template.tags) form.tags = template.tags;
         if (template.avatarUrl) form.avatarUrl = template.avatarUrl;
@@ -226,6 +234,9 @@ async function handleRestoreVersion(cardData: Record<string, unknown>) {
   form.firstMessage = (cardData.first_mes as string) || '';
   form.exampleMessages = (cardData.mes_example as string) || '';
   form.creatorNotes = (cardData.creator_notes as string) || '';
+  if (cardData.alternate_greetings && Array.isArray(cardData.alternate_greetings)) {
+    form.alternateGreetings = [...cardData.alternate_greetings as string[]];
+  }
   ElMessage.success(t('characterEditor.restoreSuccess', 'Version restored'));
 }
 function handleTemplateSelect(cardData: CharacterCardData) {
@@ -235,6 +246,9 @@ function handleTemplateSelect(cardData: CharacterCardData) {
   form.firstMessage = cardData.first_mes || '';
   form.exampleMessages = cardData.mes_example || '';
   form.creatorNotes = cardData.creator_notes || '';
+  if (cardData.alternate_greetings && Array.isArray(cardData.alternate_greetings)) {
+    form.alternateGreetings = [...cardData.alternate_greetings];
+  }
 }
 </script>
 
@@ -315,6 +329,27 @@ function handleTemplateSelect(cardData: CharacterCardData) {
 
         <el-form-item :label="t('characterEditor.firstMessage')">
           <el-input v-model="form.firstMessage" type="textarea" :rows="5" />
+        </el-form-item>
+
+        <!-- Alternate Greetings -->
+        <el-form-item :label="t('characterEditor.alternateGreetings')">
+          <div class="alternate-greetings-list">
+            <div v-for="(_, index) in form.alternateGreetings" :key="index" class="greeting-item" style="display: flex; gap: 8px; margin-bottom: 8px; width: 100%;">
+              <el-input
+                v-model="form.alternateGreetings[index]"
+                type="textarea"
+                :rows="3"
+                :placeholder="t('characterEditor.alternateGreetingPlaceholder', { n: index + 1 })"
+                style="flex: 1;"
+              />
+              <el-button type="danger" text @click="form.alternateGreetings.splice(index, 1)">
+                {{ t('common.delete') }}
+              </el-button>
+            </div>
+            <el-button @click="form.alternateGreetings.push('')" :disabled="form.alternateGreetings.length >= 10">
+              {{ t('characterEditor.addGreeting') }}
+            </el-button>
+          </div>
         </el-form-item>
 
         <el-form-item :label="t('characterEditor.exampleMessages')">
