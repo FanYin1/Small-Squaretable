@@ -6,8 +6,10 @@
 
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
-import { NotFoundError } from '../../core/errors';
+import { NotFoundError, AppError } from '../../core/errors';
 import { logger } from './logger.service';
+import { llmService } from './llm.service';
+import { getDefaultModel } from '../config/llm.config';
 
 const chatLogger = logger.child({ module: 'chat' });
 import type { CreateChatInput, UpdateChatInput, CreateMessageInput } from '../../types/chat';
@@ -167,6 +169,54 @@ export class ChatService {
       throw new NotFoundError('Message');
     }
     return updated;
+  }
+
+  /**
+   * Generate a conversation summary using the LLM and persist it.
+   */
+  async generateSummary(chatId: string, userId: string): Promise<string> {
+    const chat = await this.chatRepo.findById(chatId);
+    if (!chat || chat.userId !== userId) {
+      throw new NotFoundError('Chat');
+    }
+
+    const msgs = await this.messageRepo.findByChatId(chatId, { limit: 100 });
+    if (msgs.length === 0) {
+      throw new AppError('No messages to summarize', 400, 'NO_MESSAGES');
+    }
+
+    const conversationText = msgs
+      .map((m) => `${m.role}: ${m.content.substring(0, 500)}`)
+      .join('\n');
+
+    const model = getDefaultModel();
+    if (!model) {
+      throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
+    }
+
+    const response = await llmService.chatCompletion({
+      model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Summarize the following conversation in 2-3 sentences. Focus on key topics and conclusions.',
+        },
+        {
+          role: 'user',
+          content: conversationText,
+        },
+      ],
+      stream: false,
+      temperature: 0.3,
+    });
+
+    const summary =
+      response.choices?.[0]?.message?.content || 'Unable to generate summary';
+
+    await this.chatRepo.update(chatId, chat.tenantId, { summary });
+
+    return summary;
   }
 
   /**

@@ -26,6 +26,7 @@ import { eventBus } from '../services/event-bus.service';
 import { messageBookmarkRepository } from '../../db/repositories/message-bookmark.repository';
 import { characterGrowthRepository } from '../../db/repositories/character-growth.repository';
 import { getAvailableModels } from '../config/llm.config';
+import { AppError } from '../../core/errors';
 import { createLogger } from '../services/logger.service';
 
 const logger = createLogger({ service: 'chats-route' });
@@ -196,6 +197,75 @@ chatRoutes.get(
     );
   }
 );
+
+// POST /:id/summary — Generate conversation summary
+chatRoutes.post('/:id/summary', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const chatId = c.req.param('id');
+
+  const chat = await chatRepository.findById(chatId);
+  if (!chat || chat.userId !== user.id) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Chat not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404
+    );
+  }
+
+  try {
+    const summary = await chatService.generateSummary(chatId, user.id);
+    return c.json<ApiResponse>(
+      {
+        success: true,
+        data: { summary },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      200
+    );
+  } catch (error) {
+    if (error instanceof AppError && error.code === 'NO_MESSAGES') {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'NO_MESSAGES', message: 'No messages to summarize' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        400
+      );
+    }
+    throw error;
+  }
+});
+
+// GET /:id/summary — Get stored conversation summary
+chatRoutes.get('/:id/summary', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const chatId = c.req.param('id');
+
+  const chat = await chatRepository.findById(chatId);
+  if (!chat || chat.userId !== user.id) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Chat not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404
+    );
+  }
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: { summary: chat.summary || null },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200
+  );
+});
 
 // 获取单个聊天
 chatRoutes.get('/:id', authMiddleware(), async (c) => {
