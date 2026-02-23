@@ -18,6 +18,7 @@ export const users = pgTable('users', {
   passwordHash: varchar('password_hash', { length: 255 }),
   displayName: varchar('display_name', { length: 100 }),
   avatarUrl: varchar('avatar_url', { length: 500 }),
+  bio: varchar('bio', { length: 500 }),
   role: userRoleEnum('role').default('user').notNull(),
   isActive: boolean('is_active').default(true).notNull(),
   emailVerified: boolean('email_verified').default(false).notNull(),

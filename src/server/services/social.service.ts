@@ -17,7 +17,7 @@ import { notificationService } from './notification.service';
 import { db } from '@db/index';
 import { characters } from '@db/schema/characters';
 import { comments as commentsTable } from '@db/schema/social';
-import { eq } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 export class SocialService {
   constructor(
@@ -213,10 +213,22 @@ export class SocialService {
   async getUserProfile(userId: string) {
     const user = await this.userRepo.findById(userId);
     if (!user) throw new NotFoundError('User');
+
+    // Get public character count
+    const countResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(characters)
+      .where(and(eq(characters.creatorId, userId), eq(characters.isPublic, true)));
+
     return {
       id: user.id,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      bio: user.bio || '',
+      followerCount: user.followerCount,
+      followingCount: user.followingCount,
+      characterCount: countResult[0]?.count ?? 0,
+      createdAt: user.createdAt,
     };
   }
 }

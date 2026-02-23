@@ -6,7 +6,8 @@ import { z } from 'zod';
 
 export const updateUserSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
-  avatarUrl: z.string().url().max(500).optional(),
+  avatarUrl: z.string().max(2000000).optional(),
+  bio: z.string().max(500).optional(),
 });
 
 export const updatePasswordSchema = z.object({

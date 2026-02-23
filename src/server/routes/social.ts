@@ -22,7 +22,8 @@ import { parseMentions } from '../utils/mention-parser';
 import { notificationService } from '../services/notification.service';
 import { db } from '../../db';
 import { users } from '../../db/schema/users';
-import { eq } from 'drizzle-orm';
+import { characters } from '../../db/schema/characters';
+import { eq, and, desc } from 'drizzle-orm';
 
 
 export const socialRoutes = new Hono();
@@ -424,7 +425,7 @@ socialRoutes.delete('/comments/:commentId/like', authMiddleware(), async (c) => 
 // =====================
 
 // GET /users/:userId/profile - Get user public profile
-socialRoutes.get('/users/:userId/profile', authMiddleware(), async (c) => {
+socialRoutes.get('/users/:userId/profile', async (c) => {
   const userId = c.req.param('userId');
   const profile = await socialService.getUserProfile(userId);
 
@@ -433,4 +434,27 @@ socialRoutes.get('/users/:userId/profile', authMiddleware(), async (c) => {
     data: profile,
     meta: { timestamp: new Date().toISOString() },
   }, 200);
+});
+
+// GET /users/:userId/characters - Get user's public characters
+socialRoutes.get('/users/:userId/characters', async (c) => {
+  const userId = c.req.param('userId');
+  try {
+    const userChars = await db.select()
+      .from(characters)
+      .where(and(eq(characters.creatorId, userId), eq(characters.isPublic, true)))
+      .orderBy(desc(characters.createdAt))
+      .limit(20);
+    return c.json<ApiResponse>({
+      success: true,
+      data: userChars,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to list characters' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 500);
+  }
 });

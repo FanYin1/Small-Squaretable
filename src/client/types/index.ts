@@ -5,6 +5,9 @@ export interface User {
   avatar?: string;
   tenantId: string;
   role?: 'user' | 'moderator' | 'admin';
+  bio?: string;
+  followerCount?: number;
+  followingCount?: number;
   createdAt: string;
 }
 
@@ -132,6 +135,17 @@ export interface ChatSnapshot {
   characterName?: string;
   characterAvatar?: string;
   expiresAt?: string;
+  createdAt: string;
+}
+
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  avatarUrl?: string;
+  bio: string;
+  followerCount: number;
+  followingCount: number;
+  characterCount: number;
   createdAt: string;
 }
 
