@@ -522,7 +522,7 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
 
         if (format === 'png') {
           const { embedJsonInPng, avatarToBuffer } = await import('../utils/png-embed');
-          const cardData = {
+          const cardData: Record<string, unknown> = {
             ...(character.cardData as Record<string, unknown>),
             name: character.name,
             description: character.description || '',
@@ -530,11 +530,16 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
             spec: 'chara_card_v2',
             spec_version: '2.0',
           };
+          // Re-embed world book data
+          const charBook = await buildCharacterBook(charId);
+          if (charBook) {
+            cardData.character_book = charBook;
+          }
           const pngBuffer = avatarToBuffer(character.avatarUrl);
           const result = embedJsonInPng(pngBuffer, cardData);
           results.push({ name: `${safeName}.png`, data: result });
         } else {
-          const cardData = {
+          const cardData: Record<string, unknown> = {
             ...(character.cardData as Record<string, unknown>),
             name: character.name,
             description: character.description || '',
@@ -542,6 +547,11 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
             spec: 'chara_card_v2',
             spec_version: '2.0',
           };
+          // Re-embed world book data
+          const charBook = await buildCharacterBook(charId);
+          if (charBook) {
+            cardData.character_book = charBook;
+          }
           results.push({ name: `${safeName}.json`, data: Buffer.from(JSON.stringify(cardData, null, 2)) });
         }
       } catch (err) {
@@ -1008,6 +1018,42 @@ characterRoutes.delete('/:id/ratings', authMiddleware(), async (c) => {
 });
 
 /**
+ * Build SillyTavern character_book from stored world book entries
+ */
+async function buildCharacterBook(characterId: string): Promise<Record<string, unknown> | null> {
+  const worldbooks = await worldBookRepository.findByCharacter(characterId);
+  if (worldbooks.length === 0) return null;
+
+  // Use the first character-scoped worldbook
+  const wb = worldbooks[0];
+  const entries = await worldBookEntryRepository.findByWorldBook(wb.id);
+  if (entries.length === 0) return null;
+
+  return {
+    entries: entries.map((e, i) => {
+      const settings = (e.settings as Record<string, unknown>) || {};
+      return {
+        keys: settings.keys || e.keyword.split(',').map((k: string) => k.trim()),
+        secondary_keys: settings.keysSecondary || [],
+        content: e.content || '',
+        comment: settings.comment || '',
+        enabled: e.isEnabled !== false,
+        insertion_order: settings.order ?? e.position ?? i,
+        case_sensitive: settings.caseSensitive ?? false,
+        name: e.keyword || '',
+        priority: settings.depth ?? e.priority ?? 10,
+        id: i,
+        position: settings.position ?? 'after_char',
+        extensions: {},
+        selective: Array.isArray(settings.keysSecondary) && (settings.keysSecondary as unknown[]).length > 0,
+        constant: settings.constant ?? false,
+      };
+    }),
+    name: wb.name || 'World Book',
+  };
+}
+
+/**
  * Verify the user owns the character or is a collaborator
  */
 async function verifyCharacterAccess(characterId: string, userId: string): Promise<boolean> {
@@ -1201,7 +1247,7 @@ characterRoutes.get('/:id/export/json', authMiddleware(), async (c) => {
   const characterId = c.req.param('id');
   const character = await characterService.getById(characterId);
 
-  const cardData = {
+  const cardData: Record<string, unknown> = {
     ...(character.cardData as Record<string, unknown>),
     name: character.name,
     description: character.description || '',
@@ -1209,6 +1255,12 @@ characterRoutes.get('/:id/export/json', authMiddleware(), async (c) => {
     spec: 'chara_card_v2',
     spec_version: '2.0',
   };
+
+  // Re-embed world book data
+  const characterBook = await buildCharacterBook(characterId);
+  if (characterBook) {
+    cardData.character_book = characterBook;
+  }
 
   const safeName = character.name.replace(/[^a-zA-Z0-9_-]/g, '_');
 
@@ -1233,7 +1285,7 @@ characterRoutes.get('/:id/export/png', optionalAuthMiddleware(), async (c) => {
     const { embedJsonInPng, avatarToBuffer } = await import('../utils/png-embed');
 
     // Build SillyTavern format card data
-    const cardData = {
+    const cardData: Record<string, unknown> = {
       ...(character.cardData as Record<string, unknown>),
       name: character.name,
       description: character.description || '',
@@ -1241,6 +1293,12 @@ characterRoutes.get('/:id/export/png', optionalAuthMiddleware(), async (c) => {
       spec: 'chara_card_v2',
       spec_version: '2.0',
     };
+
+    // Re-embed world book data
+    const characterBook = await buildCharacterBook(id);
+    if (characterBook) {
+      cardData.character_book = characterBook;
+    }
 
     const pngBuffer = avatarToBuffer(character.avatarUrl);
     const result = embedJsonInPng(pngBuffer, cardData);
