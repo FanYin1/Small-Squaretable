@@ -26,6 +26,7 @@ const saving = ref(false);
 const showVoiceSettings = ref(false);
 const voiceConfig = ref<VoiceConfig>({});
 const isOwner = ref(false);
+const originalCardData = ref<Record<string, unknown>>({});
 
 // Form data
 const form = reactive({
@@ -102,6 +103,7 @@ async function handleSave() {
   }
 
   const cardData: CharacterCardData = {
+    ...originalCardData.value,
     personality: form.personality || undefined,
     scenario: form.scenario || undefined,
     first_mes: form.firstMessage || undefined,
@@ -109,6 +111,7 @@ async function handleSave() {
     system_prompt: form.systemPrompt || undefined,
     creator_notes: form.creatorNotes || undefined,
     extensions: {
+      ...(originalCardData.value.extensions as Record<string, unknown> || {}),
       voice: voiceConfig.value,
     },
   };
@@ -160,6 +163,7 @@ async function fetchCharacter() {
     form.avatarUrl = character.avatar || '';
     const cd = character.cardData;
     if (cd) {
+      originalCardData.value = { ...cd };
       form.personality = cd.personality || '';
       form.scenario = cd.scenario || '';
       form.systemPrompt = cd.system_prompt || '';
