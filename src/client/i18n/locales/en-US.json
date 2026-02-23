@@ -1355,7 +1355,10 @@
     "noVersions": "No version history",
     "alternateGreetings": "Alternate Greetings",
     "alternateGreetingPlaceholder": "Alternate greeting {n}...",
-    "addGreeting": "Add Greeting"
+    "addGreeting": "Add Greeting",
+    "saveAsTemplate": "Save as Template",
+    "templateSaved": "Template saved successfully",
+    "saveAsTemplateConfirm": "Save current character as a public template?"
   },
   "groupChat": {
     "title": "Group Chat",

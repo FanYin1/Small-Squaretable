@@ -30,6 +30,8 @@ const showExpressionEditor = ref(false);
 const expressionConfig = ref<Record<string, string>>({});
 const isOwner = ref(false);
 const originalCardData = ref<Record<string, unknown>>({});
+const saveAsTemplateDialogVisible = ref(false);
+const savingTemplate = ref(false);
 
 // Form data
 const form = reactive({
@@ -262,6 +264,42 @@ function handleTemplateSelect(cardData: CharacterCardData) {
     form.alternateGreetings = [...cardData.alternate_greetings];
   }
 }
+
+async function handleSaveAsTemplate() {
+  savingTemplate.value = true;
+  try {
+    const cardData = {
+      ...originalCardData.value,
+      personality: form.personality || undefined,
+      scenario: form.scenario || undefined,
+      first_mes: form.firstMessage || undefined,
+      mes_example: form.exampleMessages || undefined,
+      system_prompt: form.systemPrompt || undefined,
+      creator_notes: form.creatorNotes || undefined,
+      alternate_greetings: form.alternateGreetings.length > 0 ? form.alternateGreetings : undefined,
+      extensions: {
+        ...(originalCardData.value.extensions as Record<string, unknown> || {}),
+        voice: voiceConfig.value,
+        expressions: Object.keys(expressionConfig.value).length > 0 ? expressionConfig.value : undefined,
+      },
+    };
+    await characterTemplateApi.createTemplate({
+      name: form.name,
+      description: form.description || undefined,
+      cardData,
+      category: form.category || undefined,
+      tags: form.tags.length ? form.tags : undefined,
+      avatarUrl: form.avatarUrl || undefined,
+    });
+    ElMessage.success(t('characterEditor.templateSaved'));
+    saveAsTemplateDialogVisible.value = false;
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : t('common.retry');
+    ElMessage.error(msg);
+  } finally {
+    savingTemplate.value = false;
+  }
+}
 </script>
 
 <template>
@@ -426,6 +464,9 @@ function handleTemplateSelect(cardData: CharacterCardData) {
 
         <!-- Actions -->
         <div class="form-actions">
+          <el-button v-if="isEditMode && isOwner" @click="saveAsTemplateDialogVisible = true">
+            {{ t('characterEditor.saveAsTemplate') }}
+          </el-button>
           <el-button @click="handleCancel">{{ t('common.cancel') }}</el-button>
           <el-button type="primary" :loading="saving" @click="handleSave">
             {{ isEditMode ? t('characterEditor.save') : t('characterEditor.create') }}
@@ -459,6 +500,14 @@ function handleTemplateSelect(cardData: CharacterCardData) {
         </el-col>
       </el-row>
     </div>
+
+    <el-dialog v-model="saveAsTemplateDialogVisible" :title="t('characterEditor.saveAsTemplate')" width="400px">
+      <p>{{ t('characterEditor.saveAsTemplateConfirm') }}</p>
+      <template #footer>
+        <el-button @click="saveAsTemplateDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="savingTemplate" @click="handleSaveAsTemplate">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </DashboardLayout>
 </template>
 

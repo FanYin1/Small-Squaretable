@@ -1355,7 +1355,10 @@
     "noVersions": "暂无版本历史",
     "alternateGreetings": "备选问候语",
     "alternateGreetingPlaceholder": "备选问候语 {n}...",
-    "addGreeting": "添加问候语"
+    "addGreeting": "添加问候语",
+    "saveAsTemplate": "保存为模板",
+    "templateSaved": "模板保存成功",
+    "saveAsTemplateConfirm": "将当前角色保存为公开模板？"
   },
   "groupChat": {
     "title": "群聊",

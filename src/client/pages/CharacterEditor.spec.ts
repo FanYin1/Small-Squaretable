@@ -37,9 +37,12 @@ vi.mock('@client/services/character.api', () => ({
   },
 }));
 
+const mockCreateTemplate = vi.fn();
+
 vi.mock('@client/services/character-template.api', () => ({
   characterTemplateApi: {
     useTemplate: vi.fn(),
+    createTemplate: (...args: unknown[]) => mockCreateTemplate(...args),
   },
 }));
 
@@ -71,6 +74,7 @@ const stubs = {
   'el-switch': { template: '<input type="checkbox" />' },
   'el-divider': { template: '<hr />' },
   'el-icon': { template: '<i><slot /></i>' },
+  'el-dialog': { template: '<div v-if="$attrs.modelValue"><slot /><slot name="footer" /></div>', inheritAttrs: true },
   ArrowUp: { template: '<span />' },
   ArrowDown: { template: '<span />' },
 };
@@ -241,5 +245,58 @@ describe('CharacterEditor cardData round-trip', () => {
     expect(mockUpdateCharacter).toHaveBeenCalledTimes(1);
     const savedCardData = mockUpdateCharacter.mock.calls[0][1].cardData;
     expect(savedCardData.extensions.expressions).toEqual({ neutral: 'data:image/png;base64,n', sad: 'data:image/png;base64,s' });
+  });
+});
+
+describe('CharacterEditor Save as Template', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRoute.params = { id: 'char-1' };
+    mockRoute.query = {};
+    mockCreateTemplate.mockResolvedValue({});
+  });
+
+  it('should show Save as Template button only in edit mode for owner', async () => {
+    const character = makeCharacter();
+    mockGetCharacter.mockResolvedValue(character);
+
+    const wrapper = mountEditor();
+    await flushPromises();
+    await nextTick();
+
+    const buttons = wrapper.findAll('button');
+    const templateBtn = buttons.find(b => b.text().includes('Save as Template'));
+    expect(templateBtn).toBeDefined();
+  });
+
+  it('should not show Save as Template button in create mode', async () => {
+    mockRoute.params = {};
+
+    const wrapper = mountEditor();
+    await flushPromises();
+    await nextTick();
+
+    const buttons = wrapper.findAll('button');
+    const templateBtn = buttons.find(b => b.text().includes('Save as Template'));
+    expect(templateBtn).toBeUndefined();
+  });
+
+  it('should call createTemplate with correct data when confirmed', async () => {
+    const character = makeCharacter();
+    mockGetCharacter.mockResolvedValue(character);
+
+    const wrapper = mountEditor();
+    await flushPromises();
+    await nextTick();
+
+    const vm = wrapper.vm as any;
+    await vm.handleSaveAsTemplate();
+    await flushPromises();
+
+    expect(mockCreateTemplate).toHaveBeenCalledTimes(1);
+    const args = mockCreateTemplate.mock.calls[0][0];
+    expect(args.name).toBe('Test Character');
+    expect(args.category).toBe('assistant');
+    expect(args.tags).toEqual(['test']);
   });
 });
