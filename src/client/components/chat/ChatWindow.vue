@@ -202,6 +202,7 @@
               @cancel-edit="handleCancelEdit"
               @rollback="handleRollback"
               @switch-branch="handleSwitchBranch"
+              @reply="chatStore.setReplyTo($event)"
             />
           </div>
         </template>

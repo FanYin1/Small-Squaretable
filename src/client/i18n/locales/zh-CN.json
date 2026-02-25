@@ -158,6 +158,8 @@
     "rollbackFailed": "回滚失败",
     "reactions": "表情回应",
     "addReaction": "添加回应",
+    "reply": "回复",
+    "replyingTo": "回复",
     "searchMessages": "搜索消息",
     "results": "条结果",
     "noSearchResults": "未找到消息",

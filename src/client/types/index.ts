@@ -44,6 +44,7 @@ export interface Message {
   characterId?: string;
   characterName?: string;
   parentMessageId?: number;
+  extra?: { replyTo?: { messageId: string; content: string; role: string }; [key: string]: unknown };
   createdAt: string;
 }
 

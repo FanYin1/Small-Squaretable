@@ -31,6 +31,10 @@
           />
         </div>
       </div>
+      <div v-if="message.extra?.replyTo" class="reply-quote">
+        <div class="reply-quote-role">{{ message.extra.replyTo.role }}</div>
+        <div class="reply-quote-content">{{ message.extra.replyTo.content?.substring(0, 100) }}{{ (message.extra.replyTo.content?.length ?? 0) > 100 ? '...' : '' }}</div>
+      </div>
       <div class="message-body">
         <template v-if="message.role === 'assistant'">
           <MarkdownRenderer :content="message.content" />
@@ -124,6 +128,9 @@
         >
           {{ bookmarkStore.isBookmarked(message.id) ? t('chat.bookmarked') : t('chat.bookmark') }}
         </button>
+        <button class="action-btn" @click="handleReply" :aria-label="t('chat.reply')">
+          {{ t('chat.reply') }}
+        </button>
         <button class="action-btn" @click="handleRollback" :aria-label="t('chat.rollbackToHere')">
           {{ t('chat.rollbackToHere') }}
         </button>
@@ -143,7 +150,7 @@ import { useDateTime } from '@client/composables';
 import { useTextToSpeech, type VoiceConfig } from '@client/composables/useTextToSpeech';
 import { createLogger } from '@client/utils/logger';
 import { useBookmarkStore } from '@client/stores/bookmark';
-import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue';
+import { ArrowLeft, ArrowRight, ChatLineSquare } from '@element-plus/icons-vue';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import AudioPlayer from './AudioPlayer.vue';
 import MessageImage from './MessageImage.vue';
@@ -173,6 +180,7 @@ const emit = defineEmits<{
   (e: 'rollback', messageId: string): void;
   (e: 'switchBranch', messageId: number, direction: 'prev' | 'next'): void;
   (e: 'toggleReaction', payload: { messageId: string; emoji: string }): void;
+  (e: 'reply', payload: { id: string; content: string; role: string }): void;
 }>();
 
 const { t } = useI18n();
@@ -262,6 +270,10 @@ const handleRollback = () => {
 const handleBookmark = () => {
   bookmarkStore.toggleBookmark(props.message.chatId, props.message.id);
 };
+
+const handleReply = () => {
+  emit('reply', { id: props.message.id, content: props.message.content, role: props.message.role });
+};
 </script>
 
 <style scoped>
@@ -308,6 +320,29 @@ const handleBookmark = () => {
 
 .message-body {
   line-height: 1.6;
+}
+
+.reply-quote {
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-left: 3px solid var(--el-color-primary, #409eff);
+  background: var(--el-fill-color-lighter, #fafafa);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+}
+
+.reply-quote-role {
+  font-weight: 600;
+  color: var(--el-color-primary, #409eff);
+  margin-bottom: 2px;
+  text-transform: capitalize;
+}
+
+.reply-quote-content {
+  color: var(--el-text-color-secondary, #909399);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .message-attachments {

@@ -34,6 +34,9 @@ export const useChatStore = defineStore('chat', () => {
   const searching = ref(false);
   const availableModels = ref<ModelMeta[]>([]);
 
+  // Reply-to-message state
+  const replyingTo = ref<{ messageId: string; content: string; role: string } | null>(null);
+
   // Branch navigation state
   const branchCache = ref<Map<number, { siblings: Message[]; currentIndex: number }>>(new Map());
 
@@ -351,6 +354,9 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('No active chat');
     }
 
+    // Build extra field with replyTo if replying
+    const extra = replyingTo.value ? { replyTo: { ...replyingTo.value } } : undefined;
+
     // 如果 WebSocket 已连接，使用 WebSocket 发送
     if (wsConnected.value && wsClient) {
       sending.value = true;
@@ -363,9 +369,11 @@ export const useChatStore = defineStore('chat', () => {
         role: 'user',
         content,
         attachments,
+        extra,
         createdAt: new Date().toISOString(),
       };
       messages.value.push(userMessage);
+      replyingTo.value = null;
 
       // 通过 WebSocket 发送 (包含附件)
       wsClient.sendMessage(currentChatId.value, content, attachments);
@@ -375,8 +383,9 @@ export const useChatStore = defineStore('chat', () => {
       error.value = null;
       try {
         // 1. 保存用户消息
-        const response = await chatApi.sendMessage(currentChatId.value, { role: 'user', content });
+        const response = await chatApi.sendMessage(currentChatId.value, { role: 'user', content, ...(extra && { extra }) });
         messages.value.push(response.message);
+        replyingTo.value = null;
 
         // 2. 调用 LLM 获取 AI 回复（流式）
         isStreaming.value = true;
@@ -862,6 +871,13 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  /**
+   * Set or clear the message being replied to
+   */
+  function setReplyTo(message: { id: string; content: string; role: string } | null) {
+    replyingTo.value = message ? { messageId: message.id, content: message.content, role: message.role } : null;
+  }
+
   return {
     chats,
     currentChatId,
@@ -918,5 +934,7 @@ export const useChatStore = defineStore('chat', () => {
     handleRemoteTyping,
     initWebSocket,
     disconnectWebSocket,
+    replyingTo,
+    setReplyTo,
   };
 });

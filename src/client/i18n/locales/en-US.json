@@ -158,6 +158,8 @@
     "rollbackFailed": "Rollback failed",
     "reactions": "Reactions",
     "addReaction": "Add Reaction",
+    "reply": "Reply",
+    "replyingTo": "Replying to",
     "searchMessages": "Search messages",
     "results": "results",
     "noSearchResults": "No messages found",

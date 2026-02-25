@@ -1,5 +1,14 @@
 <template>
   <div class="message-input">
+    <div v-if="chatStore.replyingTo" class="reply-preview">
+      <div class="reply-preview-content">
+        <span class="reply-preview-label">{{ t('chat.replyingTo') }}:</span>
+        {{ chatStore.replyingTo.content?.substring(0, 80) }}{{ (chatStore.replyingTo.content?.length ?? 0) > 80 ? '...' : '' }}
+      </div>
+      <el-button link size="small" @click="chatStore.setReplyTo(null)">
+        <el-icon><CloseBold /></el-icon>
+      </el-button>
+    </div>
     <div class="input-wrapper">
       <button class="attach-btn" type="button" aria-label="Attach file">
         <el-icon :size="20"><Upload /></el-icon>
@@ -107,7 +116,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Position, Upload, Microphone, Close, Check, Loading, Headset, VideoPause } from '@element-plus/icons-vue';
+import { Position, Upload, Microphone, Close, CloseBold, Check, Loading, Headset, VideoPause } from '@element-plus/icons-vue';
 import { useAudioRecorder } from '@client/composables/useAudioRecorder';
 import { useSpeechToText } from '@client/composables/useSpeechToText';
 import { uploadApi } from '@client/services/upload.api';
@@ -278,6 +287,31 @@ const handleSendRecording = async () => {
   max-width: 900px;
   margin: 0 auto;
   padding: 16px 24px;
+}
+
+.reply-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--el-fill-color-lighter, #fafafa);
+  border-left: 3px solid var(--el-color-primary, #409eff);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.reply-preview-content {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--el-text-color-secondary, #909399);
+}
+
+.reply-preview-label {
+  font-weight: 600;
+  color: var(--el-text-color-primary, #303133);
 }
 
 .input-wrapper {

@@ -22,6 +22,7 @@ export interface GetMessagesParams {
 export interface SendMessageRequest {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  extra?: Record<string, unknown>;
 }
 
 // Backend chat format
@@ -46,6 +47,7 @@ interface BackendMessage {
   characterId?: string;
   characterName?: string;
   parentMessageId?: number;
+  extra?: Record<string, unknown>;
   sentAt: string;  // Backend uses sentAt, not createdAt
 }
 
@@ -99,6 +101,7 @@ function transformMessage(item: BackendMessage): Message {
     characterId: item.characterId,
     characterName: item.characterName,
     parentMessageId: item.parentMessageId,
+    extra: item.extra as Message['extra'],
     createdAt: item.sentAt,  // Map sentAt to createdAt for frontend
   };
 }
