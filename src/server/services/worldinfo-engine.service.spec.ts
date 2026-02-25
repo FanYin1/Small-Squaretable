@@ -196,4 +196,64 @@ describe('WorldInfoEngine', () => {
     expect(result.debugInfo?.activatedCount).toBe(1);
     expect(result.debugInfo?.matches).toEqual([{ entryId: 'e1', keyword: '(constant)' }]);
   });
+
+  it('skips entry when delay threshold not met', async () => {
+    // delay=5 means at least 5 messages required; baseParams only has 2
+    mockFindByWorldBook.mockResolvedValueOnce([
+      makeEntry('e1', 'Hello', 'Delayed lore', {
+        settings: { keys: ['Hello'], delay: 5, position: 'before' },
+      }),
+    ]);
+
+    const result = await worldInfoEngine.scan(baseParams);
+
+    expect(result.before).toBeUndefined();
+    expect(result.debugInfo?.activatedCount).toBe(0);
+    expect(result.debugInfo?.skippedByDelay).toBe(1);
+  });
+
+  it('activates entry when delay threshold is met', async () => {
+    mockFindByWorldBook.mockResolvedValueOnce([
+      makeEntry('e1', 'Hello', 'Delayed lore', {
+        settings: { keys: ['Hello'], delay: 2, position: 'before' },
+      }),
+    ]);
+
+    // baseParams has 2 messages, delay=2 → 2 >= 2 → passes
+    const result = await worldInfoEngine.scan(baseParams);
+
+    expect(result.before).toBe('Delayed lore');
+    expect(result.debugInfo?.activatedCount).toBe(1);
+    expect(result.debugInfo?.skippedByDelay).toBe(0);
+  });
+
+  it('skips entry by probability check', async () => {
+    // probability=0 means Math.random()*100 > 0 is always true → always skipped
+    mockFindByWorldBook.mockResolvedValueOnce([
+      makeEntry('e1', 'Hello', 'Rare lore', {
+        settings: { keys: ['Hello'], probability: 0, position: 'before' },
+      }),
+    ]);
+
+    const result = await worldInfoEngine.scan(baseParams);
+
+    expect(result.before).toBeUndefined();
+    expect(result.debugInfo?.activatedCount).toBe(0);
+    expect(result.debugInfo?.skippedByProbability).toBe(1);
+  });
+
+  it('groups entries by position correctly', async () => {
+    mockFindByWorldBook.mockResolvedValueOnce([
+      makeEntry('e1', 'Hello', 'Before content', { priority: 30, settings: { keys: ['Hello'], position: 'before' } }),
+      makeEntry('e2', 'world', 'After content', { priority: 20, settings: { keys: ['world'], position: 'after' } }),
+      makeEntry('e3', 'Hello', 'AN Top content', { priority: 10, settings: { keys: ['Hello'], position: 'ANTop' } }),
+    ]);
+
+    const result = await worldInfoEngine.scan(baseParams);
+
+    expect(result.before).toBe('Before content');
+    expect(result.after).toBe('After content');
+    expect(result.ANTop).toBe('AN Top content');
+    expect(result.debugInfo?.activatedCount).toBe(3);
+  });
 });

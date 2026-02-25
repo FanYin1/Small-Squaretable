@@ -19,6 +19,8 @@ export interface WorldInfoDebugInfo {
   budgetLimit: number;
   scanTimeMs: number;
   matches: Array<{ entryId: string; keyword: string }>;
+  skippedByProbability: number;
+  skippedByDelay: number;
 }
 
 export interface WorldInfoResult {
@@ -52,6 +54,10 @@ type EntrySettings = {
   constant?: boolean;
   caseSensitive?: boolean;
   matchWholeWords?: boolean;
+  probability?: number;
+  delay?: number;
+  sticky?: number;
+  cooldown?: number;
 };
 
 function keywordMatches(text: string, keyword: string, caseSensitive: boolean, wholeWords: boolean): boolean {
@@ -104,6 +110,8 @@ class WorldInfoEngine {
     const { chat, characterId, userId, maxContext } = params;
     const budget = DEFAULT_BUDGET;
     const debugMatches: Array<{ entryId: string; keyword: string }> = [];
+    let skippedByProbability = 0;
+    let skippedByDelay = 0;
 
     // 1. Build scan text from last N messages
     const msgLimit = maxContext || DEFAULT_MAX_MESSAGES;
@@ -166,6 +174,19 @@ class WorldInfoEngine {
       }
 
       if (matched) {
+        // Timing controls: probability and delay
+        const probability = settings.probability ?? 100;
+        if (probability < 100 && Math.random() * 100 > probability) {
+          skippedByProbability++;
+          continue;
+        }
+
+        const delay = settings.delay ?? 0;
+        if (delay > 0 && recentMessages.length < delay) {
+          skippedByDelay++;
+          continue;
+        }
+
         const contentLen = entry.content.length;
         if (budgetUsed + contentLen > budget && !isConstant) continue;
         budgetUsed += contentLen;
@@ -207,6 +228,8 @@ class WorldInfoEngine {
       budgetLimit: budget,
       scanTimeMs,
       matches: debugMatches,
+      skippedByProbability,
+      skippedByDelay,
     };
 
     wiLogger.info('world info scan complete', {
