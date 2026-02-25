@@ -1614,7 +1614,11 @@
     "collaboratorRemoved": "你已被移除 {target} 的协作",
     "characterForked": "{actor} 复制了你的角色 {target}",
     "andOthers": "和其他 {count} 人",
-    "preferences": "偏好设置"
+    "preferences": "偏好设置",
+    "pushNotifications": "浏览器推送通知",
+    "pushEnabled": "推送通知已开启",
+    "pushDisabled": "推送通知已关闭",
+    "pushUnsupported": "此浏览器不支持推送通知"
   },
   "userProfile": {
     "title": "用户资料",

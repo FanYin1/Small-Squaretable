@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { authMiddleware } from '../middleware/auth';
 import { notificationService } from '../services/notification.service';
+import { getRedisClient } from '@/core/redis';
 import { listNotificationsQuerySchema } from '@/types/social';
 import type { ApiResponse } from '@/types/api';
 
@@ -51,6 +52,43 @@ notificationRoutes.get('/unread-count', authMiddleware(), async (c) => {
     },
     200,
   );
+});
+
+/**
+ * POST /push-subscription - Save browser push subscription
+ */
+notificationRoutes.post('/push-subscription', authMiddleware(), async (c) => {
+  const user = c.get('user') as { id: string };
+  const subscription = await c.req.json();
+
+  const redisClient = await getRedisClient();
+  const key = `push:subscriptions:${user.id}`;
+  await redisClient.sAdd(key, JSON.stringify(subscription));
+  await redisClient.expire(key, 30 * 24 * 60 * 60); // 30 days TTL
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: null,
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
+/**
+ * DELETE /push-subscription - Remove browser push subscription
+ */
+notificationRoutes.delete('/push-subscription', authMiddleware(), async (c) => {
+  const user = c.get('user') as { id: string };
+  const subscription = await c.req.json();
+
+  const redisClient = await getRedisClient();
+  const key = `push:subscriptions:${user.id}`;
+  await redisClient.sRem(key, JSON.stringify(subscription));
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: null,
+    meta: { timestamp: new Date().toISOString() },
+  });
 });
 
 /**

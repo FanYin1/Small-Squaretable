@@ -6,6 +6,7 @@ import {
   notificationPreferencesApi,
   type NotificationPreference,
 } from '@client/services/notification-preferences.api';
+import { pushService } from '@client/services/push.service';
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>();
@@ -15,6 +16,32 @@ const { t } = useI18n();
 const preferences = ref<NotificationPreference[]>([]);
 const saving = ref(false);
 const loading = ref(false);
+
+const pushSupported = ref(false);
+const pushEnabled = ref(false);
+const pushLoading = ref(false);
+
+onMounted(async () => {
+  pushSupported.value = 'serviceWorker' in navigator && 'PushManager' in window;
+  if (pushSupported.value) {
+    pushEnabled.value = await pushService.isSubscribed();
+  }
+});
+
+async function togglePush() {
+  pushLoading.value = true;
+  try {
+    if (pushEnabled.value) {
+      await pushService.unsubscribe();
+      pushEnabled.value = false;
+    } else {
+      const success = await pushService.subscribe();
+      pushEnabled.value = success;
+    }
+  } finally {
+    pushLoading.value = false;
+  }
+}
 
 const typeKeyMap: Record<string, string> = {
   follow: 'follow',
@@ -78,6 +105,16 @@ onMounted(() => {
     :title="t('notificationPrefs.title')"
     width="600px"
   >
+    <div v-if="pushSupported" class="push-section">
+      <div class="push-row">
+        <span>{{ t('notifications.pushNotifications') }}</span>
+        <el-switch v-model="pushEnabled" :loading="pushLoading" @change="togglePush" />
+      </div>
+      <el-divider />
+    </div>
+    <div v-else class="push-unsupported">
+      <el-text type="info" size="small">{{ t('notifications.pushUnsupported') }}</el-text>
+    </div>
     <el-table v-loading="loading" :data="preferences" style="width: 100%">
       <el-table-column prop="notificationType" :label="t('notificationPrefs.type')" width="200">
         <template #default="{ row }">
@@ -111,3 +148,16 @@ onMounted(() => {
     </template>
   </el-dialog>
 </template>
+
+<style scoped>
+.push-section {
+  margin-bottom: 8px;
+}
+
+.push-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+</style>

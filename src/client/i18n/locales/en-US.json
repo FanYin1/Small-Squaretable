@@ -1614,7 +1614,11 @@
     "collaboratorRemoved": "You were removed from {target}",
     "characterForked": "{actor} forked your character {target}",
     "andOthers": "and {count} others",
-    "preferences": "Preferences"
+    "preferences": "Preferences",
+    "pushNotifications": "Browser Push Notifications",
+    "pushEnabled": "Push notifications enabled",
+    "pushDisabled": "Push notifications disabled",
+    "pushUnsupported": "Push notifications not supported in this browser"
   },
   "userProfile": {
     "title": "User Profile",
