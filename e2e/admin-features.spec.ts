@@ -103,10 +103,8 @@ test.describe('Admin Features', () => {
     const isAdminPage = page.url().includes('/admin');
     expect(isAdminPage).toBe(true);
 
-    // Check for stat cards or announcement section
-    const statCard = page.locator('.stat-card, .el-statistic, .el-card').first();
-    const isVisible = await statCard.isVisible().catch(() => false);
-    expect(typeof isVisible).toBe('boolean');
+    // Verify stat cards or announcement section is visible
+    await expect(page.locator('.stat-card, .el-statistic, .el-card').first()).toBeVisible();
   });
 
   test('admin can view announcement section', async ({ page }) => {
@@ -116,12 +114,10 @@ test.describe('Admin Features', () => {
     await page.goto('/admin/system');
     await waitForNetworkIdle(page);
 
-    // Look for announcement textarea or section
-    const announcementSection = page.locator(
-      'textarea, .announcement-section, [class*="announcement"]'
-    );
-    const isVisible = await announcementSection.first().isVisible().catch(() => false);
-    expect(typeof isVisible).toBe('boolean');
+    // Verify announcement textarea or section is visible
+    await expect(
+      page.locator('textarea, .announcement-section, [class*="announcement"]').first()
+    ).toBeVisible();
   });
 
   test('admin user management shows user table', async ({ page }) => {
@@ -132,10 +128,8 @@ test.describe('Admin Features', () => {
 
     expect(page.url()).toContain('/admin');
 
-    // Verify user table exists
-    const table = page.locator('.el-table, table').first();
-    const isVisible = await table.isVisible().catch(() => false);
-    expect(typeof isVisible).toBe('boolean');
+    // Verify user table is visible
+    await expect(page.locator('.el-table, table').first()).toBeVisible();
   });
 
   test('admin GDPR page loads with requests', async ({ page }) => {
@@ -146,10 +140,8 @@ test.describe('Admin Features', () => {
 
     expect(page.url()).toContain('/admin');
 
-    // Verify GDPR table or empty state
-    const content = page.locator('.el-table, .el-empty').first();
-    const isVisible = await content.isVisible().catch(() => false);
-    expect(typeof isVisible).toBe('boolean');
+    // Verify GDPR table or empty state is visible
+    await expect(page.locator('.el-table, .el-empty').first()).toBeVisible();
   });
 });
 
@@ -174,19 +166,19 @@ test.describe('Notification Features', () => {
     const isNotifPage = page.url().includes('/notification');
     expect(isNotifPage).toBe(true);
 
-    // Check for notification list or empty state
-    const content = page.locator('.notification-list, .el-empty, .notifications-page').first();
-    const isVisible = await content.isVisible().catch(() => false);
-    expect(typeof isVisible).toBe('boolean');
+    // Verify notification list or empty state is visible
+    await expect(
+      page.locator('.notification-list, .el-empty, .notifications-page').first()
+    ).toBeVisible();
   });
 
   test('notification bell is visible in header', async ({ page }) => {
     await page.goto('/chat');
     await waitForNetworkIdle(page);
 
-    // Look for notification bell icon in header
-    const bell = page.locator('.notification-bell, [class*="notification-bell"]').first();
-    const isVisible = await bell.isVisible().catch(() => false);
-    expect(typeof isVisible).toBe('boolean');
+    // Verify notification bell icon is visible in header
+    await expect(
+      page.locator('.notification-bell, [class*="notification-bell"]').first()
+    ).toBeVisible();
   });
 });
