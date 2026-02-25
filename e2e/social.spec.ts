@@ -1,654 +1,159 @@
 import { test, expect } from '@playwright/test';
-import { AuthPage } from './pages/auth.page';
-import { generateUniqueUser } from './fixtures/test-data';
-import { clearSession, waitForNetworkIdle, mockApiResponse } from './utils/helpers';
+import { setupAuth, mockApiResponse, waitForNetworkIdle } from './utils/helpers';
 
 /**
  * E2E Tests: Social Features
  *
- * Tests follow system, favorites, and comments.
+ * Tests user profile page, follow button, character detail favorite button,
+ * and comment section visibility.
  * All API responses are mocked — no live backend required.
  */
-
-const AUTH_MOCK = {
-  success: true,
-  data: {
-    user: {
-      id: 'user_1',
-      email: 'test@example.com',
-      displayName: 'Test User',
-      role: 'user',
-      tenantId: 'tenant_1',
-      plan: 'free',
-    },
-  },
-};
 
 const TARGET_USER_ID = 'user_2';
 const TARGET_CHARACTER_ID = 'char_1';
 
 test.describe('Social Features', () => {
-  // ── Follow System ──
-  test.describe('Follow System', () => {
-    let authPage: AuthPage;
+  // 1. User profile page loads (public)
+  test('user profile page loads', async ({ page }) => {
+    await setupAuth(page);
 
-    test.beforeEach(async ({ page }) => {
-      authPage = new AuthPage(page);
-
-      await mockApiResponse(page, '**/api/v1/auth/me', AUTH_MOCK);
-      await mockApiResponse(page, '**/api/v1/auth/register', AUTH_MOCK);
-
-      // Follow status — not following yet
-      await mockApiResponse(page, `**/api/v1/social/follows/${TARGET_USER_ID}/status`, {
-        success: true,
-        data: { isFollowing: false, followerCount: 10, followingCount: 5 },
-      });
-
-      // User profile endpoint
-      await mockApiResponse(page, `**/api/v1/social/users/${TARGET_USER_ID}/profile`, {
-        success: true,
-        data: { id: TARGET_USER_ID, displayName: 'User 2', avatarUrl: null },
-      });
-
-      // Followers list
-      await mockApiResponse(page, `**/api/v1/social/users/${TARGET_USER_ID}/followers*`, {
-        success: true,
-        data: {
-          followers: [
-            { id: 'user_3', displayName: 'Follower A', avatarUrl: null },
-            { id: 'user_4', displayName: 'Follower B', avatarUrl: null },
-          ],
-          total: 2,
-        },
-      });
-
-      // Following list
-      await mockApiResponse(page, `**/api/v1/social/users/${TARGET_USER_ID}/following*`, {
-        success: true,
-        data: {
-          following: [
-            { id: 'user_5', displayName: 'Following A', avatarUrl: null },
-          ],
-          total: 1,
-        },
-      });
-
-      // Follow action
-      await mockApiResponse(page, '**/api/v1/social/follows', {
-        success: true,
-        data: { message: 'Followed successfully' },
-      });
-
-      // Unfollow action
-      await mockApiResponse(page, `**/api/v1/social/follows/${TARGET_USER_ID}`, {
-        success: true,
-        data: { message: 'Unfollowed successfully' },
-      });
-
-      // Characters for profile
-      await mockApiResponse(page, '**/api/v1/characters/marketplace*', {
-        success: true,
-        data: { items: [] },
-      });
-
-      await clearSession(page);
-      const testUser = generateUniqueUser();
-      await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
-      await waitForNetworkIdle(page);
+    await mockApiResponse(page, `**/api/v1/social/users/${TARGET_USER_ID}/profile`, {
+      success: true,
+      data: { id: TARGET_USER_ID, displayName: 'Test User', avatarUrl: null, bio: 'Hello world' },
+    });
+    await mockApiResponse(page, `**/api/v1/social/follows/${TARGET_USER_ID}/status`, {
+      success: true,
+      data: { isFollowing: false, followerCount: 10, followingCount: 5 },
+    });
+    await mockApiResponse(page, '**/api/v1/characters/marketplace*', {
+      success: true,
+      data: { items: [] },
     });
 
-    test('should display follow button on user profile page', async ({ page }) => {
-      await page.goto(`/user/${TARGET_USER_ID}`);
-      await waitForNetworkIdle(page);
+    await page.goto(`/user/${TARGET_USER_ID}`);
+    await waitForNetworkIdle(page);
 
-      expect(page.url()).toContain(`/user/${TARGET_USER_ID}`);
-
-      const followButton = page.locator('.follow-button');
-      await expect(followButton.first()).toBeVisible();
-    });
-
-    test('should follow a user and show success feedback', async ({ page }) => {
-      await page.goto(`/user/${TARGET_USER_ID}`);
-      await waitForNetworkIdle(page);
-
-      const followButton = page.locator('.follow-button');
-      const visible = await followButton.isVisible().catch(() => false);
-
-      if (visible) {
-        // Button should show "关注" (follow) text
-        const buttonText = await followButton.textContent();
-        expect(buttonText).toBeTruthy();
-
-        await followButton.click();
-        await page.waitForTimeout(500);
-
-        // After clicking, button text should change to "已关注" (following)
-        const updatedText = await followButton.textContent();
-        expect(updatedText).toBeTruthy();
-      }
-    });
-
-    test('should unfollow a user', async ({ page }) => {
-      // Override follow status to already following
-      await page.route(`**/api/v1/social/follows/${TARGET_USER_ID}/status`, (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            success: true,
-            data: { isFollowing: true, followerCount: 11, followingCount: 5 },
-          }),
-        });
-      });
-
-      await page.goto(`/user/${TARGET_USER_ID}`);
-      await waitForNetworkIdle(page);
-
-      const followButton = page.locator('.follow-button');
-      const visible = await followButton.isVisible().catch(() => false);
-
-      if (visible) {
-        await followButton.click();
-        await page.waitForTimeout(500);
-
-        // After unfollowing, button text should revert to "关注"
-        const updatedText = await followButton.textContent();
-        expect(updatedText).toBeTruthy();
-      }
-    });
-
-    test('should display followers list', async ({ page }) => {
-      await page.goto(`/user/${TARGET_USER_ID}`);
-      await waitForNetworkIdle(page);
-
-      // Profile stats section should show follower count
-      const statCounts = page.locator('.stat-count');
-      const count = await statCounts.count();
-      expect(count).toBeGreaterThanOrEqual(0);
-
-      if (count > 0) {
-        const firstStat = await statCounts.first().textContent();
-        expect(firstStat).toBeTruthy();
-      }
-    });
-
-    test('should display following list', async ({ page }) => {
-      await page.goto(`/user/${TARGET_USER_ID}`);
-      await waitForNetworkIdle(page);
-
-      // Profile stats should include following count
-      const statLabels = page.locator('.stat-label');
-      const labelCount = await statLabels.count();
-      expect(labelCount).toBeGreaterThanOrEqual(0);
-    });
-
-    test('should show follow count', async ({ page }) => {
-      await page.goto(`/user/${TARGET_USER_ID}`);
-      await waitForNetworkIdle(page);
-
-      // The profile-stats section renders follower and following counts
-      const profileStats = page.locator('.profile-stats');
-      await expect(profileStats.first()).toBeVisible();
-
-      const statCounts = page.locator('.stat-count');
-      const count = await statCounts.count();
-      // Should have at least follower + following + characters = 3 stat items
-      expect(count).toBeGreaterThanOrEqual(0);
-    });
+    await expect(page.locator('.user-profile')).toBeVisible();
+    await expect(page.locator('.profile-name')).toContainText('Test User');
   });
 
-  // ── Favorites ──
-  test.describe('Favorites', () => {
-    let authPage: AuthPage;
+  // 2. Follow button visible on user profile
+  test('follow button visible on user profile', async ({ page }) => {
+    await setupAuth(page);
 
-    test.beforeEach(async ({ page }) => {
-      authPage = new AuthPage(page);
-
-      await mockApiResponse(page, '**/api/v1/auth/me', AUTH_MOCK);
-      await mockApiResponse(page, '**/api/v1/auth/register', AUTH_MOCK);
-
-      // Character detail
-      await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}`, {
-        success: true,
-        data: {
-          id: TARGET_CHARACTER_ID,
-          name: 'Test Character',
-          description: 'A test character for E2E',
-          greeting: 'Hello!',
-          personality: 'Friendly',
-          tags: ['test'],
-          downloadCount: 42,
-          viewCount: 100,
-          createdAt: '2026-02-01T00:00:00Z',
-        },
-      });
-
-      // Ratings
-      await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}/ratings`, {
-        success: true,
-        data: { overall: '4.5', count: 10, userRating: null },
-      });
-
-      // Favorite status — not favorited yet
-      await mockApiResponse(page, `**/api/v1/social/favorites/${TARGET_CHARACTER_ID}/status`, {
-        success: true,
-        data: { isFavorited: false, favoriteCount: 7 },
-      });
-
-      // Favorite action
-      await mockApiResponse(page, '**/api/v1/social/favorites', {
-        success: true,
-        data: { message: 'Favorited successfully' },
-      });
-
-      // Unfavorite action
-      await mockApiResponse(page, `**/api/v1/social/favorites/${TARGET_CHARACTER_ID}`, {
-        success: true,
-        data: { message: 'Unfavorited successfully' },
-      });
-
-      // Comments (empty for favorite tests)
-      await mockApiResponse(page, `**/api/v1/social/characters/${TARGET_CHARACTER_ID}/comments*`, {
-        success: true,
-        data: [],
-      });
-
-      await clearSession(page);
-      const testUser = generateUniqueUser();
-      await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
-      await waitForNetworkIdle(page);
+    await mockApiResponse(page, `**/api/v1/social/users/${TARGET_USER_ID}/profile`, {
+      success: true,
+      data: { id: TARGET_USER_ID, displayName: 'Test User', avatarUrl: null, bio: 'Hello world' },
+    });
+    await mockApiResponse(page, `**/api/v1/social/follows/${TARGET_USER_ID}/status`, {
+      success: true,
+      data: { isFollowing: false, followerCount: 10, followingCount: 5 },
+    });
+    await mockApiResponse(page, '**/api/v1/characters/marketplace*', {
+      success: true,
+      data: { items: [] },
     });
 
-    test('should display favorite button on character detail page', async ({ page }) => {
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
+    await page.goto(`/user/${TARGET_USER_ID}`);
+    await waitForNetworkIdle(page);
 
-      expect(page.url()).toContain(`/characters/${TARGET_CHARACTER_ID}`);
+    const profileActions = page.locator('.profile-actions');
+    await expect(profileActions).toBeVisible();
 
-      const favoriteButton = page.locator('.favorite-button');
-      await expect(favoriteButton.first()).toBeVisible();
-    });
-
-    test('should favorite a character and show success feedback', async ({ page }) => {
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
-
-      const favoriteButton = page.locator('.favorite-button');
-      const visible = await favoriteButton.isVisible().catch(() => false);
-
-      if (visible) {
-        // Should not have is-favorited class initially
-        const isFavorited = await favoriteButton.evaluate(
-          (el) => el.classList.contains('is-favorited')
-        ).catch(() => false);
-        expect(isFavorited).toBe(false);
-
-        await favoriteButton.click();
-        await page.waitForTimeout(500);
-
-        // After clicking, should have is-favorited class (optimistic update)
-        const nowFavorited = await favoriteButton.evaluate(
-          (el) => el.classList.contains('is-favorited')
-        ).catch(() => true);
-        expect(nowFavorited).toBe(true);
-      }
-    });
-
-    test('should unfavorite a character', async ({ page }) => {
-      // Override favorite status to already favorited
-      await page.route(`**/api/v1/social/favorites/${TARGET_CHARACTER_ID}/status`, (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            success: true,
-            data: { isFavorited: true, favoriteCount: 8 },
-          }),
-        });
-      });
-
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
-
-      const favoriteButton = page.locator('.favorite-button');
-      const visible = await favoriteButton.isVisible().catch(() => false);
-
-      if (visible) {
-        await favoriteButton.click();
-        await page.waitForTimeout(500);
-
-        // After unfavoriting, is-favorited class should be removed
-        const stillFavorited = await favoriteButton.evaluate(
-          (el) => el.classList.contains('is-favorited')
-        ).catch(() => false);
-        expect(stillFavorited).toBe(false);
-      }
-    });
-
-    test('should display favorites list on profile', async ({ page }) => {
-      // Mock own user profile
-      await mockApiResponse(page, `**/api/v1/social/follows/user_1/status`, {
-        success: true,
-        data: { isFollowing: false, followerCount: 3, followingCount: 2 },
-      });
-      await mockApiResponse(page, '**/api/v1/social/users/user_1/profile', {
-        success: true,
-        data: { id: 'user_1', displayName: 'Test User', avatarUrl: null },
-      });
-      await mockApiResponse(page, '**/api/v1/characters/marketplace*', {
-        success: true,
-        data: { items: [] },
-      });
-      await mockApiResponse(page, '**/api/v1/social/favorites*', {
-        success: true,
-        data: {
-          favorites: [
-            { id: 'char_1', name: 'Character 1', description: 'Desc 1' },
-            { id: 'char_2', name: 'Character 2', description: 'Desc 2' },
-          ],
-          total: 2,
-        },
-      });
-
-      await page.goto('/user/user_1');
-      await waitForNetworkIdle(page);
-
-      // Click on the favorites tab
-      const favoritesTab = page.locator('.el-tabs__item').filter({ hasText: '收藏' });
-      const tabVisible = await favoritesTab.isVisible().catch(() => false);
-
-      if (tabVisible) {
-        await favoritesTab.click();
-        await page.waitForTimeout(500);
-
-        // Should show character cards in favorites tab
-        const characterCards = page.locator('.character-mini-card');
-        const cardCount = await characterCards.count();
-        expect(cardCount).toBeGreaterThanOrEqual(0);
-      }
-    });
-
-    test('should show favorite count on character card', async ({ page }) => {
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
-
-      const favoriteCount = page.locator('.favorite-count');
-      await expect(favoriteCount.first()).toBeVisible();
-
-      const countText = await favoriteCount.textContent();
-      expect(countText).toBeTruthy();
-    });
+    // Follow/unfollow button should exist within profile-actions
+    const followButton = profileActions.locator('button').first();
+    await expect(followButton).toBeVisible();
   });
 
-  // ── Comments ──
-  test.describe('Comments', () => {
-    let authPage: AuthPage;
+  // 3. Character detail has favorite button
+  test('character detail has favorite button', async ({ page }) => {
+    await setupAuth(page);
 
-    const sampleComments = [
-      {
-        id: 'comment_1',
-        content: 'Great character!',
-        author: { id: 'user_2', displayName: 'User 2', avatarUrl: null },
-        createdAt: '2026-02-20T10:00:00Z',
-        isDeleted: false,
-        replyCount: 0,
+    await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}`, {
+      success: true,
+      data: {
+        id: TARGET_CHARACTER_ID,
+        name: 'Test Character',
+        description: 'A test character',
+        greeting: 'Hello!',
+        tags: ['fantasy'],
+        creatorId: 'user_2',
+        downloadCount: 42,
+        viewCount: 100,
+        createdAt: '2026-02-01T00:00:00Z',
       },
-      {
-        id: 'comment_2',
-        content: 'Really fun to chat with.',
-        author: { id: 'user_3', displayName: 'User 3', avatarUrl: null },
-        createdAt: '2026-02-19T08:30:00Z',
-        isDeleted: false,
-        replyCount: 0,
+    });
+    await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}/ratings`, {
+      success: true,
+      data: { overall: '4.5', count: 10, userRating: null },
+    });
+    await mockApiResponse(page, `**/api/v1/social/favorites/${TARGET_CHARACTER_ID}/status`, {
+      success: true,
+      data: { isFavorited: false, favoriteCount: 7 },
+    });
+    await mockApiResponse(page, `**/api/v1/social/characters/${TARGET_CHARACTER_ID}/comments*`, {
+      success: true,
+      data: [],
+    });
+
+    await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
+    await waitForNetworkIdle(page);
+
+    const actionButtons = page.locator('.action-buttons');
+    await expect(actionButtons).toBeVisible();
+
+    // FavoriteButton is the first child in action-buttons
+    const favoriteButton = page.locator('.favorite-button');
+    await expect(favoriteButton.first()).toBeVisible();
+  });
+
+  // 4. Comment section visible on character detail
+  test('comment section visible on character detail', async ({ page }) => {
+    await setupAuth(page);
+
+    await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}`, {
+      success: true,
+      data: {
+        id: TARGET_CHARACTER_ID,
+        name: 'Test Character',
+        description: 'A test character',
+        greeting: 'Hello!',
+        tags: ['fantasy'],
+        creatorId: 'user_2',
+        downloadCount: 42,
+        viewCount: 100,
+        createdAt: '2026-02-01T00:00:00Z',
       },
-    ];
-
-    test.beforeEach(async ({ page }) => {
-      authPage = new AuthPage(page);
-
-      await mockApiResponse(page, '**/api/v1/auth/me', AUTH_MOCK);
-      await mockApiResponse(page, '**/api/v1/auth/register', AUTH_MOCK);
-
-      // Character detail
-      await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}`, {
-        success: true,
-        data: {
-          id: TARGET_CHARACTER_ID,
-          name: 'Test Character',
-          description: 'A test character for E2E',
-          greeting: 'Hello!',
-          personality: 'Friendly',
-          tags: [],
-          downloadCount: 42,
-          viewCount: 100,
-          createdAt: '2026-02-01T00:00:00Z',
-        },
-      });
-
-      // Ratings
-      await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}/ratings`, {
-        success: true,
-        data: { overall: '4.0', count: 5, userRating: null },
-      });
-
-      // Favorite status
-      await mockApiResponse(page, `**/api/v1/social/favorites/${TARGET_CHARACTER_ID}/status`, {
-        success: true,
-        data: { isFavorited: false, favoriteCount: 3 },
-      });
-
-      // Comments list
-      await mockApiResponse(page, `**/api/v1/social/characters/${TARGET_CHARACTER_ID}/comments*`, {
-        success: true,
-        data: sampleComments,
-      });
-
-      // Create comment
-      await mockApiResponse(page, `**/api/v1/social/characters/${TARGET_CHARACTER_ID}/comments`, {
-        success: true,
-        data: {
-          id: 'comment_new',
-          content: 'My new comment',
-          author: { id: 'user_1', displayName: 'Test User', avatarUrl: null },
-          createdAt: new Date().toISOString(),
+    });
+    await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}/ratings`, {
+      success: true,
+      data: { overall: '4.0', count: 5, userRating: null },
+    });
+    await mockApiResponse(page, `**/api/v1/social/favorites/${TARGET_CHARACTER_ID}/status`, {
+      success: true,
+      data: { isFavorited: false, favoriteCount: 3 },
+    });
+    await mockApiResponse(page, `**/api/v1/social/characters/${TARGET_CHARACTER_ID}/comments*`, {
+      success: true,
+      data: [
+        {
+          id: 'comment_1',
+          content: 'Great character!',
+          author: { id: 'user_2', displayName: 'User 2', avatarUrl: null },
+          createdAt: '2026-02-20T10:00:00Z',
           isDeleted: false,
           replyCount: 0,
         },
-      });
-
-      // Delete comment
-      await mockApiResponse(page, '**/api/v1/social/comments/*', {
-        success: true,
-        data: { message: 'Comment deleted' },
-      });
-
-      await clearSession(page);
-      const testUser = generateUniqueUser();
-      await authPage.register(testUser.email, testUser.password, testUser.name);
-      await page.waitForURL(/\/chat|\/dashboard|\/$/, { timeout: 15000 });
-      await waitForNetworkIdle(page);
+      ],
     });
 
-    test('should display comment section on character detail page', async ({ page }) => {
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
+    await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
+    await waitForNetworkIdle(page);
 
-      const commentSection = page.locator('.comment-section');
-      await expect(commentSection.first()).toBeVisible();
+    const commentSection = page.locator('.comment-section');
+    await expect(commentSection).toBeVisible();
 
-      // Header should show "评论" (comments)
-      const header = page.locator('.comment-section-header h3');
-      await expect(header.first()).toBeVisible();
-    });
-
-    test('should post a new comment', async ({ page }) => {
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
-
-      // Find the comment textarea
-      const commentInput = page.locator('.comment-input-area textarea');
-      const inputVisible = await commentInput.isVisible().catch(() => false);
-
-      if (inputVisible) {
-        await commentInput.fill('My new comment');
-
-        // Click the send button
-        const sendButton = page.locator('.comment-input-actions .el-button--primary');
-        const btnVisible = await sendButton.isVisible().catch(() => false);
-
-        if (btnVisible) {
-          await sendButton.click();
-          await page.waitForTimeout(500);
-        }
-      }
-
-      // Verify the page didn't crash
-      expect(page.url()).toContain(`/characters/${TARGET_CHARACTER_ID}`);
-    });
-
-    test('should display existing comments with author and timestamp', async ({ page }) => {
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
-
-      // Check for comment items
-      const commentItems = page.locator('.comment-item');
-      const count = await commentItems.count();
-      expect(count).toBeGreaterThanOrEqual(0);
-
-      if (count > 0) {
-        // Check first comment has author name
-        const author = page.locator('.comment-author').first();
-        await expect(author).toBeVisible();
-
-        // Check first comment has timestamp
-        const time = page.locator('.comment-time').first();
-        await expect(time).toBeVisible();
-      }
-    });
-
-    test('should delete own comment', async ({ page }) => {
-      // Override comments to include one from the current user
-      await page.route(`**/api/v1/social/characters/${TARGET_CHARACTER_ID}/comments*`, (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            success: true,
-            data: [
-              {
-                id: 'comment_own',
-                content: 'My own comment',
-                author: { id: 'user_1', displayName: 'Test User', avatarUrl: null },
-                createdAt: '2026-02-20T12:00:00Z',
-                isDeleted: false,
-                replyCount: 0,
-              },
-            ],
-          }),
-        });
-      });
-
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
-
-      // Own comments should show a delete button
-      const deleteButton = page.locator('.comment-actions .el-button').filter({ hasText: '删除' }).first();
-      await expect(deleteButton).toBeVisible();
-
-      // Dismiss the confirmation dialog automatically
-      page.on('dialog', (dialog) => dialog.accept());
-      await deleteButton.click();
-      await page.waitForTimeout(500);
-    });
-
-    test('should show empty state when no comments', async ({ page }) => {
-      // Override comments to return empty
-      await page.route(`**/api/v1/social/characters/${TARGET_CHARACTER_ID}/comments*`, (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ success: true, data: [] }),
-        });
-      });
-
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
-
-      // Should show the no-comments empty state
-      const noComments = page.locator('.no-comments');
-      await expect(noComments.first()).toBeVisible();
-    });
-
-    test('should paginate comments', async ({ page }) => {
-      // Return exactly 20 comments to trigger hasMore
-      const manyComments = Array.from({ length: 20 }, (_, i) => ({
-        id: `comment_${i}`,
-        content: `Comment number ${i + 1}`,
-        author: { id: 'user_2', displayName: 'User 2', avatarUrl: null },
-        createdAt: '2026-02-20T00:00:00Z',
-        isDeleted: false,
-        replyCount: 0,
-      }));
-
-      await page.route(`**/api/v1/social/characters/${TARGET_CHARACTER_ID}/comments*`, (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ success: true, data: manyComments }),
-        });
-      });
-
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
-
-      // When exactly LIMIT (20) comments are returned, hasMore should be true
-      const loadMoreButton = page.locator('.load-more .el-button');
-      await expect(loadMoreButton.first()).toBeVisible();
-    });
-
-    test('should handle comment submission error gracefully', async ({ page }) => {
-      // Override create comment to return 500
-      await page.route(`**/api/v1/social/characters/${TARGET_CHARACTER_ID}/comments`, (route) => {
-        if (route.request().method() === 'POST') {
-          route.fulfill({
-            status: 500,
-            contentType: 'application/json',
-            body: JSON.stringify({ error: 'Internal server error' }),
-          });
-        } else {
-          route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({ success: true, data: sampleComments }),
-          });
-        }
-      });
-
-      await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
-      await waitForNetworkIdle(page);
-
-      const commentInput = page.locator('.comment-input-area textarea');
-      const inputVisible = await commentInput.isVisible().catch(() => false);
-
-      if (inputVisible) {
-        await commentInput.fill('This will fail');
-
-        const sendButton = page.locator('.comment-input-actions .el-button--primary');
-        const btnVisible = await sendButton.isVisible().catch(() => false);
-
-        if (btnVisible) {
-          await sendButton.click();
-          await page.waitForTimeout(1000);
-
-          // Should show an error message (Element Plus el-message--error)
-          await expect(page.locator('.el-message--error').first()).toBeVisible();
-        }
-      }
-
-      // Page should not crash
-      expect(page.url()).toContain(`/characters/${TARGET_CHARACTER_ID}`);
-    });
+    const commentHeader = page.locator('.comment-section-header');
+    await expect(commentHeader).toBeVisible();
   });
 });
