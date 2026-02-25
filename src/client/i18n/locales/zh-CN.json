@@ -156,6 +156,8 @@
     "rollbackConfirm": "删除此消息之后的所有消息？此操作不可撤销。",
     "rollbackSuccess": "回滚成功，已删除 {count} 条消息",
     "rollbackFailed": "回滚失败",
+    "reactions": "表情回应",
+    "addReaction": "添加回应",
     "searchMessages": "搜索消息",
     "results": "条结果",
     "noSearchResults": "未找到消息",

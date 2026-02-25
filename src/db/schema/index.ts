@@ -39,3 +39,4 @@ export * from './character-templates';
 export * from './notification-preferences';
 export * from './character-collections';
 export * from './template-ratings';
+export * from './message-reactions';

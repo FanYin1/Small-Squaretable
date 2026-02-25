@@ -156,6 +156,8 @@
     "rollbackConfirm": "Delete all messages after this point? This cannot be undone.",
     "rollbackSuccess": "Rolled back successfully, {count} messages removed",
     "rollbackFailed": "Rollback failed",
+    "reactions": "Reactions",
+    "addReaction": "Add Reaction",
     "searchMessages": "Search messages",
     "results": "results",
     "noSearchResults": "No messages found",

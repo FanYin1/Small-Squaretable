@@ -949,13 +949,70 @@ chatRoutes.delete(
   }
 );
 
+// --- Message reactions ---
+
+// Toggle reaction (add if not exists, remove if exists)
+chatRoutes.post('/:id/messages/:messageId/reactions', authMiddleware(), async (c) => {
+  const user = c.get('user') as { id: string };
+  const messageId = c.req.param('messageId');
+  const { emoji } = await c.req.json();
+
+  if (!emoji || typeof emoji !== 'string') {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'emoji is required' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 400);
+  }
+
+  const existing = await db.select().from(messageReactions)
+    .where(and(
+      eq(messageReactions.messageId, BigInt(messageId)),
+      eq(messageReactions.userId, user.id),
+      eq(messageReactions.emoji, emoji),
+    )).limit(1);
+
+  if (existing.length > 0) {
+    await db.delete(messageReactions).where(eq(messageReactions.id, existing[0].id));
+    return c.json<ApiResponse>({ success: true, data: { action: 'removed' }, meta: { timestamp: new Date().toISOString() } });
+  } else {
+    await db.insert(messageReactions).values({
+      messageId: BigInt(messageId),
+      userId: user.id,
+      emoji,
+    });
+    return c.json<ApiResponse>({ success: true, data: { action: 'added' }, meta: { timestamp: new Date().toISOString() } });
+  }
+});
+
+// Get grouped reactions for a message
+chatRoutes.get('/:id/messages/:messageId/reactions', authMiddleware(), async (c) => {
+  const messageId = c.req.param('messageId');
+  const reactions = await db.select().from(messageReactions)
+    .where(eq(messageReactions.messageId, BigInt(messageId)));
+
+  const grouped: Record<string, { emoji: string; count: number; userIds: string[] }> = {};
+  for (const r of reactions) {
+    if (!grouped[r.emoji]) grouped[r.emoji] = { emoji: r.emoji, count: 0, userIds: [] };
+    grouped[r.emoji].count++;
+    grouped[r.emoji].userIds.push(r.userId);
+  }
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: Object.values(grouped),
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
 // --- Chat snapshot endpoints ---
 
 import crypto from 'crypto';
 import { db } from '../../db';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { chatSnapshots } from '../../db/schema/chat-snapshots';
 import { characters } from '../../db/schema/characters';
+import { messageReactions } from '../../db/schema/message-reactions';
 
 const createSnapshotSchema = z.object({
   title: z.string().max(500).optional(),

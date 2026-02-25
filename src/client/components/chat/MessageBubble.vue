@@ -70,6 +70,31 @@
           />
         </template>
       </div>
+      <div class="reaction-bar">
+        <span
+          v-for="reaction in reactions"
+          :key="reaction.emoji"
+          class="reaction-badge"
+          @click="toggleReaction(reaction.emoji)"
+        >
+          {{ reaction.emoji }} {{ reaction.count }}
+        </span>
+        <el-popover :visible="showEmojiPicker" placement="top" :width="200" trigger="click">
+          <template #reference>
+            <span class="reaction-add" @click="showEmojiPicker = !showEmojiPicker">+</span>
+          </template>
+          <div class="emoji-picker">
+            <span
+              v-for="emoji in EMOJI_PRESETS"
+              :key="emoji"
+              class="emoji-option"
+              @click="toggleReaction(emoji)"
+            >
+              {{ emoji }}
+            </span>
+          </div>
+        </el-popover>
+      </div>
       <div class="message-actions">
         <template v-if="message.role === 'assistant'">
           <button class="action-btn" @click="copyMessage" :aria-label="t('chat.copyMessage') || 'Copy'">
@@ -147,6 +172,7 @@ const emit = defineEmits<{
   (e: 'cancel-edit'): void;
   (e: 'rollback', messageId: string): void;
   (e: 'switchBranch', messageId: number, direction: 'prev' | 'next'): void;
+  (e: 'toggleReaction', payload: { messageId: string; emoji: string }): void;
 }>();
 
 const { t } = useI18n();
@@ -154,6 +180,22 @@ const { formatRelativeTime } = useDateTime();
 const bookmarkStore = useBookmarkStore();
 const copied = ref(false);
 const editContent = ref('');
+
+const EMOJI_PRESETS = ['👍', '❤️', '😂', '😮', '😢', '🎉'];
+
+interface ReactionGroup {
+  emoji: string;
+  count: number;
+  userIds: string[];
+}
+
+const reactions = ref<ReactionGroup[]>([]);
+const showEmojiPicker = ref(false);
+
+function toggleReaction(emoji: string) {
+  emit('toggleReaction', { messageId: props.message.id, emoji });
+  showEmojiPicker.value = false;
+}
 
 // For group chats, prefer per-message character info over chat-level props
 const displayCharacterName = computed(() => props.message.characterName || props.characterName);
@@ -377,6 +419,67 @@ const handleBookmark = () => {
   min-width: 30px;
   text-align: center;
   user-select: none;
+}
+
+.reaction-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.reaction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 13px;
+  background: var(--el-fill-color-light, #f5f7fa);
+  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.reaction-badge:hover {
+  background: var(--el-color-primary-light-9, #ecf5ff);
+}
+
+.reaction-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--el-text-color-secondary, #909399);
+  background: var(--el-fill-color-light, #f5f7fa);
+  cursor: pointer;
+}
+
+.reaction-add:hover {
+  background: var(--el-color-primary-light-9, #ecf5ff);
+  color: var(--el-color-primary, #409eff);
+}
+
+.emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.emoji-option {
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.emoji-option:hover {
+  background: var(--el-fill-color-light, #f5f7fa);
 }
 
 @media (max-width: 768px) {
