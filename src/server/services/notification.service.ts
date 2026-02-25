@@ -9,9 +9,11 @@ import { eq, and, desc } from 'drizzle-orm';
 import { db } from '@db/index';
 import { notifications } from '@db/schema/social';
 import { notificationPreferences } from '@db/schema/notification-preferences';
+import { users } from '@db/schema/users';
 import type { NotificationRepository } from '@db/repositories/notification.repository';
 import type { NotificationType } from '@/types/social';
 import { WSMessageType } from '@/types/websocket';
+import { notificationEmailService } from './notification-email.service';
 
 /** All known notification types with their default preferences */
 const ALL_NOTIFICATION_TYPES: NotificationType[] = [
@@ -185,6 +187,31 @@ export class NotificationService {
         timestamp: new Date().toISOString(),
         data: { count },
       });
+    }
+
+    // 5. Send immediate email if user preference allows
+    try {
+      const prefs = await this.getPreferences(userId);
+      const typePref = prefs.find((p) => p.notificationType === type);
+      if (typePref?.email && typePref?.emailFrequency === 'immediate') {
+        const userResult = await db
+          .select({ email: users.email, displayName: users.displayName })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+        if (userResult.length > 0 && userResult[0].email) {
+          notificationEmailService
+            .sendImmediateNotification({
+              recipientEmail: userResult[0].email,
+              recipientName: userResult[0].displayName || 'User',
+              type,
+              message,
+            })
+            .catch(() => {}); // fire-and-forget
+        }
+      }
+    } catch {
+      // Don't let email failures affect notification creation
     }
 
     return notification;
