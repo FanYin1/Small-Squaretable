@@ -101,9 +101,7 @@ test.describe('Developer API Portal', () => {
       expect(page.url()).toContain('/developer');
 
       // Page should render without crashing
-      const settingsContainer = page.locator('.developer-settings');
-      const visible = await settingsContainer.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(page.locator('.developer-settings').first()).toBeVisible();
     });
 
     test('should show empty state when no API keys', async ({ page }) => {
@@ -120,15 +118,11 @@ test.describe('Developer API Portal', () => {
       await waitForNetworkIdle(page);
 
       const emptyState = page.locator('.empty-state');
-      const visible = await emptyState.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(emptyState.first()).toBeVisible();
 
-      if (visible) {
-        // Empty state should contain the Key icon and descriptive text
-        const heading = emptyState.locator('h3');
-        const headingVisible = await heading.isVisible().catch(() => false);
-        expect(typeof headingVisible).toBe('boolean');
-      }
+      // Empty state should contain the Key icon and descriptive text
+      const heading = emptyState.locator('h3');
+      await expect(heading.first()).toBeVisible();
     });
 
     test('should open create API key dialog', async ({ page }) => {
@@ -150,8 +144,7 @@ test.describe('Developer API Portal', () => {
 
         // Dialog should contain name input and scope checkboxes
         const nameInput = dialog.locator('.el-input');
-        const inputVisible = await nameInput.first().isVisible().catch(() => false);
-        expect(typeof inputVisible).toBe('boolean');
+        await expect(nameInput.first()).toBeVisible();
       }
     });
 
@@ -206,18 +199,14 @@ test.describe('Developer API Portal', () => {
 
           // After creation, the full key should be displayed
           const fullKey = dialog.locator('.full-key');
-          const keyVisible = await fullKey.isVisible().catch(() => false);
-          expect(typeof keyVisible).toBe('boolean');
+          await expect(fullKey.first()).toBeVisible();
 
-          if (keyVisible) {
-            const keyText = await fullKey.textContent();
-            expect(keyText).toContain('sk_live_');
-          }
+          const keyText = await fullKey.textContent();
+          expect(keyText).toContain('sk_live_');
 
           // Warning alert should be shown
           const warningAlert = dialog.locator('.el-alert--warning');
-          const alertVisible = await warningAlert.isVisible().catch(() => false);
-          expect(typeof alertVisible).toBe('boolean');
+          await expect(warningAlert.first()).toBeVisible();
         }
       }
     });
@@ -233,23 +222,17 @@ test.describe('Developer API Portal', () => {
       if (count > 0) {
         // Key name should be visible
         const keyName = keyCards.first().locator('.key-name');
-        const nameVisible = await keyName.isVisible().catch(() => false);
-        expect(typeof nameVisible).toBe('boolean');
+        await expect(keyName.first()).toBeVisible();
 
-        if (nameVisible) {
-          const nameText = await keyName.textContent();
-          expect(nameText).toBe('Test Key');
-        }
+        const nameText = await keyName.textContent();
+        expect(nameText).toBe('Test Key');
 
         // Masked key hint should be visible
         const keyHint = keyCards.first().locator('.key-hint');
-        const hintVisible = await keyHint.isVisible().catch(() => false);
-        expect(typeof hintVisible).toBe('boolean');
+        await expect(keyHint.first()).toBeVisible();
 
-        if (hintVisible) {
-          const hintText = await keyHint.textContent();
-          expect(hintText).toContain('sk_');
-        }
+        const hintText = await keyHint.textContent();
+        expect(hintText).toContain('sk_');
       }
     });
 
@@ -302,18 +285,14 @@ test.describe('Developer API Portal', () => {
       if (count > 0) {
         // Find the switch in the key actions
         const toggle = keyCards.first().locator('.el-switch');
-        const toggleVisible = await toggle.isVisible().catch(() => false);
-        expect(typeof toggleVisible).toBe('boolean');
+        await expect(toggle.first()).toBeVisible();
 
-        if (toggleVisible) {
-          await toggle.click();
-          await page.waitForTimeout(500);
+        await toggle.click();
+        await page.waitForTimeout(500);
 
-          // Should show success message
-          const successMsg = page.locator('.el-message--success');
-          const msgVisible = await successMsg.isVisible().catch(() => false);
-          expect(typeof msgVisible).toBe('boolean');
-        }
+        // Should show success message
+        const successMsg = page.locator('.el-message--success');
+        await expect(successMsg.first()).toBeVisible();
       }
     });
 
@@ -344,25 +323,19 @@ test.describe('Developer API Portal', () => {
       if (count > 0) {
         // Click the delete button
         const deleteButton = keyCards.first().locator('.key-actions .el-button').filter({ hasText: /删除|Delete/ });
-        const deleteVisible = await deleteButton.isVisible().catch(() => false);
-        expect(typeof deleteVisible).toBe('boolean');
+        await expect(deleteButton.first()).toBeVisible();
 
-        if (deleteVisible) {
-          await deleteButton.click();
-          await page.waitForTimeout(500);
+        await deleteButton.click();
+        await page.waitForTimeout(500);
 
-          // Confirmation dialog should appear (ElMessageBox)
-          const confirmDialog = page.locator('.el-message-box');
-          const confirmVisible = await confirmDialog.isVisible().catch(() => false);
-          expect(typeof confirmVisible).toBe('boolean');
+        // Confirmation dialog should appear (ElMessageBox)
+        const confirmDialog = page.locator('.el-message-box');
+        await expect(confirmDialog.first()).toBeVisible();
 
-          if (confirmVisible) {
-            // Click confirm button
-            const confirmBtn = confirmDialog.locator('.el-message-box__btns .el-button--primary');
-            await confirmBtn.click();
-            await page.waitForTimeout(500);
-          }
-        }
+        // Click confirm button
+        const confirmBtn = confirmDialog.locator('.el-message-box__btns .el-button--primary');
+        await confirmBtn.click();
+        await page.waitForTimeout(500);
       }
     });
 
@@ -375,29 +348,26 @@ test.describe('Developer API Portal', () => {
 
       if (count > 0) {
         const metaSection = keyCards.first().locator('.key-meta');
-        const metaVisible = await metaSection.isVisible().catch(() => false);
-        expect(typeof metaVisible).toBe('boolean');
+        await expect(metaSection.first()).toBeVisible();
 
-        if (metaVisible) {
-          const metaItems = metaSection.locator('.meta-item');
-          const itemCount = await metaItems.count();
-          // Should have created, lastUsed, requests, rateLimit, expiresAt = 5 items
-          expect(itemCount).toBeGreaterThanOrEqual(3);
+        const metaItems = metaSection.locator('.meta-item');
+        const itemCount = await metaItems.count();
+        // Should have created, lastUsed, requests, rateLimit, expiresAt = 5 items
+        expect(itemCount).toBeGreaterThanOrEqual(3);
 
-          // Check that meta labels exist
-          const labels = metaSection.locator('.meta-label');
-          const labelCount = await labels.count();
-          expect(labelCount).toBeGreaterThanOrEqual(3);
+        // Check that meta labels exist
+        const labels = metaSection.locator('.meta-label');
+        const labelCount = await labels.count();
+        expect(labelCount).toBeGreaterThanOrEqual(3);
 
-          // Check that meta values exist
-          const values = metaSection.locator('.meta-value');
-          const valueCount = await values.count();
-          expect(valueCount).toBeGreaterThanOrEqual(3);
+        // Check that meta values exist
+        const values = metaSection.locator('.meta-value');
+        const valueCount = await values.count();
+        expect(valueCount).toBeGreaterThanOrEqual(3);
 
-          // Request count should show "42"
-          const requestValue = await values.nth(2).textContent();
-          expect(requestValue).toContain('42');
-        }
+        // Request count should show "42"
+        const requestValue = await values.nth(2).textContent();
+        expect(requestValue).toContain('42');
       }
     });
 
@@ -431,38 +401,28 @@ test.describe('Developer API Portal', () => {
       if (count > 0) {
         // Click the edit button
         const editButton = keyCards.first().locator('.key-actions .el-button').filter({ hasText: /编辑|Edit/ });
-        const editVisible = await editButton.isVisible().catch(() => false);
-        expect(typeof editVisible).toBe('boolean');
+        await expect(editButton.first()).toBeVisible();
 
-        if (editVisible) {
-          await editButton.click();
-          await page.waitForTimeout(500);
+        await editButton.click();
+        await page.waitForTimeout(500);
 
-          // Edit dialog should appear
-          const dialog = page.locator('.el-dialog').last();
-          const dialogVisible = await dialog.isVisible().catch(() => false);
-          expect(dialogVisible).toBe(true);
+        // Edit dialog should appear
+        const dialog = page.locator('.el-dialog').last();
+        await expect(dialog).toBeVisible();
 
-          if (dialogVisible) {
-            // Update the name input
-            const nameInput = dialog.locator('.el-input__inner').first();
-            await nameInput.clear();
-            await nameInput.fill('Updated Key Name');
+        // Update the name input
+        const nameInput = dialog.locator('.el-input__inner').first();
+        await nameInput.clear();
+        await nameInput.fill('Updated Key Name');
 
-            // Click save button
-            const saveButton = dialog.locator('.el-dialog__footer .el-button--primary');
-            const saveVisible = await saveButton.isVisible().catch(() => false);
-            if (saveVisible) {
-              await saveButton.click();
-              await page.waitForTimeout(500);
+        // Click save button
+        const saveButton = dialog.locator('.el-dialog__footer .el-button--primary');
+        await expect(saveButton.first()).toBeVisible();
+        await saveButton.click();
+        await page.waitForTimeout(500);
 
-              // Success message should appear
-              const successMsg = page.locator('.el-message--success');
-              const msgVisible = await successMsg.isVisible().catch(() => false);
-              expect(typeof msgVisible).toBe('boolean');
-            }
-          }
-        }
+        // Success message should appear
+        await expect(page.locator('.el-message--success').first()).toBeVisible();
       }
     });
 
@@ -501,9 +461,7 @@ test.describe('Developer API Portal', () => {
       await page.waitForTimeout(2000);
 
       // Page should not crash — developer-settings container should still render
-      const settingsContainer = page.locator('.developer-settings');
-      const visible = await settingsContainer.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(page.locator('.developer-settings').first()).toBeVisible();
 
       // Should show empty state or error state (not a blank page)
       expect(page.url()).toContain('/developer');

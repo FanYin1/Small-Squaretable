@@ -100,25 +100,20 @@ test.describe('Notifications', () => {
     test('should display notification bell in header', async ({ page }) => {
       // The notification bell is rendered in the header/layout
       const bell = page.locator('.notification-bell');
-      const visible = await bell.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(bell.first()).toBeVisible();
 
       // Also check for the bell icon element
       const bellIcon = page.locator('.notification-bell .el-icon');
-      const iconVisible = await bellIcon.isVisible().catch(() => false);
-      expect(typeof iconVisible).toBe('boolean');
+      await expect(bellIcon.first()).toBeVisible();
     });
 
     test('should show unread count badge', async ({ page }) => {
       // The badge should display the unread count from the mock (3)
       const badge = page.locator('.notification-bell .el-badge__content');
-      const badgeVisible = await badge.isVisible().catch(() => false);
-      expect(typeof badgeVisible).toBe('boolean');
+      await expect(badge.first()).toBeVisible();
 
-      if (badgeVisible) {
-        const badgeText = await badge.textContent();
-        expect(badgeText).toBe('3');
-      }
+      const badgeText = await badge.textContent();
+      expect(badgeText).toBe('3');
     });
 
     test('should show zero badge when no unread notifications', async ({ page }) => {
@@ -201,8 +196,7 @@ test.describe('Notifications', () => {
 
       // The notification list container should be visible
       const notificationList = page.locator('.notification-list');
-      const listVisible = await notificationList.isVisible().catch(() => false);
-      expect(typeof listVisible).toBe('boolean');
+      await expect(notificationList.first()).toBeVisible();
 
       // Should have notification items
       const items = page.locator('.notification-item');
@@ -216,23 +210,17 @@ test.describe('Notifications', () => {
 
       // Check for actor name in the first notification
       const actorName = page.locator('.actor-name').first();
-      const actorVisible = await actorName.isVisible().catch(() => false);
-      expect(typeof actorVisible).toBe('boolean');
+      await expect(actorName).toBeVisible();
 
-      if (actorVisible) {
-        const nameText = await actorName.textContent();
-        expect(nameText).toContain('User 2');
-      }
+      const nameText = await actorName.textContent();
+      expect(nameText).toContain('User 2');
 
       // Check for notification message
       const message = page.locator('.notification-message').first();
-      const messageVisible = await message.isVisible().catch(() => false);
-      expect(typeof messageVisible).toBe('boolean');
+      await expect(message).toBeVisible();
 
-      if (messageVisible) {
-        const messageText = await message.textContent();
-        expect(messageText).toContain('started following you');
-      }
+      const messageText = await message.textContent();
+      expect(messageText).toContain('started following you');
     });
 
     test('should filter between all and unread notifications', async ({ page }) => {
@@ -245,8 +233,8 @@ test.describe('Notifications', () => {
 
       const allVisible = await allRadio.isVisible().catch(() => false);
       const unreadVisible = await unreadRadio.isVisible().catch(() => false);
-      expect(typeof allVisible).toBe('boolean');
-      expect(typeof unreadVisible).toBe('boolean');
+      expect(allVisible).toBe(true);
+      expect(unreadVisible).toBe(true);
 
       if (unreadVisible) {
         // Click unread filter
@@ -277,18 +265,15 @@ test.describe('Notifications', () => {
 
       // Find an unread notification item (has .unread class)
       const unreadItem = page.locator('.notification-item.unread').first();
-      const unreadVisible = await unreadItem.isVisible().catch(() => false);
-      expect(typeof unreadVisible).toBe('boolean');
+      await expect(unreadItem).toBeVisible();
 
-      if (unreadVisible) {
-        // Click the notification to mark it as read
-        await unreadItem.click();
-        await page.waitForTimeout(500);
+      // Click the notification to mark it as read
+      await unreadItem.click();
+      await page.waitForTimeout(500);
 
-        // The store should have called markAsRead — verify page didn't crash
-        // Navigation may occur since the notification has a targetType
-        expect(page.url()).toBeTruthy();
-      }
+      // The store should have called markAsRead — verify page didn't crash
+      // Navigation may occur since the notification has a targetType
+      expect(page.url()).toBeTruthy();
     });
 
     test('should mark all notifications as read', async ({ page }) => {
@@ -297,18 +282,15 @@ test.describe('Notifications', () => {
 
       // Find the "全部已读" (mark all read) button
       const markAllButton = page.locator('.notifications-header .el-button').filter({ hasText: /全部已读|markAllRead/ });
-      const buttonVisible = await markAllButton.isVisible().catch(() => false);
-      expect(typeof buttonVisible).toBe('boolean');
+      await expect(markAllButton.first()).toBeVisible();
 
-      if (buttonVisible) {
-        await markAllButton.click();
-        await page.waitForTimeout(500);
+      await markAllButton.click();
+      await page.waitForTimeout(500);
 
-        // After marking all as read, unread items should no longer have .unread class
-        const unreadItems = page.locator('.notification-item.unread');
-        const unreadCount = await unreadItems.count();
-        expect(unreadCount).toBe(0);
-      }
+      // After marking all as read, unread items should no longer have .unread class
+      const unreadItems = page.locator('.notification-item.unread');
+      const unreadCount = await unreadItems.count();
+      expect(unreadCount).toBe(0);
     });
 
     test('should delete a notification', async ({ page }) => {
@@ -324,17 +306,14 @@ test.describe('Notifications', () => {
         await page.waitForTimeout(300);
 
         const deleteBtn = page.locator('.delete-btn').first();
-        const deleteBtnVisible = await deleteBtn.isVisible().catch(() => false);
-        expect(typeof deleteBtnVisible).toBe('boolean');
+        await expect(deleteBtn).toBeVisible();
 
-        if (deleteBtnVisible) {
-          await deleteBtn.click();
-          await page.waitForTimeout(500);
+        await deleteBtn.click();
+        await page.waitForTimeout(500);
 
-          // After deletion, the item count should decrease
-          const newCount = await items.count();
-          expect(newCount).toBeLessThan(initialCount);
-        }
+        // After deletion, the item count should decrease
+        const newCount = await items.count();
+        expect(newCount).toBeLessThan(initialCount);
       }
     });
 
@@ -373,13 +352,11 @@ test.describe('Notifications', () => {
 
       // Should show the empty state with bell icon
       const emptyState = page.locator('.empty-state');
-      const emptyVisible = await emptyState.isVisible().catch(() => false);
-      expect(typeof emptyVisible).toBe('boolean');
+      await expect(emptyState.first()).toBeVisible();
 
       // Check for the empty title text
       const emptyTitle = page.locator('.empty-title');
-      const titleVisible = await emptyTitle.isVisible().catch(() => false);
-      expect(typeof titleVisible).toBe('boolean');
+      await expect(emptyTitle.first()).toBeVisible();
     });
   });
 });

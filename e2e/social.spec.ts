@@ -105,8 +105,7 @@ test.describe('Social Features', () => {
       expect(page.url()).toContain(`/user/${TARGET_USER_ID}`);
 
       const followButton = page.locator('.follow-button');
-      const visible = await followButton.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(followButton.first()).toBeVisible();
     });
 
     test('should follow a user and show success feedback', async ({ page }) => {
@@ -119,14 +118,14 @@ test.describe('Social Features', () => {
       if (visible) {
         // Button should show "关注" (follow) text
         const buttonText = await followButton.textContent();
-        expect(typeof buttonText).toBe('string');
+        expect(buttonText).toBeTruthy();
 
         await followButton.click();
         await page.waitForTimeout(500);
 
         // After clicking, button text should change to "已关注" (following)
         const updatedText = await followButton.textContent();
-        expect(typeof updatedText).toBe('string');
+        expect(updatedText).toBeTruthy();
       }
     });
 
@@ -155,7 +154,7 @@ test.describe('Social Features', () => {
 
         // After unfollowing, button text should revert to "关注"
         const updatedText = await followButton.textContent();
-        expect(typeof updatedText).toBe('string');
+        expect(updatedText).toBeTruthy();
       }
     });
 
@@ -170,7 +169,7 @@ test.describe('Social Features', () => {
 
       if (count > 0) {
         const firstStat = await statCounts.first().textContent();
-        expect(typeof firstStat).toBe('string');
+        expect(firstStat).toBeTruthy();
       }
     });
 
@@ -190,15 +189,12 @@ test.describe('Social Features', () => {
 
       // The profile-stats section renders follower and following counts
       const profileStats = page.locator('.profile-stats');
-      const statsVisible = await profileStats.isVisible().catch(() => false);
-      expect(typeof statsVisible).toBe('boolean');
+      await expect(profileStats.first()).toBeVisible();
 
-      if (statsVisible) {
-        const statCounts = page.locator('.stat-count');
-        const count = await statCounts.count();
-        // Should have at least follower + following + characters = 3 stat items
-        expect(count).toBeGreaterThanOrEqual(0);
-      }
+      const statCounts = page.locator('.stat-count');
+      const count = await statCounts.count();
+      // Should have at least follower + following + characters = 3 stat items
+      expect(count).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -272,8 +268,7 @@ test.describe('Social Features', () => {
       expect(page.url()).toContain(`/characters/${TARGET_CHARACTER_ID}`);
 
       const favoriteButton = page.locator('.favorite-button');
-      const visible = await favoriteButton.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(favoriteButton.first()).toBeVisible();
     });
 
     test('should favorite a character and show success feedback', async ({ page }) => {
@@ -297,7 +292,7 @@ test.describe('Social Features', () => {
         const nowFavorited = await favoriteButton.evaluate(
           (el) => el.classList.contains('is-favorited')
         ).catch(() => true);
-        expect(typeof nowFavorited).toBe('boolean');
+        expect(nowFavorited).toBe(true);
       }
     });
 
@@ -328,7 +323,7 @@ test.describe('Social Features', () => {
         const stillFavorited = await favoriteButton.evaluate(
           (el) => el.classList.contains('is-favorited')
         ).catch(() => false);
-        expect(typeof stillFavorited).toBe('boolean');
+        expect(stillFavorited).toBe(false);
       }
     });
 
@@ -380,13 +375,10 @@ test.describe('Social Features', () => {
       await waitForNetworkIdle(page);
 
       const favoriteCount = page.locator('.favorite-count');
-      const visible = await favoriteCount.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(favoriteCount.first()).toBeVisible();
 
-      if (visible) {
-        const countText = await favoriteCount.textContent();
-        expect(typeof countText).toBe('string');
-      }
+      const countText = await favoriteCount.textContent();
+      expect(countText).toBeTruthy();
     });
   });
 
@@ -484,13 +476,11 @@ test.describe('Social Features', () => {
       await waitForNetworkIdle(page);
 
       const commentSection = page.locator('.comment-section');
-      const visible = await commentSection.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(commentSection.first()).toBeVisible();
 
       // Header should show "评论" (comments)
       const header = page.locator('.comment-section-header h3');
-      const headerVisible = await header.isVisible().catch(() => false);
-      expect(typeof headerVisible).toBe('boolean');
+      await expect(header.first()).toBeVisible();
     });
 
     test('should post a new comment', async ({ page }) => {
@@ -530,13 +520,11 @@ test.describe('Social Features', () => {
       if (count > 0) {
         // Check first comment has author name
         const author = page.locator('.comment-author').first();
-        const authorVisible = await author.isVisible().catch(() => false);
-        expect(typeof authorVisible).toBe('boolean');
+        await expect(author).toBeVisible();
 
         // Check first comment has timestamp
         const time = page.locator('.comment-time').first();
-        const timeVisible = await time.isVisible().catch(() => false);
-        expect(typeof timeVisible).toBe('boolean');
+        await expect(time).toBeVisible();
       }
     });
 
@@ -567,15 +555,12 @@ test.describe('Social Features', () => {
 
       // Own comments should show a delete button
       const deleteButton = page.locator('.comment-actions .el-button').filter({ hasText: '删除' }).first();
-      const deleteVisible = await deleteButton.isVisible().catch(() => false);
-      expect(typeof deleteVisible).toBe('boolean');
+      await expect(deleteButton).toBeVisible();
 
-      if (deleteVisible) {
-        // Dismiss the confirmation dialog automatically
-        page.on('dialog', (dialog) => dialog.accept());
-        await deleteButton.click();
-        await page.waitForTimeout(500);
-      }
+      // Dismiss the confirmation dialog automatically
+      page.on('dialog', (dialog) => dialog.accept());
+      await deleteButton.click();
+      await page.waitForTimeout(500);
     });
 
     test('should show empty state when no comments', async ({ page }) => {
@@ -593,8 +578,7 @@ test.describe('Social Features', () => {
 
       // Should show the no-comments empty state
       const noComments = page.locator('.no-comments');
-      const visible = await noComments.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(noComments.first()).toBeVisible();
     });
 
     test('should paginate comments', async ({ page }) => {
@@ -621,8 +605,7 @@ test.describe('Social Features', () => {
 
       // When exactly LIMIT (20) comments are returned, hasMore should be true
       const loadMoreButton = page.locator('.load-more .el-button');
-      const loadMoreVisible = await loadMoreButton.isVisible().catch(() => false);
-      expect(typeof loadMoreVisible).toBe('boolean');
+      await expect(loadMoreButton.first()).toBeVisible();
     });
 
     test('should handle comment submission error gracefully', async ({ page }) => {
@@ -660,9 +643,7 @@ test.describe('Social Features', () => {
           await page.waitForTimeout(1000);
 
           // Should show an error message (Element Plus el-message--error)
-          const errorMsg = page.locator('.el-message--error');
-          const errorVisible = await errorMsg.isVisible().catch(() => false);
-          expect(typeof errorVisible).toBe('boolean');
+          await expect(page.locator('.el-message--error').first()).toBeVisible();
         }
       }
 

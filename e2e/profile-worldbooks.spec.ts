@@ -100,8 +100,7 @@ test.describe('Profile Management', () => {
     expect(page.url()).toContain('/profile');
 
     const profileBody = page.locator('.profile-body');
-    const visible = await profileBody.isVisible().catch(() => false);
-    expect(typeof visible).toBe('boolean');
+    await expect(profileBody.first()).toBeVisible();
   });
 
   test('should show avatar, name, email, and membership badge', async ({ page }) => {
@@ -110,28 +109,22 @@ test.describe('Profile Management', () => {
 
     // User name
     const userName = page.locator('.user-name');
-    const nameVisible = await userName.isVisible().catch(() => false);
-    expect(typeof nameVisible).toBe('boolean');
+    await expect(userName.first()).toBeVisible();
 
-    if (nameVisible) {
-      const nameText = await userName.textContent();
-      expect(typeof nameText).toBe('string');
-    }
+    const nameText = await userName.textContent();
+    expect(nameText).toBeTruthy();
 
     // User email
     const userEmail = page.locator('.user-email');
-    const emailVisible = await userEmail.isVisible().catch(() => false);
-    expect(typeof emailVisible).toBe('boolean');
+    await expect(userEmail.first()).toBeVisible();
 
     // Membership badge
     const badge = page.locator('.membership-badge');
-    const badgeVisible = await badge.isVisible().catch(() => false);
-    expect(typeof badgeVisible).toBe('boolean');
+    await expect(badge.first()).toBeVisible();
 
     // Avatar wrapper
     const avatar = page.locator('.avatar-wrapper');
-    const avatarVisible = await avatar.isVisible().catch(() => false);
-    expect(typeof avatarVisible).toBe('boolean');
+    await expect(avatar.first()).toBeVisible();
   });
 
   test('should navigate between profile tabs (Basic Info, Security, Preferences)', async ({ page }) => {
@@ -154,8 +147,7 @@ test.describe('Profile Management', () => {
 
     // Security section should be visible (password form)
     const securitySection = page.locator('.content-section');
-    const secVisible = await securitySection.isVisible().catch(() => false);
-    expect(typeof secVisible).toBe('boolean');
+    await expect(securitySection.first()).toBeVisible();
 
     // Click Preferences tab - use getByText for resilience
     const preferencesTab = page.locator('.nav-item').filter({ hasText: /偏好|Preferences/ });
@@ -164,8 +156,7 @@ test.describe('Profile Management', () => {
 
     // Preferences section should show radio groups
     const radioGroup = page.locator('.el-radio-group');
-    const radioVisible = await radioGroup.first().isVisible().catch(() => false);
-    expect(typeof radioVisible).toBe('boolean');
+    await expect(radioGroup.first()).toBeVisible();
   });
 
   test('should change theme preference (dark/light)', async ({ page }) => {
@@ -251,8 +242,7 @@ test.describe('Profile Management', () => {
 
     // Should have a submit button
     const submitButton = page.locator('.el-button--primary[native-type="submit"], .el-form .el-button--primary');
-    const btnVisible = await submitButton.first().isVisible().catch(() => false);
-    expect(typeof btnVisible).toBe('boolean');
+    await expect(submitButton.first()).toBeVisible();
   });
 
   test('should show export data button', async ({ page }) => {
@@ -261,13 +251,10 @@ test.describe('Profile Management', () => {
 
     // Export data button is in the Basic Info section header actions
     const exportButton = page.locator('.section-header-actions .el-button').first();
-    const visible = await exportButton.isVisible().catch(() => false);
-    expect(typeof visible).toBe('boolean');
+    await expect(exportButton).toBeVisible();
 
-    if (visible) {
-      const text = await exportButton.textContent();
-      expect(typeof text).toBe('string');
-    }
+    const text = await exportButton.textContent();
+    expect(text).toBeTruthy();
   });
 });
 
@@ -284,8 +271,7 @@ test.describe('World Books', () => {
     expect(page.url()).toContain('/worldbooks');
 
     const worldbooksPage = page.locator('.worldbooks-page');
-    const visible = await worldbooksPage.isVisible().catch(() => false);
-    expect(typeof visible).toBe('boolean');
+    await expect(worldbooksPage.first()).toBeVisible();
   });
 
   test('should show empty state when no world books', async ({ page }) => {
@@ -303,8 +289,7 @@ test.describe('World Books', () => {
 
     // Table should show empty text
     const emptyText = page.locator('.el-table__empty-text');
-    const visible = await emptyText.isVisible().catch(() => false);
-    expect(typeof visible).toBe('boolean');
+    await expect(emptyText.first()).toBeVisible();
   });
 
   test('should open create world book dialog', async ({ page }) => {
@@ -313,18 +298,14 @@ test.describe('World Books', () => {
 
     // Click the create button (has Plus icon)
     const createButton = page.locator('.el-button--primary').filter({ hasText: /新建|Create/ });
-    const btnVisible = await createButton.isVisible().catch(() => false);
-    expect(typeof btnVisible).toBe('boolean');
+    await expect(createButton.first()).toBeVisible();
 
-    if (btnVisible) {
-      await createButton.click();
-      await page.waitForTimeout(300);
+    await createButton.click();
+    await page.waitForTimeout(300);
 
-      // Dialog should be visible
-      const dialog = page.locator('.el-dialog');
-      const dialogVisible = await dialog.isVisible().catch(() => false);
-      expect(typeof dialogVisible).toBe('boolean');
-    }
+    // Dialog should be visible
+    const dialog = page.locator('.el-dialog');
+    await expect(dialog.first()).toBeVisible();
   });
 
   test('should create a new world book with name and scope', async ({ page }) => {
@@ -388,7 +369,7 @@ test.describe('World Books', () => {
     if (rowCount > 0) {
       // First row should have "Fantasy World" name
       const firstRowText = await tableRows.first().textContent();
-      expect(typeof firstRowText).toBe('string');
+      expect(firstRowText).toBeTruthy();
 
       // Scope tags should be present
       const scopeTags = page.locator('.el-tag');
@@ -443,15 +424,12 @@ test.describe('World Books', () => {
 
       // Confirmation dialog should appear (ElMessageBox)
       const confirmDialog = page.locator('.el-message-box');
-      const dialogVisible = await confirmDialog.isVisible().catch(() => false);
-      expect(typeof dialogVisible).toBe('boolean');
+      await expect(confirmDialog.first()).toBeVisible();
 
-      if (dialogVisible) {
-        // Click confirm button
-        const confirmBtn = page.locator('.el-message-box__btns .el-button--primary');
-        await confirmBtn.click();
-        await page.waitForTimeout(500);
-      }
+      // Click confirm button
+      const confirmBtn = page.locator('.el-message-box__btns .el-button--primary');
+      await confirmBtn.click();
+      await page.waitForTimeout(500);
     }
 
     expect(page.url()).toContain('/worldbooks');
