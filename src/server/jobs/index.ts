@@ -15,10 +15,12 @@ import { webhookRepository } from '../../db/repositories/webhook.repository';
 import { memoryConsolidationService } from '../services/memory-consolidation.service';
 import { memoryService } from '../services/memory.service';
 import { memoryRepository } from '../../db/repositories/memory.repository';
+import { runNotificationDigest } from './notification-digest.job';
 
 const ONE_HOUR = 60 * 60 * 1000;
 const SIX_HOURS = 6 * ONE_HOUR;
 const ONE_DAY = 24 * ONE_HOUR;
+const ONE_WEEK = 7 * ONE_DAY;
 
 export function registerJobs(scheduler: SchedulerService): void {
   scheduler.register('gdpr-deletion', async () => {
@@ -70,4 +72,12 @@ export function registerJobs(scheduler: SchedulerService): void {
       });
     }
   }, SIX_HOURS);
+
+  scheduler.register('notification-digest-daily', async () => {
+    await runNotificationDigest('daily');
+  }, ONE_DAY);
+
+  scheduler.register('notification-digest-weekly', async () => {
+    await runNotificationDigest('weekly');
+  }, ONE_WEEK);
 }
