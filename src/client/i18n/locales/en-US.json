@@ -1312,6 +1312,16 @@
       "stopped": "Experiment stopped",
       "updateFailed": "Failed to update experiment",
       "loadResultsFailed": "Failed to load results"
+    },
+    "gdpr": {
+      "title": "GDPR Requests",
+      "requestId": "Request ID",
+      "requestedAt": "Requested At",
+      "scheduledAt": "Scheduled At",
+      "processNow": "Process Now",
+      "confirmProcess": "Are you sure you want to process this deletion request immediately?",
+      "processed": "Request processed successfully",
+      "noRequests": "No GDPR requests"
     }
   },
   "characterEditor": {

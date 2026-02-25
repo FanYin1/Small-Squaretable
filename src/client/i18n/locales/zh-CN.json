@@ -1312,6 +1312,16 @@
       "stopped": "实验已停止",
       "updateFailed": "更新实验失败",
       "loadResultsFailed": "加载结果失败"
+    },
+    "gdpr": {
+      "title": "GDPR 请求",
+      "requestId": "请求 ID",
+      "requestedAt": "请求时间",
+      "scheduledAt": "计划时间",
+      "processNow": "立即处理",
+      "confirmProcess": "确定要立即处理此删除请求吗？",
+      "processed": "请求处理成功",
+      "noRequests": "暂无 GDPR 请求"
     }
   },
   "characterEditor": {
