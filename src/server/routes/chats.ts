@@ -967,7 +967,7 @@ chatRoutes.post('/:id/messages/:messageId/reactions', authMiddleware(), async (c
 
   const existing = await db.select().from(messageReactions)
     .where(and(
-      eq(messageReactions.messageId, BigInt(messageId)),
+      eq(messageReactions.messageId, Number(messageId)),
       eq(messageReactions.userId, user.id),
       eq(messageReactions.emoji, emoji),
     )).limit(1);
@@ -977,7 +977,7 @@ chatRoutes.post('/:id/messages/:messageId/reactions', authMiddleware(), async (c
     return c.json<ApiResponse>({ success: true, data: { action: 'removed' }, meta: { timestamp: new Date().toISOString() } });
   } else {
     await db.insert(messageReactions).values({
-      messageId: BigInt(messageId),
+      messageId: Number(messageId),
       userId: user.id,
       emoji,
     });
@@ -989,7 +989,7 @@ chatRoutes.post('/:id/messages/:messageId/reactions', authMiddleware(), async (c
 chatRoutes.get('/:id/messages/:messageId/reactions', authMiddleware(), async (c) => {
   const messageId = c.req.param('messageId');
   const reactions = await db.select().from(messageReactions)
-    .where(eq(messageReactions.messageId, BigInt(messageId)));
+    .where(eq(messageReactions.messageId, Number(messageId)));
 
   const grouped: Record<string, { emoji: string; count: number; userIds: string[] }> = {};
   for (const r of reactions) {
@@ -1013,7 +1013,7 @@ chatRoutes.post('/:id/messages/:messageId/pin', authMiddleware(), async (c) => {
 
   const msg = await db.select({ id: messagesTable.id, extra: messagesTable.extra })
     .from(messagesTable)
-    .where(eq(messagesTable.id, BigInt(messageId)))
+    .where(eq(messagesTable.id, Number(messageId)))
     .limit(1);
 
   if (!msg.length) {
@@ -1027,7 +1027,7 @@ chatRoutes.post('/:id/messages/:messageId/pin', authMiddleware(), async (c) => {
   const existingExtra = (msg[0].extra as Record<string, unknown>) || {};
   await db.update(messagesTable)
     .set({ extra: { ...existingExtra, pinned: true } })
-    .where(eq(messagesTable.id, BigInt(messageId)));
+    .where(eq(messagesTable.id, Number(messageId)));
 
   return c.json<ApiResponse>({
     success: true,
@@ -1042,7 +1042,7 @@ chatRoutes.delete('/:id/messages/:messageId/pin', authMiddleware(), async (c) =>
 
   const msg = await db.select({ id: messagesTable.id, extra: messagesTable.extra })
     .from(messagesTable)
-    .where(eq(messagesTable.id, BigInt(messageId)))
+    .where(eq(messagesTable.id, Number(messageId)))
     .limit(1);
 
   if (!msg.length) {
@@ -1057,7 +1057,7 @@ chatRoutes.delete('/:id/messages/:messageId/pin', authMiddleware(), async (c) =>
   const { pinned, ...rest } = existingExtra;
   await db.update(messagesTable)
     .set({ extra: Object.keys(rest).length > 0 ? rest : null })
-    .where(eq(messagesTable.id, BigInt(messageId)));
+    .where(eq(messagesTable.id, Number(messageId)));
 
   return c.json<ApiResponse>({
     success: true,
