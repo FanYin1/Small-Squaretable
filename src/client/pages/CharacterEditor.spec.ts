@@ -300,3 +300,40 @@ describe('CharacterEditor Save as Template', () => {
     expect(args.tags).toEqual(['test']);
   });
 });
+
+describe('CharacterEditor Page UI', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRoute.params = {};
+    mockRoute.query = {};
+  });
+
+  it('should render editor container', async () => {
+    const wrapper = mountEditor();
+    await flushPromises();
+
+    expect(wrapper.find('.editor-container').exists()).toBe(true);
+  });
+
+  it('should show form fields including name input', async () => {
+    const wrapper = mountEditor();
+    await flushPromises();
+
+    expect(wrapper.find('.editor-form').exists()).toBe(true);
+    // Form should contain input elements for the character fields
+    const inputs = wrapper.findAll('input');
+    expect(inputs.length).toBeGreaterThan(0);
+  });
+
+  it('should have save/create button in form actions', async () => {
+    const wrapper = mountEditor();
+    await flushPromises();
+
+    const actions = wrapper.find('.form-actions');
+    expect(actions.exists()).toBe(true);
+
+    const buttons = actions.findAll('button');
+    // At least Cancel + Create buttons
+    expect(buttons.length).toBeGreaterThanOrEqual(2);
+  });
+});
