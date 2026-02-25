@@ -185,7 +185,11 @@
     "unpin": "取消置顶",
     "pinnedMessages": "置顶消息",
     "pinnedMessage": "已置顶",
-    "noPinnedMessages": "暂无置顶消息"
+    "noPinnedMessages": "暂无置顶消息",
+    "oneDay": "1 天",
+    "sevenDays": "7 天",
+    "thirtyDays": "30 天",
+    "never": "永不"
   },
   "market": {
     "title": "角色市场",
@@ -1311,7 +1315,8 @@
       "createFailed": "创建实验失败",
       "stopped": "实验已停止",
       "updateFailed": "更新实验失败",
-      "loadResultsFailed": "加载结果失败"
+      "loadResultsFailed": "加载结果失败",
+      "ctr": "点击率"
     },
     "gdpr": {
       "title": "GDPR 请求",
@@ -1472,7 +1477,9 @@
     "voiceTestSample": "你好！这是角色语音设置的测试。",
     "voiceUnsupported": "此浏览器不支持语音合成。",
     "emotionMap": "情感图谱",
-    "emotionTimeline": "时间线"
+    "emotionTimeline": "时间线",
+    "userIdOrEmail": "用户 ID 或邮箱",
+    "collaboratorRole": "角色"
   },
   "search": {
     "title": "搜索",

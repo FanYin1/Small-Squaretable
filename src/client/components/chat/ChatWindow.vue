@@ -368,10 +368,10 @@
         </el-form-item>
         <el-form-item :label="t('share.snapshotExpiry')">
           <el-select v-model="snapshotExpiry" style="width: 100%">
-            <el-option label="1 day" value="1d" />
-            <el-option label="7 days" value="7d" />
-            <el-option label="30 days" value="30d" />
-            <el-option label="Never" value="never" />
+            <el-option :label="t('chat.oneDay')" value="1d" />
+            <el-option :label="t('chat.sevenDays')" value="7d" />
+            <el-option :label="t('chat.thirtyDays')" value="30d" />
+            <el-option :label="t('chat.never')" value="never" />
           </el-select>
         </el-form-item>
       </el-form>

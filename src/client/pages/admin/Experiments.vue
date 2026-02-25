@@ -242,7 +242,7 @@ onMounted(() => fetchExperiments());
           <el-table-column prop="impressions" :label="t('analytics.impressions')" width="120" align="right" />
           <el-table-column prop="clicks" :label="t('analytics.clicks')" width="100" align="right" />
           <el-table-column prop="chatStarts" :label="t('analytics.chatStarts')" width="120" align="right" />
-          <el-table-column label="CTR" width="160">
+          <el-table-column :label="t('admin.experiments.ctr')" width="160">
             <template #default="{ row }">
               <div class="ctr-cell">
                 <el-progress :percentage="Math.round(row.ctr * 100)" :stroke-width="14" :text-inside="true" />

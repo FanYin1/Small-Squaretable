@@ -185,7 +185,11 @@
     "unpin": "Unpin",
     "pinnedMessages": "Pinned Messages",
     "pinnedMessage": "Pinned",
-    "noPinnedMessages": "No pinned messages"
+    "noPinnedMessages": "No pinned messages",
+    "oneDay": "1 day",
+    "sevenDays": "7 days",
+    "thirtyDays": "30 days",
+    "never": "Never"
   },
   "market": {
     "title": "Character Market",
@@ -1311,7 +1315,8 @@
       "createFailed": "Failed to create experiment",
       "stopped": "Experiment stopped",
       "updateFailed": "Failed to update experiment",
-      "loadResultsFailed": "Failed to load results"
+      "loadResultsFailed": "Failed to load results",
+      "ctr": "CTR"
     },
     "gdpr": {
       "title": "GDPR Requests",
@@ -1472,7 +1477,9 @@
     "voiceTestSample": "Hello! This is a test of the character voice settings.",
     "voiceUnsupported": "Speech synthesis is not supported in this browser.",
     "emotionMap": "Emotion Map",
-    "emotionTimeline": "Timeline"
+    "emotionTimeline": "Timeline",
+    "userIdOrEmail": "User ID or email",
+    "collaboratorRole": "Role"
   },
   "search": {
     "title": "Search",

@@ -120,9 +120,9 @@ onMounted(fetchCollaborators);
     <el-dialog v-model="showInviteDialog" :title="t('collaboration.inviteCollaborator')" width="400px">
       <el-form>
         <el-form-item :label="t('collaboration.searchUsers')">
-          <el-input v-model="inviteUserId" placeholder="User ID or email" />
+          <el-input v-model="inviteUserId" :placeholder="t('character.userIdOrEmail')" />
         </el-form-item>
-        <el-form-item label="Role">
+        <el-form-item :label="t('character.collaboratorRole')">
           <el-select v-model="inviteRole">
             <el-option value="editor" :label="t('collaboration.roleEditor')" />
             <el-option value="viewer" :label="t('collaboration.roleViewer')" />
