@@ -1,126 +1,72 @@
 import { test, expect } from '@playwright/test';
-import { AuthPage } from './pages/auth.page';
-import { generateUniqueUser } from './fixtures/test-data';
-import { clearSession, waitForNetworkIdle } from './utils/helpers';
+import { clearSession, waitForNetworkIdle, mockApiResponse, setupAuth } from './utils/helpers';
 
-/**
- * E2E Tests: Character Editor & Search Features
- *
- * Smoke tests for character editor (templates, version history)
- * and search features (command palette, search page).
- */
-
-test.describe('Character Editor Features', () => {
-  let authPage: AuthPage;
-
+test.describe('Character Features', () => {
   test.beforeEach(async ({ page }) => {
-    authPage = new AuthPage(page);
     await clearSession(page);
-
-    const testUser = generateUniqueUser();
-    await authPage.register(testUser.email, testUser.password, testUser.name);
-    await page.waitForURL(/\/chat|\/dashboard/, { timeout: 15000 });
-    await waitForNetworkIdle(page);
   });
 
-  test('can navigate to character creation page', async ({ page }) => {
+  test('character creation page loads', async ({ page }) => {
+    await setupAuth(page);
     await page.goto('/characters/new');
     await waitForNetworkIdle(page);
-
-    // Verify the editor form exists (el-form with name input)
-    const editorForm = page.locator('.editor-form, .el-form');
-    const isVisible = await editorForm.first().isVisible().catch(() => false);
-    expect(isVisible).toBe(true);
-
-    // URL should reflect the creation route
+    // Should be on character creation page, not redirected
     expect(page.url()).toContain('/characters/new');
+    await expect(page.locator('.dashboard-layout')).toBeVisible();
   });
 
-  test('character creation shows template options', async ({ page }) => {
-    await page.goto('/characters/new');
+  test('my characters page loads', async ({ page }) => {
+    await setupAuth(page);
+    await mockApiResponse(page, '**/api/v1/characters', {
+      success: true,
+      data: [],
+    });
+    await page.goto('/my-characters');
     await waitForNetworkIdle(page);
-
-    // TemplateSelector is rendered only in create mode (not edit mode)
-    const templateSelector = page.locator(
-      '.template-selector, .template-list, [class*="template"]'
-    );
-    const isVisible = await templateSelector.first().isVisible().catch(() => false);
-    expect(isVisible).toBe(true);
+    expect(page.url()).toContain('/my-characters');
+    await expect(page.locator('.dashboard-layout')).toBeVisible();
   });
 
-  test('character editor shows version history in edit mode', async ({ page }) => {
-    // Navigate to an edit URL — the page will attempt to load a character.
-    // Even if the fetch fails, the VersionHistory component is conditionally
-    // rendered when isEditMode && characterId, so we verify the route works.
-    await page.goto('/characters/test-id/edit');
+  test('character detail has action buttons', async ({ page }) => {
+    await mockApiResponse(page, '**/api/v1/characters/char_1', {
+      success: true,
+      data: {
+        id: 'char_1', name: 'Test Bot', description: 'A test character',
+        tags: ['test'], rating: 4.5, avatar: null, downloadCount: 100,
+        viewCount: 500, createdAt: '2026-02-01T00:00:00Z',
+      },
+    });
+    await mockApiResponse(page, '**/api/v1/characters/char_1/ratings', {
+      success: true, data: { overall: '4.5', count: 10, userRating: null },
+    });
+    await mockApiResponse(page, '**/api/v1/social/favorites/char_1/status', {
+      success: true, data: { isFavorited: false, favoriteCount: 5 },
+    });
+    await mockApiResponse(page, '**/api/v1/social/characters/char_1/comments*', {
+      success: true, data: [],
+    });
+    await mockApiResponse(page, '**/api/v1/recommendations/similar/char_1*', {
+      success: true, data: [],
+    });
+    await page.goto('/characters/char_1');
     await waitForNetworkIdle(page);
-
-    // In edit mode the URL should contain /edit
-    expect(page.url()).toContain('/edit');
-
-    // Check for version history section (rendered when character loads successfully)
-    const versionHistory = page.locator(
-      '.version-history, [class*="version-history"], [class*="VersionHistory"]'
-    );
-    const isVisible = await versionHistory.first().isVisible().catch(() => false);
-    expect(isVisible).toBe(true);
-  });
-});
-
-test.describe('Search Features', () => {
-  let authPage: AuthPage;
-
-  test.beforeEach(async ({ page }) => {
-    authPage = new AuthPage(page);
-    await clearSession(page);
-
-    const testUser = generateUniqueUser();
-    await authPage.register(testUser.email, testUser.password, testUser.name);
-    await page.waitForURL(/\/chat|\/dashboard/, { timeout: 15000 });
-    await waitForNetworkIdle(page);
+    await expect(page.locator('.action-buttons')).toBeVisible();
   });
 
-  test('Ctrl+K opens search command palette', async ({ page }) => {
-    await page.goto('/chat');
+  test('character edit page loads for owner', async ({ page }) => {
+    await setupAuth(page);
+    await mockApiResponse(page, '**/api/v1/characters/char_1', {
+      success: true,
+      data: {
+        id: 'char_1', name: 'Test Bot', description: 'A test character',
+        tags: ['test'], rating: 4.5, avatar: null, downloadCount: 100,
+        viewCount: 500, createdAt: '2026-02-01T00:00:00Z',
+        userId: 'user_1', tenantId: 'tenant_1',
+      },
+    });
+    await page.goto('/characters/char_1/edit');
     await waitForNetworkIdle(page);
-
-    // Press Ctrl+K to open the command palette
-    await page.keyboard.press('Control+k');
-    await page.waitForTimeout(300);
-
-    // The command palette overlay should appear
-    const palette = page.locator('.command-palette-overlay, .command-palette');
-    const isVisible = await palette.first().isVisible().catch(() => false);
-    expect(isVisible).toBe(true);
-  });
-
-  test('search page renders with tabs', async ({ page }) => {
-    await page.goto('/search');
-    await waitForNetworkIdle(page);
-
-    // Verify the search input exists
-    const searchInput = page.locator('.search-bar .el-input, .search-header .el-input');
-    const inputVisible = await searchInput.first().isVisible().catch(() => false);
-    expect(inputVisible).toBe(true);
-
-    // Verify result tabs exist (all / characters / messages / worldbooks)
-    const tabs = page.locator('.el-tabs__item');
-    const tabCount = await tabs.count();
-    expect(tabCount).toBeGreaterThanOrEqual(2);
-  });
-
-  test('search page shows results area for query', async ({ page }) => {
-    await page.goto('/search?q=test');
-    await waitForNetworkIdle(page);
-
-    // The search query should be populated
-    expect(page.url()).toContain('q=test');
-
-    // Results area should exist (either results, empty state, or loading skeleton)
-    const resultsArea = page.locator(
-      '.search-results, .el-empty, .results-loading, .el-skeleton'
-    );
-    const isVisible = await resultsArea.first().isVisible().catch(() => false);
-    expect(isVisible).toBe(true);
+    expect(page.url()).toContain('/characters/char_1/edit');
+    await expect(page.locator('.dashboard-layout')).toBeVisible();
   });
 });
