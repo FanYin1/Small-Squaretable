@@ -16,6 +16,7 @@ import { memoryConsolidationService } from '../services/memory-consolidation.ser
 import { memoryService } from '../services/memory.service';
 import { memoryRepository } from '../../db/repositories/memory.repository';
 import { runNotificationDigest } from './notification-digest.job';
+import { runNotificationCleanup } from './notification-cleanup.job';
 
 const ONE_HOUR = 60 * 60 * 1000;
 const SIX_HOURS = 6 * ONE_HOUR;
@@ -80,4 +81,8 @@ export function registerJobs(scheduler: SchedulerService): void {
   scheduler.register('notification-digest-weekly', async () => {
     await runNotificationDigest('weekly');
   }, ONE_WEEK);
+
+  scheduler.register('notification-cleanup', async () => {
+    await runNotificationCleanup();
+  }, ONE_DAY);
 }
