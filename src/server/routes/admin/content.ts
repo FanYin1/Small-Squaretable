@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { authMiddleware } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { moderationService } from '../../services/moderation.service';
+import { notificationService } from '../../services/notification.service';
 import { auditService } from '../../services/audit.service';
 import { reportRepository } from '../../../db/repositories/report.repository';
 import { NotFoundError } from '../../../core/errors';
@@ -68,6 +69,9 @@ adminContentRoutes.post(
     const user = c.get('user');
     const { status, action } = c.req.valid('json');
 
+    // Fetch report to get reporterId for notification
+    const report = await reportRepository.findById(reportId);
+
     await moderationService.resolveReport(reportId, user.id, status, action);
 
     // Audit content moderation
@@ -79,6 +83,15 @@ adminContentRoutes.post(
       action: 'content_moderate',
       metadata: { reportId, status },
     });
+
+    // Notify reporter that their report has been reviewed (fire-and-forget)
+    if (report?.reporterId) {
+      notificationService.notify({
+        userId: report.reporterId,
+        type: 'system',
+        message: 'Your report has been reviewed and resolved. Thank you for helping keep our community safe.',
+      }).catch(() => {});
+    }
 
     return c.json<ApiResponse>({
       success: true,

@@ -14,6 +14,7 @@ import { subscriptionRepository } from '../../../db/repositories/subscription.re
 import { oauthRepository } from '../../../db/repositories/oauth.repository';
 import { authService } from '../../services/auth.service';
 import { auditService } from '../../services/audit.service';
+import { notificationService } from '../../services/notification.service';
 import { NotFoundError, BadRequestError } from '../../../core/errors';
 import { paginationSchema } from '../../../types/api';
 import type { ApiResponse } from '../../../types/api';
@@ -167,6 +168,13 @@ adminUserRoutes.patch(
       metadata: { oldRole: user.role, newRole: role },
     });
 
+    // Notify user about role change (fire-and-forget)
+    notificationService.notify({
+      userId,
+      type: 'system',
+      message: `Your account role has been updated to ${role}.`,
+    }).catch(() => {});
+
     return c.json<ApiResponse>({
       success: true,
       data: { id: updated!.id, role: updated!.role },
@@ -205,6 +213,13 @@ adminUserRoutes.post('/:id/suspend', async (c) => {
     targetId: userId,
   });
 
+  // Notify suspended user (fire-and-forget)
+  notificationService.notify({
+    userId,
+    type: 'system',
+    message: 'Your account has been suspended. Please contact support for more information.',
+  }).catch(() => {});
+
   return c.json<ApiResponse>({
     success: true,
     data: { id: userId, isActive: false },
@@ -237,6 +252,13 @@ adminUserRoutes.post('/:id/unsuspend', async (c) => {
     targetType: 'user',
     targetId: userId,
   });
+
+  // Notify reactivated user (fire-and-forget)
+  notificationService.notify({
+    userId,
+    type: 'system',
+    message: 'Your account has been reactivated.',
+  }).catch(() => {});
 
   return c.json<ApiResponse>({
     success: true,
