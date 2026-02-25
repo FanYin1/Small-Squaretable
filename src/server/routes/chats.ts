@@ -1005,11 +1005,92 @@ chatRoutes.get('/:id/messages/:messageId/reactions', authMiddleware(), async (c)
   });
 });
 
+// --- Message pinning ---
+
+// Pin a message
+chatRoutes.post('/:id/messages/:messageId/pin', authMiddleware(), async (c) => {
+  const messageId = c.req.param('messageId');
+
+  const msg = await db.select({ id: messagesTable.id, extra: messagesTable.extra })
+    .from(messagesTable)
+    .where(eq(messagesTable.id, BigInt(messageId)))
+    .limit(1);
+
+  if (!msg.length) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Message not found' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 404);
+  }
+
+  const existingExtra = (msg[0].extra as Record<string, unknown>) || {};
+  await db.update(messagesTable)
+    .set({ extra: { ...existingExtra, pinned: true } })
+    .where(eq(messagesTable.id, BigInt(messageId)));
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: { pinned: true },
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
+// Unpin a message
+chatRoutes.delete('/:id/messages/:messageId/pin', authMiddleware(), async (c) => {
+  const messageId = c.req.param('messageId');
+
+  const msg = await db.select({ id: messagesTable.id, extra: messagesTable.extra })
+    .from(messagesTable)
+    .where(eq(messagesTable.id, BigInt(messageId)))
+    .limit(1);
+
+  if (!msg.length) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Message not found' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 404);
+  }
+
+  const existingExtra = (msg[0].extra as Record<string, unknown>) || {};
+  const { pinned, ...rest } = existingExtra;
+  await db.update(messagesTable)
+    .set({ extra: Object.keys(rest).length > 0 ? rest : null })
+    .where(eq(messagesTable.id, BigInt(messageId)));
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: { pinned: false },
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
+// List pinned messages in a chat
+chatRoutes.get('/:id/pinned', authMiddleware(), async (c) => {
+  const chatId = c.req.param('id');
+
+  const pinned = await db.select()
+    .from(messagesTable)
+    .where(and(
+      eq(messagesTable.chatId, chatId),
+      sql`${messagesTable.extra}->>'pinned' = 'true'`,
+    ))
+    .orderBy(messagesTable.sentAt);
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: pinned,
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
 // --- Chat snapshot endpoints ---
 
 import crypto from 'crypto';
 import { db } from '../../db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+import { messages as messagesTable } from '../../db/schema/chats';
 import { chatSnapshots } from '../../db/schema/chat-snapshots';
 import { characters } from '../../db/schema/characters';
 import { messageReactions } from '../../db/schema/message-reactions';

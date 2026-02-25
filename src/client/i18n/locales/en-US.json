@@ -180,7 +180,12 @@
     "templatePublic": "Public",
     "templateCreated": "Template created",
     "templateDeleted": "Template deleted",
-    "useTemplate": "Use Template"
+    "useTemplate": "Use Template",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "pinnedMessages": "Pinned Messages",
+    "pinnedMessage": "Pinned",
+    "noPinnedMessages": "No pinned messages"
   },
   "market": {
     "title": "Character Market",

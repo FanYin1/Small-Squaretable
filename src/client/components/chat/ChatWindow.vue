@@ -51,6 +51,12 @@
             @click="showGrowthPanel = true"
           >{{ t('character.growth') }}</el-button>
         </el-tooltip>
+        <el-tooltip :content="t('chat.pinnedMessages')" placement="bottom">
+          <el-button
+            size="small"
+            @click="showPinnedDrawer = true"
+          >{{ t('chat.pinnedMessages') }}</el-button>
+        </el-tooltip>
         <el-select
           v-if="chatStore.availableModels.length > 0 && currentChat"
           :model-value="chatStore.currentModel"
@@ -203,6 +209,7 @@
               @rollback="handleRollback"
               @switch-branch="handleSwitchBranch"
               @reply="chatStore.setReplyTo($event)"
+              @toggle-pin="handleTogglePin($event)"
             />
           </div>
         </template>
@@ -341,6 +348,18 @@
         </el-tab-pane>
       </el-tabs>
     </el-drawer>
+    <!-- Pinned Messages Drawer -->
+    <el-drawer v-model="showPinnedDrawer" :title="t('chat.pinnedMessages')" size="360px">
+      <div v-if="chatStore.pinnedMessages.length === 0" class="empty-pinned">
+        {{ t('chat.noPinnedMessages') }}
+      </div>
+      <div v-else class="pinned-list">
+        <div v-for="msg in chatStore.pinnedMessages" :key="msg.id" class="pinned-item">
+          <div class="pinned-role">{{ msg.role }}</div>
+          <div class="pinned-content">{{ msg.content?.substring(0, 200) }}</div>
+        </div>
+      </div>
+    </el-drawer>
     <!-- Snapshot Dialog -->
     <el-dialog v-model="showSnapshotDialog" :title="t('share.createSnapshot')" width="450px">
       <el-form label-position="top">
@@ -428,6 +447,7 @@ const showAddCharacterDialog = ref(false);
 const addCharacterSearch = ref('');
 const availableCharacters = ref<Character[]>([]);
 const showGrowthPanel = ref(false);
+const showPinnedDrawer = ref(false);
 
 // Build a lookup map for character info by ID
 const characterMap = computed(() => {
@@ -558,6 +578,11 @@ const handleRemoveCharacter = async (characterId: string) => {
   } catch (error) {
     logger.error('Failed to remove character', error);
   }
+};
+
+const handleTogglePin = (payload: { messageId: string; isPinned: boolean }) => {
+  if (!props.currentChat) return;
+  chatStore.togglePin(props.currentChat.id, payload.messageId, payload.isPinned);
 };
 
 let scrollRafId: number | null = null;
@@ -1043,6 +1068,10 @@ watch(() => props.currentChat, async (newChat, oldChat) => {
     } catch (error) {
       logger.error('Failed to fetch intelligence data', error);
     }
+  }
+  // Fetch pinned messages for the new chat
+  if (newChat) {
+    chatStore.fetchPinnedMessages(newChat.id);
   }
   // Scroll to bottom when chat changes
   scrollToBottom(false);
@@ -1626,5 +1655,40 @@ onUnmounted(() => {
 
 .snapshot-result {
   margin-top: 16px;
+}
+
+.empty-pinned {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.pinned-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pinned-item {
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--el-fill-color-lighter, #fafafa);
+  border: 1px solid var(--border-default);
+}
+
+.pinned-role {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--el-color-primary, #409eff);
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+
+.pinned-content {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  word-break: break-word;
 }
 </style>

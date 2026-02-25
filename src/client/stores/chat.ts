@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { Chat, Message, Character, MessageAttachment } from '@client/types';
 import type { ModelMeta } from '@client/services/llm.api';
-import { chatApi, ApiError, llmApi, characterApi } from '@client/services';
+import { chatApi, ApiError, llmApi, characterApi, api } from '@client/services';
 import { WebSocketClient } from '@client/services/websocket';
 import { WSConnectionState } from '../../types/websocket';
 import { useCharacterIntelligenceStore } from './characterIntelligence';
@@ -36,6 +36,9 @@ export const useChatStore = defineStore('chat', () => {
 
   // Reply-to-message state
   const replyingTo = ref<{ messageId: string; content: string; role: string } | null>(null);
+
+  // Pinned messages state
+  const pinnedMessages = ref<any[]>([]);
 
   // Branch navigation state
   const branchCache = ref<Map<number, { siblings: Message[]; currentIndex: number }>>(new Map());
@@ -872,6 +875,41 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
+   * Fetch pinned messages for a chat
+   */
+  async function fetchPinnedMessages(chatId: string) {
+    try {
+      const response = await api.get<any[]>(`/chats/${chatId}/pinned`);
+      pinnedMessages.value = response || [];
+    } catch {
+      pinnedMessages.value = [];
+    }
+  }
+
+  /**
+   * Toggle pin state of a message
+   */
+  async function togglePin(chatId: string, messageId: string, isPinned: boolean) {
+    try {
+      if (isPinned) {
+        await api.delete(`/chats/${chatId}/messages/${messageId}/pin`);
+      } else {
+        await api.post(`/chats/${chatId}/messages/${messageId}/pin`);
+      }
+      // Update local message state
+      const msg = messages.value.find(m => String(m.id) === String(messageId));
+      if (msg) {
+        if (!msg.extra) msg.extra = {};
+        (msg.extra as Record<string, unknown>).pinned = !isPinned;
+      }
+      // Refresh pinned list
+      await fetchPinnedMessages(chatId);
+    } catch (e) {
+      logger.error('Failed to toggle pin', e);
+    }
+  }
+
+  /**
    * Set or clear the message being replied to
    */
   function setReplyTo(message: { id: string; content: string; role: string } | null) {
@@ -936,5 +974,8 @@ export const useChatStore = defineStore('chat', () => {
     disconnectWebSocket,
     replyingTo,
     setReplyTo,
+    pinnedMessages,
+    fetchPinnedMessages,
+    togglePin,
   };
 });

@@ -180,7 +180,12 @@
     "templatePublic": "公开",
     "templateCreated": "模板已创建",
     "templateDeleted": "模板已删除",
-    "useTemplate": "使用模板"
+    "useTemplate": "使用模板",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "pinnedMessages": "置顶消息",
+    "pinnedMessage": "已置顶",
+    "noPinnedMessages": "暂无置顶消息"
   },
   "market": {
     "title": "角色市场",

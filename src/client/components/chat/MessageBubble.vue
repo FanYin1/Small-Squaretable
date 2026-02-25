@@ -1,6 +1,9 @@
 <template>
   <div :class="['message', `message-${message.role}`]">
     <div class="message-inner">
+      <div v-if="message.extra?.pinned" class="pin-indicator">
+        {{ t('chat.pinnedMessage', 'Pinned') }}
+      </div>
       <div class="message-header">
         <template v-if="message.role === 'assistant'">
           <el-avatar :size="36" :src="displayCharacterAvatar">
@@ -131,6 +134,13 @@
         <button class="action-btn" @click="handleReply" :aria-label="t('chat.reply')">
           {{ t('chat.reply') }}
         </button>
+        <button
+          :class="['action-btn', { 'action-btn--active': !!message.extra?.pinned }]"
+          @click="handleTogglePin"
+          :aria-label="message.extra?.pinned ? t('chat.unpin') : t('chat.pin')"
+        >
+          {{ message.extra?.pinned ? t('chat.unpin') : t('chat.pin') }}
+        </button>
         <button class="action-btn" @click="handleRollback" :aria-label="t('chat.rollbackToHere')">
           {{ t('chat.rollbackToHere') }}
         </button>
@@ -181,6 +191,7 @@ const emit = defineEmits<{
   (e: 'switchBranch', messageId: number, direction: 'prev' | 'next'): void;
   (e: 'toggleReaction', payload: { messageId: string; emoji: string }): void;
   (e: 'reply', payload: { id: string; content: string; role: string }): void;
+  (e: 'togglePin', payload: { messageId: string; isPinned: boolean }): void;
 }>();
 
 const { t } = useI18n();
@@ -274,6 +285,10 @@ const handleBookmark = () => {
 const handleReply = () => {
   emit('reply', { id: props.message.id, content: props.message.content, role: props.message.role });
 };
+
+const handleTogglePin = () => {
+  emit('togglePin', { messageId: props.message.id, isPinned: !!props.message.extra?.pinned });
+};
 </script>
 
 <style scoped>
@@ -287,6 +302,12 @@ const handleReply = () => {
   max-width: 900px;
   margin: 0 auto;
   padding: 0 24px;
+}
+
+.pin-indicator {
+  font-size: 11px;
+  color: var(--el-color-warning, #e6a23c);
+  margin-bottom: 4px;
 }
 
 .message-assistant {
