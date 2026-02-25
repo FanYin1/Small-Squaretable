@@ -1618,5 +1618,13 @@
     "noCharacters": "No public characters yet",
     "notFound": "User not found",
     "editProfile": "Edit Profile"
+  },
+  "characterStats": {
+    "views": "Views",
+    "downloads": "Downloads",
+    "favorites": "Favorites",
+    "comments": "Comments",
+    "rating": "Rating",
+    "stats": "Statistics"
   }
 }

@@ -13,6 +13,7 @@ import RatingComponent from '@client/components/rating/RatingComponent.vue';
 import FavoriteButton from '@client/components/social/FavoriteButton.vue';
 import CommentSection from '@client/components/social/CommentSection.vue';
 import ShareDialog from '@client/components/character/ShareDialog.vue';
+import CharacterStats from '@client/components/character/CharacterStats.vue';
 import type { RatingInput, RatingResponseDto } from '@/types/rating';
 import type { CharacterCollection } from '@client/types';
 
@@ -147,6 +148,11 @@ async function handleAddToCollection(collectionId: string) {
               </div>
             </div>
           </div>
+
+          <CharacterStats
+            v-if="isOwner && character"
+            :character="character"
+          />
 
           <div class="action-buttons">
             <FavoriteButton :character-id="characterId" />

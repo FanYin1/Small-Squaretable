@@ -1618,5 +1618,13 @@
     "noCharacters": "暂无公开角色",
     "notFound": "用户不存在",
     "editProfile": "编辑资料"
+  },
+  "characterStats": {
+    "views": "浏览量",
+    "downloads": "下载量",
+    "favorites": "收藏数",
+    "comments": "评论数",
+    "rating": "评分",
+    "stats": "统计数据"
   }
 }
