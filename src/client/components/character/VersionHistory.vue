@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { characterApi, type CharacterVersion } from '@client/services/character.api';
 import { useDateTime } from '@client/composables/useDateTime';
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue';
+import VersionDiff from './VersionDiff.vue';
 
 const props = defineProps<{
   characterId: string;
@@ -19,6 +20,22 @@ const { formatRelativeTime } = useDateTime();
 const versions = ref<CharacterVersion[]>([]);
 const loading = ref(false);
 const expanded = ref(false);
+
+const selectedVersions = ref<number[]>([]);
+const showDiff = ref(false);
+
+function toggleVersionSelect(version: number) {
+  const idx = selectedVersions.value.indexOf(version);
+  if (idx >= 0) {
+    selectedVersions.value.splice(idx, 1);
+  } else if (selectedVersions.value.length < 2) {
+    selectedVersions.value.push(version);
+  }
+}
+
+const canCompare = computed(() => selectedVersions.value.length === 2);
+const diffFrom = computed(() => Math.min(...selectedVersions.value));
+const diffTo = computed(() => Math.max(...selectedVersions.value));
 
 async function fetchVersions() {
   loading.value = true;
@@ -42,15 +59,31 @@ onMounted(() => {
 
 <template>
   <div class="version-history">
-    <el-button
-      class="toggle-btn"
-      text
-      @click="expanded = !expanded"
-    >
-      <el-icon v-if="expanded"><arrow-up /></el-icon>
-      <el-icon v-else><arrow-down /></el-icon>
-      {{ t('characterEditor.versionHistory', 'Version History') }}
-    </el-button>
+    <div class="version-header">
+      <el-button
+        class="toggle-btn"
+        text
+        @click="expanded = !expanded"
+      >
+        <el-icon v-if="expanded"><arrow-up /></el-icon>
+        <el-icon v-else><arrow-down /></el-icon>
+        {{ t('characterEditor.versionHistory', 'Version History') }}
+      </el-button>
+
+      <el-button
+        v-if="expanded && versions.length >= 2"
+        size="small"
+        type="primary"
+        :disabled="!canCompare"
+        @click="showDiff = true"
+      >
+        {{ t('characterEditor.compareVersions', 'Compare') }}
+      </el-button>
+    </div>
+
+    <div v-if="expanded && !canCompare && versions.length >= 2" class="compare-hint">
+      {{ t('characterEditor.selectToCompare', 'Select 2 versions to compare') }}
+    </div>
 
     <div v-show="expanded" class="version-content">
       <el-skeleton v-if="loading" :rows="3" animated />
@@ -67,6 +100,11 @@ onMounted(() => {
           placement="top"
         >
           <div class="version-item">
+            <el-checkbox
+              :model-value="selectedVersions.includes(ver.version)"
+              :disabled="!selectedVersions.includes(ver.version) && selectedVersions.length >= 2"
+              @change="toggleVersionSelect(ver.version)"
+            />
             <span class="version-label">
               {{ t('characterEditor.versionLabel', 'Version') }} {{ ver.version }}
             </span>
@@ -82,6 +120,14 @@ onMounted(() => {
         </el-timeline-item>
       </el-timeline>
     </div>
+
+    <VersionDiff
+      :character-id="characterId"
+      :from-version="diffFrom"
+      :to-version="diffTo"
+      :visible="showDiff"
+      @update:visible="showDiff = $event"
+    />
   </div>
 </template>
 
@@ -94,9 +140,22 @@ onMounted(() => {
   border: 1px solid var(--border-default);
 }
 
+.version-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .toggle-btn {
   font-weight: 600;
   font-size: 14px;
+}
+
+.compare-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 4px;
+  padding-left: 4px;
 }
 
 .version-content {

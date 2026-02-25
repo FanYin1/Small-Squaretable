@@ -621,6 +621,66 @@ characterRoutes.post('/batch-delete', authMiddleware(), zValidator('json', batch
   });
 });
 
+// POST /batch-tags — Add or remove tags from multiple characters
+const batchTagsSchema = z.object({
+  characterIds: z.array(z.string().uuid()).min(1).max(50),
+  addTags: z.array(z.string().max(50)).max(20).default([]),
+  removeTags: z.array(z.string().max(50)).max(20).default([]),
+});
+
+characterRoutes.post('/batch-tags', authMiddleware(), async (c) => {
+  const user = c.get('user') as { id: string; tenantId: string };
+  const body = batchTagsSchema.parse(await c.req.json());
+
+  if (body.addTags.length === 0 && body.removeTags.length === 0) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Must specify addTags or removeTags' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 400);
+  }
+
+  // Verify ownership
+  const owned = await db.select({ id: characters.id, tags: characters.tags })
+    .from(characters)
+    .where(and(
+      inArray(characters.id, body.characterIds),
+      eq(characters.creatorId, user.id),
+      eq(characters.tenantId, user.tenantId),
+    ));
+
+  if (owned.length !== body.characterIds.length) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'FORBIDDEN', message: 'Some characters not found or not owned' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 403);
+  }
+
+  let updatedCount = 0;
+  for (const char of owned) {
+    let tags = [...(char.tags || [])];
+    if (body.removeTags.length > 0) {
+      tags = tags.filter(t => !body.removeTags.includes(t));
+    }
+    for (const tag of body.addTags) {
+      if (!tags.includes(tag)) {
+        tags.push(tag);
+      }
+    }
+    await db.update(characters)
+      .set({ tags, updatedAt: new Date() })
+      .where(eq(characters.id, char.id));
+    updatedCount++;
+  }
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: { updatedCount },
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
 // 获取单个角色
 characterRoutes.get('/:id', authMiddleware(), async (c) => {
   const user = c.get('user');
@@ -1197,6 +1257,74 @@ characterRoutes.post('/:id/versions', authMiddleware(), async (c) => {
   );
 });
 
+// Compare two versions (diff)
+characterRoutes.get('/:id/versions/:fromVersion/diff/:toVersion', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const characterId = c.req.param('id');
+  const fromVersion = Number(c.req.param('fromVersion'));
+  const toVersion = Number(c.req.param('toVersion'));
+
+  const hasAccess = await verifyCharacterAccess(characterId, user.id);
+  if (!hasAccess) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'FORBIDDEN', message: 'Forbidden' },
+      meta: { timestamp: new Date().toISOString() },
+    }, 403);
+  }
+
+  const [fromData, toData] = await Promise.all([
+    characterVersionService.getVersion(characterId, fromVersion),
+    characterVersionService.getVersion(characterId, toVersion),
+  ]);
+
+  if (!fromData) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'NOT_FOUND', message: `Version ${fromVersion} not found` },
+      meta: { timestamp: new Date().toISOString() },
+    }, 404);
+  }
+
+  if (!toData) {
+    return c.json<ApiResponse>({
+      success: false,
+      error: { code: 'NOT_FOUND', message: `Version ${toVersion} not found` },
+      meta: { timestamp: new Date().toISOString() },
+    }, 404);
+  }
+
+  // Compute diff by comparing top-level cardData fields
+  const fromCard = (fromData.cardData || {}) as Record<string, unknown>;
+  const toCard = (toData.cardData || {}) as Record<string, unknown>;
+  const allKeys = new Set([...Object.keys(fromCard), ...Object.keys(toCard)]);
+
+  const changes: Array<{ field: string; from: unknown; to: unknown; type: 'added' | 'removed' | 'changed' }> = [];
+
+  for (const key of allKeys) {
+    const fromVal = fromCard[key];
+    const toVal = toCard[key];
+
+    if (!(key in fromCard)) {
+      changes.push({ field: key, from: undefined, to: toVal, type: 'added' });
+    } else if (!(key in toCard)) {
+      changes.push({ field: key, from: fromVal, to: undefined, type: 'removed' });
+    } else if (JSON.stringify(fromVal) !== JSON.stringify(toVal)) {
+      changes.push({ field: key, from: fromVal, to: toVal, type: 'changed' });
+    }
+  }
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: {
+      fromVersion: { version: fromData.version, createdAt: fromData.createdAt, changeNote: fromData.changeNote },
+      toVersion: { version: toData.version, createdAt: toData.createdAt, changeNote: toData.changeNote },
+      changes,
+    },
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
 // Restore a character to a previous version
 characterRoutes.post('/:id/versions/:version/restore', authMiddleware(), async (c) => {
   const user = c.get('user') as { id: string; tenantId: string };
@@ -1350,7 +1478,7 @@ characterRoutes.get('/:id/export/png', optionalAuthMiddleware(), async (c) => {
 
 import crypto from 'crypto';
 import { db } from '../../db';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { characters } from '../../db/schema/characters';
 import { characterCollaborators } from '../../db/schema/character-collaborators';
 

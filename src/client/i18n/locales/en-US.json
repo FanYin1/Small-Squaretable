@@ -1371,7 +1371,14 @@
     "addGreeting": "Add Greeting",
     "saveAsTemplate": "Save as Template",
     "templateSaved": "Template saved successfully",
-    "saveAsTemplateConfirm": "Save current character as a public template?"
+    "saveAsTemplateConfirm": "Save current character as a public template?",
+    "compareVersions": "Compare",
+    "selectToCompare": "Select 2 versions to compare",
+    "versionDiff": "Version Comparison",
+    "fieldChanged": "Changed",
+    "fieldAdded": "Added",
+    "fieldRemoved": "Removed",
+    "noChanges": "No changes"
   },
   "groupChat": {
     "title": "Group Chat",

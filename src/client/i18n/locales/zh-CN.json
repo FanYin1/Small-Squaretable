@@ -1371,7 +1371,14 @@
     "addGreeting": "添加问候语",
     "saveAsTemplate": "保存为模板",
     "templateSaved": "模板保存成功",
-    "saveAsTemplateConfirm": "将当前角色保存为公开模板？"
+    "saveAsTemplateConfirm": "将当前角色保存为公开模板？",
+    "compareVersions": "对比",
+    "selectToCompare": "选择2个版本进行对比",
+    "versionDiff": "版本对比",
+    "fieldChanged": "已修改",
+    "fieldAdded": "新增",
+    "fieldRemoved": "已删除",
+    "noChanges": "无变更"
   },
   "groupChat": {
     "title": "群聊",

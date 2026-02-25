@@ -134,6 +134,19 @@ export interface CharacterVersion {
   createdAt: string;
 }
 
+export interface VersionDiffChange {
+  field: string;
+  from: unknown;
+  to: unknown;
+  type: 'added' | 'removed' | 'changed';
+}
+
+export interface VersionDiff {
+  fromVersion: { version: number; createdAt: string; changeNote?: string };
+  toVersion: { version: number; createdAt: string; changeNote?: string };
+  changes: VersionDiffChange[];
+}
+
 export const characterApi = {
   /**
    * 获取角色列表
@@ -222,6 +235,12 @@ export const characterApi = {
    */
   restoreVersion: (characterId: string, version: number) =>
     api.post(`/characters/${characterId}/versions/${version}/restore`),
+
+  /**
+   * 对比两个版本的差异
+   */
+  compareVersions: (characterId: string, fromVersion: number, toVersion: number) =>
+    api.get<VersionDiff>(`/characters/${characterId}/versions/${fromVersion}/diff/${toVersion}`),
 
   /**
    * 复制角色
