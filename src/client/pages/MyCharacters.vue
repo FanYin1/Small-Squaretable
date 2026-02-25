@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessageBox } from 'element-plus';
-import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound, CopyDocument, FolderAdd } from '@element-plus/icons-vue';
+import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound, CopyDocument, FolderAdd, PriceTag } from '@element-plus/icons-vue';
 import { api } from '@client/services/api';
 import { characterApi } from '@client/services/character.api';
 import { characterCollectionApi } from '@client/services/character-collection.api';
@@ -37,6 +37,11 @@ const activeCollection = ref<string | null>(null);
 const batchMode = ref(false);
 const selectedIds = ref<string[]>([]);
 const importInput = ref<HTMLInputElement | null>(null);
+
+// Tag management
+const showTagDialog = ref(false);
+const addTagsList = ref<string[]>([]);
+const removeTagsList = ref<string[]>([]);
 
 function toggleSelect(id: string) {
   const idx = selectedIds.value.indexOf(id);
@@ -93,6 +98,25 @@ async function batchDelete() {
     if (e !== 'cancel') {
       toast.error(t('myCharacters.deleteFailed'), { message: e.message || t('common.retry') });
     }
+  }
+}
+
+async function handleBatchTags() {
+  if (addTagsList.value.length === 0 && removeTagsList.value.length === 0) return;
+  try {
+    const result = await characterApi.batchUpdateTags(
+      selectedIds.value,
+      addTagsList.value,
+      removeTagsList.value,
+    );
+    toast.success(t('myCharacters.tagsUpdated', { count: result.updatedCount }));
+    showTagDialog.value = false;
+    addTagsList.value = [];
+    removeTagsList.value = [];
+    await fetchCharacters();
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : t('common.retry');
+    toast.error(t('common.updateFailed'), { message: msg });
   }
 }
 
@@ -420,6 +444,7 @@ function handleStartChat(character: Character) {
       <el-button size="small" :icon="Download" @click="batchExport('json')">{{ t('myCharacters.exportJson') }}</el-button>
       <el-button size="small" :icon="Download" @click="batchExport('png')">{{ t('myCharacters.exportPng') }}</el-button>
       <el-button size="small" :icon="FolderAdd" @click="handleAddToCollection" :disabled="collections.length === 0">{{ t('myCharacters.addToCollection') }}</el-button>
+      <el-button size="small" :icon="PriceTag" @click="showTagDialog = true">{{ t('myCharacters.manageTags') }}</el-button>
       <el-button size="small" type="danger" :icon="Delete" @click="batchDelete">{{ t('myCharacters.batchDelete') }}</el-button>
     </div>
 
@@ -521,6 +546,39 @@ function handleStartChat(character: Character) {
 
     </div>
     </div>
+
+    <el-dialog v-model="showTagDialog" :title="t('myCharacters.manageTags')" width="480px">
+      <el-form label-position="top">
+        <el-form-item :label="t('myCharacters.addTags')">
+          <el-select
+            v-model="addTagsList"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            :placeholder="t('myCharacters.tagsPlaceholder')"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item :label="t('myCharacters.removeTags')">
+          <el-select
+            v-model="removeTagsList"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            :placeholder="t('myCharacters.tagsPlaceholder')"
+            style="width: 100%"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showTagDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="addTagsList.length === 0 && removeTagsList.length === 0" @click="handleBatchTags">
+          {{ t('common.confirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
 
     <CharacterPublishForm
       v-if="selectedCharacterForPublish && publishDialogVisible"

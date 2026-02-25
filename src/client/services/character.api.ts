@@ -251,6 +251,12 @@ export const characterApi = {
   },
 
   /**
+   * 批量更新角色标签
+   */
+  batchUpdateTags: (characterIds: string[], addTags: string[], removeTags: string[]) =>
+    api.post<{ updatedCount: number }>('/characters/batch-tags', { characterIds, addTags, removeTags }),
+
+  /**
    * 导出角色为 JSON 文件（触发下载）
    */
   exportJson: (characterId: string): string =>

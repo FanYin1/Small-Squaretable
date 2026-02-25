@@ -439,7 +439,12 @@
     "batchDelete": "删除所选",
     "batchDeleteConfirm": "确定要删除所选角色吗？此操作不可恢复。",
     "batchDeleteSuccess": "成功删除 {count} 个角色",
-    "addToCollection": "添加到收藏夹"
+    "addToCollection": "添加到收藏夹",
+    "manageTags": "管理标签",
+    "addTags": "添加标签",
+    "removeTags": "移除标签",
+    "tagsUpdated": "已更新 {count} 个角色的标签",
+    "tagsPlaceholder": "输入标签..."
   },
   "collections": {
     "title": "收藏夹",

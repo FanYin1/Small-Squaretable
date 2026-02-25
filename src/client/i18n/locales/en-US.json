@@ -439,7 +439,12 @@
     "batchDelete": "Delete Selected",
     "batchDeleteConfirm": "Are you sure you want to delete the selected characters? This action cannot be undone.",
     "batchDeleteSuccess": "{count} characters deleted successfully",
-    "addToCollection": "Add to Collection"
+    "addToCollection": "Add to Collection",
+    "manageTags": "Manage Tags",
+    "addTags": "Add Tags",
+    "removeTags": "Remove Tags",
+    "tagsUpdated": "Tags updated for {count} characters",
+    "tagsPlaceholder": "Type to add tags..."
   },
   "collections": {
     "title": "Collections",
