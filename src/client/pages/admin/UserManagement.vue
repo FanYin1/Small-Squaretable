@@ -4,7 +4,8 @@ import { useI18n } from 'vue-i18n';
 import { Search, Refresh } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useAdminStore } from '@client/stores/admin';
-import type { AdminUser } from '@client/services/admin.api';
+import { adminApi } from '@client/services/admin.api';
+import type { AdminUser, AdminUserDetail } from '@client/services/admin.api';
 
 const { t } = useI18n();
 const adminStore = useAdminStore();
@@ -12,6 +13,27 @@ const adminStore = useAdminStore();
 const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSize = ref(20);
+
+// Drawer state
+const drawerVisible = ref(false);
+const selectedUser = ref<AdminUserDetail | null>(null);
+const loadingDetail = ref(false);
+
+async function fetchUserDetail(id: string) {
+  loadingDetail.value = true;
+  try {
+    selectedUser.value = await adminApi.getUser(id);
+  } catch {
+    ElMessage.error(t('common.loadFailed'));
+  } finally {
+    loadingDetail.value = false;
+  }
+}
+
+function handleRowClick(row: AdminUser) {
+  drawerVisible.value = true;
+  fetchUserDetail(row.id);
+}
 
 function loadUsers() {
   adminStore.fetchUsers({
@@ -109,6 +131,7 @@ watch(searchQuery, () => {
       :data="adminStore.users"
       stripe
       class="users-table"
+      @row-click="handleRowClick"
     >
       <el-table-column prop="email" :label="t('admin.users.email')" min-width="200" />
       <el-table-column prop="displayName" :label="t('admin.users.displayName')" min-width="150" />
@@ -174,6 +197,96 @@ watch(searchQuery, () => {
         @current-change="handlePageChange"
       />
     </div>
+
+    <!-- User Detail Drawer -->
+    <el-drawer
+      v-model="drawerVisible"
+      :title="t('admin.users.userDetail')"
+      size="420px"
+      direction="rtl"
+    >
+      <div v-loading="loadingDetail" class="user-detail">
+        <template v-if="selectedUser">
+          <div class="detail-header">
+            <el-avatar :size="64" :src="selectedUser.avatarUrl">
+              {{ (selectedUser.displayName || selectedUser.email).charAt(0).toUpperCase() }}
+            </el-avatar>
+            <div class="detail-header-info">
+              <h3 class="detail-name">{{ selectedUser.displayName || '—' }}</h3>
+              <span class="detail-email">{{ selectedUser.email }}</span>
+            </div>
+          </div>
+
+          <el-descriptions :column="1" border class="detail-descriptions">
+            <el-descriptions-item :label="t('admin.users.accountStatus')">
+              <el-tag :type="selectedUser.isActive ? 'success' : 'danger'" size="small">
+                {{ selectedUser.isActive ? t('admin.users.active') : t('admin.users.suspended') }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item :label="t('admin.users.role')">
+              <el-tag :type="getRoleTagType(selectedUser.role)" size="small">
+                {{ selectedUser.role }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item :label="t('admin.users.subscriptionPlan')">
+              {{ selectedUser.subscriptionPlan || t('admin.users.noSubscription') }}
+              <el-tag v-if="selectedUser.subscriptionStatus" size="small" style="margin-left: 8px">
+                {{ selectedUser.subscriptionStatus }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item :label="t('admin.users.oauthAccounts')">
+              <template v-if="selectedUser.oauthAccounts && selectedUser.oauthAccounts.length">
+                <el-tag
+                  v-for="oa in selectedUser.oauthAccounts"
+                  :key="oa.provider"
+                  size="small"
+                  style="margin-right: 4px"
+                >
+                  {{ oa.provider }}
+                </el-tag>
+              </template>
+              <span v-else>{{ t('admin.users.noOauthAccounts') }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item :label="t('admin.users.createdAt')">
+              {{ new Date(selectedUser.createdAt).toLocaleString() }}
+            </el-descriptions-item>
+            <el-descriptions-item :label="t('admin.users.lastLogin')">
+              {{ selectedUser.lastLoginAt ? new Date(selectedUser.lastLoginAt).toLocaleString() : t('admin.users.neverLoggedIn') }}
+            </el-descriptions-item>
+          </el-descriptions>
+
+          <div class="detail-actions">
+            <el-dropdown trigger="click" @command="(cmd: string) => handleChangeRole(selectedUser!, cmd as any)">
+              <el-button size="small">{{ t('admin.users.changeRole') }}</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="user" :disabled="selectedUser.role === 'user'">{{ t('admin.users.roleUser') }}</el-dropdown-item>
+                  <el-dropdown-item command="moderator" :disabled="selectedUser.role === 'moderator'">{{ t('admin.users.roleModerator') }}</el-dropdown-item>
+                  <el-dropdown-item command="admin" :disabled="selectedUser.role === 'admin'">{{ t('admin.users.roleAdmin') }}</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button
+              v-if="selectedUser.isActive"
+              size="small"
+              type="warning"
+              @click="handleSuspend(selectedUser!)"
+            >{{ t('admin.users.suspend') }}</el-button>
+            <el-button
+              v-else
+              size="small"
+              type="success"
+              @click="handleUnsuspend(selectedUser!)"
+            >{{ t('admin.users.unsuspend') }}</el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="handleForcePasswordReset(selectedUser!)"
+            >{{ t('admin.users.forceReset') }}</el-button>
+          </div>
+        </template>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -213,6 +326,7 @@ watch(searchQuery, () => {
 .users-table {
   border-radius: 8px;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .pagination-wrapper {
@@ -224,5 +338,44 @@ watch(searchQuery, () => {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.user-detail {
+  padding: 0 4px;
+}
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.detail-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.detail-email {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.detail-descriptions {
+  margin-bottom: 24px;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 </style>

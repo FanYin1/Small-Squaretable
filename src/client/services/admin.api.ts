@@ -19,6 +19,13 @@ export interface AdminUser {
   lastLoginAt?: string;
 }
 
+export interface AdminUserDetail extends AdminUser {
+  avatarUrl?: string;
+  subscriptionPlan?: string;
+  subscriptionStatus?: string;
+  oauthAccounts?: { provider: string; providerEmail?: string }[];
+}
+
 export interface AdminUserListParams {
   page?: number;
   limit?: number;
@@ -120,7 +127,7 @@ export const adminApi = {
     api.get<AdminUserListResponse>('/admin/users' + buildQuery(params)),
 
   getUser: (id: string) =>
-    api.get<AdminUser>(`/admin/users/${id}`),
+    api.get<AdminUserDetail>(`/admin/users/${id}`),
 
   changeRole: (id: string, role: 'user' | 'moderator' | 'admin') =>
     api.patch<AdminUser>(`/admin/users/${id}/role`, { role }),

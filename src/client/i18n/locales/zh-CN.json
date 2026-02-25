@@ -1219,7 +1219,15 @@
       "resetSent": "密码重置已发起",
       "roleUser": "用户",
       "roleModerator": "版主",
-      "roleAdmin": "管理员"
+      "roleAdmin": "管理员",
+      "userDetail": "用户详情",
+      "accountStatus": "账户状态",
+      "subscriptionPlan": "订阅计划",
+      "oauthAccounts": "关联账户",
+      "lastLogin": "最后登录",
+      "noSubscription": "无订阅",
+      "noOauthAccounts": "无关联账户",
+      "neverLoggedIn": "从未登录"
     },
     "content": {
       "title": "内容审核",

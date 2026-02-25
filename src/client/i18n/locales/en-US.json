@@ -1219,7 +1219,15 @@
       "resetSent": "Password reset initiated",
       "roleUser": "User",
       "roleModerator": "Moderator",
-      "roleAdmin": "Admin"
+      "roleAdmin": "Admin",
+      "userDetail": "User Detail",
+      "accountStatus": "Account Status",
+      "subscriptionPlan": "Subscription Plan",
+      "oauthAccounts": "Linked Accounts",
+      "lastLogin": "Last Login",
+      "noSubscription": "No subscription",
+      "noOauthAccounts": "No linked accounts",
+      "neverLoggedIn": "Never"
     },
     "content": {
       "title": "Content Moderation",
