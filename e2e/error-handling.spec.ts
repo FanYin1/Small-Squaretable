@@ -47,10 +47,10 @@ test.describe('Error Handling and Edge Cases', () => {
       await authPage.fillCredentials(testUsers.free.email, testUsers.free.password);
       await authPage.submit();
 
-      // Should show loading indicator
+      // Should show loading indicator (or page should still be functional)
       const loadingIndicator = page.locator('.loading, .el-loading');
       const isVisible = await loadingIndicator.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
     });
 
     test('should handle offline mode', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('Error Handling and Edge Cases', () => {
       // Should show offline indicator or error
       const offlineIndicator = page.locator('.offline-indicator, .connection-error');
       const isVisible = await offlineIndicator.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
 
       // Restore connection
       await restoreOnline(page);
@@ -210,7 +210,7 @@ test.describe('Error Handling and Edge Cases', () => {
 
       // Should show rate limit error
       const errorVisible = await page.locator('.rate-limit-error, .error-message').isVisible().catch(() => false);
-      expect(typeof errorVisible).toBe('boolean');
+      expect(errorVisible).toBe(true);
     });
   });
 
@@ -289,7 +289,7 @@ test.describe('Error Handling and Edge Cases', () => {
       // Should handle error gracefully
       await page.waitForTimeout(2000);
       const errorVisible = await authPage.errorMessage.isVisible().catch(() => false);
-      expect(typeof errorVisible).toBe('boolean');
+      expect(errorVisible).toBe(true);
     });
   });
 

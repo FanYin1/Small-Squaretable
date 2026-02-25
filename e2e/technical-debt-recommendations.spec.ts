@@ -38,7 +38,7 @@ test.describe('Technical Debt Smoke Tests', () => {
     // Look for terms-related content
     const content = page.locator('text=Terms, text=服务条款, text=Terms of Service');
     const visible = await content.isVisible().catch(() => false);
-    expect(typeof visible).toBe('boolean');
+    expect(visible).toBe(true);
   });
 
   test('privacy page loads', async ({ page }) => {
@@ -51,7 +51,7 @@ test.describe('Technical Debt Smoke Tests', () => {
 
     const content = page.locator('text=Privacy, text=隐私政策, text=Privacy Policy');
     const visible = await content.isVisible().catch(() => false);
-    expect(typeof visible).toBe('boolean');
+    expect(visible).toBe(true);
   });
 
   test('about page loads', async ({ page }) => {
@@ -64,7 +64,7 @@ test.describe('Technical Debt Smoke Tests', () => {
 
     const content = page.locator('text=About, text=关于, text=Small-Squaretable');
     const visible = await content.isVisible().catch(() => false);
-    expect(typeof visible).toBe('boolean');
+    expect(visible).toBe(true);
   });
 
   // ── 3. WorldBooks page loads (requires auth) ──

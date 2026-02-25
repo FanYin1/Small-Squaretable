@@ -33,7 +33,7 @@ test.describe('Responsive Design', () => {
       // Should have mobile menu
       const mobileMenu = page.locator('.mobile-menu, .hamburger-menu, .el-menu--collapse');
       const isVisible = await mobileMenu.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
     });
 
     test('should allow login on mobile', async ({ page }) => {
@@ -130,7 +130,7 @@ test.describe('Responsive Design', () => {
 
         // Should open character details
         const hasModal = await page.locator('.character-detail, .el-dialog').isVisible().catch(() => false);
-        expect(typeof hasModal).toBe('boolean');
+        expect(hasModal).toBe(true);
       }
     });
   });

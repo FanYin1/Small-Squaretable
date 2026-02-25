@@ -177,7 +177,7 @@ test.describe('Webhook Management', () => {
     // Developer settings page should render
     const settingsContainer = page.locator('.developer-settings');
     const visible = await settingsContainer.isVisible().catch(() => false);
-    expect(typeof visible).toBe('boolean');
+    expect(visible).toBe(true);
   });
 
   test('should show empty state when no webhooks', async ({ page }) => {
@@ -201,7 +201,7 @@ test.describe('Webhook Management', () => {
     // the route was registered without errors.
     const settingsContainer = page.locator('.developer-settings');
     const visible = await settingsContainer.isVisible().catch(() => false);
-    expect(typeof visible).toBe('boolean');
+    expect(visible).toBe(true);
   });
 
   test('should create a new webhook with URL and events', async ({ page }) => {
