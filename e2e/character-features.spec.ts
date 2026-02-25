@@ -45,7 +45,7 @@ test.describe('Character Editor Features', () => {
       '.template-selector, .template-list, [class*="template"]'
     );
     const isVisible = await templateSelector.first().isVisible().catch(() => false);
-    expect(typeof isVisible).toBe('boolean');
+    expect(isVisible).toBe(true);
   });
 
   test('character editor shows version history in edit mode', async ({ page }) => {
@@ -63,7 +63,7 @@ test.describe('Character Editor Features', () => {
       '.version-history, [class*="version-history"], [class*="VersionHistory"]'
     );
     const isVisible = await versionHistory.first().isVisible().catch(() => false);
-    expect(typeof isVisible).toBe('boolean');
+    expect(isVisible).toBe(true);
   });
 });
 
@@ -121,6 +121,6 @@ test.describe('Search Features', () => {
       '.search-results, .el-empty, .results-loading, .el-skeleton'
     );
     const isVisible = await resultsArea.first().isVisible().catch(() => false);
-    expect(typeof isVisible).toBe('boolean');
+    expect(isVisible).toBe(true);
   });
 });
