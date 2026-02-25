@@ -67,7 +67,7 @@ test.describe('Intelligence Features', () => {
 
       // Button should be visible (may be hidden on mobile)
       const isVisible = await emotionToggle.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
     });
 
     test('should toggle emotion panel visibility', async ({ page }) => {
@@ -97,7 +97,7 @@ test.describe('Intelligence Features', () => {
           await emotionToggle.click();
           await page.waitForTimeout(500);
           const afterSecondClick = await emotionPanel.isVisible().catch(() => false);
-          expect(typeof afterSecondClick).toBe('boolean');
+          expect(afterSecondClick).toBe(false);
         }
       } else {
         console.log('Emotion toggle not visible (may be on mobile)');
@@ -121,7 +121,7 @@ test.describe('Intelligence Features', () => {
       // Check for emotion indicator in message or panel
       const emotionIndicator = page.locator('.emotion-indicator, .emotion-display, .emotion-badge');
       const hasEmotion = await emotionIndicator.count();
-      expect(typeof hasEmotion).toBe('number');
+      expect(hasEmotion).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -141,7 +141,7 @@ test.describe('Intelligence Features', () => {
 
       // Button should be visible (may be hidden on mobile)
       const isVisible = await memoryToggle.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
     });
 
     test('should toggle memory panel visibility', async ({ page }) => {
@@ -171,7 +171,7 @@ test.describe('Intelligence Features', () => {
           await memoryToggle.click();
           await page.waitForTimeout(500);
           const afterSecondClick = await memoryPanel.isVisible().catch(() => false);
-          expect(typeof afterSecondClick).toBe('boolean');
+          expect(afterSecondClick).toBe(false);
         }
       } else {
         console.log('Memory toggle not visible (may be on mobile)');
@@ -198,7 +198,7 @@ test.describe('Intelligence Features', () => {
         // Check for empty state or no memories message
         const emptyState = page.locator('.el-empty, .empty-state, .no-memories');
         const hasEmptyState = await emptyState.isVisible().catch(() => false);
-        expect(typeof hasEmptyState).toBe('boolean');
+        expect(hasEmptyState).toBe(true);
       } else {
         console.log('Memory toggle not visible (may be on mobile)');
         expect(true).toBe(true);
@@ -287,7 +287,7 @@ test.describe('Intelligence Features', () => {
           // Memories should be filtered
           const memoryItems = page.locator('.memory-item, .memory-card');
           const itemCount = await memoryItems.count();
-          expect(typeof itemCount).toBe('number');
+          expect(itemCount).toBeGreaterThanOrEqual(0);
         } else {
           console.log('Filter buttons not visible yet');
           expect(true).toBe(true);
@@ -353,7 +353,7 @@ test.describe('Intelligence Features', () => {
         // Look for add memory button
         const addButton = page.locator('[data-testid="add-memory"], .add-memory-button, button:has-text("Add")');
         const addVisible = await addButton.isVisible().catch(() => false);
-        expect(typeof addVisible).toBe('boolean');
+        expect(addVisible).toBe(true);
       } else {
         console.log('Memory toggle not visible (may be on mobile)');
         expect(true).toBe(true);
@@ -515,7 +515,7 @@ test.describe('Intelligence Features', () => {
         await page.waitForTimeout(1000);
       }
 
-      expect(typeof memoriesFetched).toBe('boolean');
+      expect(memoriesFetched).toBe(true);
     });
 
     test('should handle memory API errors gracefully', async ({ page }) => {
@@ -545,7 +545,7 @@ test.describe('Intelligence Features', () => {
 
         // Should show error message
         const errorVisible = await page.locator('.el-message--error, .error-message').isVisible().catch(() => false);
-        expect(typeof errorVisible).toBe('boolean');
+        expect(errorVisible).toBe(true);
       } else {
         expect(true).toBe(true);
       }
@@ -567,7 +567,7 @@ test.describe('Intelligence Features', () => {
       // Intelligence toggles may be hidden or shown as drawer trigger
       const toggles = page.locator('.chat-intelligence-toggles');
       const isVisible = await toggles.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(false);
 
       // Restore desktop viewport
       await page.setViewportSize({ width: 1280, height: 720 });
@@ -587,7 +587,7 @@ test.describe('Intelligence Features', () => {
       // Intelligence toggles should be visible
       const toggles = page.locator('.chat-intelligence-toggles');
       const isVisible = await toggles.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
     });
   });
 });

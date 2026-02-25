@@ -116,13 +116,10 @@ test.describe('Analytics Dashboard', () => {
 
       // Verify the dashboard container renders
       const dashboard = page.locator('.analytics-dashboard');
-      const dashboardVisible = await dashboard.isVisible().catch(() => false);
-      expect(typeof dashboardVisible).toBe('boolean');
+      await expect(dashboard.first()).toBeVisible();
 
       // Verify the page title is present
-      const title = page.locator('text=Analytics Dashboard');
-      const titleVisible = await title.isVisible().catch(() => false);
-      expect(typeof titleVisible).toBe('boolean');
+      await expect(page.locator('text=Analytics Dashboard').first()).toBeVisible();
     });
 
     test('should render metric cards on executive tab', async ({ page }) => {
@@ -137,9 +134,7 @@ test.describe('Analytics Dashboard', () => {
       expect(cardCount).toBeGreaterThanOrEqual(0);
 
       // Check for metric labels
-      const wauLabel = page.locator('text=Weekly Active Users');
-      const wauVisible = await wauLabel.isVisible().catch(() => false);
-      expect(typeof wauVisible).toBe('boolean');
+      await expect(page.locator('text=Weekly Active Users').first()).toBeVisible();
     });
 
     test('should render charts on executive tab', async ({ page }) => {
@@ -153,9 +148,7 @@ test.describe('Analytics Dashboard', () => {
       expect(chartCount).toBeGreaterThanOrEqual(0);
 
       // Check for the charts row (retention + funnel side by side)
-      const chartsRow = page.locator('.charts-row');
-      const chartsRowVisible = await chartsRow.isVisible().catch(() => false);
-      expect(typeof chartsRowVisible).toBe('boolean');
+      await expect(page.locator('.charts-row').first()).toBeVisible();
     });
 
     test('should switch between Executive and Product tabs', async ({ page }) => {
@@ -176,14 +169,10 @@ test.describe('Analytics Dashboard', () => {
         await page.waitForTimeout(500);
 
         // Verify Product Metrics content renders
-        const productMetrics = page.locator('.product-metrics');
-        const productVisible = await productMetrics.isVisible().catch(() => false);
-        expect(typeof productVisible).toBe('boolean');
+        await expect(page.locator('.product-metrics').first()).toBeVisible();
 
         // Check for realtime metric cards
-        const realtimeLabel = page.locator('text=Active Users (Realtime)');
-        const realtimeVisible = await realtimeLabel.isVisible().catch(() => false);
-        expect(typeof realtimeVisible).toBe('boolean');
+        await expect(page.locator('text=Active Users (Realtime)').first()).toBeVisible();
       }
 
       // Switch back to Executive Overview tab
@@ -195,9 +184,7 @@ test.describe('Analytics Dashboard', () => {
         await page.waitForTimeout(500);
 
         // Verify Executive Overview content renders
-        const executiveOverview = page.locator('.executive-overview');
-        const execVisible = await executiveOverview.isVisible().catch(() => false);
-        expect(typeof execVisible).toBe('boolean');
+        await expect(page.locator('.executive-overview').first()).toBeVisible();
       }
     });
 
@@ -214,14 +201,10 @@ test.describe('Analytics Dashboard', () => {
         await page.waitForTimeout(500);
 
         // Check for segments card
-        const segmentsCard = page.locator('.segments-card');
-        const segmentsVisible = await segmentsCard.isVisible().catch(() => false);
-        expect(typeof segmentsVisible).toBe('boolean');
+        await expect(page.locator('.segments-card').first()).toBeVisible();
 
         // Check for segment header text
-        const segmentHeader = page.locator('text=User Segments');
-        const headerVisible = await segmentHeader.isVisible().catch(() => false);
-        expect(typeof headerVisible).toBe('boolean');
+        await expect(page.locator('text=User Segments').first()).toBeVisible();
       } else {
         expect(true).toBe(true);
       }
@@ -352,8 +335,7 @@ test.describe('Analytics Dashboard', () => {
 
       // Either an error banner or upgrade prompt should be shown
       // (the exact behavior depends on how the store handles 403 responses)
-      expect(typeof errorVisible).toBe('boolean');
-      expect(typeof upgradeVisible).toBe('boolean');
+      expect(errorVisible || upgradeVisible).toBe(true);
     });
 
     test('should not render analytics data for free users', async ({ page }) => {
@@ -368,13 +350,13 @@ test.describe('Analytics Dashboard', () => {
       if (valueCount > 0) {
         // Values should be 0 or empty since API returned 403
         const firstValue = await metricValues.first().textContent();
-        expect(typeof firstValue).toBe('string');
+        expect(firstValue).toBeTruthy();
       }
 
       // Charts row should either not render or show empty state
       const chartsRow = page.locator('.charts-row');
       const chartsVisible = await chartsRow.isVisible().catch(() => false);
-      expect(typeof chartsVisible).toBe('boolean');
+      expect(chartsVisible).toBe(false);
     });
   });
 
@@ -457,7 +439,7 @@ test.describe('Analytics Dashboard', () => {
 
       // The page should not crash — it should still be on /analytics
       expect(page.url()).toContain('/analytics');
-      expect(typeof errorVisible).toBe('boolean');
+      expect(errorVisible).toBe(true);
     });
   });
 });

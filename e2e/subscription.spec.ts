@@ -57,8 +57,8 @@ test.describe('Subscription Flow', () => {
 
       // Get usage stats
       const stats = await subscriptionPage.getUsageStats();
-      expect(typeof stats.messages).toBe('number');
-      expect(typeof stats.characters).toBe('number');
+      expect(stats.messages).toBeGreaterThanOrEqual(0);
+      expect(stats.characters).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -189,7 +189,7 @@ test.describe('Subscription Flow', () => {
 
       // Should display limits
       const limitsVisible = await page.locator('.usage-limit, .quota-limit').isVisible().catch(() => false);
-      expect(typeof limitsVisible).toBe('boolean');
+      expect(limitsVisible).toBe(true);
     });
 
     test('should display usage percentage', async ({ page }) => {
@@ -220,7 +220,7 @@ test.describe('Subscription Flow', () => {
 
       // Should show warning
       const warningVisible = await page.locator('.usage-warning, .quota-warning').isVisible().catch(() => false);
-      expect(typeof warningVisible).toBe('boolean');
+      expect(warningVisible).toBe(true);
     });
 
     test('should show quota exceeded message', async ({ page }) => {
@@ -241,7 +241,7 @@ test.describe('Subscription Flow', () => {
 
       // Should show exceeded message
       const exceededVisible = await page.locator('.quota-exceeded, .limit-reached').isVisible().catch(() => false);
-      expect(typeof exceededVisible).toBe('boolean');
+      expect(exceededVisible).toBe(true);
     });
 
     test('should display usage reset date', async ({ page }) => {
@@ -250,7 +250,7 @@ test.describe('Subscription Flow', () => {
 
       // Should show when usage resets
       const resetDateVisible = await page.locator('.reset-date, .next-reset').isVisible().catch(() => false);
-      expect(typeof resetDateVisible).toBe('boolean');
+      expect(resetDateVisible).toBe(true);
     });
   });
 
@@ -292,8 +292,8 @@ test.describe('Subscription Flow', () => {
 
       // Pro users should have higher limits
       const stats = await subscriptionPage.getUsageStats();
-      expect(typeof stats.messages).toBe('number');
-      expect(typeof stats.characters).toBe('number');
+      expect(stats.messages).toBeGreaterThanOrEqual(0);
+      expect(stats.characters).toBeGreaterThanOrEqual(0);
     });
 
     test('should display subscription end date', async ({ page }) => {
@@ -303,7 +303,7 @@ test.describe('Subscription Flow', () => {
       // Should show when subscription renews
       const renewalDate = page.locator('.renewal-date, .next-billing');
       const isVisible = await renewalDate.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
     });
 
     test('should show cancel subscription option', async ({ page }) => {
@@ -312,7 +312,7 @@ test.describe('Subscription Flow', () => {
 
       // Should have cancel button
       const cancelVisible = await subscriptionPage.cancelButton.isVisible().catch(() => false);
-      expect(typeof cancelVisible).toBe('boolean');
+      expect(cancelVisible).toBe(true);
     });
   });
 
@@ -361,7 +361,7 @@ test.describe('Subscription Flow', () => {
       // Look for billing history section
       const billingHistory = page.locator('.billing-history, .invoice-list');
       const isVisible = await billingHistory.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
     });
 
     test('should allow updating payment method', async ({ page }) => {
@@ -371,7 +371,7 @@ test.describe('Subscription Flow', () => {
       // Look for payment method update button
       const updatePayment = page.locator('button:has-text("Update Payment"), button:has-text("更新支付")');
       const isVisible = await updatePayment.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
     });
   });
 
@@ -398,7 +398,7 @@ test.describe('Subscription Flow', () => {
         // Should show upgrade prompt
         const upgradePrompt = page.locator('.upgrade-prompt, .feature-gate-prompt');
         const isVisible = await upgradePrompt.isVisible().catch(() => false);
-        expect(typeof isVisible).toBe('boolean');
+        expect(isVisible).toBe(true);
       }
     });
   });

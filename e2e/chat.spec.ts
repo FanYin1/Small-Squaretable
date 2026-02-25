@@ -250,7 +250,7 @@ test.describe('Chat Flow', () => {
       const isStreaming = await chatPage.isStreaming();
 
       // Streaming indicator should appear at some point
-      expect(typeof isStreaming).toBe('boolean');
+      expect(isStreaming).toBe(true);
     });
 
     test('should handle streaming errors gracefully', async ({ page }) => {
@@ -276,7 +276,7 @@ test.describe('Chat Flow', () => {
       // Should show error message
       await page.waitForTimeout(2000);
       const errorVisible = await page.locator('.error-message, .el-message--error').isVisible().catch(() => false);
-      expect(typeof errorVisible).toBe('boolean');
+      expect(errorVisible).toBe(true);
     });
   });
 
@@ -287,7 +287,7 @@ test.describe('Chat Flow', () => {
 
       // Check if sidebar is visible
       const sidebarVisible = await chatPage.chatSidebar.isVisible().catch(() => false);
-      expect(typeof sidebarVisible).toBe('boolean');
+      expect(sidebarVisible).toBe(true);
     });
 
     test('should switch between chats', async ({ page }) => {
@@ -302,7 +302,7 @@ test.describe('Chat Flow', () => {
 
         // URL should change or messages should update
         const urlChanged = page.url().includes('/chat/');
-        expect(typeof urlChanged).toBe('boolean');
+        expect(urlChanged).toBe(true);
       } else {
         // No chats to switch between
         expect(true).toBe(true);
@@ -366,7 +366,7 @@ test.describe('Chat Flow', () => {
       await page.waitForTimeout(2000);
 
       // WebSocket should be connected (or at least attempted)
-      expect(typeof wsConnected).toBe('boolean');
+      expect(wsConnected).toBe(true);
     });
 
     test('should handle WebSocket disconnection', async ({ page }) => {
@@ -383,7 +383,7 @@ test.describe('Chat Flow', () => {
       // Restore connection
       await page.context().setOffline(false);
 
-      expect(typeof errorVisible).toBe('boolean');
+      expect(errorVisible).toBe(true);
     });
 
     test('should reconnect WebSocket after disconnection', async ({ page }) => {
@@ -433,7 +433,7 @@ test.describe('Chat Flow', () => {
       // Check if usage is displayed
       const usageIndicator = page.locator('.usage-indicator, .quota-display');
       const isVisible = await usageIndicator.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      expect(isVisible).toBe(true);
     });
 
     test('should show quota warning when approaching limit', async ({ page }) => {
@@ -459,7 +459,7 @@ test.describe('Chat Flow', () => {
 
       // Should show warning
       const warningVisible = await page.locator('.quota-warning, .usage-warning').isVisible().catch(() => false);
-      expect(typeof warningVisible).toBe('boolean');
+      expect(warningVisible).toBe(true);
     });
 
     test('should prevent sending messages when quota exceeded', async ({ page }) => {
@@ -500,7 +500,7 @@ test.describe('Chat Flow', () => {
 
         // Should show upgrade prompt
         const upgradePrompt = await page.locator('.upgrade-prompt, .quota-exceeded').isVisible().catch(() => false);
-        expect(typeof upgradePrompt).toBe('boolean');
+        expect(upgradePrompt).toBe(true);
       }
     });
   });
