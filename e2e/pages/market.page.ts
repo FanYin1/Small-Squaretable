@@ -3,23 +3,35 @@ import { Page, Locator } from '@playwright/test';
 /**
  * Page Object Model for Character Market
  *
- * Encapsulates character market page interactions
+ * Selectors match the real Vue components:
+ *   Market.vue          — .market-content, .character-grid
+ *   CharacterCard.vue   — .character-card
+ *   SearchCombo.vue     — .search-combo .search-input, .search-btn, .new-chat-btn
+ *   FilterToolbar.vue   — filter controls
  */
 export class MarketPage {
   readonly page: Page;
   readonly searchInput: Locator;
-  readonly filterButtons: Locator;
-  readonly sortDropdown: Locator;
+  readonly searchButton: Locator;
   readonly characterCards: Locator;
-  readonly loadMoreButton: Locator;
+  readonly characterGrid: Locator;
+  readonly marketContent: Locator;
+  readonly pagination: Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="搜索"]');
-    this.filterButtons = page.locator('.filter-button, .el-button-group button');
-    this.sortDropdown = page.locator('.sort-dropdown, select[name="sort"]');
-    this.characterCards = page.locator('.character-card, .el-card');
-    this.loadMoreButton = page.locator('button:has-text("Load More"), button:has-text("加载更多")');
+    // SearchCombo uses a native <input> with class .search-input
+    this.searchInput = page.locator('.search-combo .search-input');
+    // Search button in SearchCombo
+    this.searchButton = page.locator('.search-combo .search-btn');
+    // Character cards rendered by CharacterCard component
+    this.characterCards = page.locator('.character-card');
+    // Grid container
+    this.characterGrid = page.locator('.character-grid');
+    // Market content wrapper
+    this.marketContent = page.locator('.market-content');
+    // Pagination
+    this.pagination = page.locator('.pagination-wrapper .el-pagination');
   }
 
   async goto() {
@@ -28,6 +40,7 @@ export class MarketPage {
 
   async searchCharacter(query: string) {
     await this.searchInput.fill(query);
+    await this.searchButton.click();
     // Wait for search results to update
     await this.page.waitForTimeout(500);
   }
@@ -35,10 +48,6 @@ export class MarketPage {
   async filterByCategory(category: string) {
     const filterButton = this.page.locator(`button:has-text("${category}")`);
     await filterButton.click();
-  }
-
-  async sortBy(option: string) {
-    await this.sortDropdown.selectOption(option);
   }
 
   async getCharacterCount(): Promise<number> {
@@ -50,11 +59,11 @@ export class MarketPage {
   }
 
   async clickCharacterByName(name: string) {
-    const card = this.page.locator(`.character-card:has-text("${name}"), .el-card:has-text("${name}")`);
+    const card = this.page.locator(`.character-card:has-text("${name}")`);
     await card.click();
   }
 
-  async loadMore() {
-    await this.loadMoreButton.click();
+  async goToPage(pageNum: number) {
+    await this.pagination.locator(`button:has-text("${pageNum}")`).click();
   }
 }

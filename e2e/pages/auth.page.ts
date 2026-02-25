@@ -3,8 +3,8 @@ import { Page, Locator } from '@playwright/test';
 /**
  * Page Object Model for Authentication Pages
  *
- * Encapsulates authentication-related page interactions
- * Uses Element Plus component selectors
+ * Encapsulates authentication-related page interactions.
+ * All selectors target the real Vue components with en-US locale.
  */
 export class AuthPage {
   readonly page: Page;
@@ -14,7 +14,6 @@ export class AuthPage {
   constructor(page: Page) {
     this.page = page;
     // Error messages in Element Plus form validation or toast messages
-    // Use .first() to avoid strict mode violations when multiple errors exist
     this.errorMessage = page.locator('.el-form-item__error, .el-message--error').first();
     // Success toast messages
     this.successMessage = page.locator('.el-message--success');
@@ -22,61 +21,67 @@ export class AuthPage {
 
   async goto(path: 'login' | 'register') {
     await this.page.goto(`/auth/${path}`);
-    // Wait for the form to be visible
     await this.page.waitForLoadState('networkidle');
   }
 
+  // ---------------------------------------------------------------------------
+  // Login page helpers
+  // ---------------------------------------------------------------------------
+
   /**
-   * Fill credentials for login page
+   * Fill credentials for login page.
+   * Login.vue uses t('auth.email') = "Email" and t('auth.password') = "Password" as placeholders.
    */
   async fillLoginCredentials(email: string, password: string) {
-    // Fill email - login page has "邮箱地址" placeholder
-    const emailInput = this.page.getByPlaceholder('邮箱地址');
+    const emailInput = this.page.getByPlaceholder('Email');
     await emailInput.fill(email);
 
-    // Fill password - login page has "密码" placeholder
-    const passwordInput = this.page.getByPlaceholder('密码');
+    const passwordInput = this.page.getByPlaceholder('Password');
     await passwordInput.fill(password);
   }
 
+  // ---------------------------------------------------------------------------
+  // Register page helpers
+  // ---------------------------------------------------------------------------
+
   /**
-   * Fill credentials for registration page
+   * Fill credentials for registration page.
+   * Register.vue placeholders (en-US):
+   *   name     -> "Enter your name"
+   *   email    -> "Enter your email"
+   *   password -> "Enter password (at least 8 characters, letters and numbers)"
+   *   confirm  -> "Re-enter your password"
    */
   async fillRegisterCredentials(email: string, password: string, name?: string) {
     if (name) {
-      // Fill name field
-      const nameInput = this.page.getByPlaceholder('请输入您的姓名');
+      const nameInput = this.page.getByPlaceholder('Enter your name');
       await nameInput.fill(name);
     }
 
-    // Fill email - register page has "请输入您的邮箱" placeholder
-    const emailInput = this.page.getByPlaceholder('请输入您的邮箱');
+    const emailInput = this.page.getByPlaceholder('Enter your email');
     await emailInput.fill(email);
 
-    // Fill password - register page has specific placeholder with validation hint
-    const passwordInput = this.page.getByPlaceholder(/至少 8 个字符/);
+    // Placeholder contains "at least 8 characters"
+    const passwordInput = this.page.getByPlaceholder(/at least 8 characters/);
     await passwordInput.fill(password);
 
-    // Fill confirm password
-    const confirmPasswordInput = this.page.getByPlaceholder('请再次输入密码');
+    const confirmPasswordInput = this.page.getByPlaceholder('Re-enter your password');
     await confirmPasswordInput.fill(password);
 
-    // Accept terms checkbox - Element Plus checkbox requires clicking the label text
-    // The checkbox label contains the text "我已阅读并同意"
-    const checkboxLabel = this.page.locator('label.el-checkbox, .el-checkbox').first();
-    await checkboxLabel.scrollIntoViewIfNeeded();
-    // Click on the checkbox inner element which is the visual checkbox
+    // Accept terms checkbox — click the inner visual checkbox element
     await this.page.locator('.el-checkbox__inner').first().click();
   }
 
+  // ---------------------------------------------------------------------------
+  // Generic helpers
+  // ---------------------------------------------------------------------------
+
   /**
-   * Generic fillCredentials - determines page context and fills accordingly
+   * Generic fillCredentials — determines page context and fills accordingly
    */
   async fillCredentials(email: string, password: string, name?: string) {
     const url = this.page.url();
-    const isRegisterPage = url.includes('/register');
-
-    if (isRegisterPage) {
+    if (url.includes('/register')) {
       await this.fillRegisterCredentials(email, password, name);
     } else {
       await this.fillLoginCredentials(email, password);
@@ -84,23 +89,18 @@ export class AuthPage {
   }
 
   /**
-   * Click the submit button based on current page
+   * Click the submit button based on current page.
+   * Login.vue: .login-button with text "Login"
+   * Register.vue: .register-button with text "Register"
    */
   async submit() {
     const url = this.page.url();
-    const isRegisterPage = url.includes('/register');
-
-    if (isRegisterPage) {
-      const registerButton = this.page.getByRole('button', { name: '注册' });
-      await registerButton.click();
-      // Wait for navigation or error
-      await this.page.waitForTimeout(1000);
+    if (url.includes('/register')) {
+      await this.page.locator('.register-button').click();
     } else {
-      const loginButton = this.page.getByRole('button', { name: '登录' });
-      await loginButton.click();
-      // Wait for navigation or error
-      await this.page.waitForTimeout(1000);
+      await this.page.locator('.login-button').click();
     }
+    await this.page.waitForTimeout(1000);
   }
 
   /**
@@ -108,10 +108,7 @@ export class AuthPage {
    */
   async login(email: string, password: string) {
     await this.goto('login');
-
-    // Wait for form to be ready
-    await this.page.waitForSelector('button:has-text("登录")', { state: 'visible' });
-
+    await this.page.waitForSelector('.login-button', { state: 'visible' });
     await this.fillLoginCredentials(email, password);
     await this.submit();
   }
@@ -121,29 +118,27 @@ export class AuthPage {
    */
   async register(email: string, password: string, name: string = 'Test User') {
     await this.goto('register');
-
-    // Wait for form to be ready
-    await this.page.waitForSelector('button:has-text("注册")', { state: 'visible' });
-
+    await this.page.waitForSelector('.register-button', { state: 'visible' });
     await this.fillRegisterCredentials(email, password, name);
     await this.submit();
   }
 
   /**
-   * Logout user
+   * Logout user.
+   * On the chat page, ChatSidebar has a user dropdown with "Logout" item.
+   * On dashboard pages, UserMenu has a dropdown with "Logout" item.
    */
   async logout() {
-    // Navigate to a page with the user menu (chat page has the layout with user menu)
     await this.page.goto('/chat');
     await this.page.waitForLoadState('networkidle');
 
-    // Click on user avatar to open dropdown menu
-    const userAvatar = this.page.locator('.user-avatar-btn, .el-avatar').first();
-    await userAvatar.waitFor({ state: 'visible', timeout: 5000 });
-    await userAvatar.click();
+    // ChatSidebar footer has a user dropdown; DashboardLayout has UserMenu
+    const userBtn = this.page.locator('.user-avatar-btn, .footer-btn').last();
+    await userBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await userBtn.click();
 
-    // Wait for dropdown menu to appear and click logout option
-    const logoutOption = this.page.locator('.el-dropdown-menu__item').filter({ hasText: '退出登录' });
+    // Wait for dropdown and click "Logout" (en-US text from nav.logout)
+    const logoutOption = this.page.locator('.el-dropdown-menu__item').filter({ hasText: 'Logout' });
     await logoutOption.waitFor({ state: 'visible' });
     await logoutOption.click();
   }
@@ -153,12 +148,7 @@ export class AuthPage {
    */
   async isLoggedIn(): Promise<boolean> {
     try {
-      const token = await this.page.evaluate(() => {
-        if (typeof localStorage !== 'undefined') {
-          return localStorage.getItem('token');
-        }
-        return null;
-      });
+      const token = await this.page.evaluate(() => localStorage.getItem('token'));
       return token !== null;
     } catch {
       return false;
@@ -170,12 +160,7 @@ export class AuthPage {
    */
   async getToken(): Promise<string | null> {
     try {
-      return await this.page.evaluate(() => {
-        if (typeof localStorage !== 'undefined') {
-          return localStorage.getItem('token');
-        }
-        return null;
-      });
+      return await this.page.evaluate(() => localStorage.getItem('token'));
     } catch {
       return null;
     }

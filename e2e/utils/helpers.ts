@@ -6,12 +6,104 @@ import { Page } from '@playwright/test';
  * Helper functions for E2E tests
  */
 
+// ---------------------------------------------------------------------------
+// Auth helpers
+// ---------------------------------------------------------------------------
+
 /**
- * Wait for network idle
+ * Create a fake JWT that passes isTokenValid() check.
+ * The Vue router guard decodes payload and checks exp > Date.now()/1000.
  */
-export async function waitForNetworkIdle(page: Page, timeout = 5000) {
-  await page.waitForLoadState('networkidle', { timeout });
+export function createFakeJwt(payload: Record<string, unknown> = {}): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const body = btoa(JSON.stringify({
+    sub: 'user_1',
+    email: 'test@e2e.com',
+    tenantId: 'tenant_1',
+    role: 'user',
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    ...payload,
+  }));
+  const sig = btoa('fake-signature');
+  return `${header}.${body}.${sig}`;
 }
+
+interface MockUser {
+  id: string;
+  email: string;
+  displayName: string;
+  role: string;
+  tenantId: string;
+  plan: string;
+}
+
+/**
+ * Set up authenticated state for E2E tests.
+ * 1. Navigate to login page (so localStorage is accessible on the app origin)
+ * 2. Set fake JWT + locale in localStorage
+ * 3. Mock /auth/me to return user data
+ * 4. Mock /auth/refresh
+ */
+export async function setupAuth(page: Page, userOverrides: Partial<MockUser> = {}) {
+  const user: MockUser = {
+    id: 'user_1',
+    email: 'test@e2e.com',
+    displayName: 'E2E User',
+    role: 'user',
+    tenantId: 'tenant_1',
+    plan: 'free',
+    ...userOverrides,
+  };
+  const token = createFakeJwt({ sub: user.id, email: user.email, tenantId: user.tenantId, role: user.role });
+
+  // Navigate to app origin first so localStorage is accessible
+  await page.goto('/auth/login', { waitUntil: 'commit' });
+
+  await page.evaluate(({ token, tenantId }) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('refreshToken', token);
+    localStorage.setItem('tenantId', tenantId);
+    localStorage.setItem('locale', 'en-US');
+  }, { token, tenantId: user.tenantId });
+
+  // Mock /auth/me so userStore.initialize() succeeds
+  await page.route('**/api/v1/auth/me', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { user } }),
+    });
+  });
+
+  // Mock /auth/refresh
+  await page.route('**/api/v1/auth/refresh', (route) => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { token, refreshToken: token } }),
+    });
+  });
+}
+
+export async function setupAdminAuth(page: Page) {
+  return setupAuth(page, {
+    id: 'admin_1',
+    email: 'admin@e2e.com',
+    displayName: 'Admin User',
+    role: 'admin',
+    plan: 'team',
+  });
+}
+
+export async function setupLocale(page: Page) {
+  await page.evaluate(() => {
+    localStorage.setItem('locale', 'en-US');
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Session helpers
+// ---------------------------------------------------------------------------
 
 /**
  * Clear all cookies and local storage
@@ -19,18 +111,29 @@ export async function waitForNetworkIdle(page: Page, timeout = 5000) {
 export async function clearSession(page: Page) {
   await page.context().clearCookies();
   try {
+    // Need to be on app origin to access localStorage
+    const url = page.url();
+    if (!url || url === 'about:blank') {
+      await page.goto('/auth/login', { waitUntil: 'commit' });
+    }
     await page.evaluate(() => {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.clear();
-      }
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.clear();
-      }
+      localStorage.clear();
+      sessionStorage.clear();
     });
-  } catch (error) {
-    // Ignore errors from accessing localStorage on pages that don't support it
-    console.log('Note: Could not clear storage (page may not support localStorage)');
+  } catch {
+    // Ignore — page may not support storage
   }
+}
+
+// ---------------------------------------------------------------------------
+// Network helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Wait for network idle
+ */
+export async function waitForNetworkIdle(page: Page, timeout = 5000) {
+  await page.waitForLoadState('networkidle', { timeout });
 }
 
 /**
@@ -74,6 +177,10 @@ export async function mockLLMStream(page: Page, messages: string[]) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Element helpers
+// ---------------------------------------------------------------------------
+
 /**
  * Wait for element to be visible with retry
  */
@@ -101,6 +208,10 @@ export async function takeScreenshot(page: Page, name: string) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Network simulation
+// ---------------------------------------------------------------------------
+
 /**
  * Simulate slow network
  */
@@ -127,6 +238,10 @@ export async function simulateOffline(page: Page) {
 export async function restoreOnline(page: Page) {
   await page.context().setOffline(false);
 }
+
+// ---------------------------------------------------------------------------
+// Console / Accessibility
+// ---------------------------------------------------------------------------
 
 /**
  * Get console errors
