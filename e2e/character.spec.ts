@@ -32,8 +32,7 @@ test.describe('Character Management Flow', () => {
       expect(page.url()).toContain('/market');
 
       // Should display character cards (or empty state)
-      const isVisible = await marketPage.characterCards.first().isVisible().catch(() => false);
-      expect(typeof isVisible).toBe('boolean');
+      await expect(marketPage.characterCards.first()).toBeVisible();
     });
 
     test('should search for characters', async ({ page }) => {
@@ -49,7 +48,7 @@ test.describe('Character Management Flow', () => {
 
       // Results should update (count may change)
       const searchCount = await marketPage.getCharacterCount();
-      expect(typeof searchCount).toBe('number');
+      expect(searchCount).toBeGreaterThanOrEqual(0);
     });
 
     test('should filter characters by category', async ({ page }) => {
@@ -64,7 +63,7 @@ test.describe('Character Management Flow', () => {
 
         // Should update results
         const count = await marketPage.getCharacterCount();
-        expect(typeof count).toBe('number');
+        expect(count).toBeGreaterThanOrEqual(0);
       }
     });
 
@@ -264,8 +263,7 @@ test.describe('Character Management Flow', () => {
 
         // Should show file upload dialog or input
         const fileInput = page.locator('input[type="file"]');
-        const isVisible = await fileInput.isVisible();
-        expect(typeof isVisible).toBe('boolean');
+        await expect(fileInput).toBeVisible();
       }
     });
   });
@@ -288,8 +286,7 @@ test.describe('Character Management Flow', () => {
 
         // Check for rating component
         const ratingComponent = page.locator('.rating-component, .el-rate');
-        const isVisible = await ratingComponent.isVisible().catch(() => false);
-        expect(typeof isVisible).toBe('boolean');
+        await expect(ratingComponent.first()).toBeVisible();
       }
     });
 
@@ -312,8 +309,8 @@ test.describe('Character Management Flow', () => {
           await waitForNetworkIdle(page);
 
           // Should show success or update rating
-          const successVisible = await page.locator('.success-message, .el-message--success').isVisible().catch(() => false);
-          expect(typeof successVisible).toBe('boolean');
+          const successMsg = page.locator('.success-message, .el-message--success');
+          await expect(successMsg.first()).toBeVisible();
         }
       }
     });

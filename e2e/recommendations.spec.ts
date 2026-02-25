@@ -99,15 +99,11 @@ test.describe('Recommendations', () => {
 
       // The RecommendationCarousel renders a .recommendation-section
       const section = page.locator('.recommendation-section');
-      const visible = await section.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(section.first()).toBeVisible();
 
       // The section header should contain the trending title
-      if (visible) {
-        const title = page.locator('.recommendation-title');
-        const titleVisible = await title.isVisible().catch(() => false);
-        expect(titleVisible).toBe(true);
-      }
+      const title = page.locator('.recommendation-title');
+      await expect(title.first()).toBeVisible();
     });
 
     test('should show character cards with name and description', async ({ page }) => {
@@ -124,18 +120,14 @@ test.describe('Recommendations', () => {
       if (count > 0) {
         // First card should display the character name
         const firstName = page.locator('.recommendation-section .character-name').first();
-        const nameVisible = await firstName.isVisible().catch(() => false);
-        expect(typeof nameVisible).toBe('boolean');
+        await expect(firstName).toBeVisible();
 
-        if (nameVisible) {
-          const nameText = await firstName.textContent();
-          expect(nameText).toBeTruthy();
-        }
+        const nameText = await firstName.textContent();
+        expect(nameText).toBeTruthy();
 
         // First card should display the character description
         const firstDesc = page.locator('.recommendation-section .character-description').first();
-        const descVisible = await firstDesc.isVisible().catch(() => false);
-        expect(typeof descVisible).toBe('boolean');
+        await expect(firstDesc).toBeVisible();
       }
     });
 
@@ -278,7 +270,7 @@ test.describe('Recommendations', () => {
       if (sectionCount > 0) {
         const title = page.locator('.recommendation-title').first();
         const titleText = await title.textContent().catch(() => '');
-        expect(typeof titleText).toBe('string');
+        expect(titleText).toBeTruthy();
       }
     });
 
@@ -290,7 +282,7 @@ test.describe('Recommendations', () => {
       // The carousel should render with scrollable items
       const carousel = page.locator('.carousel-scroll');
       const carouselVisible = await carousel.first().isVisible().catch(() => false);
-      expect(typeof carouselVisible).toBe('boolean');
+      expect(carouselVisible).toBe(true);
 
       if (carouselVisible) {
         // Carousel should contain character card items or skeleton loaders
@@ -329,7 +321,7 @@ test.describe('Recommendations', () => {
       const sectionVisible = await section.isVisible().catch(() => false);
 
       // Either hidden or gracefully empty — page should not crash
-      expect(typeof sectionVisible).toBe('boolean');
+      expect(sectionVisible).toBe(false);
       expect(page.url()).toContain('/market');
     });
   });
@@ -411,8 +403,7 @@ test.describe('Recommendations', () => {
 
       // The character detail page should load without errors
       const detailPage = page.locator('.character-detail-page');
-      const visible = await detailPage.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(detailPage).toBeVisible();
 
       // Check if a similar characters section is rendered
       // (may be a RecommendationCarousel or a dedicated section)
@@ -421,7 +412,7 @@ test.describe('Recommendations', () => {
       );
       const similarVisible = await similarSection.first().isVisible().catch(() => false);
       // The section may or may not be present depending on implementation
-      expect(typeof similarVisible).toBe('boolean');
+      expect(similarVisible).toBe(true);
     });
 
     test('should show related character cards', async ({ page }) => {
@@ -438,13 +429,10 @@ test.describe('Recommendations', () => {
       // If similar characters section exists, verify cards render properly
       if (cardCount > 0) {
         const firstName = relatedCards.first().locator('.character-name');
-        const nameVisible = await firstName.isVisible().catch(() => false);
-        expect(typeof nameVisible).toBe('boolean');
+        await expect(firstName).toBeVisible();
 
-        if (nameVisible) {
-          const nameText = await firstName.textContent();
-          expect(nameText).toBeTruthy();
-        }
+        const nameText = await firstName.textContent();
+        expect(nameText).toBeTruthy();
       }
 
       // Page should remain stable regardless

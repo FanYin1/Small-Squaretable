@@ -126,8 +126,7 @@ test.describe('Plugin Marketplace', () => {
       expect(page.url()).toContain('/plugins');
 
       const marketplace = page.locator('.plugin-marketplace');
-      const visible = await marketplace.isVisible().catch(() => false);
-      expect(typeof visible).toBe('boolean');
+      await expect(marketplace).toBeVisible();
 
       // Tabs should be present
       const tabs = page.locator('.el-tabs__item');
@@ -152,12 +151,12 @@ test.describe('Plugin Marketplace', () => {
         // Check first card has author
         const author = page.locator('.plugin-author').first();
         const authorText = await author.textContent();
-        expect(typeof authorText).toBe('string');
+        expect(authorText).toBeTruthy();
 
         // Check first card has description
         const desc = page.locator('.plugin-description').first();
         const descText = await desc.textContent();
-        expect(typeof descText).toBe('string');
+        expect(descText).toBeTruthy();
       }
     });
     test('should display install count on plugin cards', async ({ page }) => {
@@ -172,7 +171,7 @@ test.describe('Plugin Marketplace', () => {
         const text = await installCounts.first().textContent();
         expect(text).toBeTruthy();
         // Should contain the count number from mock data
-        expect(typeof text).toBe('string');
+        expect(text).toBeTruthy();
       }
     });
 
@@ -201,7 +200,7 @@ test.describe('Plugin Marketplace', () => {
 
       const sortBar = page.locator('.sort-bar');
       const sortVisible = await sortBar.isVisible().catch(() => false);
-      expect(typeof sortVisible).toBe('boolean');
+      expect(sortVisible).toBe(true);
 
       if (sortVisible) {
         // Click "newest" radio button
@@ -254,17 +253,14 @@ test.describe('Plugin Marketplace', () => {
 
       // Pagination should be visible when totalPages > 1
       const pagination = page.locator('.pagination-wrapper');
-      const paginationVisible = await pagination.isVisible().catch(() => false);
-      expect(typeof paginationVisible).toBe('boolean');
+      await expect(pagination).toBeVisible();
 
-      if (paginationVisible) {
-        // Click page 2
-        const page2Button = page.locator('.el-pager .number').filter({ hasText: '2' });
-        const page2Visible = await page2Button.isVisible().catch(() => false);
-        if (page2Visible) {
-          await page2Button.click();
-          await page.waitForTimeout(500);
-        }
+      // Click page 2
+      const page2Button = page.locator('.el-pager .number').filter({ hasText: '2' });
+      const page2Visible = await page2Button.isVisible().catch(() => false);
+      if (page2Visible) {
+        await page2Button.click();
+        await page.waitForTimeout(500);
       }
     });
 
@@ -309,8 +305,7 @@ test.describe('Plugin Marketplace', () => {
 
         // Should show success message
         const successMsg = page.locator('.el-message--success');
-        const msgVisible = await successMsg.isVisible().catch(() => false);
-        expect(typeof msgVisible).toBe('boolean');
+        await expect(successMsg.first()).toBeVisible();
       }
     });
   });
@@ -350,7 +345,7 @@ test.describe('Plugin Marketplace', () => {
         const isActive = await myPluginsTab.evaluate(
           (el) => el.classList.contains('is-active'),
         ).catch(() => false);
-        expect(typeof isActive).toBe('boolean');
+        expect(isActive).toBe(true);
       }
     });
 
@@ -379,7 +374,7 @@ test.describe('Plugin Marketplace', () => {
           // Check card has version
           const version = page.locator('.installed-version').first();
           const versionText = await version.textContent();
-          expect(typeof versionText).toBe('string');
+          expect(versionText).toBeTruthy();
         }
       }
     });
@@ -405,8 +400,7 @@ test.describe('Plugin Marketplace', () => {
         await page.waitForTimeout(500);
 
         const emptyState = page.locator('.empty-state');
-        const emptyVisible = await emptyState.isVisible().catch(() => false);
-        expect(typeof emptyVisible).toBe('boolean');
+        await expect(emptyState).toBeVisible();
       }
     });
 
@@ -466,20 +460,17 @@ test.describe('Plugin Marketplace', () => {
 
           // Config dialog should appear
           const dialog = page.locator('.el-dialog');
-          const dialogVisible = await dialog.isVisible().catch(() => false);
-          expect(typeof dialogVisible).toBe('boolean');
+          await expect(dialog.first()).toBeVisible();
 
-          if (dialogVisible) {
-            // Should have form fields from configSchema
-            const formItems = page.locator('.el-form-item');
-            const formCount = await formItems.count();
-            expect(formCount).toBeGreaterThanOrEqual(0);
+          // Should have form fields from configSchema
+          const formItems = page.locator('.el-form-item');
+          const formCount = await formItems.count();
+          expect(formCount).toBeGreaterThanOrEqual(0);
 
-            // Close dialog
-            const cancelButton = page.locator('.el-dialog__footer .el-button').first();
-            await cancelButton.click();
-            await page.waitForTimeout(300);
-          }
+          // Close dialog
+          const cancelButton = page.locator('.el-dialog__footer .el-button').first();
+          await cancelButton.click();
+          await page.waitForTimeout(300);
         }
       }
     });
@@ -594,8 +585,7 @@ test.describe('Plugin Marketplace', () => {
 
         // Should show error message
         const errorMsg = page.locator('.el-message--error');
-        const errorVisible = await errorMsg.isVisible().catch(() => false);
-        expect(typeof errorVisible).toBe('boolean');
+        await expect(errorMsg.first()).toBeVisible();
       }
 
       // Page should not crash

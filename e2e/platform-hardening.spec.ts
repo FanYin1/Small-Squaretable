@@ -30,19 +30,16 @@ test.describe('Platform Hardening', () => {
 
       // Look for an email input field
       const emailInput = page.locator('input[type="email"], input[placeholder*="邮箱"], input[placeholder*="email"]').first();
-      const emailVisible = await emailInput.isVisible().catch(() => false);
-      expect(typeof emailVisible).toBe('boolean');
+      await expect(emailInput).toBeVisible();
 
-      if (emailVisible) {
-        await emailInput.fill('test@example.com');
+      await emailInput.fill('test@example.com');
 
-        // Submit the form
-        const submitBtn = page.locator('button[type="submit"], button:has-text("发送"), button:has-text("Send"), button:has-text("重置")').first();
-        const btnVisible = await submitBtn.isVisible().catch(() => false);
-        if (btnVisible) {
-          await submitBtn.click();
-          await page.waitForTimeout(1000);
-        }
+      // Submit the form
+      const submitBtn = page.locator('button[type="submit"], button:has-text("发送"), button:has-text("Send"), button:has-text("重置")').first();
+      const btnVisible = await submitBtn.isVisible().catch(() => false);
+      if (btnVisible) {
+        await submitBtn.click();
+        await page.waitForTimeout(1000);
       }
     });
   });
@@ -106,7 +103,7 @@ test.describe('Platform Hardening', () => {
         'text=Two-Factor, text=2FA, text=两步验证, text=双因素, text=TOTP'
       );
       const twoFaVisible = await twoFaSection.isVisible().catch(() => false);
-      expect(typeof twoFaVisible).toBe('boolean');
+      expect(twoFaVisible).toBe(true);
     });
   });
 
@@ -177,7 +174,7 @@ test.describe('Platform Hardening', () => {
       // Regular user should be redirected away from admin
       const url = page.url();
       // Either redirected to chat/dashboard/home or shown a 403 page
-      expect(typeof url).toBe('string');
+      expect(url).not.toContain('/admin');
     });
   });
 
@@ -258,7 +255,7 @@ test.describe('Platform Hardening', () => {
         'button:has-text("Export"), button:has-text("导出"), button:has-text("Download"), button:has-text("下载")'
       );
       const exportVisible = await exportBtn.isVisible().catch(() => false);
-      expect(typeof exportVisible).toBe('boolean');
+      expect(exportVisible).toBe(true);
     });
   });
 
@@ -308,14 +305,13 @@ test.describe('Platform Hardening', () => {
       await waitForNetworkIdle(page);
 
       const url = page.url();
-      expect(typeof url).toBe('string');
+      expect(url).toMatch(/\/settings|\/chat|\/dashboard/);
 
       // Look for delete account section
       const deleteSection = page.locator(
         'text=Delete Account, text=删除账户, text=Account Deletion, text=账号删除'
       );
-      const deleteVisible = await deleteSection.isVisible().catch(() => false);
-      expect(typeof deleteVisible).toBe('boolean');
+      await expect(deleteSection.first()).toBeVisible();
     });
   });
 
@@ -358,14 +354,13 @@ test.describe('Platform Hardening', () => {
       await waitForNetworkIdle(page);
 
       const url = page.url();
-      expect(typeof url).toBe('string');
+      expect(url).toMatch(/\/settings|\/chat|\/dashboard/);
 
       // Look for consent toggles
       const consentSection = page.locator(
         'text=Consent, text=同意, text=Privacy, text=隐私, .consent-section, .privacy-settings'
       );
-      const consentVisible = await consentSection.isVisible().catch(() => false);
-      expect(typeof consentVisible).toBe('boolean');
+      await expect(consentSection.first()).toBeVisible();
 
       // Look for toggle switches
       const toggles = page.locator('.el-switch, input[type="checkbox"]');
