@@ -7,9 +7,12 @@
 
 import { Worker, type WorkerOptions } from 'worker_threads';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import type { PluginExecutionResult } from '../../types/plugin';
 import type { PluginRepository } from '../../db/repositories/plugin.repository';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const WORKER_PATH = path.resolve(__dirname, '../workers/plugin.worker.js');
 const DEFAULT_TIMEOUT = 30_000;
 const DEFAULT_MEMORY_LIMIT = 64; // MB

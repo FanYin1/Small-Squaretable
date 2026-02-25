@@ -1,7 +1,7 @@
 CREATE TYPE "public"."subscription_plan" AS ENUM('free', 'pro', 'team');--> statement-breakpoint
 CREATE TYPE "public"."subscription_status" AS ENUM('active', 'canceled', 'past_due', 'trialing');--> statement-breakpoint
 CREATE TYPE "public"."resource_type" AS ENUM('llm_tokens', 'messages', 'images', 'api_calls');--> statement-breakpoint
-CREATE TABLE "ratings" (
+CREATE TABLE IF NOT EXISTS "ratings" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"character_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
