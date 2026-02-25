@@ -25,6 +25,19 @@ interface AuthState {
   chatId: string;
 }
 
+async function withRetry<T>(fn: () => Promise<T>, label: string, retries = 3): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      console.warn(`[seed] ${label} attempt ${i + 1}/${retries} failed:`, e instanceof Error ? e.message : e);
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  throw new Error(`${label} failed after ${retries} retries`);
+}
+
 async function globalSetup() {
   const email = `e2e-seed-${Date.now()}@example.com`;
   const password = 'SeedPassword123!';
@@ -52,36 +65,49 @@ async function globalSetup() {
       Authorization: `Bearer ${accessToken}`,
     };
 
-    // 2. Create a character
-    const charRes = await fetch(`${API_URL}/api/v1/characters`, {
-      method: 'POST',
-      headers: authHeaders,
-      body: JSON.stringify({
-        name: 'E2E Test Character',
-        description: 'Character created by E2E seed script',
-        greeting: 'Hello! I am the E2E test character.',
-        personality: 'Friendly and helpful test assistant',
-        scenario: 'E2E testing environment',
-      }),
-    });
-
+    // 2. Create a character (with retry)
     let characterId = '';
-    if (charRes.ok) {
-      const charData = await charRes.json();
-      characterId = charData.data?.id ?? '';
+    try {
+      characterId = await withRetry(async () => {
+        const charRes = await fetch(`${API_URL}/api/v1/characters`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            name: 'E2E Test Character',
+            description: 'Character created by E2E seed script',
+            greeting: 'Hello! I am the E2E test character.',
+            personality: 'Friendly and helpful test assistant',
+            scenario: 'E2E testing environment',
+          }),
+        });
+        if (!charRes.ok) {
+          throw new Error(`Character creation returned ${charRes.status}`);
+        }
+        const charData = await charRes.json();
+        return charData.data?.id ?? '';
+      }, 'Character creation');
+    } catch {
+      console.warn('[seed] Character creation failed after retries, continuing without character');
     }
 
-    // 3. Create a chat with the character
+    // 3. Create a chat with the character (with retry)
     let chatId = '';
     if (characterId) {
-      const chatRes = await fetch(`${API_URL}/api/v1/chats`, {
-        method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify({ characterId }),
-      });
-      if (chatRes.ok) {
-        const chatData = await chatRes.json();
-        chatId = chatData.data?.id ?? '';
+      try {
+        chatId = await withRetry(async () => {
+          const chatRes = await fetch(`${API_URL}/api/v1/chats`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ characterId }),
+          });
+          if (!chatRes.ok) {
+            throw new Error(`Chat creation returned ${chatRes.status}`);
+          }
+          const chatData = await chatRes.json();
+          return chatData.data?.id ?? '';
+        }, 'Chat creation');
+      } catch {
+        console.warn('[seed] Chat creation failed after retries, continuing without chat');
       }
     }
 

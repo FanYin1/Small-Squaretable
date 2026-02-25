@@ -32,7 +32,7 @@ test.describe('Chat Flow', () => {
         await waitForNetworkIdle(page);
         return true;
       } catch {
-        console.log('Chat creation failed after character seed');
+        console.warn('[chat.spec] Chat creation failed after character seed');
         return false;
       }
     }
@@ -117,7 +117,7 @@ test.describe('Chat Flow', () => {
     test('should send a message', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -140,7 +140,7 @@ test.describe('Chat Flow', () => {
     test('should display sent message', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -160,7 +160,7 @@ test.describe('Chat Flow', () => {
     test('should handle long messages', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -180,7 +180,7 @@ test.describe('Chat Flow', () => {
     test('should prevent sending empty messages', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -211,7 +211,7 @@ test.describe('Chat Flow', () => {
 
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -237,7 +237,7 @@ test.describe('Chat Flow', () => {
     test('should display streaming indicator during response', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -265,7 +265,7 @@ test.describe('Chat Flow', () => {
 
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -312,7 +312,7 @@ test.describe('Chat Flow', () => {
     test('should persist chat messages after reload', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -389,7 +389,7 @@ test.describe('Chat Flow', () => {
     test('should reconnect WebSocket after disconnection', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -421,7 +421,7 @@ test.describe('Chat Flow', () => {
     test('should track message usage', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -482,7 +482,7 @@ test.describe('Chat Flow', () => {
 
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[chat.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }

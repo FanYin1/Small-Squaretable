@@ -30,7 +30,7 @@ test.describe('Intelligence Features', () => {
         await waitForNetworkIdle(page);
         return true;
       } catch {
-        console.log('Chat creation failed after character seed');
+        console.warn('[intelligence.spec] Chat creation failed after character seed');
         return false;
       }
     }
@@ -55,7 +55,7 @@ test.describe('Intelligence Features', () => {
     test('should show emotion toggle button in chat', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -73,7 +73,7 @@ test.describe('Intelligence Features', () => {
     test('should toggle emotion panel visibility', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -108,7 +108,7 @@ test.describe('Intelligence Features', () => {
     test('should display emotion indicator after message', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -129,7 +129,7 @@ test.describe('Intelligence Features', () => {
     test('should show memory toggle button in chat', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -147,7 +147,7 @@ test.describe('Intelligence Features', () => {
     test('should toggle memory panel visibility', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -182,7 +182,7 @@ test.describe('Intelligence Features', () => {
     test('should show empty state when no memories', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -210,7 +210,7 @@ test.describe('Intelligence Features', () => {
     test('should show memory filter buttons', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -263,7 +263,7 @@ test.describe('Intelligence Features', () => {
 
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -301,7 +301,7 @@ test.describe('Intelligence Features', () => {
     test('should switch between all and specific memory types', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -337,7 +337,7 @@ test.describe('Intelligence Features', () => {
     test('should show add memory button', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -363,7 +363,7 @@ test.describe('Intelligence Features', () => {
     test('should allow creating a new memory', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -412,7 +412,7 @@ test.describe('Intelligence Features', () => {
     test('should allow editing a memory', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -447,7 +447,7 @@ test.describe('Intelligence Features', () => {
     test('should allow deleting a memory', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -501,7 +501,7 @@ test.describe('Intelligence Features', () => {
 
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -530,7 +530,7 @@ test.describe('Intelligence Features', () => {
 
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -556,7 +556,7 @@ test.describe('Intelligence Features', () => {
     test('should hide intelligence panels on mobile', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
@@ -576,7 +576,7 @@ test.describe('Intelligence Features', () => {
     test('should show intelligence panels on desktop', async ({ page }) => {
       const chatReady = await setupChat(page);
       if (!chatReady) {
-        console.log('Skipping test: no characters available');
+        console.warn('[intelligence.spec] \u26a0\ufe0f Chat setup failed \u2014 test will be skipped');
         test.skip();
         return;
       }
