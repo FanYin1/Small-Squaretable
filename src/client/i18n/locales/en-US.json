@@ -1261,7 +1261,11 @@
       "jobNeverRun": "Never",
       "jobSuccess": "Success",
       "jobError": "Error",
-      "jobPending": "Pending"
+      "jobPending": "Pending",
+      "announcements": "Announcements",
+      "sendAnnouncement": "Send Announcement",
+      "announcementMessage": "Announcement message",
+      "announcementSent": "Announcement sent to {count} users"
     },
     "auditLogs": {
       "title": "Audit Logs",

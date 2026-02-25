@@ -5,6 +5,8 @@
  */
 
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import { authMiddleware } from '../../middleware/auth';
 import { requireRole } from '../../middleware/rbac';
 import { db } from '../../../db/index';
@@ -13,6 +15,7 @@ import { characters } from '../../../db/schema/characters';
 import { chats } from '../../../db/schema/chats';
 import { subscriptions } from '../../../db/schema/subscriptions';
 import { reports } from '../../../db/schema/reports';
+import { notifications } from '../../../db/schema/social';
 import { sql, eq, gte } from 'drizzle-orm';
 import type { ApiResponse } from '../../../types/api';
 
@@ -74,3 +77,36 @@ adminSystemRoutes.get('/stats', async (c) => {
     meta: { timestamp: new Date().toISOString() },
   });
 });
+
+// POST /announcements — Broadcast announcement to all users
+const announcementSchema = z.object({
+  message: z.string().min(1, 'Message is required'),
+});
+
+adminSystemRoutes.post(
+  '/announcements',
+  zValidator('json', announcementSchema),
+  async (c) => {
+    const { message } = c.req.valid('json');
+
+    // Get all user IDs
+    const allUsers = await db.select({ id: users.id }).from(users);
+
+    if (allUsers.length > 0) {
+      // Batch-insert a notification for each user
+      await db.insert(notifications).values(
+        allUsers.map((u) => ({
+          userId: u.id,
+          type: 'system' as const,
+          message,
+        })),
+      );
+    }
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: { recipientCount: allUsers.length },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  },
+);

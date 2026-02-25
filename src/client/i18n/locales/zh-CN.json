@@ -1261,7 +1261,11 @@
       "jobNeverRun": "从未执行",
       "jobSuccess": "成功",
       "jobError": "错误",
-      "jobPending": "待执行"
+      "jobPending": "待执行",
+      "announcements": "公告",
+      "sendAnnouncement": "发送公告",
+      "announcementMessage": "公告内容",
+      "announcementSent": "公告已发送给 {count} 位用户"
     },
     "auditLogs": {
       "title": "审计日志",

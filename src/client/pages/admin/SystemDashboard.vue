@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Refresh, User, UserFilled, Files, Warning, Timer } from '@element-plus/icons-vue';
+import { Refresh, User, UserFilled, Files, Warning, Timer, Bell } from '@element-plus/icons-vue';
 import { useAdminStore } from '@client/stores/admin';
 import { api } from '@client/services/api';
+import { ElMessage } from 'element-plus';
 
 interface JobStatus {
   name: string;
@@ -61,6 +62,26 @@ async function runJob(name: string) {
 function refresh() {
   adminStore.fetchSystemStats();
   fetchJobs();
+}
+
+const announcementMessage = ref('');
+const sendingAnnouncement = ref(false);
+
+async function sendAnnouncement() {
+  if (!announcementMessage.value.trim()) return;
+  sendingAnnouncement.value = true;
+  try {
+    const res = await api.post<{ data: { recipientCount: number } }>('/api/v1/admin/system/announcements', {
+      message: announcementMessage.value,
+    });
+    const count = (res as any).data?.recipientCount ?? 0;
+    ElMessage.success(t('admin.system.announcementSent', { count }));
+    announcementMessage.value = '';
+  } catch {
+    // silent
+  } finally {
+    sendingAnnouncement.value = false;
+  }
 }
 
 onMounted(() => refresh());
@@ -210,6 +231,31 @@ onMounted(() => refresh());
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- Announcements Section -->
+    <el-card shadow="hover" class="announcements-card">
+      <template #header>
+        <span class="detail-card-title">
+          <el-icon :size="18" style="vertical-align: middle; margin-right: 6px;"><Bell /></el-icon>
+          {{ t('admin.system.announcements') }}
+        </span>
+      </template>
+      <el-input
+        v-model="announcementMessage"
+        type="textarea"
+        :rows="3"
+        :placeholder="t('admin.system.announcementMessage')"
+      />
+      <el-button
+        type="primary"
+        style="margin-top: 12px;"
+        :loading="sendingAnnouncement"
+        :disabled="!announcementMessage.trim()"
+        @click="sendAnnouncement"
+      >
+        {{ t('admin.system.sendAnnouncement') }}
+      </el-button>
+    </el-card>
   </div>
 </template>
 
@@ -296,6 +342,10 @@ onMounted(() => refresh());
 }
 
 .jobs-card {
+  margin-top: 24px;
+}
+
+.announcements-card {
   margin-top: 24px;
 }
 
