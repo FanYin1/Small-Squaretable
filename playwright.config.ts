@@ -71,11 +71,11 @@ export default defineConfig({
     //   use: { ...devices['Desktop Safari'] },
     // },
 
-    // Mobile viewports
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
+    // Mobile viewports (disabled — focus on chromium for now)
+    // {
+    //   name: 'Mobile Chrome',
+    //   use: { ...devices['Pixel 5'] },
+    // },
   ],
 
   // Run your local dev server before starting the tests

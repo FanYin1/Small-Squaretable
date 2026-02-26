@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, mockApiResponse, waitForNetworkIdle } from './utils/helpers';
+import { setupAuth, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, gotoWithAuth } from './utils/helpers';
 
 /**
  * E2E Tests: Developer API Portal
@@ -30,10 +30,11 @@ test.describe('Developer API Portal', () => {
   // 1. Developer page loads
   test('developer page loads', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/developer/api-keys', { success: true, data: [] });
     await mockApiResponse(page, '**/api/v1/developer/scopes', SCOPES_MOCK);
 
-    await page.goto('/developer');
+    await gotoWithAuth(page, '/developer');
     await waitForNetworkIdle(page);
 
     await expect(page.locator('.developer-settings')).toBeVisible();
@@ -42,10 +43,11 @@ test.describe('Developer API Portal', () => {
   // 2. Empty state shown
   test('empty state shown when no API keys', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/developer/api-keys', { success: true, data: [] });
     await mockApiResponse(page, '**/api/v1/developer/scopes', SCOPES_MOCK);
 
-    await page.goto('/developer');
+    await gotoWithAuth(page, '/developer');
     await waitForNetworkIdle(page);
 
     const emptyState = page.locator('.empty-state');
@@ -56,14 +58,15 @@ test.describe('Developer API Portal', () => {
   // 3. Key list renders
   test('key list renders with key cards', async ({ page }) => {
     await setupAuth(page);
-    await mockApiResponse(page, '**/api/v1/developer/api-keys', { success: true, data: [SAMPLE_KEY] });
+    await mockCommonEndpoints(page);
+    await mockApiResponse(page, '**/api/v1/developer/api-keys*', { success: true, data: [SAMPLE_KEY] });
     await mockApiResponse(page, '**/api/v1/developer/scopes', SCOPES_MOCK);
 
-    await page.goto('/developer');
+    await gotoWithAuth(page, '/developer');
     await waitForNetworkIdle(page);
 
     const keyCards = page.locator('.key-card');
-    await expect(keyCards.first()).toBeVisible();
+    await expect(keyCards.first()).toBeVisible({ timeout: 10000 });
 
     const count = await keyCards.count();
     expect(count).toBeGreaterThanOrEqual(1);
@@ -78,10 +81,11 @@ test.describe('Developer API Portal', () => {
   // 4. Create key dialog opens
   test('create key dialog opens', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/developer/api-keys', { success: true, data: [] });
     await mockApiResponse(page, '**/api/v1/developer/scopes', SCOPES_MOCK);
 
-    await page.goto('/developer');
+    await gotoWithAuth(page, '/developer');
     await waitForNetworkIdle(page);
 
     // Click the create button

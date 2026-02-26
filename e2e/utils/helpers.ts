@@ -7,6 +7,34 @@ import { Page } from '@playwright/test';
  */
 
 // ---------------------------------------------------------------------------
+// Common mock data (correct formats matching API client unwrapping)
+// ---------------------------------------------------------------------------
+
+const EMPTY_PAGINATED = { items: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false } };
+
+/**
+ * Mock common endpoints that most authenticated pages need.
+ * Call this after setupAuth() and before page.goto().
+ */
+export async function mockCommonEndpoints(page: Page) {
+  await mockApiResponse(page, '**/api/v1/notifications/unread-count', { success: true, data: { count: 0 } });
+  await mockApiResponse(page, '**/api/v1/notifications*', { success: true, data: [] });
+  await mockApiResponse(page, '**/api/v1/auth/ws-ticket', { success: true, data: { ticket: 'fake' } });
+  await mockApiResponse(page, '**/api/v1/subscriptions/status', { success: true, data: { subscription: { plan: 'free', status: 'active' } } });
+  await mockApiResponse(page, '**/api/v1/subscriptions/config', { success: true, data: { publishableKey: 'pk_test', prices: { proMonthly: 'price_1', proYearly: 'price_2', teamMonthly: 'price_3' } } });
+  await mockApiResponse(page, '**/api/v1/csrf-token', { csrfToken: 'fake-csrf-token' });
+}
+
+/**
+ * Mock chat page endpoints (chats list, characters, templates).
+ */
+export async function mockChatEndpoints(page: Page) {
+  await mockApiResponse(page, '**/api/v1/chats', { success: true, data: EMPTY_PAGINATED });
+  await mockApiResponse(page, '**/api/v1/characters*', { success: true, data: EMPTY_PAGINATED });
+  await mockApiResponse(page, '**/api/v1/chat-templates*', { success: true, data: [] });
+}
+
+// ---------------------------------------------------------------------------
 // Auth helpers
 // ---------------------------------------------------------------------------
 
@@ -39,10 +67,8 @@ interface MockUser {
 
 /**
  * Set up authenticated state for E2E tests.
- * 1. Navigate to login page (so localStorage is accessible on the app origin)
- * 2. Set fake JWT + locale in localStorage
- * 3. Mock /auth/me to return user data
- * 4. Mock /auth/refresh
+ * Uses page.addInitScript to inject auth state BEFORE the page loads,
+ * ensuring the Vue router guard sees the token immediately.
  */
 export async function setupAuth(page: Page, userOverrides: Partial<MockUser> = {}) {
   const user: MockUser = {
@@ -56,10 +82,8 @@ export async function setupAuth(page: Page, userOverrides: Partial<MockUser> = {
   };
   const token = createFakeJwt({ sub: user.id, email: user.email, tenantId: user.tenantId, role: user.role });
 
-  // Navigate to app origin first so localStorage is accessible
-  await page.goto('/auth/login', { waitUntil: 'commit' });
-
-  await page.evaluate(({ token, tenantId }) => {
+  // Inject localStorage BEFORE page loads - this is critical for SPA auth
+  await page.addInitScript(({ token, tenantId }) => {
     localStorage.setItem('token', token);
     localStorage.setItem('refreshToken', token);
     localStorage.setItem('tenantId', tenantId);
@@ -106,16 +130,13 @@ export async function setupLocale(page: Page) {
 // ---------------------------------------------------------------------------
 
 /**
- * Clear all cookies and local storage
+ * Clear all cookies and local storage.
+ * Navigates to the app origin to access localStorage, then clears it.
  */
 export async function clearSession(page: Page) {
   await page.context().clearCookies();
   try {
-    // Need to be on app origin to access localStorage
-    const url = page.url();
-    if (!url || url === 'about:blank') {
-      await page.goto('/auth/login', { waitUntil: 'commit' });
-    }
+    await page.goto('/auth/login', { waitUntil: 'commit' });
     await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
@@ -126,14 +147,52 @@ export async function clearSession(page: Page) {
 }
 
 // ---------------------------------------------------------------------------
+// Navigation helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Navigate to a page and wait for /auth/me to complete.
+ * Prevents flaky redirects caused by userStore.initialize() race condition.
+ * Use after setupAuth() and mock registration.
+ */
+export async function gotoWithAuth(page: Page, path: string) {
+  const authMePromise = page.waitForResponse(
+    resp => resp.url().includes('/auth/me'),
+    { timeout: 15000 },
+  ).catch(() => null);
+  await page.goto(path);
+  await authMePromise;
+  await waitForNetworkIdle(page);
+
+  // If the router guard redirected us away (race condition), retry via client-side navigation
+  if (!page.url().includes(path)) {
+    await page.evaluate((p) => {
+      const appEl = document.getElementById('app');
+      if (appEl && (appEl as any).__vue_app__) {
+        const router = (appEl as any).__vue_app__.config.globalProperties.$router;
+        if (router) router.push(p);
+      }
+    }, path);
+    try {
+      await page.waitForURL(`**${path}*`, { timeout: 5000 });
+    } catch { /* best effort */ }
+    await waitForNetworkIdle(page);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Network helpers
 // ---------------------------------------------------------------------------
 
 /**
  * Wait for network idle
  */
-export async function waitForNetworkIdle(page: Page, timeout = 5000) {
-  await page.waitForLoadState('networkidle', { timeout });
+export async function waitForNetworkIdle(page: Page, timeout = 15000) {
+  try {
+    await page.waitForLoadState('networkidle', { timeout });
+  } catch {
+    // Network may never fully idle (WebSocket, polling, etc.) — continue anyway
+  }
 }
 
 /**

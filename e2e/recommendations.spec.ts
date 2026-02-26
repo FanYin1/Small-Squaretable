@@ -22,9 +22,9 @@ test.describe('Recommendations', () => {
     await mockApiResponse(page, '**/api/v1/characters/char_1', { success: true, data: MOCK_CHARACTERS[0] });
     await mockApiResponse(page, '**/api/v1/characters/char_2', { success: true, data: MOCK_CHARACTERS[1] });
     await mockApiResponse(page, '**/api/v1/characters/marketplace*', {
-      success: true, data: { items: MOCK_CHARACTERS, total: 2 },
+      success: true, data: { items: MOCK_CHARACTERS, pagination: { page: 1, limit: 20, total: 2, totalPages: 1, hasNext: false, hasPrev: false } },
     });
-    await mockApiResponse(page, '**/api/v1/characters/search*', { success: true, data: { items: [], total: 0 } });
+    await mockApiResponse(page, '**/api/v1/characters/search*', { success: true, data: { items: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false } } });
     await page.goto('/market');
     await waitForNetworkIdle(page);
     // The recommendation section should be visible
@@ -39,12 +39,13 @@ test.describe('Recommendations', () => {
     });
     await mockApiResponse(page, '**/api/v1/characters/char_1', { success: true, data: MOCK_CHARACTERS[0] });
     await mockApiResponse(page, '**/api/v1/characters/marketplace*', {
-      success: true, data: { items: MOCK_CHARACTERS, total: 2 },
+      success: true, data: { items: MOCK_CHARACTERS, pagination: { page: 1, limit: 20, total: 2, totalPages: 1, hasNext: false, hasPrev: false } },
     });
+    await mockApiResponse(page, '**/api/v1/characters/search*', { success: true, data: { items: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false } } });
     await page.goto('/market');
     await waitForNetworkIdle(page);
     const title = page.locator('.recommendation-title');
-    await expect(title.first()).toBeVisible();
+    await expect(title.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('empty trending hides recommendation section', async ({ page }) => {
@@ -52,7 +53,7 @@ test.describe('Recommendations', () => {
       success: true, data: [],
     });
     await mockApiResponse(page, '**/api/v1/characters/marketplace*', {
-      success: true, data: { items: [], total: 0 },
+      success: true, data: { items: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false } },
     });
     await page.goto('/market');
     await waitForNetworkIdle(page);

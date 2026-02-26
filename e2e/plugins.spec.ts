@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle } from './utils/helpers';
+import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints } from './utils/helpers';
 
 /**
  * E2E Tests: Plugin Marketplace
@@ -37,6 +37,7 @@ test.describe('Plugin Marketplace', () => {
   // 1. Plugin marketplace loads
   test('plugin marketplace loads', async ({ page }) => {
     await setupAuth(page, { plan: 'pro' });
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/plugins/marketplace*', MARKETPLACE_MOCK);
     await mockApiResponse(page, '**/api/v1/plugins/installs', { success: true, data: [] });
 
@@ -49,6 +50,7 @@ test.describe('Plugin Marketplace', () => {
   // 2. Plugin list renders
   test('plugin list renders with plugin cards', async ({ page }) => {
     await setupAuth(page, { plan: 'pro' });
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/plugins/marketplace*', MARKETPLACE_MOCK);
     await mockApiResponse(page, '**/api/v1/plugins/installs', { success: true, data: [] });
 

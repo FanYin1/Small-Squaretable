@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle } from './utils/helpers';
+import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints } from './utils/helpers';
 
 /**
  * E2E Tests: Analytics Dashboard
@@ -71,6 +71,7 @@ async function mockAllAnalyticsEndpoints(page: import('@playwright/test').Page, 
 test.describe('Analytics Dashboard', () => {
   test('analytics dashboard loads for team user', async ({ page }) => {
     await setupAuth(page, { plan: 'team' });
+    await mockCommonEndpoints(page);
     await mockAllAnalyticsEndpoints(page);
 
     await page.goto('/analytics');
@@ -81,6 +82,7 @@ test.describe('Analytics Dashboard', () => {
 
   test('executive tab renders', async ({ page }) => {
     await setupAuth(page, { plan: 'team' });
+    await mockCommonEndpoints(page);
     await mockAllAnalyticsEndpoints(page);
 
     await page.goto('/analytics');
@@ -91,6 +93,7 @@ test.describe('Analytics Dashboard', () => {
 
   test('product tab switchable', async ({ page }) => {
     await setupAuth(page, { plan: 'team' });
+    await mockCommonEndpoints(page);
     await mockAllAnalyticsEndpoints(page);
 
     await page.goto('/analytics');
@@ -116,6 +119,7 @@ test.describe('Analytics Dashboard', () => {
 
   test('free user sees error or upgrade prompt', async ({ page }) => {
     await setupAuth(page, { plan: 'free' });
+    await mockCommonEndpoints(page);
     await mockAllAnalyticsEndpoints(page, 403);
 
     await page.goto('/analytics');

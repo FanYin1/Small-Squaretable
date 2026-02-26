@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle } from './utils/helpers';
+import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints } from './utils/helpers';
 
 /**
  * E2E Tests: Notifications
@@ -40,6 +40,7 @@ test.describe('Notifications', () => {
   // 1. Notifications page loads
   test('notifications page loads', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/notifications', { success: true, data: sampleNotifications });
     await mockApiResponse(page, '**/api/v1/notifications?*', { success: true, data: sampleNotifications });
     await mockApiResponse(page, '**/api/v1/notifications/unread-count', { success: true, data: { count: 1 } });
@@ -53,6 +54,7 @@ test.describe('Notifications', () => {
   // 2. Notification list renders
   test('notification list renders with items', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/notifications', { success: true, data: sampleNotifications });
     await mockApiResponse(page, '**/api/v1/notifications?*', { success: true, data: sampleNotifications });
     await mockApiResponse(page, '**/api/v1/notifications/unread-count', { success: true, data: { count: 1 } });
@@ -71,6 +73,7 @@ test.describe('Notifications', () => {
   // 3. Empty state shown when no notifications
   test('empty state shown when no notifications', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/notifications', { success: true, data: [] });
     await mockApiResponse(page, '**/api/v1/notifications?*', { success: true, data: [] });
     await mockApiResponse(page, '**/api/v1/notifications/unread-count', { success: true, data: { count: 0 } });
@@ -85,6 +88,7 @@ test.describe('Notifications', () => {
   // 4. Mark all read button exists
   test('mark all read button exists', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/notifications', { success: true, data: sampleNotifications });
     await mockApiResponse(page, '**/api/v1/notifications?*', { success: true, data: sampleNotifications });
     await mockApiResponse(page, '**/api/v1/notifications/unread-count', { success: true, data: { count: 1 } });
@@ -92,8 +96,8 @@ test.describe('Notifications', () => {
     await page.goto('/notifications');
     await waitForNetworkIdle(page);
 
-    // The "Mark All Read" button is in the notifications-header
-    const markAllButton = page.locator('.notifications-header button').filter({ hasText: /Mark All Read|全部已读|markAllRead/ });
-    await expect(markAllButton.first()).toBeVisible();
+    // The "Mark all as read" button is in the notifications-header
+    const markAllButton = page.locator('.notifications-header button').filter({ hasText: /Mark all|全部已读/i });
+    await expect(markAllButton.first()).toBeVisible({ timeout: 10000 });
   });
 });

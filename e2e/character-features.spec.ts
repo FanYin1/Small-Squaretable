@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { clearSession, waitForNetworkIdle, mockApiResponse, setupAuth } from './utils/helpers';
+import { clearSession, waitForNetworkIdle, mockApiResponse, setupAuth, mockCommonEndpoints, gotoWithAuth } from './utils/helpers';
 
 test.describe('Character Features', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,7 +8,8 @@ test.describe('Character Features', () => {
 
   test('character creation page loads', async ({ page }) => {
     await setupAuth(page);
-    await page.goto('/characters/new');
+    await mockCommonEndpoints(page);
+    await gotoWithAuth(page, '/characters/new');
     await waitForNetworkIdle(page);
     // Should be on character creation page, not redirected
     expect(page.url()).toContain('/characters/new');
@@ -17,11 +18,12 @@ test.describe('Character Features', () => {
 
   test('my characters page loads', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/characters', {
       success: true,
       data: [],
     });
-    await page.goto('/my-characters');
+    await gotoWithAuth(page, '/my-characters');
     await waitForNetworkIdle(page);
     expect(page.url()).toContain('/my-characters');
     await expect(page.locator('.dashboard-layout')).toBeVisible();
@@ -55,6 +57,7 @@ test.describe('Character Features', () => {
 
   test('character edit page loads for owner', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/characters/char_1', {
       success: true,
       data: {
@@ -64,7 +67,7 @@ test.describe('Character Features', () => {
         userId: 'user_1', tenantId: 'tenant_1',
       },
     });
-    await page.goto('/characters/char_1/edit');
+    await gotoWithAuth(page, '/characters/char_1/edit');
     await waitForNetworkIdle(page);
     expect(page.url()).toContain('/characters/char_1/edit');
     await expect(page.locator('.dashboard-layout')).toBeVisible();

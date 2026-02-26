@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle } from './utils/helpers';
+import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints } from './utils/helpers';
 
 /**
  * E2E Tests: Profile & WorldBooks
@@ -13,6 +13,7 @@ test.describe('Profile & WorldBooks', () => {
   // 1. Profile page loads
   test('profile page loads', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
 
     await page.goto('/profile');
     await waitForNetworkIdle(page);
@@ -23,6 +24,7 @@ test.describe('Profile & WorldBooks', () => {
   // 2. Profile form has display name and bio fields
   test('profile form has display name and bio fields', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
 
     await page.goto('/profile');
     await waitForNetworkIdle(page);
@@ -42,6 +44,7 @@ test.describe('Profile & WorldBooks', () => {
   // 3. WorldBooks page loads
   test('worldbooks page loads', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/worldbooks', {
       success: true,
       data: [

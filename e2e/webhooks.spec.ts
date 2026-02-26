@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, mockApiResponse, waitForNetworkIdle } from './utils/helpers';
+import { setupAuth, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints } from './utils/helpers';
 
 /**
  * E2E Tests: Webhook Management (API-only)
@@ -13,6 +13,7 @@ test.describe('Webhook Management', () => {
   // 1. Webhook list API returns data
   test('webhook list API returns data', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/developer/api-keys', { success: true, data: [] });
     await mockApiResponse(page, '**/api/v1/developer/scopes', { success: true, data: [] });
 
@@ -54,6 +55,7 @@ test.describe('Webhook Management', () => {
   // 2. Webhook create API works
   test('webhook create API works', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/developer/api-keys', { success: true, data: [] });
     await mockApiResponse(page, '**/api/v1/developer/scopes', { success: true, data: [] });
 
@@ -102,6 +104,7 @@ test.describe('Webhook Management', () => {
   // 3. Webhook delete API works
   test('webhook delete API works', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockApiResponse(page, '**/api/v1/developer/api-keys', { success: true, data: [] });
     await mockApiResponse(page, '**/api/v1/developer/scopes', { success: true, data: [] });
 

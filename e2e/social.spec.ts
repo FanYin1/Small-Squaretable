@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, mockApiResponse, waitForNetworkIdle } from './utils/helpers';
+import { setupAuth, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, gotoWithAuth } from './utils/helpers';
 
 /**
  * E2E Tests: Social Features
@@ -16,6 +16,7 @@ test.describe('Social Features', () => {
   // 1. User profile page loads (public)
   test('user profile page loads', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
 
     await mockApiResponse(page, `**/api/v1/social/users/${TARGET_USER_ID}/profile`, {
       success: true,
@@ -27,10 +28,10 @@ test.describe('Social Features', () => {
     });
     await mockApiResponse(page, '**/api/v1/characters/marketplace*', {
       success: true,
-      data: { items: [] },
+      data: { items: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false } },
     });
 
-    await page.goto(`/user/${TARGET_USER_ID}`);
+    await gotoWithAuth(page, `/user/${TARGET_USER_ID}`);
     await waitForNetworkIdle(page);
 
     await expect(page.locator('.user-profile')).toBeVisible();
@@ -40,6 +41,7 @@ test.describe('Social Features', () => {
   // 2. Follow button visible on user profile
   test('follow button visible on user profile', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
 
     await mockApiResponse(page, `**/api/v1/social/users/${TARGET_USER_ID}/profile`, {
       success: true,
@@ -51,10 +53,10 @@ test.describe('Social Features', () => {
     });
     await mockApiResponse(page, '**/api/v1/characters/marketplace*', {
       success: true,
-      data: { items: [] },
+      data: { items: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false } },
     });
 
-    await page.goto(`/user/${TARGET_USER_ID}`);
+    await gotoWithAuth(page, `/user/${TARGET_USER_ID}`);
     await waitForNetworkIdle(page);
 
     const profileActions = page.locator('.profile-actions');
@@ -68,6 +70,7 @@ test.describe('Social Features', () => {
   // 3. Character detail has favorite button
   test('character detail has favorite button', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
 
     await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}`, {
       success: true,
@@ -96,7 +99,7 @@ test.describe('Social Features', () => {
       data: [],
     });
 
-    await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
+    await gotoWithAuth(page, `/characters/${TARGET_CHARACTER_ID}`);
     await waitForNetworkIdle(page);
 
     const actionButtons = page.locator('.action-buttons');
@@ -110,6 +113,7 @@ test.describe('Social Features', () => {
   // 4. Comment section visible on character detail
   test('comment section visible on character detail', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
 
     await mockApiResponse(page, `**/api/v1/characters/${TARGET_CHARACTER_ID}`, {
       success: true,
@@ -147,7 +151,7 @@ test.describe('Social Features', () => {
       ],
     });
 
-    await page.goto(`/characters/${TARGET_CHARACTER_ID}`);
+    await gotoWithAuth(page, `/characters/${TARGET_CHARACTER_ID}`);
     await waitForNetworkIdle(page);
 
     const commentSection = page.locator('.comment-section');

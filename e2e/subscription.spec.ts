@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle } from './utils/helpers';
+import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, gotoWithAuth } from './utils/helpers';
 
 /**
  * E2E Tests: Subscription
@@ -36,9 +36,10 @@ test.describe('Subscription', () => {
   // 1. Subscription page loads
   test('subscription page loads', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockSubscriptionEndpoints(page);
 
-    await page.goto('/subscription');
+    await gotoWithAuth(page, '/subscription');
     await waitForNetworkIdle(page);
 
     await expect(page.locator('.content-wrapper')).toBeVisible();
@@ -47,12 +48,14 @@ test.describe('Subscription', () => {
   // 2. Plan cards visible (3 plans)
   test('plan cards visible', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockSubscriptionEndpoints(page);
 
-    await page.goto('/subscription');
+    await gotoWithAuth(page, '/subscription');
     await waitForNetworkIdle(page);
 
     const planCards = page.locator('.plan-card');
+    await expect(planCards.first()).toBeVisible({ timeout: 10000 });
     const count = await planCards.count();
     expect(count).toBe(3);
   });
@@ -60,9 +63,10 @@ test.describe('Subscription', () => {
   // 3. Current plan highlighted
   test('current plan highlighted', async ({ page }) => {
     await setupAuth(page);
+    await mockCommonEndpoints(page);
     await mockSubscriptionEndpoints(page);
 
-    await page.goto('/subscription');
+    await gotoWithAuth(page, '/subscription');
     await waitForNetworkIdle(page);
 
     const currentPlanCard = page.locator('.plan-card.current');

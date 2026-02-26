@@ -64,6 +64,7 @@ interface BackendUser {
   email: string;
   displayName: string;
   avatarUrl?: string | null;
+  role?: string;
 }
 
 // Backend response format
@@ -90,6 +91,7 @@ function transformUser(backendUser: BackendUser): User {
     email: backendUser.email,
     name: backendUser.displayName,
     avatar: backendUser.avatarUrl || undefined,
+    role: (backendUser.role as User['role']) || undefined,
     createdAt: new Date().toISOString(),
   };
 }
