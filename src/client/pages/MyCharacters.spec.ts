@@ -29,8 +29,11 @@ vi.mock('@client/services/api', () => ({
   },
 }));
 
+const mockGetCharacters = vi.fn();
+
 vi.mock('@client/services/character.api', () => ({
   characterApi: {
+    getCharacters: (...args: unknown[]) => mockGetCharacters(...args),
     batchDelete: vi.fn(),
     batchUpdateTags: vi.fn(),
     duplicateCharacter: vi.fn(),
@@ -137,7 +140,7 @@ const stubs = {
 };
 
 function mountPage(items = sampleCharacters) {
-  mockApiGet.mockResolvedValue({ items, pagination: { total: items.length, page: 1, limit: 20, totalPages: 1, hasNext: false, hasPrev: false } });
+  mockGetCharacters.mockResolvedValue({ characters: items });
 
   return mount(MyCharacters, {
     global: {

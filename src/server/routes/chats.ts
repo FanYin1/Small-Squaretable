@@ -71,10 +71,24 @@ chatRoutes.post(
         .catch((err) => logger.warn('Failed to increment chat growth', { error: err }));
     }
 
+    // Enrich with character info
+    let characterName: string | null = null;
+    let characterAvatar: string | null = null;
+    if (primaryCharacterId) {
+      const charRow = await db
+        .select({ name: characters.name, avatarUrl: characters.avatarUrl })
+        .from(characters)
+        .where(eq(characters.id, primaryCharacterId));
+      if (charRow[0]) {
+        characterName = charRow[0].name;
+        characterAvatar = charRow[0].avatarUrl;
+      }
+    }
+
     return c.json<ApiResponse>(
       {
         success: true,
-        data: chat,
+        data: { ...chat, characterName, characterAvatar },
         meta: { timestamp: new Date().toISOString() },
       },
       201
@@ -92,10 +106,28 @@ chatRoutes.get(
     const pagination = c.req.valid('query');
     const result = await chatService.getByUserId(user.id, pagination);
 
+    // Enrich chats with character name/avatar
+    const characterIds = [...new Set(result.items.map(ch => ch.characterId).filter(Boolean))] as string[];
+    const charMap = new Map<string, { name: string; avatarUrl: string | null }>();
+    if (characterIds.length > 0) {
+      const charRows = await db
+        .select({ id: characters.id, name: characters.name, avatarUrl: characters.avatarUrl })
+        .from(characters)
+        .where(sql`${characters.id} IN ${characterIds}`);
+      for (const row of charRows) {
+        charMap.set(row.id, { name: row.name, avatarUrl: row.avatarUrl });
+      }
+    }
+    const enrichedItems = result.items.map(ch => ({
+      ...ch,
+      characterName: ch.characterId ? charMap.get(ch.characterId)?.name || null : null,
+      characterAvatar: ch.characterId ? charMap.get(ch.characterId)?.avatarUrl || null : null,
+    }));
+
     return c.json<ApiResponse<PaginatedResponse<Chat>>>(
       {
         success: true,
-        data: result,
+        data: { ...result, items: enrichedItems },
         meta: { timestamp: new Date().toISOString() },
       },
       200
@@ -273,10 +305,24 @@ chatRoutes.get('/:id', authMiddleware(), async (c) => {
   const chatId = c.req.param('id');
   const chat = await chatService.getById(chatId, user.id, user.tenantId);
 
+  // Enrich with character info
+  let characterName: string | null = null;
+  let characterAvatar: string | null = null;
+  if (chat.characterId) {
+    const charRow = await db
+      .select({ name: characters.name, avatarUrl: characters.avatarUrl })
+      .from(characters)
+      .where(eq(characters.id, chat.characterId));
+    if (charRow[0]) {
+      characterName = charRow[0].name;
+      characterAvatar = charRow[0].avatarUrl;
+    }
+  }
+
   return c.json<ApiResponse>(
     {
       success: true,
-      data: chat,
+      data: { ...chat, characterName, characterAvatar },
       meta: { timestamp: new Date().toISOString() },
     },
     200

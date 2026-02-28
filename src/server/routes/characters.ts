@@ -399,12 +399,12 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
           const text = await file.text();
           const parsed = JSON.parse(text);
 
-          // Handle V2 format
+          // Handle V2 format — unwrap .data so fields are at top level
           const data = parsed.data || parsed;
           name = data.name || parsed.name || file.name.replace('.json', '');
           description = data.description || parsed.description || '';
           tags = data.tags || parsed.tags || [];
-          cardData = parsed;
+          cardData = data;
           avatarUrl = data.avatar || undefined;
 
         } else if (file.name.endsWith('.png')) {
@@ -439,7 +439,7 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
                   name = data.name || parsed.name || file.name.replace('.png', '');
                   description = data.description || parsed.description || '';
                   tags = data.tags || parsed.tags || [];
-                  cardData = parsed;
+                  cardData = data;
                   // Use the PNG itself as avatar
                   avatarUrl = `data:image/png;base64,${buffer.toString('base64')}`;
                   found = true;

@@ -191,8 +191,10 @@ export const characterApi = {
    * 获取角色详情
    * 注意：API wrapper 会自动提取 response.data，所以直接返回 Character
    */
-  getCharacter: (id: string) =>
-    api.get<Character>(`/characters/${id}`),
+  getCharacter: async (id: string): Promise<Character> => {
+    const raw = await api.get<BackendCharacter>(`/characters/${id}`);
+    return transformCharacter(raw);
+  },
 
   /**
    * 创建角色

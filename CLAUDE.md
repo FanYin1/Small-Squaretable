@@ -7,8 +7,8 @@ This file provides guidance to Claude Code when working with the Small-Squaretab
 **Small-Squaretable** is a SaaS transformation of SillyTavern - converting a single-user LLM frontend into an enterprise-grade multi-tenant platform with subscription billing, character marketplace, and real-time chat.
 
 **Location**: `/var/aichat/Small-Squaretable`
-**Status**: Iteration 14 Complete (i18n Fixes + Frontend Test Coverage)
-**Last Updated**: 2026-02-21
+**Status**: Iteration 32 Complete (UI/UX Bug Fixes)
+**Last Updated**: 2026-02-28
 
 ---
 

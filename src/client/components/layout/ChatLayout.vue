@@ -40,7 +40,16 @@
     </aside>
 
     <!-- Main content area -->
-    <div class="chat-main">
+    <div :class="['chat-main', { 'sidebar-is-collapsed': !isMobile && sidebarCollapsed }]">
+      <!-- Sidebar restore button (desktop only, when collapsed) -->
+      <button
+        v-if="!isMobile && sidebarCollapsed"
+        class="sidebar-restore-btn"
+        aria-label="Open sidebar"
+        @click="toggleCollapse"
+      >
+        <el-icon :size="18"><Expand /></el-icon>
+      </button>
       <slot />
     </div>
 
@@ -51,7 +60,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { Fold } from '@element-plus/icons-vue';
+import { Fold, Expand } from '@element-plus/icons-vue';
 import ChatSidebar from '@client/components/chat/ChatSidebar.vue';
 import BottomTabBar from '@client/components/layout/BottomTabBar.vue';
 
@@ -183,6 +192,38 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
+  position: relative;
+}
+
+/* ---- Sidebar restore button ---- */
+.sidebar-restore-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-restore-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* Offset chat header when sidebar restore button is visible */
+.sidebar-is-collapsed :deep(.chat-header) {
+  padding-left: 52px;
 }
 
 /* ---- Mobile header (hamburger) ---- */
@@ -200,7 +241,7 @@ onUnmounted(() => {
   background: transparent;
   border: 1px solid var(--border-default);
   border-radius: 8px;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
 }

@@ -171,23 +171,29 @@ async function fetchCharacter() {
     form.avatarUrl = character.avatar || '';
     const cd = character.cardData;
     if (cd) {
-      originalCardData.value = { ...cd };
-      form.personality = cd.personality || '';
-      form.scenario = cd.scenario || '';
-      form.systemPrompt = cd.system_prompt || '';
-      form.firstMessage = cd.first_mes || '';
-      form.exampleMessages = cd.mes_example || '';
-      form.creatorNotes = cd.creator_notes || '';
-      if (cd.extensions?.voice) {
-        voiceConfig.value = cd.extensions.voice as VoiceConfig;
-        showVoiceSettings.value = true;
+      // Handle V2 cards that were stored with nested .data wrapper
+      const fields = cd.data && typeof cd.data === 'object' ? (cd.data as Record<string, unknown>) : cd;
+      originalCardData.value = { ...fields };
+      form.personality = (fields.personality as string) || '';
+      form.scenario = (fields.scenario as string) || '';
+      form.systemPrompt = (fields.system_prompt as string) || '';
+      form.firstMessage = (fields.first_mes as string) || '';
+      form.exampleMessages = (fields.mes_example as string) || '';
+      form.creatorNotes = (fields.creator_notes as string) || '';
+      if (fields.extensions && typeof fields.extensions === 'object') {
+        const ext = fields.extensions as Record<string, unknown>;
+        if (ext.voice) {
+          voiceConfig.value = ext.voice as VoiceConfig;
+          showVoiceSettings.value = true;
+        }
+        if (ext.expressions) {
+          expressionConfig.value = { ...(ext.expressions as Record<string, string>) };
+          showExpressionEditor.value = true;
+        }
       }
-      if (cd.extensions?.expressions) {
-        expressionConfig.value = { ...(cd.extensions.expressions as Record<string, string>) };
-        showExpressionEditor.value = true;
-      }
-      if (cd.alternate_greetings && Array.isArray(cd.alternate_greetings)) {
-        form.alternateGreetings = [...cd.alternate_greetings];
+      const altGreetings = fields.alternate_greetings ?? cd.alternate_greetings;
+      if (altGreetings && Array.isArray(altGreetings)) {
+        form.alternateGreetings = [...altGreetings];
       }
     }
     isOwner.value = true;
@@ -519,7 +525,7 @@ async function handleSaveAsTemplate() {
 }
 
 .editor-form {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 32px;
   border: 1px solid var(--border-default);

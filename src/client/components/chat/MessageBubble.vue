@@ -1,153 +1,113 @@
 <template>
   <div :class="['message', `message-${message.role}`]">
-    <div class="message-inner">
-      <div v-if="message.extra?.pinned" class="pin-indicator">
-        {{ t('chat.pinnedMessage', 'Pinned') }}
+    <div class="message-row">
+      <!-- Assistant avatar (left side) -->
+      <div v-if="message.role === 'assistant'" class="avatar-col">
+        <el-avatar :size="40" :src="displayCharacterAvatar" class="char-avatar">
+          {{ displayCharacterName?.[0]?.toUpperCase() || '?' }}
+        </el-avatar>
       </div>
-      <div class="message-header">
-        <template v-if="message.role === 'assistant'">
-          <el-avatar :size="36" :src="displayCharacterAvatar">
-            {{ displayCharacterName?.[0]?.toUpperCase() || '?' }}
-          </el-avatar>
+
+      <div class="bubble-col">
+        <div v-if="message.extra?.pinned" class="pin-indicator">{{ t('chat.pinnedMessage', 'Pinned') }}</div>
+
+        <!-- Assistant name + emotion above bubble -->
+        <div v-if="message.role === 'assistant'" class="bubble-meta">
           <span class="message-author">{{ displayCharacterName }}</span>
           <span v-if="(message as any).emotion" class="emotion-tag">{{ (message as any).emotion }}</span>
-        </template>
-        <template v-else>
-          <span class="message-author">{{ t('chat.you') || 'You' }}</span>
-        </template>
-        <!-- Branch navigation indicator -->
-        <div v-if="branchInfo && branchInfo.total > 1" class="branch-indicator">
-          <el-button
-            :icon="ArrowLeft"
-            size="small"
-            text
-            :disabled="branchInfo.currentIndex === 0"
-            @click="emit('switchBranch', Number(message.id), 'prev')"
-          />
-          <span class="branch-count">{{ branchInfo.currentIndex + 1 }}/{{ branchInfo.total }}</span>
-          <el-button
-            :icon="ArrowRight"
-            size="small"
-            text
-            :disabled="branchInfo.currentIndex === branchInfo.total - 1"
-            @click="emit('switchBranch', Number(message.id), 'next')"
-          />
+          <div v-if="branchInfo && branchInfo.total > 1" class="branch-indicator">
+            <el-button :icon="ArrowLeft" size="small" text :disabled="branchInfo.currentIndex === 0" @click="emit('switchBranch', Number(message.id), 'prev')" />
+            <span class="branch-count">{{ branchInfo.currentIndex + 1 }}/{{ branchInfo.total }}</span>
+            <el-button :icon="ArrowRight" size="small" text :disabled="branchInfo.currentIndex === branchInfo.total - 1" @click="emit('switchBranch', Number(message.id), 'next')" />
+          </div>
         </div>
-      </div>
-      <div v-if="message.extra?.replyTo" class="reply-quote">
-        <div class="reply-quote-role">{{ message.extra.replyTo.role }}</div>
-        <div class="reply-quote-content">{{ message.extra.replyTo.content?.substring(0, 100) }}{{ (message.extra.replyTo.content?.length ?? 0) > 100 ? '...' : '' }}</div>
-      </div>
-      <div class="message-body">
-        <template v-if="message.role === 'assistant'">
-          <MarkdownRenderer :content="message.content" />
-        </template>
-        <template v-else>
-          <template v-if="editing">
-            <div class="edit-container">
-              <el-input
-                v-model="editContent"
-                type="textarea"
-                :autosize="{ minRows: 1, maxRows: 8 }"
-                @keydown.enter.ctrl="saveEdit"
-                @keydown.escape="cancelEdit"
-              />
-              <div class="edit-actions">
-                <el-button size="small" @click="cancelEdit">{{ t('common.cancel') }}</el-button>
-                <el-button size="small" type="primary" @click="saveEdit">{{ t('common.save') }}</el-button>
-              </div>
-            </div>
-          </template>
-          <template v-else>
-            <div class="user-text">{{ message.content }}</div>
-          </template>
-        </template>
-      </div>
-      <div v-if="message.attachments?.length" class="message-attachments">
-        <template v-for="attachment in message.attachments" :key="attachment.id">
-          <AudioPlayer
-            v-if="attachment.type === 'audio'"
-            :src="attachment.url"
-            :duration="attachment.duration"
-          />
-          <MessageImage
-            v-else-if="attachment.type === 'image'"
-            :src="attachment.url"
-            :alt="attachment.name"
-          />
-        </template>
-      </div>
-      <div class="reaction-bar">
-        <span
-          v-for="reaction in reactions"
-          :key="reaction.emoji"
-          class="reaction-badge"
-          @click="toggleReaction(reaction.emoji)"
-        >
-          {{ reaction.emoji }} {{ reaction.count }}
-        </span>
-        <el-popover :visible="showEmojiPicker" placement="top" :width="200" trigger="click">
-          <template #reference>
-            <span class="reaction-add" @click="showEmojiPicker = !showEmojiPicker">+</span>
-          </template>
-          <div class="emoji-picker">
-            <span
-              v-for="emoji in EMOJI_PRESETS"
-              :key="emoji"
-              class="emoji-option"
-              @click="toggleReaction(emoji)"
-            >
-              {{ emoji }}
+
+        <!-- User branch nav -->
+        <div v-if="message.role === 'user' && branchInfo && branchInfo.total > 1" class="bubble-meta bubble-meta--right">
+          <div class="branch-indicator">
+            <el-button :icon="ArrowLeft" size="small" text :disabled="branchInfo.currentIndex === 0" @click="emit('switchBranch', Number(message.id), 'prev')" />
+            <span class="branch-count">{{ branchInfo.currentIndex + 1 }}/{{ branchInfo.total }}</span>
+            <el-button :icon="ArrowRight" size="small" text :disabled="branchInfo.currentIndex === branchInfo.total - 1" @click="emit('switchBranch', Number(message.id), 'next')" />
+          </div>
+        </div>
+
+        <div v-if="message.extra?.replyTo" class="reply-quote">
+          <div class="reply-quote-role">{{ message.extra.replyTo.role }}</div>
+          <div class="reply-quote-content">{{ message.extra.replyTo.content?.substring(0, 100) }}{{ (message.extra.replyTo.content?.length ?? 0) > 100 ? '...' : '' }}</div>
+        </div>
+
+        <div class="bubble">
+          <div class="message-body">
+            <template v-if="message.role === 'assistant'">
+              <MarkdownRenderer :content="message.content" />
+            </template>
+            <template v-else>
+              <template v-if="editing">
+                <div class="edit-container">
+                  <el-input v-model="editContent" type="textarea" :autosize="{ minRows: 1, maxRows: 8 }" @keydown.enter.ctrl="saveEdit" @keydown.escape="cancelEdit" />
+                  <div class="edit-actions">
+                    <el-button size="small" @click="cancelEdit">{{ t('common.cancel') }}</el-button>
+                    <el-button size="small" type="primary" @click="saveEdit">{{ t('common.save') }}</el-button>
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div class="user-text">{{ message.content }}</div>
+              </template>
+            </template>
+          </div>
+          <div v-if="message.attachments?.length" class="message-attachments">
+            <template v-for="attachment in message.attachments" :key="attachment.id">
+              <AudioPlayer v-if="attachment.type === 'audio'" :src="attachment.url" :duration="attachment.duration" />
+              <MessageImage v-else-if="attachment.type === 'image'" :src="attachment.url" :alt="attachment.name" />
+            </template>
+          </div>
+        </div>
+
+        <!-- Reactions + actions below bubble -->
+        <div class="bubble-footer">
+          <div v-if="reactions.length" class="reaction-bar">
+            <span v-for="reaction in reactions" :key="reaction.emoji" class="reaction-badge" @click="toggleReaction(reaction.emoji)">
+              {{ reaction.emoji }} {{ reaction.count }}
             </span>
           </div>
-        </el-popover>
-      </div>
-      <div class="message-actions">
-        <template v-if="message.role === 'assistant'">
-          <button class="action-btn" @click="copyMessage" :aria-label="t('chat.copyMessage') || 'Copy'">
-            {{ copied ? '✓' : 'Copy' }}
-          </button>
-          <button
-            v-if="ttsSupported"
-            :class="['action-btn', { 'action-btn--active': ttsSpeaking }]"
-            :aria-label="ttsSpeaking ? (t('voice.stopVoice') || 'Stop') : (t('voice.playVoice') || 'Play voice')"
-            @click="toggleTts"
-          >
-            {{ ttsSpeaking ? 'Stop' : 'Play' }}
-          </button>
-          <button class="action-btn" @click="handleRegenerate" :aria-label="t('chat.regenerateMessage') || 'Regenerate'">
-            Regenerate
-          </button>
-        </template>
-        <template v-else>
-          <button class="action-btn" @click="handleEdit" :aria-label="t('chat.editMessage') || 'Edit'">
-            Edit
-          </button>
-        </template>
-        <button
-          :class="['action-btn', { 'action-btn--active': bookmarkStore.isBookmarked(message.id) }]"
-          @click="handleBookmark"
-          :aria-label="bookmarkStore.isBookmarked(message.id) ? t('chat.unbookmarkMessage') : t('chat.bookmarkMessage')"
-        >
-          {{ bookmarkStore.isBookmarked(message.id) ? t('chat.bookmarked') : t('chat.bookmark') }}
-        </button>
-        <button class="action-btn" @click="handleReply" :aria-label="t('chat.reply')">
-          {{ t('chat.reply') }}
-        </button>
-        <button
-          :class="['action-btn', { 'action-btn--active': !!message.extra?.pinned }]"
-          @click="handleTogglePin"
-          :aria-label="message.extra?.pinned ? t('chat.unpin') : t('chat.pin')"
-        >
-          {{ message.extra?.pinned ? t('chat.unpin') : t('chat.pin') }}
-        </button>
-        <button class="action-btn" @click="handleRollback" :aria-label="t('chat.rollbackToHere')">
-          {{ t('chat.rollbackToHere') }}
-        </button>
-        <button class="action-btn delete-btn" @click="handleDelete" :aria-label="t('chat.deleteMessage') || 'Delete'">
-          Delete
-        </button>
-        <span class="message-time">{{ formattedTime }}</span>
+          <div class="message-actions">
+            <span class="message-time">{{ formattedTime }}</span>
+            <template v-if="message.role === 'assistant'">
+              <button class="action-btn" @click="copyMessage" :aria-label="t('chat.copyMessage') || 'Copy'">{{ copied ? '✓' : '⎘' }}</button>
+              <button v-if="ttsSupported" :class="['action-btn', { 'action-btn--active': ttsSpeaking }]" @click="toggleTts" :aria-label="ttsSpeaking ? 'Stop' : 'Play'">{{ ttsSpeaking ? '◼' : '▶' }}</button>
+              <button class="action-btn" @click="handleRegenerate" :aria-label="t('chat.regenerateMessage') || 'Regenerate'">↻</button>
+            </template>
+            <template v-else>
+              <button class="action-btn" @click="handleEdit" :aria-label="t('chat.editMessage') || 'Edit'">✎</button>
+            </template>
+            <button :class="['action-btn', { 'action-btn--active': bookmarkStore.isBookmarked(message.id) }]" @click="handleBookmark" :aria-label="bookmarkStore.isBookmarked(message.id) ? t('chat.bookmarked') : t('chat.bookmark')">🔖</button>
+            <el-popover placement="top" :width="160" trigger="click">
+              <template #reference>
+                <button class="action-btn action-more" aria-label="More">⋯</button>
+              </template>
+              <div class="more-menu">
+                <button class="more-menu-item" @click="handleBookmark">
+                  {{ bookmarkStore.isBookmarked(message.id) ? t('chat.bookmarked') : t('chat.bookmark') }}
+                </button>
+                <button class="more-menu-item" @click="handleReply">{{ t('chat.reply') }}</button>
+                <button class="more-menu-item" @click="handleTogglePin">
+                  {{ message.extra?.pinned ? t('chat.unpin') : t('chat.pin') }}
+                </button>
+                <button class="more-menu-item" @click="handleRollback">{{ t('chat.rollbackToHere') }}</button>
+                <el-popover :visible="showEmojiPicker" placement="top" :width="200" trigger="click">
+                  <template #reference>
+                    <button class="more-menu-item" @click="showEmojiPicker = !showEmojiPicker">{{ t('chat.addReaction', 'React') }}</button>
+                  </template>
+                  <div class="emoji-picker">
+                    <span v-for="emoji in EMOJI_PRESETS" :key="emoji" class="emoji-option" @click="toggleReaction(emoji)">{{ emoji }}</span>
+                  </div>
+                </el-popover>
+                <button class="more-menu-item more-menu-item--danger" @click="handleDelete">{{ t('chat.deleteMessage') || 'Delete' }}</button>
+              </div>
+            </el-popover>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -293,74 +253,145 @@ const handleTogglePin = () => {
 
 <style scoped>
 .message {
-  padding: 24px 0;
-  border-bottom: 1px solid var(--chat-divider);
-  animation: fadeIn 0.3s ease-in;
+  padding: 6px 0;
+  animation: fadeIn 0.25s ease-out;
 }
 
-.message-inner {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 24px;
+.message + .message {
+  padding-top: 2px;
 }
 
-.pin-indicator {
-  font-size: 11px;
-  color: var(--el-color-warning, #e6a23c);
-  margin-bottom: 4px;
+.message-row {
+  display: flex;
+  gap: 10px;
+  max-width: 720px;
+  padding: 0 20px;
 }
 
-.message-assistant {
-  background: var(--chat-assistant-msg-bg);
+/* User messages: right-aligned, narrower */
+.message-user .message-row {
+  margin-left: auto;
+  margin-right: 0;
+  flex-direction: row-reverse;
+  max-width: 65%;
 }
 
-.message-user {
-  background: var(--chat-user-msg-bg);
+/* Assistant messages: left-aligned */
+.message-assistant .message-row {
+  margin-left: 0;
+  margin-right: auto;
 }
 
-.message-header {
+.avatar-col {
+  flex-shrink: 0;
+  padding-top: 22px;
+}
+
+.char-avatar {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.bubble-col {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Meta line above bubble */
+.bubble-meta {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding: 0 4px;
+}
+
+.bubble-meta--right {
+  justify-content: flex-end;
 }
 
 .message-author {
   font-weight: 600;
-  font-size: 14px;
-  color: var(--text-primary);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .emotion-tag {
-  font-size: 12px;
-  color: var(--text-secondary);
-  background: var(--surface-hover);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: 10px;
+}
+
+.pin-indicator {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  display: inline-block;
+}
+
+/* Bubble shape */
+.bubble {
+  padding: 10px 14px;
+  border-radius: 18px;
+  line-height: 1.6;
+  font-size: 14px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.message-assistant .bubble {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 18px 18px 18px 4px;
+}
+
+.message-user .bubble {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-radius: 18px 18px 4px 18px;
+  display: inline-block;
+}
+
+.message-user .bubble-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.message-user .user-text {
+  white-space: pre-wrap;
+  color: inherit;
 }
 
 .message-body {
   line-height: 1.6;
 }
 
+/* Reply quote */
 .reply-quote {
   padding: 6px 10px;
-  margin-bottom: 6px;
-  border-left: 3px solid var(--el-color-primary, #409eff);
-  background: var(--el-fill-color-lighter, #fafafa);
-  border-radius: 0 4px 4px 0;
+  margin-bottom: 4px;
+  border-left: 2px solid var(--accent);
+  background: var(--bg-subtle);
+  border-radius: 0 8px 8px 0;
   font-size: 12px;
 }
 
 .reply-quote-role {
   font-weight: 600;
-  color: var(--el-color-primary, #409eff);
-  margin-bottom: 2px;
+  color: var(--accent);
+  font-size: 11px;
   text-transform: capitalize;
 }
 
 .reply-quote-content {
-  color: var(--el-text-color-secondary, #909399);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -370,111 +401,15 @@ const handleTogglePin = () => {
   margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
-.user-text {
-  white-space: pre-wrap;
-  color: var(--text-primary);
-}
-
-.message-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.message:hover .message-actions {
-  opacity: 1;
-}
-
-/* Show on focus-within (keyboard navigation) */
-.message:focus-within .message-actions {
-  opacity: 1;
-}
-
-/* On touch devices, always show actions */
-@media (hover: none) {
-  .message-actions {
-    opacity: 1;
-  }
-}
-
-.action-btn {
-  background: none;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 4px 12px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background-color 0.15s, color 0.15s;
-}
-
-.action-btn:hover {
-  background: var(--surface-hover);
-  color: var(--accent-purple);
-}
-
-.action-btn--active {
-  background: var(--accent-purple);
-  color: #fff;
-  border-color: var(--accent-purple);
-}
-
-.action-btn--active:hover {
-  background: var(--accent-purple);
-  color: #fff;
-}
-
-.action-btn.delete-btn:hover {
-  color: var(--color-danger);
-}
-
-.message-time {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin-left: auto;
-}
-
-.edit-container {
+/* Footer: reactions + actions */
+.bubble-footer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 100%;
-}
-
-.edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.branch-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-left: auto;
-}
-
-.branch-count {
-  min-width: 30px;
-  text-align: center;
-  user-select: none;
+  gap: 4px;
+  padding: 0 4px;
 }
 
 .reaction-bar {
@@ -490,39 +425,150 @@ const handleTogglePin = () => {
   gap: 2px;
   padding: 2px 8px;
   border-radius: 12px;
-  font-size: 13px;
-  background: var(--el-fill-color-light, #f5f7fa);
-  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+  font-size: 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .reaction-badge:hover {
-  background: var(--el-color-primary-light-9, #ecf5ff);
+  background: var(--accent-light);
+  border-color: var(--accent);
 }
 
-.reaction-add {
+/* Action bar */
+.message-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.message:hover .message-actions,
+.message:focus-within .message-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .message-actions { opacity: 1; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .action-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+}
+
+.message-time {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
   font-size: 14px;
-  color: var(--el-text-color-secondary, #909399);
-  background: var(--el-fill-color-light, #f5f7fa);
+  color: var(--text-tertiary);
   cursor: pointer;
+  transition: all 0.15s;
 }
 
-.reaction-add:hover {
-  background: var(--el-color-primary-light-9, #ecf5ff);
-  color: var(--el-color-primary, #409eff);
+.action-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
+.action-btn--active {
+  color: var(--accent);
+}
+
+.action-more {
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+/* More menu dropdown */
+.more-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.more-menu-item {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+
+.more-menu-item:hover {
+  background: var(--surface-hover);
+}
+
+.more-menu-item--danger {
+  color: var(--color-danger, #ef4444);
+}
+
+.more-menu-item--danger:hover {
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 8%, transparent);
+}
+
+/* Edit container */
+.edit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Branch indicator */
+.branch-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  background: var(--bg-subtle);
+  padding: 2px 4px;
+  border-radius: 6px;
+  margin-left: auto;
+}
+
+.branch-count {
+  min-width: 28px;
+  text-align: center;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Emoji picker */
 .emoji-picker {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
 }
 
@@ -530,33 +576,33 @@ const handleTogglePin = () => {
   font-size: 20px;
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: background 0.15s;
 }
 
 .emoji-option:hover {
-  background: var(--el-fill-color-light, #f5f7fa);
+  background: var(--bg-subtle);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 768px) {
-  .message-inner {
+  .message-row {
+    max-width: 90%;
     padding: 0 12px;
   }
+  .bubble {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+  .avatar-col { padding-top: 18px; }
   .message-actions {
-    gap: 4px;
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    padding-bottom: 4px;
   }
-  .message-actions::-webkit-scrollbar {
-    display: none;
-  }
-  .message-header {
-    gap: 6px;
-  }
-  .branch-indicator {
-    font-size: 11px;
-  }
+  .message-actions::-webkit-scrollbar { display: none; }
 }
 </style>

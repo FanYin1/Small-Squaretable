@@ -47,9 +47,10 @@ Phase 7: 生产部署          ████████████████�
 迭代 29: 数据导入导出               ████████████████████ 100% ✅
 迭代 30: 协作与分享                  ████████████████████ 100% ✅
 迭代 31: 通知与消息中心增强     ████████████████████ 100% ✅
+迭代 32: UI/UX 缺陷修复          ████████████████████ 100% ✅
 ```
 
-**整体完成度**: 迭代 31 完成
+**整体完成度**: 迭代 32 完成
 
 ---
 
@@ -561,13 +562,21 @@ Phase 7: 生产部署          ████████████████�
 - **DB**: Migration 0023 — notification_preferences 表 + notifications.group_key/priority
 - **新增**: 1 新表 + 1 新路由 + 1 新工具函数 + 1 新组件 + 1733 测试通过
 
+### 迭代 32: UI/UX 缺陷修复 ✅ (2026-02-28)
+- ✅ **侧边栏折叠按钮遮挡** — ChatLayout 添加 sidebar-is-collapsed 类 + :deep(.chat-header) padding-left 偏移
+- ✅ **聊天缺少角色信息** — 服务端 GET/POST /chats 路由 join characters 表返回 characterName/characterAvatar，客户端 transformChat 映射
+- ✅ **收藏按钮不可见** — MessageBubble 消息操作栏直接显示 🔖 收藏按钮，带 active 高亮状态
+- ✅ **导入角色字段为空** — 服务端 import 路由 cardData 从 parsed 改为 parsed.data || parsed 解包 V2 格式；CharacterEditor 添加 cd.data 嵌套回退
+- ✅ **角色头像不显示** — MyCharacters 改用 characterApi.getCharacters() 经过 transformCharacter；characterApi.getCharacter() 添加 transform 映射 avatarUrl→avatar
+- **测试**: 2017 单元测试通过, MyCharacters.spec.ts 更新 mock
+
 ---
 
 ## 📈 技术指标
 
 | 指标 | 数值 |
 |------|------|
-| 单元测试 | 1734 通过, 0 失败 (17 跳过) |
+| 单元测试 | 2017 通过, 0 失败 (17 跳过) |
 | E2E 测试 | 228 unique tests, 17 spec 文件 (Chromium + Mobile Chrome) |
 | i18n 覆盖 | 86 Vue 文件 100% 覆盖, ~490 locale 键 (en-US + zh-CN) |
 | 结构化日志 | 57+ console.* 替换为 pino child loggers |
@@ -612,5 +621,6 @@ Phase 7: 生产部署          ████████████████�
 2026-02-23  迭代 28 完成 (移动端适配优化: 响应式 CSS + BottomTabBar + 滑动手势 + PWA Meta)
 2026-02-23  迭代 29 完成 (数据导入导出: PNG 导出 + 聊天导出 + 批量导入导出 + 前端 UI)
 2026-02-23  迭代 30 完成 (协作与分享: 角色分享链接 + 聊天快照 + 协作编辑 + 角色模板 + i18n)
-2026-02-23  迭代 31 完成 (通知与消息中心增强: WS推送 + 偏好设置 + 类型扩展 + @提及 + 前端增强) ← 当前
+2026-02-23  迭代 31 完成 (通知与消息中心增强: WS推送 + 偏好设置 + 类型扩展 + @提及 + 前端增强)
+2026-02-28  迭代 32 完成 (UI/UX 缺陷修复: 侧边栏遮挡 + 聊天角色信息 + 收藏可见性 + 导入字段 + 头像映射) ← 当前
 ```

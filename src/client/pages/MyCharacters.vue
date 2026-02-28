@@ -3,6 +3,9 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessageBox } from 'element-plus';
+import { createLogger } from '@client/utils/logger';
+
+const logger = createLogger('MyCharacters');
 import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound, CopyDocument, FolderAdd, PriceTag } from '@element-plus/icons-vue';
 import { api } from '@client/services/api';
 import { characterApi } from '@client/services/character.api';
@@ -167,11 +170,11 @@ async function fetchCharacters() {
     if (activeCollection.value) {
       characters.value = await characterCollectionApi.getCollectionCharacters(activeCollection.value);
     } else {
-      const response = await api.get<{ items: Character[]; pagination: any }>('/characters');
-      characters.value = response.items || [];
+      const result = await characterApi.getCharacters();
+      characters.value = result.characters;
     }
   } catch (error) {
-    console.error('Failed to fetch characters:', error);
+    logger.error('Failed to fetch characters', error);
     toast.error(t('myCharacters.loadFailed'), { message: t('myCharacters.loadListFailed') });
   } finally {
     loading.value = false;
@@ -351,7 +354,7 @@ async function handleImport() {
       toast.success(t('myCharacters.imported'));
       await fetchCharacters();
     } catch (error: any) {
-      console.error('Import error:', error);
+      logger.error('Import error', error);
       toast.error(t('myCharacters.importFailed'), { message: error.message || t('common.retry') });
     }
   };
@@ -631,8 +634,8 @@ function handleStartChat(character: Character) {
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  background: var(--bg-color);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
   border-radius: 12px;
 }
 
@@ -649,25 +652,25 @@ function handleStartChat(character: Character) {
 }
 
 .character-tabs :deep(.el-tabs__active-bar) {
-  background: var(--color-primary);
+  background: var(--accent);
   height: 3px;
 }
 
 .character-tabs :deep(.el-tabs__item) {
   font-size: 15px;
   font-weight: 500;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   padding: 0 20px;
   height: 44px;
   line-height: 44px;
 }
 
 .character-tabs :deep(.el-tabs__item:hover) {
-  color: var(--color-primary);
+  color: var(--accent);
 }
 
 .character-tabs :deep(.el-tabs__item.is-active) {
-  color: var(--color-primary);
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -685,14 +688,14 @@ function handleStartChat(character: Character) {
   height: 20px;
   padding: 0 6px;
   background: var(--color-bg);
-  color: var(--color-primary);
+  color: var(--accent);
   border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
 }
 
 .character-tabs :deep(.el-tabs__item.is-active) .tab-count {
-  background: var(--color-primary);
+  background: var(--accent);
   color: white;
 }
 
@@ -714,12 +717,13 @@ function handleStartChat(character: Character) {
   background: var(--color-primary-light-9, #ecf5ff);
   border-radius: 8px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .batch-count {
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-primary);
+  color: var(--accent);
   margin-right: auto;
 }
 
@@ -731,7 +735,7 @@ function handleStartChat(character: Character) {
 }
 
 .character-card-wrapper.batch-selected {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--accent);
   border-radius: 16px;
 }
 
@@ -752,7 +756,8 @@ function handleStartChat(character: Character) {
   position: relative;
 }
 
-.character-card-wrapper:hover .card-actions-overlay {
+.character-card-wrapper:hover .card-actions-overlay,
+.character-card-wrapper:focus-within .card-actions-overlay {
   opacity: 1;
   pointer-events: auto;
 }
@@ -768,7 +773,7 @@ function handleStartChat(character: Character) {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: color-mix(in srgb, var(--bg-color) 95%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 95%, transparent);
   backdrop-filter: blur(4px);
   border-radius: 16px;
   opacity: 0;
@@ -820,7 +825,7 @@ function handleStartChat(character: Character) {
   }
 
   .characters-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
   }
 
@@ -828,11 +833,18 @@ function handleStartChat(character: Character) {
     opacity: 1;
     pointer-events: auto;
     position: static;
-    background: var(--bg-color);
-    border-top: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-default);
     border-radius: 0 0 16px 16px;
     margin-top: -16px;
     padding: 12px;
+  }
+}
+
+/* 小屏手机适配 (1列) */
+@media (max-width: 479px) {
+  .characters-grid {
+    grid-template-columns: 1fr;
   }
 }
 

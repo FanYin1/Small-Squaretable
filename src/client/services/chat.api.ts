@@ -34,6 +34,8 @@ interface BackendChat {
   title: string;
   summary?: string | null;
   metadata?: Record<string, any>;
+  characterName?: string | null;
+  characterAvatar?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -82,8 +84,8 @@ function transformChat(item: BackendChat): Chat {
     id: item.id,
     title: item.title,
     characterId: item.characterId,
-    characterName: '', // Will be populated separately if needed
-    characterAvatar: undefined,
+    characterName: item.characterName || '',
+    characterAvatar: item.characterAvatar || undefined,
     lastMessage: item.summary || undefined,
     lastMessageAt: item.updatedAt,
     metadata: item.metadata,
