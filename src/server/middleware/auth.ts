@@ -42,6 +42,7 @@ export function authMiddleware() {
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
         role: user.role ?? 'user',
+        mfaEnabled: user.totpEnabled,
       });
       c.set('tenantId', user.tenantId);
 
@@ -56,7 +57,7 @@ export function authMiddleware() {
 }
 
 /**
- * Combined auth: tries API key first (X-API-Key or Bearer sk_live_...), then JWT.
+ * Combined auth: tries API key first (X-API-Key or Bearer sq_test_...), then JWT.
  * For API key auth, sets authMethod='apiKey' and apiKeyScopes.
  * For JWT auth, sets authMethod='jwt'.
  */
@@ -65,7 +66,7 @@ export function combinedAuthMiddleware() {
     // Check for API key
     const xApiKey = c.req.header('X-API-Key');
     const authHeader = c.req.header('Authorization');
-    const apiKey = xApiKey || (authHeader?.startsWith('Bearer sk_live_') ? authHeader.slice(7) : null);
+    const apiKey = xApiKey || (authHeader?.startsWith('Bearer sq_test_') ? authHeader.slice(7) : null);
 
     if (apiKey) {
       const { apiKeyService } = await import('../services/apiKey.service');
@@ -83,6 +84,7 @@ export function combinedAuthMiddleware() {
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
         role: user.role ?? 'user',
+        mfaEnabled: user.totpEnabled,
       });
       c.set('tenantId', tenantId);
       c.set('apiKeyScopes', scopes);
@@ -111,6 +113,7 @@ export function combinedAuthMiddleware() {
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
         role: user.role ?? 'user',
+        mfaEnabled: user.totpEnabled,
       });
       c.set('tenantId', user.tenantId);
       c.set('authMethod', 'jwt');
@@ -140,6 +143,7 @@ export function optionalAuthMiddleware() {
             displayName: user.displayName,
             avatarUrl: user.avatarUrl,
             role: user.role ?? 'user',
+            mfaEnabled: user.totpEnabled,
           });
           c.set('tenantId', user.tenantId);
         }

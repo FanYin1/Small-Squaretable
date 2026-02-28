@@ -347,7 +347,7 @@ export const apiKeyRateLimit = rateLimit({
     const apiKey = c.req.header('X-API-Key');
     if (apiKey) return `apikey:${apiKey.slice(-8)}`;
     const authHeader = c.req.header('Authorization');
-    if (authHeader?.startsWith('Bearer sk_live_')) {
+    if (authHeader?.startsWith('Bearer sq_test_')) {
       return `apikey:${authHeader.slice(-8)}`;
     }
     return defaultKeyGenerator(c);

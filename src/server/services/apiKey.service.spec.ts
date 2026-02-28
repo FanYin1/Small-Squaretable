@@ -10,7 +10,7 @@ import { NotFoundError, UnauthorizedError, BadRequestError } from '../../core/er
 vi.mock('../utils/apiKey', () => ({
   generateApiKey: vi.fn(() => 'sq_test_abcdef1234567890abcdef1234567890'),
   hashApiKey: vi.fn(() => 'hashed_key_value_64_chars_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
-  getKeyHint: vi.fn(() => 'sk_live_...7890'),
+  getKeyHint: vi.fn(() => 'sq_test_...7890'),
 }));
 
 function createMockApiKeyRepo() {
@@ -45,7 +45,7 @@ function fakeApiKeyRecord(overrides: Record<string, unknown> = {}) {
     userId: 'user-1',
     name: 'My Key',
     keyHash: 'hashed_key_value_64_chars_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    keyHint: 'sk_live_...7890',
+    keyHint: 'sq_test_...7890',
     scopes: ['characters:read'],
     rateLimitPerMinute: 60,
     isActive: true,
@@ -83,7 +83,7 @@ describe('ApiKeyService', () => {
       expect(result.key).toBe('sq_test_abcdef1234567890abcdef1234567890');
       expect(result.id).toBe('key-1');
       expect(result.name).toBe('My Key');
-      expect(result.keyHint).toBe('sk_live_...7890');
+      expect(result.keyHint).toBe('sq_test_...7890');
       expect(result.scopes).toEqual(['characters:read']);
       expect(result.rateLimitPerMinute).toBe(60);
       expect(result.isActive).toBe(true);
@@ -216,18 +216,18 @@ describe('ApiKeyService', () => {
     it('should throw UnauthorizedError for invalid/inactive/expired key', async () => {
       // Case 1: key not found
       apiKeyRepo.findByKeyHash.mockResolvedValue(null);
-      await expect(service.validateApiKey('sk_live_invalid')).rejects.toThrow(UnauthorizedError);
+      await expect(service.validateApiKey('sq_test_invalid')).rejects.toThrow(UnauthorizedError);
 
       // Case 2: key is inactive
       apiKeyRepo.findByKeyHash.mockResolvedValue(fakeApiKeyRecord({ isActive: false }));
-      await expect(service.validateApiKey('sk_live_inactive')).rejects.toThrow(UnauthorizedError);
+      await expect(service.validateApiKey('sq_test_inactive')).rejects.toThrow(UnauthorizedError);
 
       // Case 3: key is expired
       apiKeyRepo.findByKeyHash.mockResolvedValue(
         fakeApiKeyRecord({ expiresAt: new Date('2020-01-01T00:00:00Z') }),
       );
       userRepo.findById.mockResolvedValue({ id: 'user-1', tenantId: 'tenant-1', isActive: true });
-      await expect(service.validateApiKey('sk_live_expired')).rejects.toThrow(UnauthorizedError);
+      await expect(service.validateApiKey('sq_test_expired')).rejects.toThrow(UnauthorizedError);
     });
   });
 

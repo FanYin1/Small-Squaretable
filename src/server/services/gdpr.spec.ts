@@ -147,7 +147,7 @@ function setupDefaultMocks() {
   mockFollowGetFollowers.mockResolvedValue([{ followerId: 'user-fan' }]);
   mockSubFindByTenantId.mockResolvedValue({ id: 'sub-1', plan: 'pro', tenantId: TENANT_ID });
   mockApiKeyFindByUserId.mockResolvedValue([
-    { id: 'key-1', userId: USER_ID, name: 'My Key', keyHash: 'secret-hash', keyPrefix: 'sk_live_abc' },
+    { id: 'key-1', userId: USER_ID, name: 'My Key', keyHash: 'secret-hash', keyPrefix: 'sq_test_abc' },
   ]);
   mockPluginFindInstallsByUserId.mockResolvedValue([
     { id: 'inst-1', pluginId: 'plug-1', userId: USER_ID, plugin: { name: 'Test Plugin' } },

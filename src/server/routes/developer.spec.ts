@@ -50,7 +50,7 @@ describe('Developer Routes', () => {
     };
 
     it('should create an API key and return 201', async () => {
-      const mockResult = { id: 'key-1', name: 'My API Key', key: 'sk_live_abc123' };
+      const mockResult = { id: 'key-1', name: 'My API Key', key: 'sq_test_abc123' };
       vi.mocked(apiKeyService.createApiKey).mockResolvedValue(mockResult as any);
 
       const res = await app.request('/developer/api-keys', {

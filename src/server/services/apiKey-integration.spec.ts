@@ -16,10 +16,10 @@ vi.mock('../utils/apiKey', () => {
   return {
     generateApiKey: vi.fn(() => {
       callCount++;
-      return `sk_live_integration_test_key_${String(callCount).padStart(16, '0')}`;
+      return `sq_test_integration_test_key_${String(callCount).padStart(16, '0')}`;
     }),
     hashApiKey: vi.fn((key: string) => `hash_of_${key}`),
-    getKeyHint: vi.fn((key: string) => `sk_live_...${key.slice(-4)}`),
+    getKeyHint: vi.fn((key: string) => `sq_test_...${key.slice(-4)}`),
   };
 });
 
@@ -59,8 +59,8 @@ function fakeApiKeyRecord(overrides: Record<string, unknown> = {}) {
     id: `key-${idCounter}`,
     userId: 'user-1',
     name: 'Test Key',
-    keyHash: `hash_of_sk_live_integration_test_key_${String(idCounter).padStart(16, '0')}`,
-    keyHint: `sk_live_...${String(idCounter).padStart(4, '0')}`,
+    keyHash: `hash_of_sq_test_integration_test_key_${String(idCounter).padStart(16, '0')}`,
+    keyHint: `sq_test_...${String(idCounter).padStart(4, '0')}`,
     scopes: ['characters:read', 'chats:read'],
     rateLimitPerMinute: 60,
     isActive: true,
@@ -109,7 +109,7 @@ describe('API Key Integration', () => {
         scopes: ['characters:read', 'chats:read'],
       });
 
-      expect(created.key).toMatch(/^sk_live_/);
+      expect(created.key).toMatch(/^sq_test_/);
       expect(created.id).toBe('key-lifecycle');
       expect(created.name).toBe('Test Key');
       expect(created.scopes).toEqual(['characters:read', 'chats:read']);
@@ -182,7 +182,7 @@ describe('API Key Integration', () => {
       apiKeyRepo.incrementRequestCount.mockResolvedValue(undefined);
       userRepo.findById.mockResolvedValue(ACTIVE_USER);
 
-      const rawKey = 'sk_live_integration_test_key_0000000000000001';
+      const rawKey = 'sq_test_integration_test_key_0000000000000001';
       const result = await service.validateApiKey(rawKey);
 
       expect(result.userId).toBe('user-1');
@@ -199,8 +199,8 @@ describe('API Key Integration', () => {
       apiKeyRepo.findByKeyHash.mockResolvedValue(expiredRecord);
       userRepo.findById.mockResolvedValue(ACTIVE_USER);
 
-      await expect(service.validateApiKey('sk_live_expired_key')).rejects.toThrow(UnauthorizedError);
-      await expect(service.validateApiKey('sk_live_expired_key')).rejects.toThrow('API key has expired');
+      await expect(service.validateApiKey('sq_test_expired_key')).rejects.toThrow(UnauthorizedError);
+      await expect(service.validateApiKey('sq_test_expired_key')).rejects.toThrow('API key has expired');
     });
 
     it('rejects inactive key', async () => {
@@ -210,8 +210,8 @@ describe('API Key Integration', () => {
       });
       apiKeyRepo.findByKeyHash.mockResolvedValue(inactiveRecord);
 
-      await expect(service.validateApiKey('sk_live_inactive_key')).rejects.toThrow(UnauthorizedError);
-      await expect(service.validateApiKey('sk_live_inactive_key')).rejects.toThrow(
+      await expect(service.validateApiKey('sq_test_inactive_key')).rejects.toThrow(UnauthorizedError);
+      await expect(service.validateApiKey('sq_test_inactive_key')).rejects.toThrow(
         'Invalid or inactive API key',
       );
     });
@@ -219,8 +219,8 @@ describe('API Key Integration', () => {
     it('rejects invalid key (not in DB)', async () => {
       apiKeyRepo.findByKeyHash.mockResolvedValue(null);
 
-      await expect(service.validateApiKey('sk_live_nonexistent')).rejects.toThrow(UnauthorizedError);
-      await expect(service.validateApiKey('sk_live_nonexistent')).rejects.toThrow(
+      await expect(service.validateApiKey('sq_test_nonexistent')).rejects.toThrow(UnauthorizedError);
+      await expect(service.validateApiKey('sq_test_nonexistent')).rejects.toThrow(
         'Invalid or inactive API key',
       );
     });

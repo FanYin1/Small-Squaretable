@@ -140,7 +140,7 @@ export function csrfProtection() {
       // Skip CSRF for API key requests (stateless, no cookies/sessions)
       const xApiKey = c.req.header('X-API-Key');
       const authHeader = c.req.header('Authorization');
-      if (xApiKey || authHeader?.startsWith('Bearer sk_live_')) {
+      if (xApiKey || authHeader?.startsWith('Bearer sq_test_')) {
         return next();
       }
 

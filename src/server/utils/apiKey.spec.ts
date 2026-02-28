@@ -3,9 +3,9 @@ import { generateApiKey, hashApiKey, getKeyHint } from './apiKey';
 
 describe('API Key Utilities', () => {
   describe('generateApiKey', () => {
-    it('returns string starting with sk_live_', () => {
+    it('returns string starting with sq_test_', () => {
       const key = generateApiKey();
-      expect(key.startsWith('sk_live_')).toBe(true);
+      expect(key.startsWith('sq_test_')).toBe(true);
     });
 
     it('returns 40-char string', () => {
@@ -36,7 +36,7 @@ describe('API Key Utilities', () => {
   describe('getKeyHint', () => {
     it('returns prefix + last 4 chars', () => {
       const hint = getKeyHint('sq_test_abcdef1234567890abcdef12345678');
-      expect(hint).toBe('sk_live_...5678');
+      expect(hint).toBe('sq_test_...5678');
     });
   });
 });

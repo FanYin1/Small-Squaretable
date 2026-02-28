@@ -1,6 +1,6 @@
 import { randomBytes, createHash } from 'crypto';
 
-const API_KEY_PREFIX = 'sk_live_';
+const API_KEY_PREFIX = 'sq_test_';
 
 export function generateApiKey(): string {
   const random = randomBytes(16).toString('hex');

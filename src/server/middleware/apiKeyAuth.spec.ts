@@ -66,17 +66,17 @@ describe('API Key Auth Middleware', () => {
       );
 
       const res = await app.request('/test', {
-        headers: { 'X-API-Key': 'sk_live_testkey123' },
+        headers: { 'X-API-Key': 'sq_test_testkey123' },
       });
 
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.userId).toBe('user-1');
       expect(data.tenantId).toBe('tenant-1');
-      expect(apiKeyService.validateApiKey).toHaveBeenCalledWith('sk_live_testkey123');
+      expect(apiKeyService.validateApiKey).toHaveBeenCalledWith('sq_test_testkey123');
     });
 
-    it('should authenticate via Authorization: Bearer sk_live_... header', async () => {
+    it('should authenticate via Authorization: Bearer sq_test_... header', async () => {
       const { apiKeyAuthMiddleware } = await import('./apiKeyAuth');
       const { apiKeyService } = await import('../services/apiKey.service');
       const { userRepository } = await import('../../db/repositories/user.repository');
@@ -97,14 +97,14 @@ describe('API Key Auth Middleware', () => {
       );
 
       const res = await app.request('/test', {
-        headers: { Authorization: 'Bearer sk_live_myapikey456' },
+        headers: { Authorization: 'Bearer sq_test_myapikey456' },
       });
 
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.userId).toBe('user-1');
       expect(data.tenantId).toBe('tenant-1');
-      expect(apiKeyService.validateApiKey).toHaveBeenCalledWith('sk_live_myapikey456');
+      expect(apiKeyService.validateApiKey).toHaveBeenCalledWith('sq_test_myapikey456');
     });
 
     it('should set apiKeyScopes and authMethod=apiKey in context', async () => {
@@ -128,7 +128,7 @@ describe('API Key Auth Middleware', () => {
       );
 
       const res = await app.request('/test', {
-        headers: { 'X-API-Key': 'sk_live_testkey123' },
+        headers: { 'X-API-Key': 'sq_test_testkey123' },
       });
 
       expect(res.status).toBe(200);
@@ -149,7 +149,7 @@ describe('API Key Auth Middleware', () => {
       app.get('/test', (c) => c.json({ ok: true }));
 
       const res = await app.request('/test', {
-        headers: { 'X-API-Key': 'sk_live_invalid' },
+        headers: { 'X-API-Key': 'sq_test_invalid' },
       });
 
       expect(res.status).toBe(401);
@@ -185,7 +185,7 @@ describe('API Key Auth Middleware', () => {
       app.get('/test', (c) => c.json({ ok: true }));
 
       const res = await app.request('/test', {
-        headers: { 'X-API-Key': 'sk_live_expired' },
+        headers: { 'X-API-Key': 'sq_test_expired' },
       });
 
       expect(res.status).toBe(401);
@@ -205,7 +205,7 @@ describe('API Key Auth Middleware', () => {
       app.get('/test', (c) => c.json({ ok: true }));
 
       const res = await app.request('/test', {
-        headers: { 'X-API-Key': 'sk_live_inactive' },
+        headers: { 'X-API-Key': 'sq_test_inactive' },
       });
 
       expect(res.status).toBe(401);
@@ -233,7 +233,7 @@ describe('API Key Auth Middleware', () => {
       app.get('/test', (c) => c.json({ ok: true }));
 
       const res = await app.request('/test', {
-        headers: { 'X-API-Key': 'sk_live_testkey123' },
+        headers: { 'X-API-Key': 'sq_test_testkey123' },
       });
 
       expect(res.status).toBe(200);
@@ -258,7 +258,7 @@ describe('API Key Auth Middleware', () => {
       app.get('/test', (c) => c.json({ ok: true }));
 
       const res = await app.request('/test', {
-        headers: { 'X-API-Key': 'sk_live_testkey123' },
+        headers: { 'X-API-Key': 'sq_test_testkey123' },
       });
 
       expect(res.status).toBe(403);

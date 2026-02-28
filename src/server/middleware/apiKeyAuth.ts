@@ -1,7 +1,7 @@
 /**
  * API Key Authentication Middleware
  *
- * Authenticates requests via API key (X-API-Key header or Bearer sk_live_... token)
+ * Authenticates requests via API key (X-API-Key header or Bearer sq_test_... token)
  * and provides scope-checking middleware for fine-grained access control.
  */
 
@@ -21,7 +21,7 @@ declare module 'hono' {
  *
  * Checks for API key in:
  * 1. X-API-Key header
- * 2. Authorization: Bearer sk_live_... header
+ * 2. Authorization: Bearer sq_test_... header
  *
  * If no API key is found, falls through to allow other auth methods (e.g. JWT).
  * On successful validation, sets user, tenantId, apiKeyScopes, and authMethod in context.
@@ -89,7 +89,7 @@ export function requireScopes(...requiredScopes: string[]) {
 /**
  * Extracts an API key from the request headers.
  *
- * Checks X-API-Key header first, then Authorization: Bearer sk_live_... header.
+ * Checks X-API-Key header first, then Authorization: Bearer sq_test_... header.
  * Returns null if no API key is found.
  */
 function extractApiKey(c: Context): string | null {
@@ -97,7 +97,7 @@ function extractApiKey(c: Context): string | null {
   if (xApiKey) return xApiKey;
 
   const authHeader = c.req.header('Authorization');
-  if (authHeader?.startsWith('Bearer sk_live_')) {
+  if (authHeader?.startsWith('Bearer sq_test_')) {
     return authHeader.slice(7);
   }
 
