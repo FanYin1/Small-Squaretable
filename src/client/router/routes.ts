@@ -114,7 +114,7 @@ export const routes: RouteRecordRaw[] = [
     component: loadVerifyEmail,
     meta: {
       requiresAuth: false,
-      guestOnly: true,
+      guestOnly: false,
     },
   },
   {

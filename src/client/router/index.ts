@@ -3,6 +3,8 @@ import { routes } from './routes';
 import './types';
 import { useUserStore } from '@client/stores/user';
 import { isTokenValid } from '@client/utils/auth';
+import { ElMessage } from 'element-plus';
+import i18n from '@client/i18n/index';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -51,7 +53,8 @@ router.beforeEach((to, from, next) => {
       .map(record => record.meta.requiresRole as string)
       .pop();
     if (requiredRole && !hasRequiredRole(userStore.user?.role, requiredRole)) {
-      // Insufficient role, redirect to dashboard
+      // Insufficient role, redirect with feedback
+      ElMessage.warning(i18n.global.t('auth.insufficientPermissions'));
       next({ name: 'Chat' });
     } else {
       next();
