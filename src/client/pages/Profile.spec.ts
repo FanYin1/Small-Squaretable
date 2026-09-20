@@ -85,7 +85,11 @@ function createWrapper() {
     global: {
       plugins: [pinia, i18n],
       stubs: {
-        ElForm: { template: '<form class="el-form"><slot /></form>', props: ['labelPosition'] },
+        ElForm: {
+          template: '<form class="el-form"><slot /></form>',
+          props: ['labelPosition', 'model', 'rules'],
+          methods: { validate: () => Promise.resolve(true) },
+        },
         ElFormItem: { template: '<div class="el-form-item"><label>{{ label }}</label><slot /></div>', props: ['label'] },
         ElInput: {
           template: '<input class="el-input" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',

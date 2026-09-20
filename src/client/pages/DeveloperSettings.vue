@@ -114,7 +114,7 @@ async function copyToClipboard(text: string) {
     await navigator.clipboard.writeText(text);
     ElMessage.success(t('developer.keyCopied'));
   } catch {
-    ElMessage.error('Failed to copy');
+    ElMessage.error(t('common.copyFailed'));
   }
 }
 
@@ -338,7 +338,7 @@ onMounted(() => {
 }
 
 .key-card {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 24px;
   border: 1px solid var(--border-default);
@@ -347,7 +347,7 @@ onMounted(() => {
 }
 
 .key-card:hover {
-  border-color: var(--accent-purple);
+  border-color: var(--accent);
 }
 
 .key-header {

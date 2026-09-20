@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
 import { Download, Delete, Setting } from '@element-plus/icons-vue';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import { gdprApi } from '@client/services/gdpr.api';
+import { useToast } from '@client/composables/useToast';
 import type { DeletionStatus, ConsentPreferences } from '@client/services/gdpr.api';
 
 const { t } = useI18n();
+const toast = useToast();
 
 // ── Data Export ──
 const exporting = ref(false);
@@ -24,9 +25,9 @@ async function handleExportData() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    ElMessage.success(t('accountSettings.exportSuccess'));
+    toast.success(t('accountSettings.exportSuccess'));
   } catch {
-    ElMessage.error(t('accountSettings.exportFailed'));
+    toast.error(t('accountSettings.exportFailed'));
   } finally {
     exporting.value = false;
   }
@@ -53,18 +54,18 @@ async function fetchDeletionStatus() {
 }
 async function handleRequestDeletion() {
   if (!deletePassword.value) {
-    ElMessage.warning(t('accountSettings.passwordRequired'));
+    toast.warning(t('accountSettings.passwordRequired'));
     return;
   }
   deletingAccount.value = true;
   try {
     await gdprApi.requestDeletion(deletePassword.value);
-    ElMessage.success(t('accountSettings.deletionRequested'));
+    toast.success(t('accountSettings.deletionRequested'));
     deleteDialogVisible.value = false;
     deletePassword.value = '';
     await fetchDeletionStatus();
   } catch {
-    ElMessage.error(t('accountSettings.deletionFailed'));
+    toast.error(t('accountSettings.deletionFailed'));
   } finally {
     deletingAccount.value = false;
   }
@@ -74,10 +75,10 @@ async function handleCancelDeletion() {
   cancellingDeletion.value = true;
   try {
     await gdprApi.cancelDeletion();
-    ElMessage.success(t('accountSettings.deletionCancelled'));
+    toast.success(t('accountSettings.deletionCancelled'));
     await fetchDeletionStatus();
   } catch {
-    ElMessage.error(t('accountSettings.cancelFailed'));
+    toast.error(t('accountSettings.cancelFailed'));
   } finally {
     cancellingDeletion.value = false;
   }
@@ -113,11 +114,11 @@ async function handleConsentChange(key: keyof ConsentPreferences, value: boolean
   try {
     await gdprApi.updateConsents({ [key]: value });
     consents[key] = value;
-    ElMessage.success(t('accountSettings.consentsSaved'));
+    toast.success(t('accountSettings.consentsSaved'));
   } catch {
     // Revert on failure
     consents[key] = !value;
-    ElMessage.error(t('accountSettings.consentsFailed'));
+    toast.error(t('accountSettings.consentsFailed'));
   } finally {
     savingConsents.value = false;
   }
@@ -211,7 +212,7 @@ onMounted(() => {
       <el-dialog
         v-model="deleteDialogVisible"
         :title="t('accountSettings.deleteConfirmTitle')"
-        width="440px"
+        width="min(440px, 90vw)"
         :close-on-click-modal="false"
       >
         <el-alert type="error" :closable="false" show-icon class="dialog-alert">

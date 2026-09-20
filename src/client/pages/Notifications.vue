@@ -59,23 +59,23 @@ function getNotificationIcon(type: NotificationType) {
 function getIconColor(type: NotificationType): string {
   switch (type) {
     case 'follow':
-      return 'var(--accent-purple)';
+      return 'var(--accent)';
     case 'favorite':
       return 'var(--color-warning)';
     case 'comment':
       return 'var(--color-success)';
     case 'reply':
-      return 'var(--accent-cyan)';
+      return 'var(--accent)';
     case 'mention':
       return 'var(--color-info, #409eff)';
     case 'collaborator_invite':
       return 'var(--color-success)';
     case 'collaborator_role_change':
-      return 'var(--accent-purple)';
+      return 'var(--accent)';
     case 'collaborator_removed':
       return 'var(--color-danger, #f56c6c)';
     case 'character_forked':
-      return 'var(--accent-cyan)';
+      return 'var(--accent)';
     case 'system':
       return 'var(--text-secondary)';
     default:
@@ -246,7 +246,7 @@ function loadMore() {
 
 /* Loading state */
 .loading-state {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 24px;
   border: 1px solid var(--border-default);
@@ -257,7 +257,7 @@ function loadMore() {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 12px;
   border: 1px solid var(--border-default);
   overflow: hidden;
@@ -279,16 +279,16 @@ function loadMore() {
 }
 
 .notification-item:hover {
-  background: color-mix(in srgb, var(--accent-purple) 5%, var(--surface-card));
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-surface));
 }
 
 .notification-item:focus-visible {
-  outline: 2px solid var(--accent-purple);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
 .notification-item.unread {
-  background: color-mix(in srgb, var(--accent-purple) 3%, var(--surface-card));
+  background: color-mix(in srgb, var(--accent) 3%, var(--bg-surface));
 }
 
 .notification-item.unread .notification-message {
@@ -309,7 +309,7 @@ function loadMore() {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent-purple);
+  background: var(--accent);
   flex-shrink: 0;
 }
 

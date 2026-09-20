@@ -34,9 +34,9 @@ onMounted(async () => {
   if (!userStore.user) {
     await userStore.fetchProfile();
   }
-  // Check if MFA is already enabled by trying to get backup codes
-  // For now, start in idle state; the backend /auth/me could include mfaEnabled
-  // We'll detect it from the setup response
+  if (userStore.user?.mfaEnabled) {
+    mfaState.value = 'enabled';
+  }
 });
 
 // Start MFA setup
@@ -283,7 +283,7 @@ function copySecret() {
 
 .mfa-card {
   border-radius: 12px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
 }
 
 .card-header-row {
@@ -319,7 +319,7 @@ function copySecret() {
 .qr-image {
   width: 200px;
   height: 200px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   padding: 8px;
   background: white;

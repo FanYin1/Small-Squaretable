@@ -1,20 +1,33 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ElMessage } from 'element-plus';
+import { type FormInstance, type FormRules } from 'element-plus';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import { useUserStore } from '@client/stores/user';
 import { userApi } from '@client/services/user.api';
+import { useToast } from '@client/composables/useToast';
 
 const { t } = useI18n();
 const userStore = useUserStore();
+const toast = useToast();
 
+const formRef = ref<FormInstance>();
 const form = reactive({
   displayName: '',
   bio: '',
   avatarUrl: '',
 });
 const saving = ref(false);
+
+const rules: FormRules = {
+  displayName: [
+    { required: true, message: () => t('profile.nameRequired'), trigger: 'blur' },
+    { min: 2, max: 50, message: () => t('profile.nameLength'), trigger: 'blur' },
+  ],
+  bio: [
+    { max: 500, message: () => t('profile.bioLength'), trigger: 'blur' },
+  ],
+};
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -35,11 +48,11 @@ function handleAvatarUpload() {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      ElMessage.error(t('profile.invalidImageType', 'Invalid image type'));
+      toast.error(t('profile.invalidImageType'));
       return;
     }
     if (file.size > MAX_AVATAR_SIZE) {
-      ElMessage.error(t('profile.avatarTooLarge', 'Image must be under 5MB'));
+      toast.error(t('profile.avatarTooLarge'));
       return;
     }
     const reader = new FileReader();
@@ -52,6 +65,8 @@ function handleAvatarUpload() {
 }
 
 async function handleSave() {
+  const valid = await formRef.value?.validate().catch(() => false);
+  if (!valid) return;
   saving.value = true;
   try {
     await userApi.updateProfile({
@@ -60,10 +75,10 @@ async function handleSave() {
       avatarUrl: form.avatarUrl || undefined,
     });
     await userStore.fetchProfile();
-    ElMessage.success(t('profile.updateSuccess'));
+    toast.success(t('profile.updateSuccess'));
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : t('common.retry');
-    ElMessage.error(msg);
+    toast.error(msg);
   } finally {
     saving.value = false;
   }
@@ -75,7 +90,7 @@ async function handleSave() {
     <template #title>{{ t('profile.title') }}</template>
 
     <div class="profile-edit-page">
-      <el-form label-position="top" class="profile-form">
+      <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="profile-form">
         <!-- Avatar -->
         <el-form-item :label="t('profile.avatar')">
           <div class="avatar-upload-area">
@@ -91,12 +106,12 @@ async function handleSave() {
         </el-form-item>
 
         <!-- Display Name -->
-        <el-form-item :label="t('profile.displayName')">
-          <el-input v-model="form.displayName" :maxlength="100" show-word-limit />
+        <el-form-item :label="t('profile.displayName')" prop="displayName">
+          <el-input v-model="form.displayName" :maxlength="50" show-word-limit />
         </el-form-item>
 
         <!-- Bio -->
-        <el-form-item :label="t('profile.bio')">
+        <el-form-item :label="t('profile.bio')" prop="bio">
           <el-input
             v-model="form.bio"
             type="textarea"
@@ -129,7 +144,7 @@ async function handleSave() {
 }
 
 .profile-form {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 32px;
   border: 1px solid var(--border-default);
