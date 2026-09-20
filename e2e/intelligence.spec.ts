@@ -59,7 +59,9 @@ test.describe('Intelligence Features', () => {
     await clearSession(page);
   });
 
-  test('intelligence debug button is accessible in chat actions', async ({ page }) => {
+  // Debug / Memory 原先是工具栏上的一级按钮，现在收进 ⚙ 工具下拉里
+  // （工具栏一度挤了六个控件）。这里要先点开下拉才能断言。
+  test('intelligence debug entry is reachable from the tools menu', async ({ page }) => {
     await setupAuth(page);
     await page.addInitScript(() => { localStorage.setItem('lastChatId', 'chat_1'); });
     await mockIntelligenceEndpoints(page);
@@ -70,11 +72,12 @@ test.describe('Intelligence Features', () => {
     const chatActions = page.locator('.chat-actions');
     await expect(chatActions).toBeVisible({ timeout: 10000 });
 
-    const debugBtn = chatActions.locator('button').filter({ hasText: /Debug/i });
-    await expect(debugBtn).toBeVisible();
+    await chatActions.locator('.tools-btn').click();
+    const debugItem = page.locator('.el-dropdown-menu__item').filter({ hasText: /Debug/i });
+    await expect(debugItem).toBeVisible({ timeout: 10000 });
   });
 
-  test('memory button is accessible in chat actions', async ({ page }) => {
+  test('memory entry is reachable from the tools menu', async ({ page }) => {
     await setupAuth(page);
     await page.addInitScript(() => { localStorage.setItem('lastChatId', 'chat_1'); });
     await mockIntelligenceEndpoints(page);
@@ -85,8 +88,9 @@ test.describe('Intelligence Features', () => {
     const chatActions = page.locator('.chat-actions');
     await expect(chatActions).toBeVisible({ timeout: 10000 });
 
-    const memoryBtn = chatActions.locator('button').filter({ hasText: /Memory/i });
-    await expect(memoryBtn).toBeVisible();
+    await chatActions.locator('.tools-btn').click();
+    const memoryItem = page.locator('.el-dropdown-menu__item').filter({ hasText: /Memory/i });
+    await expect(memoryItem).toBeVisible({ timeout: 10000 });
   });
 
   test('emotion state displays in chat subtitle', async ({ page }) => {

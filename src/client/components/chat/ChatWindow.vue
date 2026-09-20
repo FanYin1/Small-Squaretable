@@ -61,7 +61,7 @@
           </el-option>
         </el-select>
         <el-dropdown trigger="click" @command="handleToolsDropdown">
-          <el-button text size="small" class="tools-btn">⚙</el-button>
+          <el-button text size="small" class="tools-btn" :aria-label="t('chat.tools')" :title="t('chat.tools')">⚙</el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="tuner">{{ t('chat.parameterTuning') }}</el-dropdown-item>

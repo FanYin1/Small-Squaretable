@@ -34,9 +34,7 @@
     "updateFailed": "Failed to update",
     "deleteSuccess": "Deleted successfully",
     "deleteFailed": "Failed to delete",
-    "copyFailed": "Failed to copy",
-    "actions": "Actions",
-    "warning": "Warning"
+    "copyFailed": "Failed to copy"
   },
   "time": {
     "justNow": "Just now",
@@ -111,6 +109,7 @@
     "scrollToBottom": "Scroll to bottom",
     "emotion": "Emotion",
     "memory": "Memory",
+    "tools": "Tools",
     "debug": "Debug",
     "intelligence": "Intelligence",
     "startNewConversation": "Start a New Conversation",
@@ -685,7 +684,6 @@
     "createFirst": "Create your first world book",
     "importBook": "Import World Book",
     "exportBook": "Export World Book",
-    "importSuccess": "World book imported successfully",
     "entriesCount": "{count} entries",
     "noEntries": "No entries yet",
     "addEntry": "Add Entry",

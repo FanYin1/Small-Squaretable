@@ -34,9 +34,7 @@
     "updateFailed": "更新失败",
     "deleteSuccess": "删除成功",
     "deleteFailed": "删除失败",
-    "copyFailed": "复制失败",
-    "actions": "操作",
-    "warning": "警告"
+    "copyFailed": "复制失败"
   },
   "time": {
     "justNow": "刚刚",
@@ -111,6 +109,7 @@
     "scrollToBottom": "回到底部",
     "emotion": "情感状态",
     "memory": "角色记忆",
+    "tools": "工具",
     "debug": "智能系统调试",
     "intelligence": "智能面板",
     "startNewConversation": "开始新的对话",
@@ -685,7 +684,6 @@
     "createFirst": "创建第一个世界书",
     "importBook": "导入世界书",
     "exportBook": "导出世界书",
-    "importSuccess": "世界书导入成功",
     "entriesCount": "{count} 个条目",
     "noEntries": "暂无条目",
     "addEntry": "添加条目",

@@ -28,6 +28,7 @@ import ChatLayout from '@client/components/layout/ChatLayout.vue';
 import ChatWindow from '@client/components/chat/ChatWindow.vue';
 import WelcomePage from '@client/components/chat/WelcomePage.vue';
 import PersonaSelector from '@client/components/chat/PersonaSelector.vue';
+import { userPersonaApi } from '@client/services/user-persona.api';
 import { createLogger } from '@client/utils/logger';
 
 const logger = createLogger('Chat');
@@ -59,19 +60,31 @@ const handleSelectChat = async (chatId: string) => {
   }
 };
 
-const handleSelectCharacter = async (characterId: string) => {
-  pendingCharacterId.value = characterId;
-  pendingCharacterIds.value = null;
-  showPersonaSelector.value = true;
+/**
+ * personaId 在 schema 和 createChatSchema 里都是 optional，所以选人设不能
+ * 成为开聊的前置条件：只有「确实存在多个人设、且没有默认人设」时才值得打断
+ * 用户。没有人设的新账号如果被弹窗拦住，只能去创建人设才能开始第一次对话。
+ *
+ * 返回 undefined 表示这次不带 personaId（服务端会存 null），
+ * 返回 null 表示已经交给弹窗处理，调用方不要继续。
+ */
+const resolvePersonaId = async (): Promise<string | undefined | null> => {
+  try {
+    const personas = await userPersonaApi.list();
+    if (personas.length === 0) return undefined;
+    const preferred = personas.find((p) => p.isDefault);
+    if (preferred) return preferred.id;
+    if (personas.length === 1) return personas[0].id;
+    showPersonaSelector.value = true;
+    return null;
+  } catch (error) {
+    // 人设列表拉不到不该阻断开聊，退化成不带 personaId
+    logger.error('Failed to load personas, creating chat without one:', error);
+    return undefined;
+  }
 };
 
-const handleSelectCharacters = async (characterIds: string[]) => {
-  pendingCharacterId.value = null;
-  pendingCharacterIds.value = characterIds;
-  showPersonaSelector.value = true;
-};
-
-const handlePersonaSelected = async (personaId: string) => {
+const startChat = async (personaId?: string) => {
   creatingChat.value = true;
   try {
     let chat;
@@ -95,6 +108,26 @@ const handlePersonaSelected = async (personaId: string) => {
     pendingCharacterId.value = null;
     pendingCharacterIds.value = null;
   }
+};
+
+const handleSelectCharacter = async (characterId: string) => {
+  pendingCharacterId.value = characterId;
+  pendingCharacterIds.value = null;
+  const personaId = await resolvePersonaId();
+  if (personaId === null) return;
+  await startChat(personaId);
+};
+
+const handleSelectCharacters = async (characterIds: string[]) => {
+  pendingCharacterId.value = null;
+  pendingCharacterIds.value = characterIds;
+  const personaId = await resolvePersonaId();
+  if (personaId === null) return;
+  await startChat(personaId);
+};
+
+const handlePersonaSelected = async (personaId: string) => {
+  await startChat(personaId);
 };
 
 onMounted(async () => {
