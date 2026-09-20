@@ -6,6 +6,7 @@ export interface User {
   tenantId: string;
   role?: 'user' | 'moderator' | 'admin';
   bio?: string;
+  mfaEnabled?: boolean;
   followerCount?: number;
   followingCount?: number;
   createdAt: string;
@@ -44,7 +45,8 @@ export interface Message {
   characterId?: string;
   characterName?: string;
   parentMessageId?: number;
-  extra?: { replyTo?: { messageId: string; content: string; role: string }; [key: string]: unknown };
+  importance?: number;
+  extra?: { replyTo?: { messageId: string; content: string; role: string }; pinned?: boolean; [key: string]: unknown };
   createdAt: string;
 }
 

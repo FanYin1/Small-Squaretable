@@ -65,6 +65,7 @@ interface BackendUser {
   displayName: string;
   avatarUrl?: string | null;
   role?: string;
+  mfaEnabled?: boolean;
 }
 
 // Backend response format
@@ -92,6 +93,7 @@ function transformUser(backendUser: BackendUser): User {
     name: backendUser.displayName,
     avatar: backendUser.avatarUrl || undefined,
     role: (backendUser.role as User['role']) || undefined,
+    mfaEnabled: backendUser.mfaEnabled,
     createdAt: new Date().toISOString(),
   };
 }

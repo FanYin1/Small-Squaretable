@@ -23,6 +23,10 @@ import { characterRepository } from '../../db/repositories/character.repository'
 import { messageRepository } from '../../db/repositories/message.repository';
 import { characterGrowthRepository } from '../../db/repositories/character-growth.repository';
 import { groupChatService } from '../services/group-chat.service';
+import { applyRegexScripts, getRegexScripts, RegexPlacement } from '../services/regex-scripts.service';
+import { formatMessagesWithTemplate } from '../config/prompt-templates';
+import { extractVariableInserts, extractVariableEdits, extractVariableDeletes } from '../utils/variable-insert';
+import { chatVariableStore } from '../services/chat-variable.service';
 import {
   WSMessageType,
   type WSMessageUnion,
@@ -172,7 +176,7 @@ export class WebSocketHandler {
       return;
     }
 
-    const { chatId, content } = message.data;
+    const { chatId, content, mentionedCharacterIds } = message.data;
     wsLogger.debug('Processing message', { chatId, contentPreview: content.substring(0, 50) });
 
     try {
@@ -198,13 +202,13 @@ export class WebSocketHandler {
 
       if (isGroup) {
         // --- Group chat: multi-character response loop ---
-        await this.handleGroupChatResponse(chatId, content, clientInfo.userId);
+        await this.handleGroupChatResponse(chatId, content, clientInfo.userId, mentionedCharacterIds);
       } else {
         // --- Single-character path (unchanged) ---
         await this.handleSingleCharacterResponse(chatId, content, clientInfo.userId, userMessage.id);
       }
     } catch (error) {
-      wsLogger.error('Error handling user message', error as Error);
+      wsLogger.error('Error handling user message', { error: (error as Error).message, stack: (error as Error).stack });
       websocketService.sendToClient(clientId, {
         type: WSMessageType.ERROR,
         timestamp: new Date().toISOString(),
@@ -240,12 +244,18 @@ export class WebSocketHandler {
       chatMessages = (await messageRepository.findBranch(chatId, activeBranchLeaf)).map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
+        pinned: m.pinned,
+        importance: m.importance,
+        messageId: m.id,
       }));
     } else {
       const messages = await chatService.getMessages(chatId);
       chatMessages = messages.map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
+        pinned: m.pinned,
+        importance: m.importance,
+        messageId: m.id,
       }));
     }
 
@@ -253,6 +263,7 @@ export class WebSocketHandler {
     const model = getChatModel(chat) || getDefaultModel() || 'glm-4.5-air';
 
     let systemPrompt = '';
+    let atDepthEntries: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }> = [];
     if (character) {
       const enhancedPrompt = await chatService.buildEnhancedSystemPrompt({
         character,
@@ -260,16 +271,75 @@ export class WebSocketHandler {
         userId,
         chatId,
         userMessage: content,
+        personaId: chat.personaId || undefined,
       });
       systemPrompt = enhancedPrompt.systemPrompt;
+      atDepthEntries = enhancedPrompt.atDepthEntries;
 
       await chatService.updateEmotionFromMessage(
         character.id, userId, chatId, content, userMessageId
       );
     }
 
+    // Fix: Ensure AI continues the greeting scene
+    // Based on SillyTavern best practices: use Author's Note at depth 0
+    wsLogger.info('Checking greeting continuity', {
+      chatMessagesLength: chatMessages.length,
+      firstRole: chatMessages[0]?.role,
+      chatId
+    });
+
+    if (chatMessages.length === 2 && chatMessages[0].role === 'assistant') {
+      wsLogger.info('✅ Applying greeting continuity fix', { chatId });
+
+      // Extract scene context from greeting
+      const greetingContent = chatMessages[0].content;
+      const scenePreview = greetingContent.substring(0, 400);
+
+      // SillyTavern approach: Insert Author's Note at depth 0 (before the last user message)
+      // This ensures the LLM sees the instruction right before generating the response
+      const authorNote = {
+        role: 'system' as const,
+        content: `[Author's Note: You are continuing the roleplay scene you established. Your previous message set this scene: "${scenePreview}..." - Continue naturally from where you left off. Do not restart or give a generic greeting.]`
+      };
+
+      // Insert at depth 0: right before the last message (user's input)
+      // chatMessages = [assistant_greeting, user_input]
+      // After insertion: [assistant_greeting, author_note, user_input]
+      chatMessages.splice(chatMessages.length - 1, 0, authorNote);
+
+      wsLogger.info('Inserted Author\'s Note at depth 0', {
+        totalMessages: chatMessages.length,
+        roles: chatMessages.map(m => m.role)
+      });
+    }
+
     // Use context manager to fit within token budget
     const contextResult = contextManager.buildContext(systemPrompt, chatMessages, model);
+
+    // Debug: Log what's actually being sent to LLM
+    if (chatMessages.length <= 3) {
+      wsLogger.info('🔍 DEBUG: Messages sent to LLM', {
+        chatId,
+        systemPromptLength: systemPrompt.length,
+        systemPromptPreview: systemPrompt.substring(0, 200) + '...',
+        messageCount: contextResult.messages.length,
+        messages: contextResult.messages.map((m, i) => ({
+          index: i,
+          role: m.role,
+          contentLength: m.content.length,
+          contentPreview: m.content.substring(0, 150) + '...'
+        }))
+      });
+    }
+
+    // Inject depth entries (depth_prompt, world book atDepth) into the message array
+    contextResult.messages = contextManager.injectAtDepth(contextResult.messages, atDepthEntries);
+
+    // Check if character uses a custom prompt template
+    const promptTemplate = character
+      ? ((character.cardData as any)?.extensions?.promptTemplate || 'default')
+      : 'default';
 
     const assistantMessageId = nanoid();
     const abortController = new AbortController();
@@ -277,7 +347,39 @@ export class WebSocketHandler {
 
     let fullContent: string;
     try {
-      fullContent = await this.streamLlmResponse(chatId, assistantMessageId, contextResult.messages, undefined, undefined, model, abortController.signal);
+      if (promptTemplate !== 'default') {
+        // Use text completion with formatted prompt for non-default templates
+        wsLogger.info('Using prompt template', { chatId, template: promptTemplate });
+
+        // Build full message array with system prompt
+        const allMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+          { role: 'system', content: systemPrompt },
+          ...contextResult.messages
+        ];
+
+        // Format messages using the template
+        const formattedPrompt = formatMessagesWithTemplate(allMessages, promptTemplate);
+
+        // Use text completion API
+        fullContent = await this.streamTextCompletion(
+          chatId,
+          assistantMessageId,
+          formattedPrompt,
+          model,
+          abortController.signal
+        );
+      } else {
+        // Use standard chat completion for default template
+        fullContent = await this.streamLlmResponse(
+          chatId,
+          assistantMessageId,
+          contextResult.messages,
+          undefined,
+          undefined,
+          model,
+          abortController.signal
+        );
+      }
     } finally {
       this.activeGenerations.delete(chatId);
     }
@@ -285,10 +387,35 @@ export class WebSocketHandler {
     // Don't save empty message if aborted before any content was generated
     if (!fullContent) return;
 
+    // Apply regex_scripts post-processing on AI output (skip markdownOnly scripts — those run client-side)
+    if (character) {
+      const scripts = getRegexScripts(character.cardData as Record<string, unknown>);
+      fullContent = applyRegexScripts(fullContent, scripts, RegexPlacement.AI_OUTPUT, false);
+    }
+
     const assistantMessage = await chatService.addMessage(chatId, {
       role: 'assistant',
       content: fullContent,
     });
+
+    // Extract ERA VariableInsert blocks and persist to chat variables
+    const extractedVars = extractVariableInserts(fullContent);
+    for (const v of extractedVars) {
+      await chatVariableStore.setChatVar(chatId, v.key, v.value);
+    }
+    // Process VariableEdit (update existing variables)
+    const editedVars = extractVariableEdits(fullContent);
+    for (const v of editedVars) {
+      await chatVariableStore.setChatVar(chatId, v.key, v.value);
+    }
+    // Process VariableDelete (remove variables)
+    const deletedKeys = extractVariableDeletes(fullContent);
+    for (const key of deletedKeys) {
+      await chatVariableStore.deleteChatVar(chatId, key);
+    }
+
+    // Load updated variables for ERA bridge notification
+    const hasVarChanges = extractedVars.length > 0 || editedVars.length > 0 || deletedKeys.length > 0;
 
     // After saving assistant message, increment character growth
     if (character) {
@@ -308,6 +435,7 @@ export class WebSocketHandler {
       data: {
         chatId,
         messageId: assistantMessage.id.toString(),
+        variablesChanged: hasVarChanges,
       },
     });
 
@@ -326,7 +454,8 @@ export class WebSocketHandler {
   private async handleGroupChatResponse(
     chatId: string,
     userContent: string,
-    userId: string
+    userId: string,
+    mentionedCharacterIds?: string[]
   ): Promise<void> {
     // Load chat to determine model
     const chat = await chatRepository.findById(chatId);
@@ -343,9 +472,25 @@ export class WebSocketHandler {
     }
 
     const strategy = await groupChatService.getStrategy(chatId);
-    const respondentIds = await groupChatService.selectRespondents(
-      chatId, strategy, lastResponderId
-    );
+
+    // If @mentions are present, override strategy and only respond with mentioned characters
+    let respondentIds: string[];
+    if (mentionedCharacterIds && mentionedCharacterIds.length > 0) {
+      respondentIds = mentionedCharacterIds;
+    } else {
+      respondentIds = await groupChatService.selectRespondents(
+        chatId, strategy, lastResponderId
+      );
+    }
+
+    // Fetch messages once before the loop; append each new reply in-memory
+    let chatMessages = recentMessages.map(m => ({
+      role: m.role as 'user' | 'assistant' | 'system',
+      content: m.content,
+      pinned: m.pinned,
+      importance: m.importance,
+      messageId: m.id,
+    }));
 
     for (const charId of respondentIds) {
       const character = await characterRepository.findById(charId);
@@ -361,14 +506,13 @@ export class WebSocketHandler {
         userId,
         chatId,
         userMessage: userContent,
+        personaId: chat.personaId || undefined,
       });
 
-      // Build chat messages and use context manager
-      const chatMessages = (await chatService.getMessages(chatId)).map(m => ({
-        role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content,
-      }));
+      // Use the in-memory message array (no re-fetch)
       const contextResult = contextManager.buildContext(enhancedPrompt.systemPrompt, chatMessages, model);
+      // Inject depth entries for this character
+      contextResult.messages = contextManager.injectAtDepth(contextResult.messages, enhancedPrompt.atDepthEntries);
 
       // Stream LLM response with character identification
       const tempMessageId = nanoid();
@@ -387,6 +531,10 @@ export class WebSocketHandler {
       // Don't save empty message if aborted before any content was generated
       if (!fullContent) break;
 
+      // Apply regex_scripts post-processing on AI output (skip markdownOnly — those run client-side)
+      const scripts = getRegexScripts(character.cardData as Record<string, unknown>);
+      fullContent = applyRegexScripts(fullContent, scripts, RegexPlacement.AI_OUTPUT, false);
+
       // Save message with characterId
       const savedMessage = await messageRepository.create({
         chatId,
@@ -395,10 +543,32 @@ export class WebSocketHandler {
         characterId: character.id,
       });
 
+      // Extract ERA VariableInsert blocks and persist to chat variables
+      const groupExtractedVars = extractVariableInserts(fullContent);
+      for (const v of groupExtractedVars) {
+        await chatVariableStore.setChatVar(chatId, v.key, v.value);
+      }
+      const groupEditedVars = extractVariableEdits(fullContent);
+      for (const v of groupEditedVars) {
+        await chatVariableStore.setChatVar(chatId, v.key, v.value);
+      }
+      const groupDeletedKeys = extractVariableDeletes(fullContent);
+      for (const key of groupDeletedKeys) {
+        await chatVariableStore.deleteChatVar(chatId, key);
+      }
+
+      // Append to in-memory array so next character sees this reply
+      chatMessages = [...chatMessages, { role: 'assistant' as const, content: fullContent }];
+
       // Increment growth for this character
       characterGrowthRepository.getOrCreate(character.id, userId)
         .then((growth) => characterGrowthRepository.incrementMessages(growth.id))
         .catch((err) => wsLogger.warn('Failed to increment group message growth', { error: err }));
+
+      // Increment unread count (same as single-character path)
+      await db.update(chats)
+        .set({ unreadCount: sql`${chats.unreadCount} + 1` })
+        .where(eq(chats.id, chatId));
 
       websocketService.broadcastToChat(chatId, {
         type: WSMessageType.ASSISTANT_MESSAGE_DONE,
@@ -410,6 +580,16 @@ export class WebSocketHandler {
           characterName: character.name,
         },
       });
+
+      // Emotion update + memory extraction (same as single-character path)
+      await chatService.updateEmotionFromMessage(
+        character.id, userId, chatId, userContent, savedMessage.id
+      );
+      await chatService.updateEmotionFromMessage(
+        character.id, userId, chatId, fullContent, savedMessage.id
+      );
+      const allMessages = await chatService.getMessages(chatId);
+      await chatService.checkAndExtractMemories(chatId, character.id, userId, allMessages);
     }
   }
 
@@ -456,6 +636,7 @@ export class WebSocketHandler {
           const lines = chunk.split('\n').filter((line) => line.trim() !== '');
 
           for (const line of lines) {
+            // Handle OpenAI-style SSE format (data: {...})
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
               if (data === '[DONE]') continue;
@@ -483,6 +664,32 @@ export class WebSocketHandler {
               } catch (e) {
                 wsLogger.error('Error parsing SSE data', e as Error);
               }
+            } else {
+              // Handle Ollama native format (plain JSON per line)
+              try {
+                const parsed = JSON.parse(line);
+                // Ollama native API format: message.content
+                const content = parsed.message?.content;
+
+                if (content) {
+                  fullContent += content;
+
+                  websocketService.broadcastToChat(chatId, {
+                    type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
+                    timestamp: new Date().toISOString(),
+                    data: {
+                      chatId,
+                      messageId,
+                      chunk: content,
+                      index: chunkIndex++,
+                      ...(characterId && { characterId }),
+                      ...(characterName && { characterName }),
+                    },
+                  });
+                }
+              } catch (e) {
+                // Not JSON, skip this line
+              }
             }
           }
         }
@@ -497,6 +704,49 @@ export class WebSocketHandler {
         try { reader.cancel(); } catch { /* ignore */ }
       }
     }
+
+    return fullContent;
+  }
+
+  /**
+   * Stream text completion (for prompt templates)
+   */
+  private async streamTextCompletion(
+    chatId: string,
+    messageId: string,
+    prompt: string,
+    model?: string,
+    signal?: AbortSignal
+  ): Promise<string> {
+    const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
+    const meta = getModelMeta(selectedModel);
+
+    // Note: Most LLM providers don't support streaming for text completion
+    // We'll use non-streaming completion and send the full response
+    const response = await llmService.completion({
+      prompt,
+      model: selectedModel,
+      temperature: meta.defaultTemperature,
+      max_tokens: 2048,
+      n: 1,
+      stream: false,
+      presence_penalty: 0,
+      frequency_penalty: 0,
+    });
+
+    const fullContent = response.choices?.[0]?.text || '';
+
+    // Send the full content as a single chunk
+    websocketService.broadcastToChat(chatId, {
+      type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
+      timestamp: new Date().toISOString(),
+      data: {
+        chatId,
+        messageId,
+        chunk: fullContent,
+        index: 0,
+      },
+    });
 
     return fullContent;
   }

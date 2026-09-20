@@ -39,7 +39,7 @@
         <div class="bubble">
           <div class="message-body">
             <template v-if="message.role === 'assistant'">
-              <MarkdownRenderer :content="message.content" />
+              <MarkdownRenderer :content="message.content" :regex-scripts="regexScripts" />
             </template>
             <template v-else>
               <template v-if="editing">
@@ -94,6 +94,30 @@
                 <button class="more-menu-item" @click="handleTogglePin">
                   {{ message.extra?.pinned ? t('chat.unpin') : t('chat.pin') }}
                 </button>
+                <el-popover placement="left" :width="200" trigger="click">
+                  <template #reference>
+                    <button class="more-menu-item">
+                      {{ t('chat.setImportance', 'Set Importance') }} ⭐{{ message.importance || 5 }}
+                    </button>
+                  </template>
+                  <div class="importance-selector">
+                    <div class="importance-label">{{ t('chat.importance', 'Importance') }}</div>
+                    <el-rate
+                      :model-value="(message.importance || 5) / 2"
+                      @change="handleImportanceChange"
+                      :max="5"
+                      show-score
+                      score-template="{value}"
+                    />
+                    <div class="importance-presets">
+                      <el-button size="small" @click="setImportance(10)">Critical (10)</el-button>
+                      <el-button size="small" @click="setImportance(8)">High (8)</el-button>
+                      <el-button size="small" @click="setImportance(5)">Normal (5)</el-button>
+                      <el-button size="small" @click="setImportance(3)">Low (3)</el-button>
+                      <el-button size="small" @click="setImportance(1)">Minimal (1)</el-button>
+                    </div>
+                  </div>
+                </el-popover>
                 <button class="more-menu-item" @click="handleRollback">{{ t('chat.rollbackToHere') }}</button>
                 <el-popover :visible="showEmojiPicker" placement="top" :width="200" trigger="click">
                   <template #reference>
@@ -125,6 +149,7 @@ import MarkdownRenderer from './MarkdownRenderer.vue';
 import AudioPlayer from './AudioPlayer.vue';
 import MessageImage from './MessageImage.vue';
 import type { Message } from '@client/types';
+import type { RegexScript } from '@client/utils/regex-scripts';
 
 const logger = createLogger('MessageBubble');
 
@@ -137,6 +162,7 @@ interface Props {
   editing?: boolean;
   voiceConfig?: VoiceConfig;
   branchInfo?: { currentIndex: number; total: number } | null;
+  regexScripts?: RegexScript[];
 }
 
 const props = defineProps<Props>();
@@ -152,6 +178,7 @@ const emit = defineEmits<{
   (e: 'toggleReaction', payload: { messageId: string; emoji: string }): void;
   (e: 'reply', payload: { id: string; content: string; role: string }): void;
   (e: 'togglePin', payload: { messageId: string; isPinned: boolean }): void;
+  (e: 'setImportance', payload: { messageId: string; importance: number }): void;
 }>();
 
 const { t } = useI18n();
@@ -249,6 +276,16 @@ const handleReply = () => {
 const handleTogglePin = () => {
   emit('togglePin', { messageId: props.message.id, isPinned: !!props.message.extra?.pinned });
 };
+
+const handleImportanceChange = (value: number) => {
+  // Convert 1-5 star rating to 1-10 importance
+  const importance = Math.round(value * 2);
+  setImportance(importance);
+};
+
+const setImportance = (importance: number) => {
+  emit('setImportance', { messageId: props.message.id, importance });
+};
 </script>
 
 <style scoped>
@@ -327,7 +364,7 @@ const handleTogglePin = () => {
 .pin-indicator {
   font-size: 11px;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--accent-light);
   padding: 2px 8px;
   border-radius: 4px;
@@ -385,7 +422,7 @@ const handleTogglePin = () => {
 
 .reply-quote-role {
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 11px;
   text-transform: capitalize;
 }
@@ -492,7 +529,7 @@ const handleTogglePin = () => {
 }
 
 .action-btn--active {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .action-more {
@@ -587,6 +624,28 @@ const handleTogglePin = () => {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.importance-selector {
+  padding: 12px;
+
+  .importance-label {
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  .importance-presets {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+
+    .el-button {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
 }
 
 @media (max-width: 768px) {

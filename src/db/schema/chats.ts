@@ -4,10 +4,11 @@
  * 存储用户与角色的对话记录
  */
 
-import { pgTable, uuid, varchar, timestamp, jsonb, text, bigserial, bigint, integer, pgEnum, index, customType } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, timestamp, jsonb, text, bigserial, bigint, integer, pgEnum, index, customType, boolean } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 import { users } from './users';
 import { characters } from './characters';
+import { userPersonas } from './user-personas';
 
 // 定义 tsvector 自定义类型
 const tsvector = customType<{ data: string; driverData: string }>({
@@ -28,6 +29,8 @@ export const chats = pgTable('chats', {
     .references(() => users.id, { onDelete: 'cascade' }),
   characterId: uuid('character_id')
     .references(() => characters.id, { onDelete: 'set null' }),
+  personaId: uuid('persona_id')
+    .references(() => userPersonas.id, { onDelete: 'set null' }),
 
   title: varchar('title', { length: 500 }),
   summary: text('summary'),
@@ -41,6 +44,7 @@ export const chats = pgTable('chats', {
 }, (table) => ({
   userIdIdx: index('idx_chats_user_id').on(table.userId),
   characterIdIdx: index('idx_chats_character_id').on(table.characterId),
+  personaIdIdx: index('idx_chats_persona_id').on(table.personaId),
 }));
 
 export const messages = pgTable('messages', {
@@ -56,6 +60,10 @@ export const messages = pgTable('messages', {
   characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
   parentMessageId: bigint('parent_message_id', { mode: 'number' }),
 
+  // Pin and importance for context management
+  pinned: boolean('pinned').default(false).notNull(),
+  importance: integer('importance').default(5).notNull(),
+
   // Full-text search vector (auto-populated by DB trigger)
   searchVector: tsvector('search_vector'),
 
@@ -64,6 +72,8 @@ export const messages = pgTable('messages', {
   chatIdSentAtIdx: index('idx_messages_chat_id_sent_at').on(table.chatId, table.sentAt),
   parentMessageIdIdx: index('idx_messages_parent_message_id').on(table.parentMessageId),
   chatIdRoleIdx: index('idx_messages_chat_id_role').on(table.chatId, table.role),
+  pinnedIdx: index('idx_messages_pinned').on(table.chatId, table.pinned),
+  importanceIdx: index('idx_messages_importance').on(table.chatId, table.importance, table.sentAt),
 }));
 
 export type Chat = typeof chats.$inferSelect;

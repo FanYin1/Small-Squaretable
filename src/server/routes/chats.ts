@@ -10,6 +10,9 @@ import { zValidator } from '@hono/zod-validator';
 import { chatService } from '../services/chat.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
+import { chatCharacterRepository } from '../../db/repositories/chat-character.repository';
+import { characterRepository } from '../../db/repositories/character.repository';
+import { userPersonaRepository } from '../../db/repositories/user-persona.repository';
 import { groupChatService } from '../services/group-chat.service';
 import { authMiddleware } from '../middleware/auth';
 import { requireQuota } from '../middleware/feature-gate';
@@ -28,6 +31,9 @@ import { characterGrowthRepository } from '../../db/repositories/character-growt
 import { getAvailableModels } from '../config/llm.config';
 import { AppError } from '../../core/errors';
 import { createLogger } from '../services/logger.service';
+import { extractVariableInserts, extractVariableEdits, extractVariableDeletes } from '../utils/variable-insert';
+import { chatVariableStore } from '../services/chat-variable.service';
+import { applyMacros, createMacroContextWithVars } from '../services/macro.service';
 
 const logger = createLogger({ service: 'chats-route' });
 
@@ -53,13 +59,14 @@ chatRoutes.post(
     const primaryCharacterId = allCharacterIds[0];
     const chat = await chatService.create(user.id, user.tenantId, {
       characterId: primaryCharacterId,
+      personaId: input.personaId,
       title: input.title,
       metadata: input.metadata,
     });
 
-    // Insert into chat_characters for each character
-    for (let i = 0; i < allCharacterIds.length; i++) {
-      await groupChatService.addCharacter(chat.id, allCharacterIds[i], i);
+    // Batch insert into chat_characters for all characters
+    if (allCharacterIds.length > 0) {
+      await chatCharacterRepository.batchInsert(chat.id, allCharacterIds);
     }
 
     eventBus.emit('chat.created', { chatId: chat.id, userId: user.id, characterId: primaryCharacterId });
@@ -459,6 +466,36 @@ chatRoutes.post(
       );
     }
 
+    // Apply macro expansion on assistant messages (e.g. first_mes greetings with {{char}}, {{user}})
+    if (input.role === 'assistant' && chat.characterId) {
+      const character = await characterRepository.findById(chat.characterId);
+      if (character) {
+        // Fetch persona if personaId exists
+        let userName = user.name || 'User';
+        if (chat.personaId) {
+          const persona = await userPersonaRepository.findById(chat.personaId);
+          if (persona && persona.userId === user.id) {
+            userName = persona.name;
+          }
+        }
+
+        const cardData = (character.cardData || {}) as Record<string, string>;
+        const macroCtx = await createMacroContextWithVars(
+          {
+            charName: character.name,
+            userName,
+            personality: cardData.personality || '',
+            scenario: cardData.scenario || '',
+            description: character.description || '',
+            mesExamples: cardData.mes_example || '',
+          },
+          chatId,
+          user.id,
+        );
+        input.content = applyMacros(input.content, macroCtx);
+      }
+    }
+
     const message = input.parentMessageId
       ? await messageRepository.createWithParent({
           chatId,
@@ -471,6 +508,22 @@ chatRoutes.post(
 
 
     eventBus.emit('chat.message.sent', { chatId, messageId: message.id, userId: user.id, role: input.role });
+
+    // Extract ERA variable blocks from assistant messages (e.g. first_mes greetings)
+    if (input.role === 'assistant') {
+      const vars = extractVariableInserts(input.content);
+      for (const v of vars) {
+        await chatVariableStore.setChatVar(chatId, v.key, v.value);
+      }
+      const edits = extractVariableEdits(input.content);
+      for (const v of edits) {
+        await chatVariableStore.setChatVar(chatId, v.key, v.value);
+      }
+      const deletes = extractVariableDeletes(input.content);
+      for (const key of deletes) {
+        await chatVariableStore.deleteChatVar(chatId, key);
+      }
+    }
 
     // Fire-and-forget: increment character growth for new message
     if (chat.characterId) {
@@ -528,7 +581,7 @@ chatRoutes.patch(
     const user = c.get('user');
     const chatId = c.req.param('id');
     const messageId = parseInt(c.req.param('messageId'));
-    const { content } = c.req.valid('json');
+    const updates = c.req.valid('json');
 
     if (isNaN(messageId)) {
       return c.json<ApiResponse>(
@@ -541,7 +594,7 @@ chatRoutes.patch(
       );
     }
 
-    const message = await chatService.editMessage(chatId, messageId, content, user.id, user.tenantId);
+    const message = await chatService.editMessage(chatId, messageId, updates, user.id, user.tenantId);
 
     return c.json<ApiResponse>(
       {
@@ -793,6 +846,19 @@ chatRoutes.post(
       );
     }
 
+    // Enforce max character count (8)
+    const existing = await groupChatService.getChatCharacters(chatId);
+    if (existing.length >= 8) {
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'LIMIT_EXCEEDED', message: 'Maximum 8 characters per group chat' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        400
+      );
+    }
+
     const result = await groupChatService.addCharacter(chatId, characterId);
 
     return c.json<ApiResponse>(
@@ -821,6 +887,19 @@ chatRoutes.delete('/:id/characters/:characterId', authMiddleware(), async (c) =>
         meta: { timestamp: new Date().toISOString() },
       },
       404
+    );
+  }
+
+  // Prevent removing the last character from a group chat
+  const currentCharacters = await groupChatService.getChatCharacters(chatId);
+  if (currentCharacters.length <= 1) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Cannot remove the last character from a chat' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400
     );
   }
 
@@ -1319,6 +1398,55 @@ chatRoutes.delete(
         {
           success: false,
           error: { code: 'INTERNAL_ERROR', message: 'Failed to delete snapshot' },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        500,
+      );
+    }
+  },
+);
+
+// ─── Chat Variables ─────────────────────────────────────────────────────────
+
+/**
+ * GET /:id/variables — Get all chat variables for a chat session.
+ * Used by the ERA bridge to fetch variable state for status bar iframes.
+ */
+chatRoutes.get(
+  '/:id/variables',
+  authMiddleware(),
+  async (c) => {
+    const chatId = c.req.param('id');
+    const user = c.get('user' as never) as { id: string };
+
+    try {
+      const chat = await chatRepository.findById(chatId);
+      if (!chat || chat.userId !== user.id) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Chat not found' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          404,
+        );
+      }
+
+      const variables = await chatVariableStore.getChatVars(chatId);
+      return c.json<ApiResponse>(
+        {
+          success: true,
+          data: { variables },
+          meta: { timestamp: new Date().toISOString() },
+        },
+        200,
+      );
+    } catch (error) {
+      logger.error('Failed to get chat variables', { error: String(error), chatId });
+      return c.json<ApiResponse>(
+        {
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to get chat variables' },
           meta: { timestamp: new Date().toISOString() },
         },
         500,

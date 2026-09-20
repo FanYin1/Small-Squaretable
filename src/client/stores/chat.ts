@@ -66,6 +66,13 @@ export const useChatStore = defineStore('chat', () => {
     return availableModels.value.length > 0 ? availableModels.value[0].id : '';
   });
 
+  // Current model's context window
+  const currentModelContextWindow = computed<number>(() => {
+    const modelId = currentModel.value;
+    const model = availableModels.value.find(m => m.id === modelId);
+    return model?.contextWindow || 128000; // Default to 128K
+  });
+
   /**
    * 构建角色的 system prompt
    */
@@ -185,7 +192,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 助手消息完成
     wsClient.on('assistantMessageDone', (data: unknown) => {
-      const doneData = data as { messageId: string; chatId: string; characterId?: string; characterName?: string };
+      const doneData = data as { messageId: string; chatId: string; characterId?: string; characterName?: string; variablesChanged?: boolean };
       if (isStreaming.value) {
         const message: Message = {
           id: doneData.messageId,
@@ -202,6 +209,13 @@ export const useChatStore = defineStore('chat', () => {
         streamingCharacterName.value = null;
         isStreaming.value = false;
         sending.value = false;
+
+        // Refresh ERA variables if they changed
+        if (doneData.variablesChanged) {
+          import('@client/utils/era-bridge').then(({ fetchVariables, updateVariables }) => {
+            fetchVariables(doneData.chatId).then(vars => updateVariables(vars));
+          });
+        }
       }
     });
 
@@ -352,7 +366,7 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function sendMessage(content: string, attachments?: MessageAttachment[]): Promise<void> {
+  async function sendMessage(content: string, attachments?: MessageAttachment[], mentionedCharacterIds?: string[]): Promise<void> {
     if (!currentChatId.value) {
       throw new Error('No active chat');
     }
@@ -378,8 +392,8 @@ export const useChatStore = defineStore('chat', () => {
       messages.value.push(userMessage);
       replyingTo.value = null;
 
-      // 通过 WebSocket 发送 (包含附件)
-      wsClient.sendMessage(currentChatId.value, content, attachments);
+      // 通过 WebSocket 发送 (包含附件和提及)
+      wsClient.sendMessage(currentChatId.value, content, attachments, mentionedCharacterIds);
     } else {
       // 降级到 HTTP API
       sending.value = true;
@@ -390,70 +404,81 @@ export const useChatStore = defineStore('chat', () => {
         messages.value.push(response.message);
         replyingTo.value = null;
 
-        // 2. 调用 LLM 获取 AI 回复（流式）
-        isStreaming.value = true;
-        streamingMessage.value = '';
+        // Determine which characters should respond
+        const isGroup = chatCharacters.value.length > 1;
+        const respondents = isGroup ? chatCharacters.value : (currentCharacter.value ? [currentCharacter.value] : []);
 
-        // 构建消息历史，包含角色的 system prompt
-        const chatMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+        for (const character of respondents) {
+          // 2. 调用 LLM 获取 AI 回复（流式）
+          isStreaming.value = true;
+          streamingMessage.value = '';
+          streamingCharacterId.value = isGroup ? character.id : null;
+          streamingCharacterName.value = isGroup ? character.name : null;
 
-        // 添加角色的 system prompt
-        if (currentCharacter.value) {
-          const systemPrompt = buildSystemPrompt(currentCharacter.value);
+          // 构建消息历史，包含角色的 system prompt
+          const chatMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [];
+
+          const systemPrompt = buildSystemPrompt(character);
           chatMessages.push({ role: 'system', content: systemPrompt });
-        }
 
-        // 添加消息历史
-        messages.value.forEach(m => {
-          chatMessages.push({ role: m.role, content: m.content });
-        });
+          // 添加消息历史
+          messages.value.forEach(m => {
+            chatMessages.push({ role: m.role, content: m.content });
+          });
 
-        await llmApi.streamChatCompletion(
-          {
-            model: 'glm-4-flash',
-            messages: chatMessages,
-            stream: true,
-          },
-          // onChunk
-          (chunk: string) => {
-            streamingMessage.value += chunk;
-          },
-          // onDone
-          async () => {
-            // 保存 AI 回复到数据库
-            if (streamingMessage.value && currentChatId.value) {
-              try {
-                const aiResponse = await chatApi.sendMessage(currentChatId.value, {
-                  role: 'assistant',
-                  content: streamingMessage.value,
-                });
-                messages.value.push(aiResponse.message);
-              } catch (saveError) {
-                // 即使保存失败，也显示消息
-                const tempMessage: Message = {
-                  id: `temp-ai-${Date.now()}`,
-                  chatId: currentChatId.value,
-                  role: 'assistant',
-                  content: streamingMessage.value,
-                  createdAt: new Date().toISOString(),
-                };
-                messages.value.push(tempMessage);
-                logger.error('Failed to save AI message', saveError);
+          await llmApi.streamChatCompletion(
+            {
+              model: 'glm-4-flash',
+              messages: chatMessages,
+              stream: true,
+            },
+            // onChunk
+            (chunk: string) => {
+              streamingMessage.value += chunk;
+            },
+            // onDone
+            async () => {
+              // 保存 AI 回复到数据库
+              if (streamingMessage.value && currentChatId.value) {
+                try {
+                  const aiResponse = await chatApi.sendMessage(currentChatId.value, {
+                    role: 'assistant',
+                    content: streamingMessage.value,
+                  });
+                  messages.value.push(aiResponse.message);
+                } catch (saveError) {
+                  const tempMessage: Message = {
+                    id: `temp-ai-${Date.now()}`,
+                    chatId: currentChatId.value!,
+                    role: 'assistant',
+                    content: streamingMessage.value,
+                    characterId: isGroup ? character.id : undefined,
+                    characterName: isGroup ? character.name : undefined,
+                    createdAt: new Date().toISOString(),
+                  };
+                  messages.value.push(tempMessage);
+                  logger.error('Failed to save AI message', saveError);
+                }
               }
+              streamingMessage.value = '';
+              streamingCharacterId.value = null;
+              streamingCharacterName.value = null;
+              isStreaming.value = false;
+            },
+            // onError
+            (err: Error) => {
+              logger.error('LLM stream error', err);
+              error.value = err.message;
+              streamingMessage.value = '';
+              streamingCharacterId.value = null;
+              streamingCharacterName.value = null;
+              isStreaming.value = false;
+              sending.value = false;
             }
-            streamingMessage.value = '';
-            isStreaming.value = false;
-            sending.value = false;
-          },
-          // onError
-          (err: Error) => {
-            logger.error('LLM stream error', err);
-            error.value = err.message;
-            streamingMessage.value = '';
-            isStreaming.value = false;
-            sending.value = false;
-          }
-        );
+          );
+        }
+        // All respondents done
+        sending.value = false;
       } catch (e) {
         if (e instanceof ApiError) {
           error.value = e.message;
@@ -467,13 +492,13 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function createChat(characterId: string, title?: string, characterIds?: string[]): Promise<Chat> {
+  async function createChat(characterId: string, title?: string, characterIds?: string[], personaId?: string): Promise<Chat> {
     loading.value = true;
     error.value = null;
     try {
       const payload = characterIds
-        ? { characterIds, title }
-        : { characterId, title };
+        ? { characterIds, title, personaId }
+        : { characterId, title, personaId };
       const response = await chatApi.createChat(payload);
       chats.value.unshift(response.chat);
       return response.chat;
@@ -542,14 +567,17 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  async function editMessage(messageId: string, content: string): Promise<void> {
+  async function editMessage(
+    messageId: string,
+    updates: { content?: string; pinned?: boolean; importance?: number }
+  ): Promise<void> {
     if (!currentChatId.value) return;
 
     try {
-      await chatApi.editMessage(currentChatId.value, messageId, content);
+      await chatApi.editMessage(currentChatId.value, messageId, updates);
       const index = messages.value.findIndex(m => m.id === messageId);
       if (index !== -1) {
-        messages.value[index] = { ...messages.value[index], content };
+        messages.value[index] = { ...messages.value[index], ...updates };
       }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to edit message';
@@ -604,9 +632,11 @@ export const useChatStore = defineStore('chat', () => {
     if (chatId) {
       await fetchMessages(chatId);
 
-      // 加载群聊角色列表
+      // 加载聊天角色列表
+      let loaded = false;
       try {
         const characters = await chatApi.getChatCharacters(chatId);
+        logger.debug('getChatCharacters result', { chatId, count: characters?.length });
         if (Array.isArray(characters) && characters.length > 0) {
           chatCharacters.value = characters.map(c => ({
             id: c.id,
@@ -616,17 +646,41 @@ export const useChatStore = defineStore('chat', () => {
             isPublic: false,
             createdAt: '',
           }));
+          loaded = true;
+          logger.debug('Loaded characters from getChatCharacters', { count: chatCharacters.value.length });
         }
-      } catch {
-        // Fallback: load single character from chat
-        const chat = chats.value.find(c => c.id === chatId);
+      } catch (err) {
+        logger.warn('getChatCharacters failed, will try fallback', { error: err });
+      }
+
+      // Fallback: load single character from chat metadata
+      if (!loaded) {
+        logger.debug('Attempting fallback character load', { chatId });
+        let chat = chats.value.find(c => c.id === chatId);
+        logger.debug('Found chat in store', { found: !!chat, characterId: chat?.characterId });
+
+        // If chat not in store, fetch it directly
+        if (!chat) {
+          try {
+            logger.debug('Chat not in store, fetching directly', { chatId });
+            const response = await chatApi.getChat(chatId);
+            chat = response.chat;
+            logger.debug('Fetched chat directly', { characterId: chat.characterId });
+          } catch (err) {
+            logger.error('Failed to fetch chat directly', err);
+          }
+        }
+
         if (chat?.characterId) {
           try {
             const character = await characterApi.getCharacter(chat.characterId);
             chatCharacters.value = [character];
+            logger.debug('Loaded character from fallback', { characterId: character.id, name: character.name });
           } catch (err) {
-            logger.error('Failed to load character', err);
+            logger.error('Failed to load character from fallback', err);
           }
+        } else {
+          logger.warn('No character ID found in chat, cannot load greeting', { chatId, chat });
         }
       }
 
@@ -939,6 +993,7 @@ export const useChatStore = defineStore('chat', () => {
     searching,
     availableModels,
     currentModel,
+    currentModelContextWindow,
     fetchChats,
     fetchMessages,
     fetchOlderMessages,

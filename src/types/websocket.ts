@@ -83,6 +83,7 @@ export interface WSUserMessage extends WSMessage {
     content: string;
     messageId?: string;
     attachments?: WSAttachment[];
+    mentionedCharacterIds?: string[];
   };
 }
 

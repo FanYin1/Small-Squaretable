@@ -32,6 +32,16 @@ vi.mock('../services/group-chat.service', () => ({
   },
 }));
 
+vi.mock('../../db/repositories/chat-character.repository', () => ({
+  chatCharacterRepository: {
+    batchInsert: vi.fn().mockResolvedValue(undefined),
+    addCharacter: vi.fn().mockResolvedValue({}),
+    removeCharacter: vi.fn().mockResolvedValue(true),
+    getCharacterIds: vi.fn().mockResolvedValue([]),
+    getCharacters: vi.fn().mockResolvedValue([]),
+  },
+}));
+
 vi.mock('../../core/jwt', () => ({
   verifyAccessToken: vi.fn(),
   extractTokenFromHeader: vi.fn((header) => {

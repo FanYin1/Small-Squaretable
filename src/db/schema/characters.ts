@@ -32,6 +32,9 @@ export const characters = pgTable('characters', {
   // 角色卡数据 (完整的 SillyTavern 角色卡 JSON)
   cardData: jsonb('card_data').notNull(),
 
+  // Prompt template (default, alpaca, chatml, vicuna, llama2)
+  promptTemplate: varchar('prompt_template', { length: 50 }).default('default'),
+
   // 分类和标签
   tags: text('tags').array(),
   category: varchar('category', { length: 50 }),

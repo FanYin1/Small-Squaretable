@@ -6,6 +6,8 @@
 
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
+import { userPersonaRepository } from '../../db/repositories/user-persona.repository';
+import { chatOverrideRepository } from '../../db/repositories/chat-override.repository';
 import { NotFoundError, AppError } from '../../core/errors';
 import { logger } from './logger.service';
 import { llmService } from './llm.service';
@@ -23,12 +25,14 @@ import { intelligenceDebugService } from './intelligence-debug.service';
 import { worldInfoEngine, type WorldInfoResult } from './worldinfo-engine.service';
 import { estimateTokens } from '../utils/tokens';
 import type { Character } from '../../db/schema/characters';
+import { applyMacros, createMacroContextWithVars, persistVarWrites, type MacroContext } from './macro.service';
 
 export interface EnhancedPromptParams {
   character: Character;
   characterId: string;
   userId: string;
   userName?: string;
+  personaId?: string;
   chatId: string;
   userMessage: string;
   messages?: Array<{ role: string; content: string }>;
@@ -37,7 +41,7 @@ export interface EnhancedPromptParams {
 
 export interface EnhancedPromptResult {
   systemPrompt: string;
-  atDepthEntries: Array<{ depth: number; content: string }>;
+  atDepthEntries: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }>;
 }
 
 export class ChatService {
@@ -150,7 +154,7 @@ export class ChatService {
   async editMessage(
     chatId: string,
     messageId: number,
-    content: string,
+    updates: { content?: string; pinned?: boolean; importance?: number },
     userId: string,
     tenantId: string
   ): Promise<Message> {
@@ -164,10 +168,17 @@ export class ChatService {
       throw new NotFoundError('Message');
     }
 
-    const updated = await this.messageRepo.update(messageId, { content });
+    const updated = await this.messageRepo.update(messageId, updates);
     if (!updated) {
       throw new NotFoundError('Message');
     }
+
+    chatLogger.debug('Message updated', {
+      messageId,
+      chatId,
+      updates: Object.keys(updates),
+    });
+
     return updated;
   }
 
@@ -231,8 +242,46 @@ export class ChatService {
     const promptStartTime = Date.now();
     const parts: string[] = [];
 
+    // Fetch persona if personaId is provided
+    let userName = params.userName || 'User';
+    let personaDescription: string | null = null;
+
+    if (params.personaId) {
+      try {
+        const persona = await userPersonaRepository.findById(params.personaId);
+        if (persona && persona.userId === userId) {
+          userName = persona.name;
+          personaDescription = persona.description || null;
+          chatLogger.debug('Using persona', { personaId: params.personaId, personaName: userName });
+        }
+      } catch (error) {
+        chatLogger.warn('Failed to fetch persona, using default userName', {
+          personaId: params.personaId,
+          error
+        });
+      }
+    }
+
     // Base character prompt
-    const cardData = (character.cardData as Record<string, string>) || {};
+    let cardData = (character.cardData as Record<string, string>) || {};
+
+    // Apply chat-level parameter overrides
+    try {
+      const override = await chatOverrideRepository.findByChatId(chatId);
+      if (override && override.enabled) {
+        chatLogger.debug('Applying chat parameter overrides', {
+          chatId,
+          overrideKeys: Object.keys(override.overrides)
+        });
+        // Merge overrides into cardData
+        cardData = { ...cardData, ...override.overrides };
+      }
+    } catch (error) {
+      chatLogger.warn('Failed to fetch chat overrides, using default parameters', {
+        chatId,
+        error
+      });
+    }
 
     // Build default system prompt parts (used as {{original}} replacement)
     const defaultPromptParts: string[] = [];
@@ -247,28 +296,39 @@ export class ChatService {
       defaultPromptParts.push(`Scenario: ${cardData.scenario}`);
     }
 
-    // Apply {{char}} and {{user}} macro substitution
-    const userName = params.userName || 'User';
-    const applyMacros = (text: string): string =>
-      text.replace(/\{\{char\}\}/gi, character.name).replace(/\{\{user\}\}/gi, userName);
+    // Apply {{char}} and {{user}} macro substitution (with pre-loaded variables)
+    const macroCtx = await createMacroContextWithVars(
+      {
+        charName: character.name,
+        userName,
+        input: userMessage,
+        original: defaultPromptParts.join('\n'),
+        personality: cardData.personality || '',
+        scenario: cardData.scenario || '',
+        description: character.description || '',
+        mesExamples: cardData.mes_example || '',
+        messages: params.messages as Array<{ role: string; content: string }>,
+      },
+      chatId,
+      userId,
+    );
 
     if (cardData.system_prompt) {
       let systemPrompt = cardData.system_prompt;
       // Support {{original}} placeholder - replaces with the default system prompt
-      if (/\{\{original\}\}/i.test(systemPrompt)) {
-        systemPrompt = systemPrompt.replace(/\{\{original\}\}/gi, defaultPromptParts.join('\n'));
-      } else {
+      // (handled by applyMacros via macroCtx.original)
+      if (!/\{\{original\}\}/i.test(systemPrompt)) {
         // No {{original}}, prepend default parts then append system_prompt
-        parts.push(...defaultPromptParts.map(applyMacros));
+        parts.push(...defaultPromptParts.map(p => applyMacros(p, macroCtx)));
       }
-      parts.push(applyMacros(systemPrompt));
+      parts.push(applyMacros(systemPrompt, macroCtx));
     } else {
-      parts.push(...defaultPromptParts.map(applyMacros));
+      parts.push(...defaultPromptParts.map(p => applyMacros(p, macroCtx)));
     }
 
     // Example dialogue
     if (cardData.mes_example) {
-      const exampleBlock = this.parseExampleMessages(cardData.mes_example, character.name, userName);
+      const exampleBlock = this.parseExampleMessages(cardData.mes_example, character.name, userName, macroCtx);
       if (exampleBlock) {
         parts.push(exampleBlock);
       }
@@ -284,6 +344,7 @@ export class ChatService {
           userId,
           chatId,
           maxContext: params.maxContext ?? 4096,
+          macroCtx,
         });
       } catch (error) {
         chatLogger.warn('World info scan failed', { error: (error as Error).message });
@@ -303,10 +364,56 @@ export class ChatService {
       intelligenceDebugService.recordLatency(characterId, userId, chatId, 'worldInfoScanLatency', worldInfo.debugInfo.scanTimeMs);
     }
 
+    // Inject persona description as world info (at AN position, depth 0)
+    if (personaDescription) {
+      const personaWorldInfo = `[User Persona: ${userName}]\n${personaDescription}`;
+      if (!worldInfo) {
+        worldInfo = {
+          before: '',
+          EMTop: '',
+          EMBottom: '',
+          ANTop: personaWorldInfo,
+          ANBottom: '',
+          atDepth: [],
+          after: '',
+          debugInfo: null,
+        };
+      } else {
+        // Prepend to ANTop if it exists, otherwise set it
+        worldInfo.ANTop = personaWorldInfo + (worldInfo.ANTop ? '\n\n' + worldInfo.ANTop : '');
+      }
+      chatLogger.debug('Injected persona description into world info', {
+        personaName: userName,
+        descriptionLength: personaDescription.length
+      });
+    }
+
     // Inject world info: before position
     if (worldInfo?.before) {
       parts.unshift(worldInfo.before);
     }
+
+    // Inject world info: EMTop position
+    if (worldInfo?.EMTop) {
+      parts.push(worldInfo.EMTop);
+    }
+
+    // Inject world info: EMBottom position
+    if (worldInfo?.EMBottom) {
+      parts.push(worldInfo.EMBottom);
+    }
+
+    // Inject world info: ANTop position
+    if (worldInfo?.ANTop) {
+      parts.push(worldInfo.ANTop);
+    }
+
+    // Behavior guidelines
+    parts.push('\n## 行为指引');
+    parts.push('- 根据记忆中的信息个性化回复');
+    parts.push('- 保持情感状态的一致性，情感变化应自然过渡');
+    parts.push('- 可以主动提及相关记忆，但不要生硬');
+    parts.push('Stay in character at all times.');
 
     // Retrieve relevant memories with timing (session-isolated)
     const retrievalStartTime = Date.now();
@@ -372,10 +479,6 @@ export class ChatService {
       }
     }
 
-    // Inject world info: EMTop position
-    if (worldInfo?.EMTop) {
-      parts.push(worldInfo.EMTop);
-    }
 
     // Get current emotion
     const emotion = await emotionService.getCurrentEmotion(characterId, userId, chatId);
@@ -407,22 +510,6 @@ export class ChatService {
       }
     }
 
-    // Inject world info: EMBottom position
-    if (worldInfo?.EMBottom) {
-      parts.push(worldInfo.EMBottom);
-    }
-
-    // Inject world info: ANTop position
-    if (worldInfo?.ANTop) {
-      parts.push(worldInfo.ANTop);
-    }
-
-    // Behavior guidelines
-    parts.push('\n## 行为指引');
-    parts.push('- 根据记忆中的信息个性化回复');
-    parts.push('- 保持情感状态的一致性，情感变化应自然过渡');
-    parts.push('- 可以主动提及相关记忆，但不要生硬');
-    parts.push('Stay in character at all times.');
 
     // Inject world info: ANBottom position
     if (worldInfo?.ANBottom) {
@@ -434,17 +521,37 @@ export class ChatService {
       parts.push(worldInfo.after);
     }
 
-    // Collect atDepth entries (world info + post_history_instructions)
-    const atDepthEntries: Array<{ depth: number; content: string }> = [
+    // Collect atDepth entries (world info + post_history_instructions + character_author_note)
+    const roleMap = { 0: 'system', 1: 'user', 2: 'assistant' } as const;
+    const atDepthEntries: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }> = [
       ...(worldInfo?.atDepth ?? []),
     ];
 
+    // Character Author's Note: inject at depth 0 (highest priority, before last user message)
+    if (cardData.character_author_note) {
+      const authorNote = applyMacros(cardData.character_author_note, macroCtx);
+      atDepthEntries.push({ depth: 0, content: authorNote, role: 'system' });
+      chatLogger.debug('Added character author note at depth 0', {
+        characterId,
+        noteLength: authorNote.length
+      });
+    }
+
     // post_history_instructions: inject at depth in chat history (like SillyTavern's jailbreak/PHI)
     if (cardData.post_history_instructions) {
-      const phi = applyMacros(cardData.post_history_instructions);
+      const phi = applyMacros(cardData.post_history_instructions, macroCtx);
       // Default depth 1 = just before the last message. Can be overridden via extensions.depth_prompt
       const phiDepth = (character.cardData as any)?.extensions?.depth_prompt?.depth ?? 1;
-      atDepthEntries.push({ depth: phiDepth, content: phi });
+      atDepthEntries.push({ depth: phiDepth, content: phi, role: 'system' });
+    }
+
+    // depth_prompt: separate prompt content from extensions.depth_prompt
+    const depthPromptExt = (character.cardData as any)?.extensions?.depth_prompt;
+    if (depthPromptExt?.prompt) {
+      const dpContent = applyMacros(depthPromptExt.prompt, macroCtx);
+      const dpDepth = depthPromptExt.depth ?? 4;
+      const dpRole = roleMap[depthPromptExt.role as 0 | 1 | 2] ?? 'system';
+      atDepthEntries.push({ depth: dpDepth, content: dpContent, role: dpRole });
     }
 
     const fullPrompt = parts.join('\n');
@@ -461,6 +568,9 @@ export class ChatService {
       !!emotion,
       promptBuildLatency
     );
+
+    // Persist any variable mutations from macro expansion
+    await persistVarWrites(macroCtx, chatId, userId);
 
     return {
       systemPrompt: fullPrompt,
@@ -527,7 +637,7 @@ export class ChatService {
    * - Empty/whitespace-only input returns empty string
    * - Input without <START> tags is treated as a single example block
    */
-  private parseExampleMessages(mesExample: string, charName: string, userName = 'User'): string {
+  private parseExampleMessages(mesExample: string, charName: string, userName = 'User', macroCtx?: MacroContext): string {
     if (!mesExample || !mesExample.trim()) {
       return '';
     }
@@ -554,10 +664,10 @@ export class ChatService {
       const formattedLines: string[] = [];
 
       for (const line of lines) {
-        // Replace {{char}} and {{user}} placeholders (case-insensitive)
-        let processed = line
-          .replace(/\{\{char\}\}/gi, charName)
-          .replace(/\{\{user\}\}/gi, userName);
+        // Apply full macro replacement if context available, otherwise just char/user
+        let processed = macroCtx
+          ? applyMacros(line, macroCtx)
+          : line.replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, userName);
 
         formattedLines.push(processed);
       }

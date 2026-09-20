@@ -191,8 +191,12 @@ export const chatApi = {
   /**
    * 编辑消息
    */
-  editMessage: async (chatId: string, messageId: string, content: string): Promise<{ message: Message }> => {
-    const response = await api.patch<BackendMessage>(`/chats/${chatId}/messages/${messageId}`, { content });
+  editMessage: async (
+    chatId: string,
+    messageId: string,
+    updates: { content?: string; pinned?: boolean; importance?: number }
+  ): Promise<{ message: Message }> => {
+    const response = await api.patch<BackendMessage>(`/chats/${chatId}/messages/${messageId}`, updates);
     return { message: transformMessage(response) };
   },
 
@@ -213,6 +217,12 @@ export const chatApi = {
    */
   removeChatCharacter: (chatId: string, characterId: string) =>
     api.delete(`/chats/${chatId}/characters/${characterId}`),
+
+  /**
+   * 设置群聊回复策略
+   */
+  setGroupStrategy: (chatId: string, strategy: 'round_robin' | 'all' | 'random') =>
+    api.patch(`/chats/${chatId}/group-strategy`, { strategy }),
 
   /**
    * 搜索聊天消息

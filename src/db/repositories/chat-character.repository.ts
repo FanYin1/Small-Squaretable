@@ -91,6 +91,27 @@ export class ChatCharacterRepository extends BaseRepository {
   }
 
   /**
+   * Batch insert multiple characters into a chat.
+   */
+  async batchInsert(
+    chatId: string,
+    characterIds: string[],
+  ): Promise<void> {
+    if (characterIds.length === 0) return;
+    const values = characterIds.map((characterId, i) => ({
+      chatId,
+      characterId,
+      sortOrder: i,
+    }));
+    await this.db
+      .insert(chatCharacters)
+      .values(values)
+      .onConflictDoNothing({
+        target: [chatCharacters.chatId, chatCharacters.characterId],
+      });
+  }
+
+  /**
    * Get just the character IDs for a chat.
    */
   async getCharacterIds(chatId: string): Promise<string[]> {

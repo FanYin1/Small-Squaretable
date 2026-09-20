@@ -26,6 +26,7 @@ export const metadataValueSchema: z.ZodType<MetadataValue> = z.lazy(() =>
 export const createChatSchema = z.object({
   characterId: z.string().uuid().optional(),
   characterIds: z.array(z.string().uuid()).min(1).max(10).optional(),
+  personaId: z.string().uuid().optional(),
   title: z.string().max(500).trim().optional(),
   metadata: z.record(metadataValueSchema).optional(),
 }).refine(
@@ -57,7 +58,9 @@ export const createMessageSchema = z.object({
 });
 
 export const updateMessageSchema = z.object({
-  content: z.string().min(1).max(50000),
+  content: z.string().min(1).max(50000).optional(),
+  pinned: z.boolean().optional(),
+  importance: z.number().int().min(1).max(10).optional(),
 });
 
 export type CreateChatInput = z.infer<typeof createChatSchema>;

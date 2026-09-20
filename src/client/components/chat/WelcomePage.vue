@@ -65,6 +65,14 @@
       </div>
     </template>
 
+    <!-- Error state -->
+    <template v-else-if="loadError">
+      <div class="empty-state">
+        <p class="empty-message">{{ t('common.loadFailed', t('common.retry')) }}</p>
+        <el-button type="primary" @click="retryLoad">{{ t('common.retry') }}</el-button>
+      </div>
+    </template>
+
     <!-- Empty state -->
     <template v-else-if="characters.length === 0">
       <div class="empty-state">
@@ -100,7 +108,7 @@
             {{ character.name?.charAt(0) }}
           </el-avatar>
           <span class="character-name">{{ character.name }}</span>
-          <span class="character-desc">{{ character.description }}</span>
+          <span class="character-desc">{{ getCleanDescription(character) }}</span>
         </div>
       </div>
 
@@ -119,6 +127,7 @@ import { Search } from '@element-plus/icons-vue';
 import { characterApi } from '@client/services/character.api';
 import type { Character } from '@client/types';
 import { useChatTemplateStore } from '@client/stores/chatTemplate';
+import { cleanDescription } from '@client/utils/sillytavern';
 import type { ChatTemplate } from '@client/services/chat-template.api';
 
 const emit = defineEmits<{
@@ -136,6 +145,7 @@ const characters = ref<Character[]>([]);
 const loading = ref(true);
 const isGroupMode = ref(false);
 const selectedCharacterIds = ref<string[]>([]);
+const loadError = ref(false);
 
 const filteredCharacters = computed(() => {
   if (!searchQuery.value) return characters.value;
@@ -187,16 +197,36 @@ const goToMarket = () => {
   router.push({ name: 'Market' });
 };
 
+const getCleanDescription = (character: Character) => {
+  return cleanDescription(character.description, character.name, 80);
+};
+
 const goToMyCharacters = () => {
   router.push({ name: 'MyCharacters' });
+};
+
+const retryLoad = async () => {
+  loading.value = true;
+  try {
+    const res = await characterApi.getCharacters({ limit: 12 });
+    characters.value = res.characters;
+    loadError.value = false;
+  } catch {
+    characters.value = [];
+    loadError.value = true;
+  } finally {
+    loading.value = false;
+  }
 };
 
 onMounted(async () => {
   try {
     const res = await characterApi.getCharacters({ limit: 12 });
     characters.value = res.characters;
+    loadError.value = false;
   } catch {
     characters.value = [];
+    loadError.value = true;
   } finally {
     loading.value = false;
   }
@@ -215,15 +245,17 @@ onMounted(async () => {
 }
 
 .welcome-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-color-primary);
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 500;
+  color: var(--text-primary);
   margin-bottom: 8px;
+  text-align: center;
 }
 
 .welcome-subtitle {
   font-size: 16px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   margin-bottom: 32px;
 }
 
@@ -236,7 +268,7 @@ onMounted(async () => {
 .section-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 16px;
@@ -259,33 +291,33 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 20px 16px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s;
-  background: var(--bg-color);
+  background: var(--bg-surface);
 }
 
 .character-card:hover {
   transform: translateY(-2px);
-  border-color: var(--color-primary);
+  border-color: var(--accent);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .character-card:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .character-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .character-desc {
   font-size: 12px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   text-align: center;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -295,7 +327,7 @@ onMounted(async () => {
 
 .browse-link {
   margin-top: 24px;
-  color: var(--color-primary);
+  color: var(--accent-text);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -317,12 +349,12 @@ onMounted(async () => {
 
 .mode-label {
   font-size: 14px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   transition: color 0.2s;
 }
 
 .mode-label.active {
-  color: var(--color-primary);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -334,19 +366,19 @@ onMounted(async () => {
   max-width: 600px;
   padding: 8px 16px;
   margin-bottom: 16px;
-  background: var(--bg-color);
-  border: 1px solid var(--color-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
   border-radius: 8px;
 }
 
 .selection-count {
   font-size: 14px;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .character-card.selected {
-  border-color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 8%, var(--bg-color));
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-surface));
 }
 
 .card-checkbox {
@@ -369,7 +401,7 @@ onMounted(async () => {
 
 .empty-message {
   font-size: 16px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .template-grid {
@@ -386,32 +418,32 @@ onMounted(async () => {
   flex-direction: column;
   gap: 4px;
   padding: 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  background: var(--bg-color);
+  background: var(--bg-surface);
 }
 
 .template-card:hover {
-  border-color: var(--color-primary);
+  border-color: var(--accent);
   transform: translateY(-1px);
 }
 
 .template-card:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .template-name {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .template-desc {
   font-size: 12px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

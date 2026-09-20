@@ -28,11 +28,11 @@ export const cardDataValueSchema: z.ZodType<CardDataValue> = z.lazy(() =>
 
 export const createCharacterSchema = z.object({
   name: z.string().min(1).max(255).trim(),
-  // SillyTavern cards can have very long descriptions
-  description: z.string().max(50000).trim().optional(),
-  // Allow data URLs for base64 encoded images (can be very large for high-res images)
-  // In production, consider using a file upload service instead
-  avatarUrl: z.string().max(5000000).refine(
+  // SillyTavern cards can have very long descriptions (character_book content, etc.)
+  description: z.string().max(500000).trim().optional(),
+  // Allow data URLs for base64 encoded images
+  // High-res character card PNGs can produce large base64 strings (~1.33x file size)
+  avatarUrl: z.string().max(15_000_000).refine(
     (val) => val.startsWith('data:') || /^https?:\/\//.test(val),
     'Must be a valid URL or data URI'
   ).optional(),
@@ -43,20 +43,21 @@ export const createCharacterSchema = z.object({
     (data) => JSON.stringify(data).length <= 10_000_000,
     'cardData exceeds maximum size (10MB)'
   ),
-  tags: z.array(z.string().max(50).trim()).max(20).optional(),
+  // SillyTavern cards can have many long tags (especially Chinese tags)
+  tags: z.array(z.string().max(200).trim()).max(100).optional(),
   category: z.string().max(50).trim().optional(),
   isNsfw: z.boolean().default(false),
 });
 
 export const updateCharacterSchema = z.object({
   name: z.string().min(1).max(255).trim().optional(),
-  description: z.string().max(50000).trim().optional(),
-  avatarUrl: z.string().max(5000000).refine(
+  description: z.string().max(500000).trim().optional(),
+  avatarUrl: z.string().max(15_000_000).refine(
     (val) => val.startsWith('data:') || /^https?:\/\//.test(val),
     'Must be a valid URL or data URI'
   ).optional(),
   cardData: z.record(cardDataValueSchema).optional(),
-  tags: z.array(z.string().max(50).trim()).max(20).optional(),
+  tags: z.array(z.string().max(200).trim()).max(100).optional(),
   category: z.string().max(50).trim().optional(),
   isNsfw: z.boolean().optional(),
 });

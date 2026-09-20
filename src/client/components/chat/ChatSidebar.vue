@@ -29,7 +29,7 @@
         clearable
       >
         <template #suffix>
-          <kbd class="search-shortcut">⌘K</kbd>
+          <kbd class="search-shortcut">{{ searchShortcutLabel }}</kbd>
         </template>
       </el-input>
     </div>
@@ -90,7 +90,14 @@
             :class="['chat-item', { active: chat.id === currentChatId }]"
             @click="handleSelectChat(chat.id)"
           >
-            <el-avatar class="chat-avatar" :src="chat.characterAvatar">
+            <!-- Group chat: show group icon badge on avatar -->
+            <div v-if="chat.metadata?.groupStrategy" class="chat-avatar-wrapper">
+              <el-avatar class="chat-avatar" :src="chat.characterAvatar">
+                {{ chat.characterName?.[0] || '?' }}
+              </el-avatar>
+              <span class="group-badge" :title="t('groupChat.title')">👥</span>
+            </div>
+            <el-avatar v-else class="chat-avatar" :src="chat.characterAvatar">
               {{ chat.characterName[0] }}
             </el-avatar>
             <div class="chat-item-content">
@@ -146,11 +153,9 @@
         </button>
       </el-tooltip>
       <el-dropdown trigger="click" @command="handleUserMenuCommand">
-        <el-tooltip :content="t('nav.user')" placement="top">
-          <button class="footer-btn">
-            <el-icon><UserFilled /></el-icon>
-          </button>
-        </el-tooltip>
+        <button class="footer-btn" :title="t('nav.user')">
+          <el-icon><UserFilled /></el-icon>
+        </button>
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item command="Profile">{{ t('nav.profile') }}</el-dropdown-item>
@@ -170,10 +175,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, markRaw } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { Plus, Search, More, Edit, Delete, Shop, Setting, UserFilled, User, Fold } from '@element-plus/icons-vue';
+import { Plus as _Plus, Search as _Search, More as _More, Edit as _Edit, Delete as _Delete, Shop, Setting, UserFilled, User, Fold } from '@element-plus/icons-vue';
+
+const Plus = markRaw(_Plus);
+const Search = markRaw(_Search);
+const More = markRaw(_More);
+const Edit = markRaw(_Edit);
+const Delete = markRaw(_Delete);
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
@@ -210,6 +221,10 @@ const isAdminOrMod = computed(() => {
   const role = userStore.user?.role;
   return role === 'admin' || role === 'moderator';
 });
+
+const searchShortcutLabel = computed(() =>
+  navigator.userAgent.includes('Mac') ? '⌘K' : 'Ctrl+K'
+);
 
 const filteredChats = computed(() => {
   if (!searchQuery.value) {
@@ -329,8 +344,10 @@ const handleShowBookmarks = () => {
   bookmarkStore.fetchBookmarks();
 };
 
-const navigateToBookmark = (_bookmark: BookmarkItem) => {
-  // Navigate back to chats view — bookmark navigation can be extended later
+const navigateToBookmark = (bookmark: BookmarkItem) => {
+  if (bookmark.chatId) {
+    emit('select-chat', bookmark.chatId);
+  }
   sidebarView.value = 'chats';
 };
 </script>
@@ -340,7 +357,7 @@ const navigateToBookmark = (_bookmark: BookmarkItem) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--surface-card);
+  background-color: var(--bg-surface);
   border-right: 1px solid var(--border-default);
 }
 
@@ -415,7 +432,7 @@ const navigateToBookmark = (_bookmark: BookmarkItem) => {
   padding: 12px 16px;
   cursor: pointer;
   transition: background-color 0.2s;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-default);
   position: relative;
 }
 
@@ -424,8 +441,8 @@ const navigateToBookmark = (_bookmark: BookmarkItem) => {
 }
 
 .chat-item.active {
-  background-color: color-mix(in srgb, var(--accent-purple) 10%, transparent);
-  border-left: 3px solid var(--accent-purple);
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-left: 3px solid var(--accent);
 }
 
 .chat-item-content {
@@ -491,6 +508,22 @@ const navigateToBookmark = (_bookmark: BookmarkItem) => {
   line-height: 48px;
   font-size: 16px;
   flex-shrink: 0;
+}
+
+.chat-avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.group-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -4px;
+  font-size: 12px;
+  line-height: 1;
+  background: var(--bg-surface);
+  border-radius: 50%;
+  padding: 1px;
 }
 
 .sidebar-header-actions {
@@ -602,7 +635,7 @@ const navigateToBookmark = (_bookmark: BookmarkItem) => {
 }
 
 .sidebar-content::-webkit-scrollbar-track {
-  background: var(--surface-card);
+  background: var(--bg-surface);
 }
 
 .sidebar-content::-webkit-scrollbar-thumb {

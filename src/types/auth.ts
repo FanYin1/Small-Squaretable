@@ -36,6 +36,7 @@ export interface AuthUser {
   displayName: string | null;
   avatarUrl: string | null;
   role: 'user' | 'moderator' | 'admin';
+  mfaEnabled?: boolean;
 }
 
 export interface AuthContext {

@@ -28,40 +28,24 @@
         </template>
       </div>
       <div class="chat-actions">
+        <!-- Token Counter -->
+        <ChatTokenCounter @show-context-viewer="showContextViewerDialog" />
+
         <el-tooltip v-if="isGroupChat" :content="t('groupChat.manageCharacters')" placement="bottom">
-          <el-button size="small" @click="showManageDialog = true">{{ t('groupChat.manageCharacters') }}</el-button>
+          <el-button size="small" text @click="showManageDialog = true">{{ t('groupChat.manageCharacters') }}</el-button>
         </el-tooltip>
-        <el-tooltip :content="t('chat.memory')" placement="bottom">
-          <el-button
-            size="small"
-            @click="openIntelligenceTab('memory')"
-          >{{ t('chat.memory') }}</el-button>
-        </el-tooltip>
-        <el-tooltip :content="t('chat.debug')" placement="bottom">
-          <el-badge :value="intelligenceStore.debugEventCount" :hidden="intelligenceStore.debugEventCount === 0" :max="99">
-            <el-button
-              size="small"
-              @click="openIntelligenceTab('debug')"
-            >{{ t('chat.debug') }}</el-button>
-          </el-badge>
-        </el-tooltip>
-        <el-tooltip v-if="currentChat?.characterId" :content="t('character.growth')" placement="bottom">
-          <el-button
-            size="small"
-            @click="showGrowthPanel = true"
-          >{{ t('character.growth') }}</el-button>
-        </el-tooltip>
-        <el-tooltip :content="t('chat.pinnedMessages')" placement="bottom">
-          <el-button
-            size="small"
-            @click="showPinnedDrawer = true"
-          >{{ t('chat.pinnedMessages') }}</el-button>
-        </el-tooltip>
+        <el-segmented
+          v-if="isGroupChat"
+          :model-value="groupStrategy"
+          :options="strategyOptions"
+          size="small"
+          @change="handleStrategyChange"
+        />
         <el-select
           v-if="chatStore.availableModels.length > 0 && currentChat"
           :model-value="chatStore.currentModel"
           size="small"
-          style="width: 180px"
+          style="width: 160px"
           @change="handleModelChange"
         >
           <el-option
@@ -76,6 +60,22 @@
             </span>
           </el-option>
         </el-select>
+        <el-dropdown trigger="click" @command="handleToolsDropdown">
+          <el-button text size="small" class="tools-btn">⚙</el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="tuner">{{ t('chat.parameterTuning') }}</el-dropdown-item>
+              <el-dropdown-item command="memory">{{ t('chat.memory') }}</el-dropdown-item>
+              <el-dropdown-item command="debug">
+                {{ t('chat.debug') }}
+                <el-badge v-if="intelligenceStore.debugEventCount > 0" :value="intelligenceStore.debugEventCount" :max="99" style="margin-left: 8px" />
+              </el-dropdown-item>
+              <el-dropdown-item v-if="currentChat?.characterId" command="growth">{{ t('character.growth') }}</el-dropdown-item>
+              <el-dropdown-item command="pinned">{{ t('chat.pinnedMessages') }}</el-dropdown-item>
+              <el-dropdown-item divided command="search">{{ t('chat.searchMessages', 'Search') }}</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <el-dropdown trigger="click" @command="handleExportDropdown">
           <el-button text>
             <el-icon><Download /></el-icon>
@@ -149,8 +149,11 @@
           :emotion-label="intelligenceStore.emotionLabel || 'neutral'"
         />
 
-        <div v-if="messages.length === 0 && currentGreeting" class="greeting-container">
-        <div class="message-bubble message-assistant">
+        <div v-if="messages.length === 0 && currentGreeting" class="greeting-container"
+          @touchstart="onGreetingTouchStart"
+          @touchend="onGreetingTouchEnd"
+        >
+        <div class="message-bubble message-assistant greeting-bubble">
           <div class="message-content">
             <MarkdownRenderer :content="currentGreeting" />
           </div>
@@ -163,6 +166,9 @@
           <button class="swipe-btn" :aria-label="t('chat.nextGreeting') || 'Next greeting'" @click="nextGreeting" :disabled="greetingIndex >= totalGreetings - 1">
             <span>&gt;</span>
           </button>
+        </div>
+        <div v-if="hasAlternateGreetings" class="greeting-preview">
+          <span class="greeting-preview-text">{{ greetingPreview }}</span>
         </div>
       </div>
 
@@ -201,6 +207,7 @@
               :editing="editingMessageId === message.id"
               :voice-config="characterVoiceConfig"
               :branch-info="chatStore.getBranchInfo(Number(message.id))"
+              :regex-scripts="message.role === 'assistant' ? getMessageRegexScripts(message) : undefined"
               @delete="handleDeleteMessage"
               @edit="handleEditMessage"
               @regenerate="handleRegenerateMessage"
@@ -210,6 +217,7 @@
               @switch-branch="handleSwitchBranch"
               @reply="chatStore.setReplyTo($event)"
               @toggle-pin="handleTogglePin($event)"
+              @set-importance="handleSetImportance($event)"
             />
           </div>
         </template>
@@ -219,15 +227,19 @@
 
         <!-- Streaming message -->
         <div v-if="isStreaming" class="message-bubble message-assistant streaming">
-          <div class="streaming-header" v-if="chatStore.streamingCharacterName">
-            <el-avatar :size="28" :src="streamingCharacterAvatar">
+          <div class="avatar-col">
+            <el-avatar :size="32" :src="streamingCharacterAvatar" class="char-avatar">
               {{ chatStore.streamingCharacterName?.[0]?.toUpperCase() || '?' }}
             </el-avatar>
-            <span class="streaming-author">{{ chatStore.streamingCharacterName }}</span>
           </div>
-          <div class="message-content">
-            <MarkdownRenderer :content="streamingMessage" />
-            <span class="typing-cursor">|</span>
+          <div class="bubble-col">
+            <div class="streaming-header" v-if="chatStore.streamingCharacterName">
+              <span class="streaming-author">{{ chatStore.streamingCharacterName }}</span>
+            </div>
+            <div class="message-content">
+              <MarkdownRenderer :content="streamingMessage" :streaming="true" :regex-scripts="streamingRegexScripts" />
+              <span class="typing-cursor"></span>
+            </div>
           </div>
         </div>
 
@@ -250,15 +262,23 @@
     </div>
 
     <div class="chat-input-container">
+      <!-- Next responder indicator (round_robin group chat) -->
+      <div v-if="nextResponder && !isStreaming" class="next-responder-indicator">
+        <el-avatar :size="20" :src="nextResponder.avatar" class="next-responder-avatar">
+          {{ nextResponder.name?.[0]?.toUpperCase() || '?' }}
+        </el-avatar>
+        <span class="next-responder-text">{{ t('groupChat.nextResponder', { name: nextResponder.name }) }}</span>
+      </div>
       <!-- Remote user typing indicator -->
       <div v-if="remoteTypingNames.length > 0" class="remote-typing-indicator">
         <span class="remote-typing-dots"><span></span><span></span><span></span></span>
-        <span class="remote-typing-text">{{ remoteTypingNames.join(', ') }} {{ remoteTypingNames.length === 1 ? 'is' : 'are' }} typing...</span>
+        <span class="remote-typing-text">{{ t('chat.remoteTyping', { names: remoteTypingNames.join(', ') }, remoteTypingNames.length) }}</span>
       </div>
       <MessageInput
         :disabled="!currentChat"
         :sending="sending"
         :is-streaming="isStreaming"
+        :characters="isGroupChat ? chatStore.chatCharacters.map(c => ({ id: c.id, name: c.name, avatar: c.avatar })) : []"
         @send="handleSendMessage"
         @stop-generation="chatStore.abortGeneration()"
       />
@@ -326,6 +346,15 @@
       <GrowthPanel v-if="currentChat?.characterId" :character-id="currentChat.characterId" />
     </el-dialog>
 
+    <!-- Character Tuner Drawer -->
+    <CharacterTuner
+      v-if="currentChat"
+      v-model="showTunerDrawer"
+      :chat-id="currentChat.id"
+      :character-id="currentChat.characterId"
+      @applied="handleTunerApplied"
+    />
+
     <!-- Intelligence Drawer -->
     <el-drawer
       v-model="showIntelligenceDrawer"
@@ -389,6 +418,21 @@
         </el-button>
       </template>
     </el-dialog>
+    <!-- ERA Script Runner (hidden iframe for tavern_helper scripts) -->
+    <EraScriptRunner
+      v-if="eraTavernHelperScripts.length > 0 && currentChat"
+      :scripts="eraTavernHelperScripts"
+      :char-name="currentChat.characterName || ''"
+      :user-name="userStore.user?.name || 'User'"
+      :chat-id="currentChat.id"
+    />
+
+    <!-- Context Viewer Dialog -->
+    <ContextViewer
+      v-if="currentChat"
+      v-model="showContextViewer"
+      :chat-id="currentChat.id"
+    />
   </div>
 </template>
 
@@ -411,13 +455,19 @@ import MessageInput from './MessageInput.vue';
 import ScrollToBottom from './ScrollToBottom.vue';
 import DateDivider from './DateDivider.vue';
 import MarkdownRenderer from './MarkdownRenderer.vue';
+import ChatTokenCounter from './ChatTokenCounter.vue';
+import ContextViewer from './ContextViewer.vue';
 import ExpressionSprite from './ExpressionSprite.vue';
+import EraScriptRunner from './EraScriptRunner.vue';
+import CharacterTuner from './CharacterTuner.vue';
 import EmotionIndicator from '@client/components/EmotionIndicator.vue';
 import MemoryPanel from '@client/components/MemoryPanel.vue';
 // Lazy-load heavy panels to break circular chunk deps and reduce initial chat bundle
 const IntelligenceDebugPanel = defineAsyncComponent(() => import('@client/components/debug/IntelligenceDebugPanel.vue'));
 const GrowthPanel = defineAsyncComponent(() => import('@client/components/character/GrowthPanel.vue'));
 import { createLogger } from '@client/utils/logger';
+import { getRegexScripts, type RegexScript } from '@client/utils/regex-scripts';
+import { initEraBridge, destroyEraBridge, fetchVariables, updateVariables } from '@client/utils/era-bridge';
 import type { Chat, Message, MessageAttachment, Character } from '@client/types';
 
 const logger = createLogger('ChatWindow');
@@ -439,6 +489,7 @@ const { formatRelativeTime } = useDateTime();
 const showScrollButton = ref(false);
 const editingMessageId = ref<string | null>(null);
 const showSearch = ref(false);
+const showContextViewer = ref(false);
 
 // Group chat state
 const isGroupChat = computed(() => chatStore.chatCharacters.length > 1);
@@ -448,6 +499,58 @@ const addCharacterSearch = ref('');
 const availableCharacters = ref<Character[]>([]);
 const showGrowthPanel = ref(false);
 const showPinnedDrawer = ref(false);
+const showTunerDrawer = ref(false);
+
+// Group chat strategy
+const groupStrategy = ref<'round_robin' | 'all' | 'random'>('round_robin');
+const strategyOptions = computed(() => [
+  { label: t('groupChat.roundRobin'), value: 'round_robin' },
+  { label: t('groupChat.allRespond'), value: 'all' },
+  { label: t('groupChat.randomRespond'), value: 'random' },
+]);
+
+// Load strategy from chat metadata when chat changes
+watch(() => chatStore.currentChat, (chat) => {
+  if (chat?.metadata?.groupStrategy) {
+    groupStrategy.value = chat.metadata.groupStrategy as 'round_robin' | 'all' | 'random';
+  } else {
+    groupStrategy.value = 'round_robin';
+  }
+}, { immediate: true });
+
+async function handleStrategyChange(val: string | number) {
+  const strategy = val as 'round_robin' | 'all' | 'random';
+  groupStrategy.value = strategy;
+  if (chatStore.currentChatId) {
+    try {
+      await chatApi.setGroupStrategy(chatStore.currentChatId, strategy);
+    } catch (e) {
+      logger.error('Failed to set group strategy', e);
+    }
+  }
+}
+
+// Next responder indicator (round_robin mode)
+const nextResponder = computed(() => {
+  if (!isGroupChat.value || groupStrategy.value !== 'round_robin') return null;
+  const chars = chatStore.chatCharacters;
+  if (chars.length === 0) return null;
+
+  // Find last assistant message with characterId
+  let lastResponderId: string | undefined;
+  for (let i = chatStore.messages.length - 1; i >= 0; i--) {
+    const msg = chatStore.messages[i];
+    if (msg.role === 'assistant' && msg.characterId) {
+      lastResponderId = msg.characterId;
+      break;
+    }
+  }
+
+  if (!lastResponderId) return chars[0];
+  const lastIdx = chars.findIndex(c => c.id === lastResponderId);
+  const nextIdx = (lastIdx + 1) % chars.length;
+  return chars[nextIdx];
+});
 
 // Build a lookup map for character info by ID
 const characterMap = computed(() => {
@@ -477,6 +580,17 @@ const getMessageCharacterAvatar = (message: Message): string | undefined => {
   return props.currentChat?.characterAvatar;
 };
 
+// Get regex_scripts for a message's character (for markdownOnly client-side rendering)
+const getMessageRegexScripts = (message: Message): RegexScript[] | undefined => {
+  if (message.characterId) {
+    const char = characterMap.value.get(message.characterId);
+    if (char) return getRegexScripts(char.cardData as Record<string, unknown>);
+  }
+  const fallback = chatStore.currentCharacter;
+  if (fallback) return getRegexScripts(fallback.cardData as Record<string, unknown>);
+  return undefined;
+};
+
 // Streaming character avatar lookup
 const streamingCharacterAvatar = computed(() => {
   if (chatStore.streamingCharacterId) {
@@ -491,9 +605,30 @@ const typingCharacterName = computed(() => {
   return chatStore.streamingCharacterName || props.currentChat?.characterName || '';
 });
 
+// Regex scripts for the currently streaming character
+const streamingRegexScripts = computed(() => {
+  if (chatStore.streamingCharacterId) {
+    const char = characterMap.value.get(chatStore.streamingCharacterId);
+    if (char) return getRegexScripts(char.cardData as Record<string, unknown>);
+  }
+  const fallback = chatStore.currentCharacter;
+  if (fallback) return getRegexScripts(fallback.cardData as Record<string, unknown>);
+  return undefined;
+});
+
 // Remote user typing indicator names
 const remoteTypingNames = computed(() => {
   return Array.from(chatStore.typingUsers.values()).map(u => u.userName);
+});
+
+// ERA tavern_helper scripts from character cardData
+const eraTavernHelperScripts = computed(() => {
+  const cardData = chatStore.currentCharacter?.cardData;
+  if (!cardData?.extensions?.tavern_helper) return [];
+  const th = cardData.extensions.tavern_helper as Array<[string, unknown]>;
+  const scriptsEntry = th.find(([key]) => key === 'scripts');
+  if (!scriptsEntry || !Array.isArray(scriptsEntry[1])) return [];
+  return scriptsEntry[1] as Array<{ name: string; type: string; enabled: boolean; content: string }>;
 });
 
 // Voice config from character's cardData extensions
@@ -583,6 +718,15 @@ const handleRemoveCharacter = async (characterId: string) => {
 const handleTogglePin = (payload: { messageId: string; isPinned: boolean }) => {
   if (!props.currentChat) return;
   chatStore.togglePin(props.currentChat.id, payload.messageId, payload.isPinned);
+};
+
+const handleSetImportance = async (payload: { messageId: string; importance: number }) => {
+  if (!props.currentChat) return;
+  try {
+    await chatStore.editMessage(payload.messageId, { importance: payload.importance });
+  } catch (error: unknown) {
+    logger.error('Failed to set importance', error);
+  }
 };
 
 let scrollRafId: number | null = null;
@@ -763,7 +907,13 @@ const allGreetings = computed<string[]>(() => {
   if (cardData.alternate_greetings && Array.isArray(cardData.alternate_greetings)) {
     greetings.push(...cardData.alternate_greetings);
   }
-  return greetings;
+  // Client-side macro expansion for greeting preview
+  const charName = character.name || '';
+  const userName = userStore.user?.name || 'User';
+  return greetings.map(g =>
+    g.replace(/\{\{char\}\}/gi, charName)
+     .replace(/\{\{user\}\}/gi, userName)
+  );
 });
 
 const totalGreetings = computed(() => allGreetings.value.length);
@@ -788,8 +938,36 @@ const nextGreeting = () => {
   }
 };
 
+// Preview: strip markdown/HTML and show first 80 chars of adjacent greetings
+const greetingPreview = computed(() => {
+  const nextIdx = greetingIndex.value + 1;
+  if (nextIdx >= allGreetings.value.length) {
+    // Show previous if at end
+    const prevIdx = greetingIndex.value - 1;
+    if (prevIdx < 0) return '';
+    const raw = allGreetings.value[prevIdx].replace(/[*_#`<>[\]]/g, '').trim();
+    return `← ${raw.slice(0, 80)}${raw.length > 80 ? '...' : ''}`;
+  }
+  const raw = allGreetings.value[nextIdx].replace(/[*_#`<>[\]]/g, '').trim();
+  return `${raw.slice(0, 80)}${raw.length > 80 ? '...' : ''} →`;
+});
+
+// Touch swipe gesture for greeting navigation
+let greetingTouchStartX = 0;
+const onGreetingTouchStart = (e: TouchEvent) => {
+  greetingTouchStartX = e.touches[0].clientX;
+};
+const onGreetingTouchEnd = (e: TouchEvent) => {
+  const dx = e.changedTouches[0].clientX - greetingTouchStartX;
+  if (Math.abs(dx) < 50) return; // minimum swipe distance
+  if (dx < 0) nextGreeting(); // swipe left → next
+  else prevGreeting(); // swipe right → previous
+};
+
 const getDateLabel = (dateStr: string): string => {
+  if (!dateStr) return t('time.today');
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return t('time.today');
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -826,13 +1004,13 @@ const scrollToBottom = (smooth = true) => {
   });
 };
 
-const handleSendMessage = async (content: string, attachments?: MessageAttachment[]) => {
+const handleSendMessage = async (content: string, attachments?: MessageAttachment[], mentionedCharacterIds?: string[]) => {
   try {
     // Persist the selected greeting as the first assistant message before sending
     if (messages.value.length === 0 && currentGreeting.value) {
       await persistGreeting();
     }
-    await chatStore.sendMessage(content, attachments);
+    await chatStore.sendMessage(content, attachments, mentionedCharacterIds);
     scrollToBottom();
   } catch (error: unknown) {
     logger.error('Failed to send message', error);
@@ -845,6 +1023,11 @@ async function persistGreeting() {
   const chatId = chatStore.currentChatId;
   if (!chatId) return;
   await chatStore.addGreetingMessage(chatId, currentGreeting.value);
+}
+
+// Context Viewer
+function showContextViewerDialog() {
+  showContextViewer.value = true;
 }
 
 const handleMenuCommand = async (command: string) => {
@@ -934,6 +1117,22 @@ const handleExportDropdown = async (command: string) => {
   }
 };
 
+const handleToolsDropdown = (command: string) => {
+  switch (command) {
+    case 'tuner': showTunerDrawer.value = true; break;
+    case 'memory': openIntelligenceTab('memory'); break;
+    case 'debug': openIntelligenceTab('debug'); break;
+    case 'growth': showGrowthPanel.value = true; break;
+    case 'pinned': showPinnedDrawer.value = true; break;
+    case 'search': showSearchBar.value = !showSearchBar.value; break;
+  }
+};
+
+const handleTunerApplied = () => {
+  ElMessage.success(t('characterTuner.applied'));
+  // Optionally reload chat or refresh context
+};
+
 const createSnapshot = async () => {
   if (!props.currentChat) return;
   creatingSnapshot.value = true;
@@ -1007,7 +1206,7 @@ const handleEditMessage = (messageId: string) => {
 
 const handleSaveEdit = async (messageId: string, content: string) => {
   try {
-    await chatStore.editMessage(messageId, content);
+    await chatStore.editMessage(messageId, { content });
     editingMessageId.value = null;
   } catch (error: unknown) {
     logger.error('Failed to edit message', error);
@@ -1072,6 +1271,15 @@ watch(() => props.currentChat, async (newChat, oldChat) => {
   // Fetch pinned messages for the new chat
   if (newChat) {
     chatStore.fetchPinnedMessages(newChat.id);
+    // Initialize ERA bridge for variable state management
+    initEraBridge(newChat.id, {
+      charName: newChat.characterName || '',
+      userName: userStore.user?.name || 'User',
+    });
+    // Load initial ERA variables
+    fetchVariables(newChat.id).then(vars => {
+      if (Object.keys(vars).length > 0) updateVariables(vars);
+    });
   }
   // Scroll to bottom when chat changes
   scrollToBottom(false);
@@ -1093,9 +1301,9 @@ watch(messages, (newMessages) => {
   }
 }, { deep: true });
 
-// Watch for streaming updates
+// Watch for streaming updates — use instant scroll to avoid jank
 watch(streamingMessage, () => {
-  scrollToBottom();
+  scrollToBottom(false);
 });
 
 // Pull-to-refresh state
@@ -1206,6 +1414,7 @@ onUnmounted(() => {
   if (scrollRafId !== null) {
     cancelAnimationFrame(scrollRafId);
   }
+  destroyEraBridge();
 });
 </script>
 
@@ -1214,16 +1423,16 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--surface-card);
+  background-color: var(--bg-surface);
 }
 
 .chat-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border-default);
-  background-color: var(--surface-card);
+  background-color: var(--bg-surface);
   flex-shrink: 0;
 }
 
@@ -1253,7 +1462,11 @@ onUnmounted(() => {
 .chat-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.tools-btn {
+  font-size: 16px;
 }
 
 .chat-search-bar {
@@ -1273,7 +1486,7 @@ onUnmounted(() => {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 16px 0;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -1321,6 +1534,10 @@ onUnmounted(() => {
   border-bottom-left-radius: 4px;
 }
 
+.greeting-bubble {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
 .greeting-container .markdown-content {
   line-height: 1.6;
 }
@@ -1345,7 +1562,7 @@ onUnmounted(() => {
   height: 28px;
   border-radius: 50%;
   border: 1px solid var(--border-default);
-  background: var(--surface-card);
+  background: var(--bg-surface);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1370,6 +1587,23 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
+.greeting-preview {
+  padding: 2px 0;
+  max-width: 80%;
+}
+
+.greeting-preview-text {
+  font-size: 12px;
+  color: var(--text-tertiary, var(--text-secondary));
+  opacity: 0.7;
+  font-style: italic;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .messages-list {
   display: flex;
   flex-direction: column;
@@ -1379,19 +1613,71 @@ onUnmounted(() => {
   contain: content;
 }
 
+/* Streaming message bubble */
+.message-bubble {
+  padding: 6px 0;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.message-bubble.message-assistant {
+  display: flex;
+  gap: 10px;
+  max-width: 720px;
+  padding: 0 20px;
+}
+
+.streaming .avatar-col {
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.streaming .char-avatar {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.streaming .bubble-col {
+  min-width: 0;
+  max-width: 100%;
+  flex: 1;
+}
+
 .streaming {
-  animation: pulse 1.5s ease-in-out infinite;
+  /* No pulse — the typing cursor provides enough visual feedback */
+}
+
+.streaming-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 4px;
+}
+
+.streaming-author {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .streaming .message-content {
   position: relative;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  line-height: 1.6;
+  word-wrap: break-word;
+  min-height: 44px; /* Ensure container is visible even when empty */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .typing-cursor {
   display: inline-block;
+  width: 2px;
+  height: 1.1em;
   margin-left: 2px;
+  background: var(--accent);
+  vertical-align: text-bottom;
   animation: blink 1s step-end infinite;
-  font-weight: bold;
 }
 
 .typing-indicator {
@@ -1442,6 +1728,25 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
+.next-responder-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 16px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.next-responder-avatar {
+  flex-shrink: 0;
+}
+
+.next-responder-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .remote-typing-indicator {
   display: flex;
   align-items: center;
@@ -1483,7 +1788,7 @@ onUnmounted(() => {
 }
 
 .chat-messages::-webkit-scrollbar-track {
-  background: var(--border-subtle);
+  background: var(--border-default);
 }
 
 .chat-messages::-webkit-scrollbar-thumb {
@@ -1520,7 +1825,7 @@ onUnmounted(() => {
 
 .pull-refresh-spinner {
   font-size: 18px;
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .pull-refresh-text {
@@ -1553,22 +1858,8 @@ onUnmounted(() => {
 }
 
 .stacked-avatar {
-  border: 2px solid var(--surface-card);
+  border: 2px solid var(--bg-surface);
   position: relative;
-}
-
-/* Streaming header for group chat */
-.streaming-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.streaming-author {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--text-primary);
 }
 
 /* Manage characters dialog */

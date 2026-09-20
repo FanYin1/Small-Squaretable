@@ -96,8 +96,20 @@ describe('WebSocketClient', () => {
     });
 
     it('should handle connection error', async () => {
-      // Mock fetch to fail so the error path is triggered
-      global.fetch = vi.fn().mockRejectedValue(new Error('Network error')) as any;
+      // Override MockWebSocket to fire onerror instead of onopen
+      class ErrorWebSocket extends MockWebSocket {
+        constructor(url: string) {
+          super(url);
+          // Cancel the auto-open from parent, fire error instead
+          setTimeout(() => {
+            this.readyState = WebSocket.CLOSED;
+            if (this.onerror) {
+              this.onerror(new Event('error'));
+            }
+          }, 10);
+        }
+      }
+      global.WebSocket = ErrorWebSocket as any;
 
       wsClient = new WebSocketClient({
         url: 'ws://localhost:3000/ws',
@@ -107,7 +119,7 @@ describe('WebSocketClient', () => {
 
       wsClient.connect();
 
-      // Wait for the async fetch to fail and state to update
+      // Wait for the error event to fire
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(wsClient.getState()).toBe(WSConnectionState.ERROR);

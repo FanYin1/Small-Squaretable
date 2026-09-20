@@ -1,4 +1,4 @@
-import { inject, readonly } from 'vue';
+import { inject } from 'vue';
 
 export interface ToastOptions {
   message?: string;
@@ -41,7 +41,7 @@ const defaultToastContext: ToastContext = {
 export function useToast() {
   const toastContext = inject<ToastContext>('toast', defaultToastContext);
 
-  const addToast = readonly(toastContext.addToast);
+  const addToast = toastContext.addToast;
 
   const success = (title: string, options: ToastOptions = {}) => {
     addToast({

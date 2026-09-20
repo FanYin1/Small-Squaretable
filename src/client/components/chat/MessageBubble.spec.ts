@@ -88,11 +88,13 @@ describe('MessageBubble', () => {
         plugins: [i18n, createPinia()],
         stubs: {
           MarkdownRenderer: true,
+          'el-popover': { template: '<div><slot /><slot name="reference" /></div>' },
         },
       },
     });
 
-    const replyBtn = wrapper.findAll('button.action-btn').find(btn => btn.attributes('aria-label') === 'Reply');
+    // Reply button is inside the more-menu (el-popover content), not a direct action-btn
+    const replyBtn = wrapper.findAll('.more-menu-item').find(btn => btn.text().includes('Reply') || btn.text().includes('回复'));
     expect(replyBtn).toBeTruthy();
     await replyBtn!.trigger('click');
 

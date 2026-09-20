@@ -15,6 +15,7 @@ export interface BookmarkItem {
   id: string;
   userId: string;
   messageId: number;
+  chatId: string;
   note: string | null;
   createdAt: string;
 }

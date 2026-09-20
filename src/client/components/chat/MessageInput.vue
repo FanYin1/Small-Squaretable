@@ -10,9 +10,19 @@
       </el-button>
     </div>
     <div class="input-wrapper">
-      <button class="attach-btn" type="button" aria-label="Attach file">
-        <el-icon :size="20"><Upload /></el-icon>
-      </button>
+      <!-- @mention autocomplete popup -->
+      <div v-if="showMentionPopup && filteredMentionCharacters.length > 0" class="mention-popup">
+        <div
+          v-for="char in filteredMentionCharacters"
+          :key="char.id"
+          class="mention-item"
+          @mousedown.prevent="selectMention(char)"
+        >
+          <el-avatar :size="24" :src="char.avatar">{{ char.name?.[0]?.toUpperCase() || '?' }}</el-avatar>
+          <span class="mention-name">{{ char.name }}</span>
+        </div>
+      </div>
+      <!-- TODO: File attachment button (pending feature implementation) -->
       <button
         v-if="audioRecorder.isSupported.value && !audioRecorder.isRecording.value && !isUploading"
         class="mic-btn"
@@ -96,17 +106,34 @@
       </button>
 
       <!-- Normal send button -->
-      <button
-        v-else-if="!isUploading"
-        class="send-btn"
-        type="button"
-        :disabled="!canSend"
-        @click="handleSend"
-        :aria-label="sending ? t('common.sending') : t('common.send')"
-      >
-        <el-icon :size="18"><Position /></el-icon>
-      </button>
+      <template v-else-if="!isUploading">
+        <span v-if="isNearLimit" class="char-count" :class="{ 'char-count--over': inputValue.length >= maxLength }">
+          {{ maxLength - inputValue.length }}
+        </span>
+        <button
+          class="send-btn"
+          type="button"
+          :disabled="!canSend"
+          @click="handleSend"
+          :aria-label="sending ? t('common.sending') : t('common.send')"
+        >
+          <el-icon :size="18"><Position /></el-icon>
+        </button>
+      </template>
     </div>
+
+    <!-- Quick Replies -->
+    <div v-if="enabledQuickReplies.length > 0" class="quick-replies">
+      <el-button
+        v-for="reply in enabledQuickReplies"
+        :key="reply.id"
+        size="small"
+        @click="handleQuickReply(reply)"
+      >
+        {{ reply.label }}
+      </el-button>
+    </div>
+
     <div class="input-hint">
       {{ t('chat.inputHint') }}
     </div>
@@ -114,14 +141,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Position, Upload, Microphone, Close, CloseBold, Check, Loading, Headset, VideoPause } from '@element-plus/icons-vue';
+import { Position, Microphone, Close, CloseBold, Check, Loading, Headset, VideoPause } from '@element-plus/icons-vue';
 import { useAudioRecorder } from '@client/composables/useAudioRecorder';
 import { useSpeechToText } from '@client/composables/useSpeechToText';
 import { uploadApi } from '@client/services/upload.api';
 import { useToast } from '@client/composables/useToast';
 import { useChatStore } from '@client/stores/chat';
+import { getEnabledQuickReplies, type QuickReply } from '@client/services/quick-reply.api';
 import type { MessageAttachment } from '@client/types';
 
 interface Props {
@@ -130,6 +158,7 @@ interface Props {
   disabled?: boolean;
   sending?: boolean;
   isStreaming?: boolean;
+  characters?: Array<{ id: string; name: string; avatar?: string }>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -138,10 +167,11 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   sending: false,
   isStreaming: false,
+  characters: () => [],
 });
 
 const emit = defineEmits<{
-  (e: 'send', content: string, attachments?: MessageAttachment[]): void;
+  (e: 'send', content: string, attachments?: MessageAttachment[], mentionedCharacterIds?: string[]): void;
   (e: 'stopGeneration'): void;
 }>();
 
@@ -152,6 +182,65 @@ const audioRecorder = useAudioRecorder();
 const stt = useSpeechToText();
 const inputValue = ref('');
 const isUploading = ref(false);
+const enabledQuickReplies = ref<QuickReply[]>([]);
+
+// Load quick replies on mount
+onMounted(async () => {
+  try {
+    enabledQuickReplies.value = await getEnabledQuickReplies();
+  } catch (error) {
+    // Silently fail - quick replies are optional
+  }
+});
+
+// Handle quick reply click
+function handleQuickReply(reply: QuickReply) {
+  // Apply macro replacements
+  let message = reply.message;
+
+  // Get character name from chat store
+  const characterName = chatStore.currentChat?.characterName || 'Character';
+  const userName = 'User'; // TODO: Get from user store
+
+  // Replace {{char}} and {{user}} macros
+  message = message.replace(/\{\{char\}\}/gi, characterName);
+  message = message.replace(/\{\{user\}\}/gi, userName);
+
+  // Set input value
+  inputValue.value = message;
+}
+
+// @mention autocomplete state
+const showMentionPopup = ref(false);
+const mentionQuery = ref('');
+const mentionStartIndex = ref(-1);
+
+const filteredMentionCharacters = computed(() => {
+  if (!mentionQuery.value) return props.characters;
+  const q = mentionQuery.value.toLowerCase();
+  return props.characters.filter(c => c.name.toLowerCase().includes(q));
+});
+
+function extractMentionedIds(text: string): string[] {
+  const ids: string[] = [];
+  const mentionPattern = /@(\S+)/g;
+  let m;
+  while ((m = mentionPattern.exec(text)) !== null) {
+    const name = m[1];
+    const char = props.characters.find(c => c.name === name);
+    if (char) ids.push(char.id);
+  }
+  return ids;
+}
+
+function selectMention(character: { id: string; name: string }) {
+  const before = inputValue.value.slice(0, mentionStartIndex.value);
+  const after = inputValue.value.slice(mentionStartIndex.value + mentionQuery.value.length + 1); // +1 for @
+  inputValue.value = `${before}@${character.name} ${after}`;
+  showMentionPopup.value = false;
+  mentionQuery.value = '';
+  mentionStartIndex.value = -1;
+}
 
 // Debounced typing indicator
 let typingTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -167,6 +256,23 @@ function handleTypingInput() {
     isCurrentlyTyping = false;
     chatStore.sendTypingStop();
   }, 2000);
+
+  // Detect @mention trigger
+  if (props.characters.length > 0) {
+    const text = inputValue.value;
+    const lastAt = text.lastIndexOf('@');
+    if (lastAt >= 0) {
+      const afterAt = text.slice(lastAt + 1);
+      // Only show popup if no space after the query (still typing the name)
+      if (!afterAt.includes(' ')) {
+        mentionStartIndex.value = lastAt;
+        mentionQuery.value = afterAt;
+        showMentionPopup.value = true;
+        return;
+      }
+    }
+    showMentionPopup.value = false;
+  }
 }
 
 function stopTypingIndicator() {
@@ -230,9 +336,11 @@ const handleSend = () => {
   if (!canSend.value) return;
 
   stopTypingIndicator();
+  showMentionPopup.value = false;
   const content = inputValue.value.trim();
   if (content) {
-    emit('send', content);
+    const mentionedIds = extractMentionedIds(content);
+    emit('send', content, undefined, mentionedIds.length > 0 ? mentionedIds : undefined);
     inputValue.value = '';
   }
 };
@@ -284,9 +392,9 @@ const handleSendRecording = async () => {
 
 <style scoped>
 .message-input {
-  max-width: 900px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 16px 24px;
+  padding: 12px 20px;
 }
 
 .reply-preview {
@@ -294,8 +402,8 @@ const handleSendRecording = async () => {
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  background: var(--el-fill-color-lighter, #fafafa);
-  border-left: 3px solid var(--el-color-primary, #409eff);
+  background: var(--bg-subtle, #fafafa);
+  border-left: 3px solid var(--accent, #D97706);
   border-radius: 4px;
   margin-bottom: 8px;
   font-size: 13px;
@@ -319,17 +427,51 @@ const handleSendRecording = async () => {
   align-items: flex-end;
   border-radius: 24px;
   border: 1px solid var(--border-default);
-  background: var(--surface-card);
+  background: var(--bg-surface);
   padding: 8px 16px;
   gap: 8px;
   transition: border-color 0.2s;
+  position: relative;
+}
+
+.mention-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 4px;
+  z-index: 100;
+}
+
+.mention-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mention-item:hover {
+  background: var(--surface-hover);
+}
+
+.mention-name {
+  font-size: 14px;
+  color: var(--text-primary);
 }
 
 .input-wrapper:focus-within {
-  border-color: var(--accent-purple);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
 }
 
-.attach-btn,
 .mic-btn,
 .stt-btn {
   background: none;
@@ -343,8 +485,8 @@ const handleSendRecording = async () => {
 }
 
 .stt-btn.stt-active {
-  color: var(--accent-purple);
-  background-color: color-mix(in srgb, var(--accent-purple) 12%, transparent);
+  color: var(--accent-text);
+  background-color: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .mic-btn:disabled,
@@ -381,7 +523,7 @@ const handleSendRecording = async () => {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--color-danger);
   flex-shrink: 0;
   animation: pulse-dot 1s ease-in-out infinite;
 }
@@ -393,7 +535,7 @@ const handleSendRecording = async () => {
 
 .recording-label {
   font-size: 14px;
-  color: #ef4444;
+  color: var(--color-danger-text);
 }
 
 .recording-duration {
@@ -434,8 +576,8 @@ const handleSendRecording = async () => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #ef4444;
-  color: white;
+  background: var(--color-danger);
+  color: var(--text-inverse);
   border: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -444,12 +586,25 @@ const handleSendRecording = async () => {
   justify-content: center;
 }
 
+.char-count {
+  font-size: 12px;
+  color: var(--el-color-warning, #e6a23c);
+  flex-shrink: 0;
+  align-self: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.char-count--over {
+  color: var(--color-danger, #f56c6c);
+  font-weight: 600;
+}
+
 .send-btn {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--accent-purple);
-  color: white;
+  background: var(--accent);
+  color: var(--text-inverse);
   border: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -467,8 +622,8 @@ const handleSendRecording = async () => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #ef4444;
-  color: white;
+  background: var(--color-danger);
+  color: var(--text-inverse);
   border: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -481,6 +636,14 @@ const handleSendRecording = async () => {
 @keyframes pulse-stop {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+.quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 4px;
 }
 
 .input-hint {

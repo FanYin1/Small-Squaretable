@@ -58,30 +58,11 @@ export class WebSocketClient {
   }
 
   /**
-   * Fetch a WebSocket ticket from the server and establish connection
+   * Establish WebSocket connection with token-based auth
    */
   private async fetchTicketAndConnect(): Promise<void> {
     try {
-      const response = await fetch('/api/v1/auth/ws-ticket', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to get WebSocket ticket: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const ticket = data.data?.ticket;
-
-      if (!ticket) {
-        throw new Error('No ticket in response');
-      }
-
-      const url = `${this.config.url}?ticket=${encodeURIComponent(ticket)}`;
+      const url = `${this.config.url}?token=${encodeURIComponent(this.config.token)}`;
 
       this.ws = new WebSocket(url);
 
@@ -117,7 +98,7 @@ export class WebSocketClient {
   /**
    * 发送用户消息
    */
-  sendMessage(chatId: string, content: string, attachments?: WSAttachment[], messageId?: string): void {
+  sendMessage(chatId: string, content: string, attachments?: WSAttachment[], mentionedCharacterIds?: string[], messageId?: string): void {
     const message: WSUserMessage = {
       type: WSMessageType.USER_MESSAGE,
       timestamp: new Date().toISOString(),
@@ -126,6 +107,7 @@ export class WebSocketClient {
         content,
         messageId,
         attachments,
+        ...(mentionedCharacterIds && mentionedCharacterIds.length > 0 && { mentionedCharacterIds }),
       },
     };
 

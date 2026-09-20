@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Hoisted mocks ──
-const { mockGetCharacterIds, mockGetCharacters, mockAddCharacter, mockRemoveCharacter, mockFindById, mockDbUpdate } = vi.hoisted(() => {
+const { mockGetCharacterIds, mockGetCharacters, mockAddCharacter, mockRemoveCharacter, mockFindById, mockDbUpdate, mockCacheGet, mockCacheSet, mockCacheDelete } = vi.hoisted(() => {
   const mockGetCharacterIds = vi.fn().mockResolvedValue([]);
   const mockGetCharacters = vi.fn().mockResolvedValue([]);
   const mockAddCharacter = vi.fn().mockResolvedValue({});
@@ -14,7 +14,10 @@ const { mockGetCharacterIds, mockGetCharacters, mockAddCharacter, mockRemoveChar
   const mockWhere = vi.fn().mockResolvedValue([]);
   const mockSet = vi.fn().mockReturnValue({ where: mockWhere });
   const mockDbUpdate = vi.fn().mockReturnValue({ set: mockSet });
-  return { mockGetCharacterIds, mockGetCharacters, mockAddCharacter, mockRemoveCharacter, mockFindById, mockDbUpdate };
+  const mockCacheGet = vi.fn().mockResolvedValue(null);
+  const mockCacheSet = vi.fn().mockResolvedValue(undefined);
+  const mockCacheDelete = vi.fn().mockResolvedValue(undefined);
+  return { mockGetCharacterIds, mockGetCharacters, mockAddCharacter, mockRemoveCharacter, mockFindById, mockDbUpdate, mockCacheGet, mockCacheSet, mockCacheDelete };
 });
 
 vi.mock('../../db/repositories/chat-character.repository', () => ({
@@ -46,6 +49,14 @@ vi.mock('../../db', () => ({
 
 vi.mock('../../db/schema/chats', () => ({
   chats: { id: 'id', metadata: 'metadata' },
+}));
+
+vi.mock('./cache.service', () => ({
+  cacheService: {
+    get: mockCacheGet,
+    set: mockCacheSet,
+    delete: mockCacheDelete,
+  },
 }));
 
 vi.mock('drizzle-orm', () => ({
@@ -124,6 +135,7 @@ describe('GroupChatService', () => {
   describe('isGroupChat', () => {
     it('returns true for multiple characters', async () => {
       mockGetCharacterIds.mockResolvedValueOnce(['char-a', 'char-b']);
+      mockFindById.mockResolvedValueOnce({ metadata: null });
 
       const result = await service.isGroupChat('chat-1');
 
@@ -132,6 +144,7 @@ describe('GroupChatService', () => {
 
     it('returns false for single character', async () => {
       mockGetCharacterIds.mockResolvedValueOnce(['char-a']);
+      mockFindById.mockResolvedValueOnce({ metadata: null });
 
       const result = await service.isGroupChat('chat-1');
 
