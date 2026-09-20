@@ -15,6 +15,7 @@ const usageStore = useUsageStore();
 const toast = useToast();
 const { t, locale } = useI18n();
 const billingCycle = ref<'monthly' | 'yearly'>('monthly');
+const loading = ref(true);
 
 const plans = computed(() => [
   {
@@ -134,11 +135,23 @@ const usageStats = computed(() => [
 ]);
 
 onMounted(async () => {
-  await Promise.all([
-    subscriptionStore.fetchStatus(),
-    subscriptionStore.fetchConfig(),
-    usageStore.fetchQuota(),
-  ]);
+  loading.value = true;
+  /*
+   * 用 allSettled 而不是 all：三个请求里任何一个失败，Promise.all 都会直接
+   * 抛出，loading 永远停在 true，页面卡在骨架屏上——用户看不到任何套餐，
+   * 也看不到任何错误提示。三者互相独立（状态/配置/用量），一个失败不应
+   * 挡住另两个已经拿到的数据。
+   * finally 保证无论如何都退出加载态。
+   */
+  try {
+    await Promise.allSettled([
+      subscriptionStore.fetchStatus(),
+      subscriptionStore.fetchConfig(),
+      usageStore.fetchQuota(),
+    ]);
+  } finally {
+    loading.value = false;
+  }
 
   if (route.query.success === 'true') {
     toast.success(t('subscription.subscribeSuccess'), { message: t('subscription.thankYou') });
@@ -171,15 +184,20 @@ const faqs = computed(() => [
   { question: t('subscription.faqQ4'), answer: t('subscription.faqA4') },
 ]);
 
-const comparisonData = computed(() => [
-  { feature: t('subscription.compMessages'), free: '50/day', pro: '500/day', team: t('subscription.unlimited') },
-  { feature: t('subscription.compTokens'), free: '100K', pro: '1M', team: '10M' },
-  { feature: t('subscription.compImages'), free: '10/day', pro: '100/day', team: t('subscription.unlimited') },
-  { feature: t('subscription.compModels'), free: t('subscription.compBasic'), pro: t('subscription.compAll'), team: t('subscription.compAll') },
-  { feature: t('subscription.compSharing'), free: '—', pro: '✓', team: '✓' },
-  { feature: t('subscription.compApi'), free: '—', pro: '—', team: '✓' },
-  { feature: t('subscription.compSupport'), free: t('subscription.compCommunity'), pro: t('subscription.compEmail'), team: t('subscription.compPriority') },
-]);
+// 这几行必须与服务端 feature.service.ts 的 PLAN_LIMITS 保持一致。
+// usage 表以 YYYY-MM 计量（schema/usage.ts），配额是按月而非按天的。
+const comparisonData = computed(() => {
+  const per = t('subscription.perMonth');
+  return [
+    { feature: t('subscription.compMessages'), free: `100${per}`, pro: `10,000${per}`, team: `100,000${per}` },
+    { feature: t('subscription.compTokens'), free: '50K', pro: '1M', team: '10M' },
+    { feature: t('subscription.compImages'), free: `10${per}`, pro: `500${per}`, team: `5,000${per}` },
+    { feature: t('subscription.compModels'), free: t('subscription.compBasic'), pro: t('subscription.compAll'), team: t('subscription.compAll') },
+    { feature: t('subscription.compSharing'), free: '—', pro: '✓', team: '✓' },
+    { feature: t('subscription.compApi'), free: '—', pro: '—', team: '✓' },
+    { feature: t('subscription.compSupport'), free: t('subscription.compCommunity'), pro: t('subscription.compEmail'), team: t('subscription.compPriority') },
+  ];
+});
 
 function formatNumber(num: number): string {
   if (num >= 1000000) {
@@ -197,7 +215,42 @@ function formatNumber(num: number): string {
   <DashboardLayout>
     <template #title>{{ t('subscription.title') }}</template>
 
-    <div class="content-wrapper">
+    <!-- Loading skeleton -->
+    <div v-if="loading" class="content-wrapper">
+      <section class="current-status-section">
+        <div class="section-header">
+          <el-skeleton-item variant="h3" style="width: 220px; margin-bottom: 8px" />
+          <el-skeleton-item variant="text" style="width: 300px" />
+        </div>
+        <div class="status-cards">
+          <div class="status-card">
+            <el-skeleton :rows="4" animated />
+          </div>
+          <div class="status-card">
+            <el-skeleton :rows="4" animated />
+          </div>
+        </div>
+      </section>
+      <section class="plans-section">
+        <div class="section-header">
+          <el-skeleton-item variant="h3" style="width: 180px; margin-bottom: 8px" />
+          <el-skeleton-item variant="text" style="width: 260px" />
+        </div>
+        <div class="plans-grid">
+          <div class="plan-card">
+            <el-skeleton :rows="6" animated />
+          </div>
+          <div class="plan-card">
+            <el-skeleton :rows="6" animated />
+          </div>
+          <div class="plan-card">
+            <el-skeleton :rows="6" animated />
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div v-else class="content-wrapper">
       <section class="current-status-section">
         <div class="section-header">
           <h2>{{ t('subscription.currentPlan') }}</h2>
@@ -412,7 +465,7 @@ function formatNumber(num: number): string {
 }
 
 .status-card {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 16px;
   padding: 24px;
   box-shadow: var(--shadow-sm);
@@ -447,7 +500,7 @@ function formatNumber(num: number): string {
 }
 
 .card-badge.pro {
-  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+  background: linear-gradient(135deg, var(--accent), var(--accent));
   color: white;
 }
 
@@ -467,7 +520,7 @@ function formatNumber(num: number): string {
   align-items: center;
   justify-content: space-between;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .status-row:last-of-type {
@@ -496,13 +549,13 @@ function formatNumber(num: number): string {
 .manage-btn {
   width: 100%;
   margin-top: 8px;
-  background: var(--accent-purple);
-  border-color: var(--accent-purple);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .manage-btn:hover {
-  background: var(--accent-cyan);
-  border-color: var(--accent-cyan);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 /* 使用量卡片 */
@@ -512,12 +565,12 @@ function formatNumber(num: number): string {
   gap: 8px;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 2px solid var(--border-subtle);
+  border-bottom: 2px solid var(--border-default);
 }
 
 .header-icon {
   font-size: 20px;
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .header-title {
@@ -547,7 +600,7 @@ function formatNumber(num: number): string {
 .usage-icon {
   display: inline-flex;
   align-items: center;
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .usage-label {
@@ -572,7 +625,7 @@ function formatNumber(num: number): string {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent-purple), var(--color-success));
+  background: linear-gradient(90deg, var(--accent), var(--color-success));
   border-radius: 4px;
   transition: width 0.3s ease;
 }
@@ -595,7 +648,7 @@ function formatNumber(num: number): string {
   gap: 16px;
   padding: 20px;
   margin-bottom: 32px;
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 12px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-default);
@@ -609,7 +662,7 @@ function formatNumber(num: number): string {
 }
 
 .billing-toggle span.active {
-  color: var(--accent-purple);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -626,7 +679,7 @@ function formatNumber(num: number): string {
 
 .plan-card {
   position: relative;
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border: 2px solid var(--border-default);
   border-radius: 16px;
   padding: 32px 24px;
@@ -642,13 +695,13 @@ function formatNumber(num: number): string {
 }
 
 .plan-card.popular {
-  border-color: var(--accent-purple);
-  background: color-mix(in srgb, var(--accent-purple) 6%, var(--surface-card));
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-surface));
 }
 
 .plan-card.current {
   border-color: var(--color-success);
-  background: color-mix(in srgb, var(--color-success) 6%, var(--surface-card));
+  background: color-mix(in srgb, var(--color-success) 6%, var(--bg-surface));
 }
 
 .popular-badge {
@@ -656,20 +709,20 @@ function formatNumber(num: number): string {
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+  background: linear-gradient(135deg, var(--accent), var(--accent));
   color: white;
   padding: 6px 20px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-purple) 40%, transparent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .plan-header {
   text-align: center;
   padding-bottom: 24px;
-  border-bottom: 2px solid var(--border-subtle);
+  border-bottom: 2px solid var(--border-default);
   margin-bottom: 24px;
 }
 
@@ -687,7 +740,7 @@ function formatNumber(num: number): string {
 .price .amount {
   font-size: 36px;
   font-weight: 800;
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .price .period {
@@ -699,7 +752,7 @@ function formatNumber(num: number): string {
 .savings {
   margin-top: 8px;
   font-size: 13px;
-  color: var(--color-success);
+  color: var(--color-success-text);
   font-weight: 600;
 }
 
@@ -720,7 +773,7 @@ function formatNumber(num: number): string {
 }
 
 .features li .check-icon {
-  color: var(--color-success);
+  color: var(--color-success-text);
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -732,26 +785,26 @@ function formatNumber(num: number): string {
   font-weight: 600;
   border-radius: 10px;
   transition: all 0.2s ease;
-  background: var(--accent-purple);
-  border-color: var(--accent-purple);
+  background: var(--accent);
+  border-color: var(--accent);
   color: white;
 }
 
 .subscribe-btn:hover {
-  background: var(--accent-cyan);
-  border-color: var(--accent-cyan);
+  background: var(--accent);
+  border-color: var(--accent);
   transform: translateY(-1px);
 }
 
 .popular-btn {
-  background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+  background: linear-gradient(135deg, var(--accent), var(--accent));
   border: none;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-purple) 30%, transparent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .popular-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-purple) 40%, transparent);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 /* 仪表盘区域 */
