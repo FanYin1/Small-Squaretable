@@ -329,19 +329,19 @@ onUnmounted(() => {
 }
 
 .valence.positive {
-  color: var(--color-success);
+  color: var(--color-success-text);
 }
 
 .valence.negative {
-  color: var(--color-danger);
+  color: var(--color-danger-text);
 }
 
 .arousal {
-  color: var(--color-warning);
+  color: var(--color-warning-text);
 }
 
 .chart-container {
-  background: var(--border-subtle);
+  background: var(--border-default);
   border-radius: 8px;
   padding: 8px;
   margin-bottom: 16px;
@@ -372,7 +372,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  background: var(--border-subtle);
+  background: var(--border-default);
   border-radius: 6px;
   font-size: 12px;
 }

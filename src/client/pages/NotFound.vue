@@ -116,7 +116,7 @@ const popularPages = [
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-cyan) 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 100%);
   padding: 20px;
 }
 

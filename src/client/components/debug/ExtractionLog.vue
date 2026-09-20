@@ -260,7 +260,7 @@ watch(() => [props.chatId, props.characterId], () => {
 }
 
 .stat-item {
-  background: var(--border-subtle);
+  background: var(--border-default);
   padding: 12px 8px;
   border-radius: 8px;
   text-align: center;
@@ -273,10 +273,10 @@ watch(() => [props.chatId, props.characterId], () => {
   margin-bottom: 4px;
 }
 
-.stat-value.fact { color: var(--accent-purple); }
-.stat-value.preference { color: var(--color-success); }
-.stat-value.relationship { color: var(--color-warning); }
-.stat-value.event { color: var(--color-danger); }
+.stat-value.fact { color: var(--accent-text); }
+.stat-value.preference { color: var(--color-success-text); }
+.stat-value.relationship { color: var(--color-warning-text); }
+.stat-value.event { color: var(--color-danger-text); }
 
 .stat-label {
   font-size: 11px;
@@ -300,7 +300,7 @@ watch(() => [props.chatId, props.characterId], () => {
 }
 
 .history-item {
-  background: var(--border-subtle);
+  background: var(--border-default);
   padding: 12px;
   border-radius: 8px;
 }

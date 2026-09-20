@@ -85,4 +85,10 @@ function navigate(tab: typeof tabs[0]) {
   font-size: 10px;
   line-height: 1;
 }
+
+@media (min-width: 768px) {
+  .bottom-tab-bar {
+    display: none;
+  }
+}
 </style>

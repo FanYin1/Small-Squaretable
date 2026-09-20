@@ -109,8 +109,8 @@ function handleCardClick(characterId: string) {
 
 .skeleton-card {
   padding: 20px;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: var(--radius-xl, 12px);
   display: flex;
   flex-direction: column;

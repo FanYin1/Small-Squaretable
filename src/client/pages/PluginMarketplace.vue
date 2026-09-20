@@ -257,7 +257,7 @@ onMounted(() => {
 }
 
 .plugin-card {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: var(--radius-lg);
   padding: 20px;
   border: 1px solid var(--border-default);
@@ -268,7 +268,7 @@ onMounted(() => {
 }
 
 .plugin-card:hover {
-  border-color: var(--accent-purple);
+  border-color: var(--accent);
 }
 
 .plugin-card-header {
@@ -351,7 +351,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: var(--radius-lg);
   padding: 16px 20px;
   border: 1px solid var(--border-default);
@@ -359,7 +359,7 @@ onMounted(() => {
 }
 
 .installed-card:hover {
-  border-color: var(--accent-purple);
+  border-color: var(--accent);
 }
 
 .installed-card-left {

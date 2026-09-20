@@ -103,7 +103,7 @@ const chartOption = computed(() => {
 .chart-title {
   font-size: var(--font-size-h5);
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .chart {
@@ -116,7 +116,7 @@ const chartOption = computed(() => {
   align-items: center;
   justify-content: center;
   height: 350px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   font-size: var(--font-size-body);
 }
 </style>

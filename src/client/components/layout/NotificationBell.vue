@@ -147,11 +147,11 @@ function handleViewAll() {
 
 .notification-bell:hover {
   background: var(--bg-base);
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .notification-bell:focus-visible {
-  outline: 2px solid var(--accent-purple);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -211,12 +211,12 @@ function handleViewAll() {
 }
 
 .notification-item:focus-visible {
-  outline: 2px solid var(--accent-purple);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
 .notification-item.is-unread {
-  background: color-mix(in srgb, var(--accent-purple) 5%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 
 .notification-item-avatar {

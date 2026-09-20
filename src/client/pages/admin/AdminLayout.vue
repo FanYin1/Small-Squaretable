@@ -68,7 +68,7 @@ const activeMenu = computed(() => route.path);
 .admin-sidebar {
   width: 240px;
   flex-shrink: 0;
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-right: 1px solid var(--border-default);
   display: flex;
   flex-direction: column;

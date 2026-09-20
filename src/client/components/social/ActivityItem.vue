@@ -104,12 +104,12 @@ function handleClick() {
 }
 
 .activity-item:hover {
-  border-color: var(--accent-purple);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .activity-item:focus-visible {
-  outline: 2px solid var(--accent-purple);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 

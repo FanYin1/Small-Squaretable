@@ -106,13 +106,13 @@ const handleRegister = () => {
 .user-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .user-email {
   font-size: 12px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .auth-buttons {

@@ -84,8 +84,8 @@ const goToLogin = () => {
   max-width: 400px;
   width: 100%;
   border-radius: 16px;
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
 }
 
 .callback-state {
@@ -97,7 +97,7 @@ const goToLogin = () => {
 }
 
 .loading-spinner {
-  color: var(--accent-purple);
+  color: var(--accent-text);
   animation: spin 1s linear infinite;
 }
 
@@ -127,6 +127,6 @@ const goToLogin = () => {
 }
 
 .error-text {
-  color: var(--color-danger);
+  color: var(--color-danger-text);
 }
 </style>

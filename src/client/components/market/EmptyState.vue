@@ -166,11 +166,11 @@ const handleActionSecondary = () => {
 
 /* SVG fill classes using design tokens */
 .svg-fill-accent-light {
-  fill: color-mix(in srgb, var(--accent-purple) 15%, transparent);
+  fill: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .svg-fill-accent-subtle {
-  fill: color-mix(in srgb, var(--accent-purple) 8%, transparent);
+  fill: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .svg-fill-danger-light {
@@ -200,11 +200,11 @@ const handleActionSecondary = () => {
 
 /* Error variant specific styling */
 .empty-state.error-variant .empty-title {
-  color: var(--color-danger);
+  color: var(--color-danger-text);
 }
 
 .empty-state.error-variant .empty-description {
-  color: var(--color-danger);
+  color: var(--color-danger-text);
   opacity: 0.7;
 }
 

@@ -72,7 +72,7 @@ const formattedTrend = computed(() => {
 
 .metric-label {
   font-size: var(--font-size-body-sm);
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   margin-bottom: 8px;
   font-weight: 500;
   text-transform: uppercase;
@@ -82,7 +82,7 @@ const formattedTrend = computed(() => {
 .metric-value {
   font-size: 28px;
   font-weight: 700;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
   line-height: 1.2;
   margin-bottom: 8px;
 }
@@ -91,7 +91,7 @@ const formattedTrend = computed(() => {
 .metric-suffix {
   font-size: 16px;
   font-weight: 500;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .metric-trend {
@@ -105,12 +105,12 @@ const formattedTrend = computed(() => {
 }
 
 .trend-up {
-  color: var(--color-success);
+  color: var(--color-success-text);
   background: rgba(103, 194, 58, 0.1);
 }
 
 .trend-down {
-  color: var(--color-danger);
+  color: var(--color-danger-text);
   background: rgba(245, 108, 108, 0.1);
 }
 </style>

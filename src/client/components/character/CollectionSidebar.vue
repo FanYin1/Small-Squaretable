@@ -151,12 +151,12 @@ async function handleCommand(command: string, col: CharacterCollection) {
 .collection-sidebar {
   width: 220px;
   min-width: 220px;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-default);
   padding: 16px 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: var(--bg-color);
+  background: var(--bg-surface);
   border-radius: 12px 0 0 12px;
 }
 
@@ -165,13 +165,13 @@ async function handleCommand(command: string, col: CharacterCollection) {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .collection-title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .collection-list {
@@ -220,7 +220,7 @@ async function handleCommand(command: string, col: CharacterCollection) {
 
 .item-count {
   font-size: 12px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   min-width: 20px;
   text-align: right;
 }
@@ -234,7 +234,7 @@ async function handleCommand(command: string, col: CharacterCollection) {
   opacity: 0;
   transition: opacity 0.15s ease;
   font-size: 14px;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .collection-item:hover .more-icon {
@@ -246,7 +246,7 @@ async function handleCommand(command: string, col: CharacterCollection) {
     width: 100%;
     min-width: unset;
     border-right: none;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-default);
     border-radius: 12px 12px 0 0;
     padding: 12px 0;
   }

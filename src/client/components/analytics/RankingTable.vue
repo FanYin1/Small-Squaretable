@@ -76,7 +76,7 @@ function ratingColor(rating: number): string {
 .chart-title {
   font-size: var(--font-size-h5);
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .rank {
@@ -88,12 +88,12 @@ function ratingColor(rating: number): string {
   border-radius: 50%;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   background: var(--bg-color-page);
 }
 
 .rank-top {
   color: #fff;
-  background: var(--color-primary);
+  background: var(--accent);
 }
 </style>

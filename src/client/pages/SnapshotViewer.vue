@@ -121,12 +121,12 @@ onMounted(async () => {
 }
 
 .message-user {
-  background: color-mix(in srgb, var(--accent-purple) 8%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   margin-left: 40px;
 }
 
 .message-assistant {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   margin-right: 40px;
 }
 

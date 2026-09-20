@@ -45,7 +45,7 @@ const { t } = useI18n();
 }
 
 .back-link {
-  color: var(--accent-purple);
+  color: var(--accent-text);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;

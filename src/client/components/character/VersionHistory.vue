@@ -134,7 +134,7 @@ onMounted(() => {
 <style scoped>
 .version-history {
   margin-top: 24px;
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 16px;
   border: 1px solid var(--border-default);

@@ -159,7 +159,7 @@ defineExpose({ formatTime });
   border-radius: 4px;
   cursor: pointer;
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-default);
   color: var(--text-secondary);
 }
 .play-btn {

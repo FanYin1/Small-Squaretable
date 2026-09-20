@@ -114,7 +114,7 @@ const categoryLabel = computed(() => {
 }
 
 .preview-card {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 16px;
   padding: 24px;
   border: 1px solid var(--border-default);
@@ -170,9 +170,9 @@ const categoryLabel = computed(() => {
 }
 
 .preview-tags :deep(.el-tag) {
-  background: color-mix(in srgb, var(--accent-purple, #7c3aed) 8%, transparent);
-  color: var(--accent-purple, #7c3aed);
-  border-color: color-mix(in srgb, var(--accent-purple, #7c3aed) 15%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent) 15%, transparent);
   font-size: 12px;
 }
 
@@ -200,10 +200,10 @@ const categoryLabel = computed(() => {
 }
 
 .first-message-bubble {
-  background: color-mix(in srgb, var(--accent-purple, #7c3aed) 6%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
   border-radius: 12px;
   padding: 12px;
-  border-left: 3px solid var(--accent-purple, #7c3aed);
+  border-left: 3px solid var(--accent);
 }
 
 .first-message-bubble .section-text {

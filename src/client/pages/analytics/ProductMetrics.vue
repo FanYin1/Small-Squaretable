@@ -97,7 +97,7 @@ const store = useAnalyticsStore();
 .chart-title {
   font-size: var(--font-size-h5);
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
 }
 
 .segments-grid {
@@ -115,18 +115,18 @@ const store = useAnalyticsStore();
 .segment-name {
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: var(--text-color-primary);
+  color: var(--text-primary);
   text-transform: capitalize;
 }
 
 .segment-count {
   font-size: var(--font-size-body-sm);
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
 }
 
 .no-data {
   text-align: center;
   padding: 40px 0;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
 }
 </style>

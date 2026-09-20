@@ -68,23 +68,27 @@ const handleNewChat = () => {
 </template>
 
 <style scoped>
+/*
+ * 取值全部改走令牌。原先硬编码 white / #3B82F6（蓝）/ #10B981（绿），
+ * 既在深色表面上整块发白，也和琥珀品牌色冲突——搜索按钮是蓝的、
+ * 新建按钮是绿的，同一个控件里出现两种互不相关的主色。
+ * 该组件只被 Market 使用，改动范围可控。
+ */
 .search-combo {
   display: flex;
   align-items: center;
   gap: 0;
-  background: white;
-  border: 1px solid #E5E7EB;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease;
   max-width: 800px;
   width: 100%;
 }
 
 .search-combo:focus-within {
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent);
 }
 
 .search-input-wrapper {
@@ -97,7 +101,7 @@ const handleNewChat = () => {
 }
 
 .search-icon {
-  color: #9CA3AF;
+  color: var(--text-tertiary);
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -105,16 +109,17 @@ const handleNewChat = () => {
 .search-input {
   flex: 1;
   border: none;
+  /* outline 由 .search-combo:focus-within 的边框接管，聚焦仍然可见 */
   outline: none;
   font-size: 15px;
-  color: #111827;
+  color: var(--text-primary);
   background: transparent;
   padding: 12px 0;
   min-width: 0;
 }
 
 .search-input::placeholder {
-  color: #9CA3AF;
+  color: var(--text-tertiary);
 }
 
 .search-btn,
@@ -131,30 +136,39 @@ const handleNewChat = () => {
   gap: 6px;
 }
 
+/*
+ * 主次分明：搜索是主操作（实心琥珀），新建会话是次操作（描边）。
+ * 原来两个按钮都是实心且各用一种颜色，等于没有层级。
+ * 琥珀底上用 --accent-on（深炭），不用白字——白字只有 ≈2.1:1 不过 AA。
+ */
 .search-btn {
-  background: #3B82F6;
-  color: white;
+  background: var(--accent);
+  color: var(--accent-on);
 }
 
 .search-btn:hover {
-  background: #2563EB;
+  background: var(--accent-hover);
 }
 
 .search-btn:active {
-  background: #1D4ED8;
+  background: var(--accent-press);
 }
 
 .new-chat-btn {
-  background: #10B981;
-  color: white;
+  background: transparent;
+  color: var(--text-primary);
+  border-left: 1px solid var(--border-default);
 }
 
 .new-chat-btn:hover {
-  background: #059669;
+  background: var(--surface-hover);
+  color: var(--accent-text);
 }
 
-.new-chat-btn:active {
-  background: #047857;
+.search-btn:focus-visible,
+.new-chat-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 /* 移动端适配 */

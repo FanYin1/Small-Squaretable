@@ -123,7 +123,7 @@ function formatValue(value: number | string | null): string {
 
 <style scoped>
 .emotion-indicator {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 8px;
   padding: 12px;
   display: flex;
@@ -153,11 +153,11 @@ function formatValue(value: number | string | null): string {
   height: 120px;
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--color-danger) 30%, var(--surface-card)) 0%,
-    color-mix(in srgb, var(--color-warning) 30%, var(--surface-card)) 25%,
-    color-mix(in srgb, var(--color-success) 30%, var(--surface-card)) 50%,
-    color-mix(in srgb, var(--color-info) 30%, var(--surface-card)) 75%,
-    color-mix(in srgb, var(--accent-pink) 30%, var(--surface-card)) 100%
+    color-mix(in srgb, var(--color-danger) 30%, var(--bg-surface)) 0%,
+    color-mix(in srgb, var(--color-warning) 30%, var(--bg-surface)) 25%,
+    color-mix(in srgb, var(--color-success) 30%, var(--bg-surface)) 50%,
+    color-mix(in srgb, var(--color-info) 30%, var(--bg-surface)) 75%,
+    color-mix(in srgb, var(--accent) 30%, var(--bg-surface)) 100%
   );
   border-radius: 8px;
   border: 1px solid var(--border-default);
@@ -197,7 +197,7 @@ function formatValue(value: number | string | null): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 50%;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 20%, transparent);
   transition: all 0.3s ease;
@@ -236,11 +236,11 @@ function formatValue(value: number | string | null): string {
 }
 
 .emotion-value__number.positive {
-  color: var(--color-success);
+  color: var(--color-success-text);
 }
 
 .emotion-value__number.negative {
-  color: var(--color-danger);
+  color: var(--color-danger-text);
 }
 
 .emotion-value__number.neutral {

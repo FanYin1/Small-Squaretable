@@ -88,11 +88,7 @@ const goToLogin = () => {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: var(--bg-surface);
-  background-image:
-    radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--accent-purple) 12%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent-cyan) 8%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent-pink) 5%, transparent) 0%, transparent 50%);
+  background: var(--bg-base);
 }
 .verify-container {
   width: 100%;
@@ -100,11 +96,11 @@ const goToLogin = () => {
   animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .verify-card {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background-color: var(--surface-card);
+  background-color: var(--bg-surface);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
 }
 .card-header {
   text-align: center;
@@ -122,7 +118,7 @@ const goToLogin = () => {
   text-align: center;
 }
 .loading-icon {
-  color: var(--accent-purple);
+  color: var(--accent-text);
   animation: spin 1s linear infinite;
 }
 @keyframes spin {
@@ -139,8 +135,8 @@ const goToLogin = () => {
   height: 44px;
   font-size: 16px;
   font-weight: 600;
-  border-radius: 8px;
-  background-color: var(--accent-purple);
+  border-radius: var(--radius-md);
+  background-color: var(--accent);
   border: none;
   color: white;
 }

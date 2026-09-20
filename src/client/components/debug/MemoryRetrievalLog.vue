@@ -216,10 +216,10 @@ watch(() => [props.chatId, props.characterId], () => {
 }
 
 .result-item {
-  background: var(--border-subtle);
+  background: var(--border-default);
   padding: 12px;
   border-radius: 8px;
-  border-left: 3px solid var(--accent-purple);
+  border-left: 3px solid var(--accent);
 }
 
 .result-header {
@@ -231,13 +231,13 @@ watch(() => [props.chatId, props.characterId], () => {
 
 .result-rank {
   font-weight: 600;
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .result-score {
   margin-left: auto;
   font-weight: 600;
-  color: var(--color-success);
+  color: var(--color-success-text);
 }
 
 .result-content {
@@ -282,7 +282,7 @@ watch(() => [props.chatId, props.characterId], () => {
 
 .formula {
   font-size: 12px;
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .log-empty,
