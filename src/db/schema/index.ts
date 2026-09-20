@@ -40,4 +40,5 @@ export * from './notification-preferences';
 export * from './character-collections';
 export * from './template-ratings';
 export * from './message-reactions';
+export * from './quick-replies';
 export * from './user-personas';

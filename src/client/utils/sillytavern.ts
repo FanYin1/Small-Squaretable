@@ -1,4 +1,61 @@
 /**
+ * Clean SillyTavern description for display
+ * Strips template placeholders, XML tags, markdown formatting, etc.
+ *
+ * @param description - Raw SillyTavern description text
+ * @param charName - Character name to substitute for {{char}}
+ * @param maxLength - Maximum length of the cleaned text (default 200)
+ * @returns Clean, human-readable description
+ */
+export function cleanDescription(description: string | undefined, charName?: string, maxLength = 200): string {
+  if (!description) return '';
+
+  let text = description;
+
+  // Replace {{char}} with character name or remove
+  text = text.replace(/\{\{char\}\}/gi, charName || '');
+  // Replace {{user}} with "you"
+  text = text.replace(/\{\{user\}\}/gi, 'you');
+
+  // Strip XML-like tags: <Setting>, </Setting>, <Overview>, etc.
+  text = text.replace(/<\/?[A-Za-z][A-Za-z0-9_]*>/g, '');
+
+  // Strip markdown headers: # Title, ## Subtitle
+  text = text.replace(/^#{1,6}\s+/gm, '');
+
+  // Strip markdown bold/italic: **text**, *text*, __text__, _text_
+  text = text.replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1');
+  text = text.replace(/_{1,3}([^_]+)_{1,3}/g, '$1');
+
+  // Strip markdown code blocks
+  text = text.replace(/```[\s\S]*?```/g, '');
+  text = text.replace(/`([^`]+)`/g, '$1');
+
+  // Strip key=value lines like RATING = NC-21; SETTING = Medieval;
+  text = text.replace(/^[A-Z_]+\s*=\s*[^;\n]+;?\s*$/gm, '');
+
+  // Strip lines that are just labels like "Main Characters:", "GENRES ="
+  text = text.replace(/^(Main Characters|GENRES|RATING|SETTING)\s*[:=].*$/gim, '');
+
+  // Collapse \r\n and multiple newlines into single space
+  text = text.replace(/\\r\\n|\\r|\\n/g, ' ');
+  text = text.replace(/\r\n|\r|\n/g, ' ');
+
+  // Collapse multiple spaces
+  text = text.replace(/\s{2,}/g, ' ');
+
+  // Trim
+  text = text.trim();
+
+  // Truncate
+  if (text.length > maxLength) {
+    text = text.substring(0, maxLength).replace(/\s+\S*$/, '') + '…';
+  }
+
+  return text;
+}
+
+/**
  * SillyTavern Import/Export Utilities
  *
  * Converts between internal character format and SillyTavern JSON format
@@ -407,7 +464,14 @@ export async function readCharacterPng(file: File): Promise<{
               }
 
               const base64Data = new TextDecoder().decode(chunkData.slice(textStart));
-              characterData = atob(base64Data);
+              // Decode base64 to bytes, then bytes to UTF-8
+              // atob() only produces Latin-1, which corrupts multi-byte UTF-8 (e.g. Chinese)
+              const binaryStr = atob(base64Data);
+              const bytes = new Uint8Array(binaryStr.length);
+              for (let i = 0; i < binaryStr.length; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+              }
+              characterData = new TextDecoder('utf-8').decode(bytes);
               break;
             }
           }
@@ -472,13 +536,80 @@ export async function readCharacterFile(file: File): Promise<{
 }> {
   const extension = file.name.toLowerCase().split('.').pop();
 
-  if (extension === 'png') {
-    return readCharacterPng(file);
-  } else if (extension === 'json') {
+  // Detect actual format by reading magic bytes (handles mismatched extensions)
+  const actualFormat = await detectFileFormat(file);
+
+  if (extension === 'json' || actualFormat === 'json') {
     return readCharacterJson(file);
-  } else {
-    throw new Error('Unsupported file format. Please use .json or .png files.');
   }
+
+  if (actualFormat === 'png') {
+    // Try PNG character card extraction; fall back to image-only if no data found
+    try {
+      return await readCharacterPng(file);
+    } catch {
+      // PNG without embedded character data — treat as plain image
+      return readCharacterImage(file);
+    }
+  }
+
+  if (actualFormat === 'image' || extension === 'jpg' || extension === 'jpeg' || extension === 'webp' || extension === 'png') {
+    return readCharacterImage(file);
+  }
+
+  throw new Error('Unsupported file format. Please use .json, .png, .jpg or .webp files.');
+}
+
+/**
+ * Detect actual file format by reading magic bytes.
+ * Returns 'png', 'json', or 'image' (for JPEG/WEBP/other images).
+ */
+async function detectFileFormat(file: File): Promise<'png' | 'json' | 'image'> {
+  const header = await readFileHeader(file, 8);
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47) {
+    return 'png';
+  }
+
+  // JPEG: FF D8 FF
+  if (header[0] === 0xFF && header[1] === 0xD8 && header[2] === 0xFF) {
+    return 'image';
+  }
+
+  // WEBP: RIFF....WEBP
+  if (header[0] === 0x52 && header[1] === 0x49 && header[2] === 0x46 && header[3] === 0x46) {
+    return 'image';
+  }
+
+  // JSON: starts with { or [
+  const firstByte = header[0];
+  if (firstByte === 0x7B || firstByte === 0x5B) {
+    return 'json';
+  }
+
+  // UTF-8 BOM + JSON
+  if (header[0] === 0xEF && header[1] === 0xBB && header[2] === 0xBF && (header[3] === 0x7B || header[3] === 0x5B)) {
+    return 'json';
+  }
+
+  return 'image';
+}
+
+/**
+ * Read the first N bytes of a file using FileReader (works in all environments including jsdom).
+ */
+function readFileHeader(file: File, bytes: number): Promise<Uint8Array> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve(new Uint8Array(reader.result as ArrayBuffer));
+    };
+    reader.onerror = () => {
+      resolve(new Uint8Array(0));
+    };
+    reader.readAsArrayBuffer(file.slice(0, bytes));
+  });
 }
 
 /**
@@ -523,5 +654,57 @@ export async function readCharacterJson(file: File): Promise<{
     };
 
     reader.readAsText(file);
+  });
+}
+
+/**
+ * Read character from an image file (JPG/JPEG/WEBP/PNG without card data)
+ * Uses the image as avatar and derives the name from the filename.
+ * Returns a base64 data URL for the avatar (no blob URL).
+ *
+ * @param file - Image file to read
+ * @returns Promise resolving to character data with avatar
+ */
+export async function readCharacterImage(file: File): Promise<{
+  name: string;
+  description?: string;
+  avatarUrl?: string;
+  tags?: string[];
+  cardData: Record<string, any>;
+  isNsfw?: boolean;
+}> {
+  // Convert file to base64 data URL directly (avoids blob URL issues)
+  const avatarUrl = await fileToDataUrl(file);
+  // Derive a character name from the filename (strip extension)
+  const rawName = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').trim();
+  const name = rawName || 'Imported Character';
+
+  return {
+    name,
+    avatarUrl,
+    cardData: {
+      name,
+      description: '',
+      personality: '',
+      scenario: '',
+      first_mes: '',
+      mes_example: '',
+    },
+  };
+}
+
+/**
+ * Convert a File to a base64 data URL using FileReader.
+ */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve(reader.result as string);
+    };
+    reader.onerror = () => {
+      reject(new Error('Failed to read file'));
+    };
+    reader.readAsDataURL(file);
   });
 }
