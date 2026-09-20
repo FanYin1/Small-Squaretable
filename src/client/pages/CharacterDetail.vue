@@ -16,6 +16,7 @@ import ShareDialog from '@client/components/character/ShareDialog.vue';
 import CharacterStats from '@client/components/character/CharacterStats.vue';
 import type { RatingInput, RatingResponseDto } from '@/types/rating';
 import type { CharacterCollection } from '@client/types';
+import { cleanDescription } from '@client/utils/sillytavern';
 
 const route = useRoute();
 const router = useRouter();
@@ -30,6 +31,7 @@ const isOwner = computed(() =>
   userStore.user && character.value?.creatorId && userStore.user.id === character.value.creatorId
 );
 const loading = ref(true);
+const loadError = ref(false);
 
 // Rating state
 const ratings = ref<RatingResponseDto | null>(null);
@@ -65,9 +67,11 @@ onMounted(async () => {
 });
 
 async function fetchCharacter() {
+  loadError.value = false;
   try {
     await characterStore.fetchCharacter(characterId.value);
   } catch {
+    loadError.value = true;
     ElMessage.error(t('common.retry'));
   }
 }
@@ -104,7 +108,12 @@ async function handleAddToCollection(collectionId: string) {
       </button>
     </template>
     <div v-loading="loading" class="character-detail-page">
-      <template v-if="character && !loading">
+      <!-- Error state -->
+      <div v-if="!loading && loadError" class="error-state">
+        <p>{{ t('common.loadFailed', t('common.retry')) }}</p>
+        <el-button type="primary" @click="fetchCharacter">{{ t('common.retry') }}</el-button>
+      </div>
+      <template v-else-if="character && !loading">
         <div class="detail-header">
           <el-avatar :size="120" :src="avatarUrl" />
           <h2>{{ character.name }}</h2>
@@ -116,7 +125,7 @@ async function handleAddToCollection(collectionId: string) {
         <div class="detail-body">
           <div class="detail-section">
             <h3>{{ t('characterDetail.description') }}</h3>
-            <p>{{ character.description || t('characterDetail.noDescription') }}</p>
+            <p>{{ cleanDescription(character.description, character.name, 500) || t('characterDetail.noDescription') }}</p>
           </div>
 
           <div v-if="character?.cardData?.creator_notes" class="detail-section creator-notes">
@@ -209,6 +218,16 @@ async function handleAddToCollection(collectionId: string) {
   min-height: 400px;
 }
 
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 20px;
+  color: var(--text-secondary);
+}
+
 .detail-header {
   display: flex;
   flex-direction: column;
@@ -252,9 +271,9 @@ async function handleAddToCollection(collectionId: string) {
 
 .creator-notes {
   padding: 16px;
-  background: color-mix(in srgb, var(--accent-purple) 4%, transparent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
   border-radius: 8px;
-  border-left: 3px solid var(--accent-purple);
+  border-left: 3px solid var(--accent);
 }
 
 .tags {
@@ -275,7 +294,7 @@ async function handleAddToCollection(collectionId: string) {
   align-items: center;
   gap: 4px;
   padding: 16px;
-  background: color-mix(in srgb, var(--accent-purple) 4%, transparent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
   border-radius: 8px;
 }
 
@@ -287,7 +306,7 @@ async function handleAddToCollection(collectionId: string) {
 .stat-value {
   font-size: 18px;
   font-weight: 600;
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .action-buttons {
@@ -304,15 +323,15 @@ async function handleAddToCollection(collectionId: string) {
   font-size: 14px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
-  background: var(--surface-card);
+  background: var(--bg-surface);
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-back:hover {
-  border-color: var(--accent-purple);
-  color: var(--accent-purple);
+  border-color: var(--accent);
+  color: var(--accent-text);
 }
 
 @media (max-width: 640px) {

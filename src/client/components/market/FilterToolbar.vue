@@ -80,6 +80,7 @@ const handleSortChange = (value: string) => {
     <div class="filter-item">
       <label class="filter-label">{{ $t('market.filters.category') }}</label>
       <el-select
+        popper-class="im-select-popper"
         :model-value="selectedCategory"
         :placeholder="$t('market.filters.selectCategory')"
         size="default"
@@ -97,6 +98,7 @@ const handleSortChange = (value: string) => {
     <div class="filter-item">
       <label class="filter-label">{{ $t('market.filters.tags') }}</label>
       <el-select
+        popper-class="im-select-popper"
         :model-value="selectedTags"
         :placeholder="$t('market.filters.selectTags')"
         multiple
@@ -127,6 +129,7 @@ const handleSortChange = (value: string) => {
     <div class="filter-item">
       <label class="filter-label">{{ $t('market.filters.sort') }}</label>
       <el-select
+        popper-class="im-select-popper"
         :model-value="sortBy"
         size="default"
         @update:model-value="handleSortChange"
@@ -143,15 +146,17 @@ const handleSortChange = (value: string) => {
 </template>
 
 <style scoped>
+/* 取值改走令牌：原先硬编码 white / #E5E7EB / #4B5563 在深色表面上会整块发白。
+   该组件只被 Market 使用，改动范围可控。 */
 .filter-toolbar {
   display: flex;
   align-items: center;
   gap: 24px;
   padding: 20px 24px;
-  background: white;
+  background: var(--bg-surface);
   border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  border: 1px solid #E5E7EB;
+  /* 深色下阴影不可见，分隔完全交给边框承担 */
+  border: 1px solid var(--border-default);
   flex-wrap: wrap;
 }
 
@@ -164,7 +169,7 @@ const handleSortChange = (value: string) => {
 .filter-label {
   font-size: 14px;
   font-weight: 500;
-  color: #4B5563;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 

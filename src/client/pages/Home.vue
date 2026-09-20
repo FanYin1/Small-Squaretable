@@ -118,7 +118,11 @@ const handleRegister = () => {
             v-for="(feature, index) in features"
             :key="index"
             class="feature-card glass-card"
+            role="button"
+            tabindex="0"
             @click="handleRegister"
+            @keydown.enter="handleRegister"
+            @keydown.space.prevent="handleRegister"
           >
             <div class="feature-content">
               <el-icon :size="40" class="feature-icon">
@@ -172,14 +176,11 @@ const handleRegister = () => {
 .home-page-marketing::before {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--accent-purple) 8%, transparent) 0%, transparent 50%),
-              radial-gradient(circle at 70% 60%, color-mix(in srgb, var(--accent-cyan) 6%, transparent) 0%, transparent 50%),
-              radial-gradient(circle at 50% 80%, color-mix(in srgb, var(--accent-pink) 4%, transparent) 0%, transparent 50%);
-  animation: gradientDrift 20s ease-in-out infinite;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--accent) 6%, transparent) 0%, transparent 60%);
   z-index: 0;
   pointer-events: none;
 }
@@ -196,16 +197,14 @@ const handleRegister = () => {
   z-index: 1;
 }
 
-/* Glassmorphism card style */
+/* Flat warm card style */
 .glass-card {
-  background: color-mix(in srgb, var(--bg-base) 80%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-subtle);
-  border-radius: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
   padding: 40px;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-purple) 8%, transparent);
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
 }
 
 /* Left Column */
@@ -227,25 +226,22 @@ const handleRegister = () => {
 .hero-badge {
   display: inline-block;
   padding: 8px 16px;
-  background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-cyan) 100%);
+  background: var(--accent);
   color: white;
   border-radius: 20px;
   font-size: 14px;
   font-weight: 600;
   width: fit-content;
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-purple) 30%, transparent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .hero-title {
+  font-family: var(--font-display);
   font-size: 56px;
   font-weight: 700;
-  color: var(--text-primary);
   margin: 0;
   line-height: 1.1;
-  background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-cyan) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
 }
 
 .hero-subtitle {
@@ -281,7 +277,22 @@ const handleRegister = () => {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+/* outline: none 原先无条件加在这两个按钮上，键盘用户在整个落地页最主要的
+   转化按钮上看不到任何焦点提示。改为只抑制鼠标点击产生的默认轮廓，
+   :focus-visible 时给出双层 ring（内圈用底色隔开，深浅底都能看见）。 */
+.btn-primary:focus:not(:focus-visible),
+.btn-secondary:focus:not(:focus-visible) {
   outline: none;
+}
+
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-base),
+    0 0 0 4px var(--accent);
 }
 
 .btn-primary {
@@ -305,15 +316,15 @@ const handleRegister = () => {
 }
 
 .btn-secondary {
-  background: color-mix(in srgb, var(--accent-purple) 10%, transparent);
-  color: var(--accent-purple);
-  border: 1px solid var(--accent-purple);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-text);
+  border: 1px solid var(--accent);
 }
 
 .btn-secondary:hover {
-  background: color-mix(in srgb, var(--accent-purple) 20%, transparent);
-  border-color: var(--accent-purple);
-  color: var(--accent-purple);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: var(--accent);
+  color: var(--accent-text);
   transform: translateY(-2px);
 }
 
@@ -328,9 +339,9 @@ const handleRegister = () => {
   gap: 14px;
   margin-top: 8px;
   padding: 20px;
-  background: color-mix(in srgb, var(--accent-purple) 5%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
   border-radius: 12px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
 }
 
 .feature-item {
@@ -343,7 +354,7 @@ const handleRegister = () => {
 }
 
 .feature-check {
-  color: var(--color-success);
+  color: var(--color-success-text);
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -377,19 +388,19 @@ const handleRegister = () => {
 .stat-item {
   padding: 16px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--accent-purple) 5%, transparent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
   transition: all 0.2s ease;
 }
 
 .stat-item:hover {
-  background: color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   transform: translateY(-2px);
 }
 
 .stat-value {
   font-size: 32px;
   font-weight: 700;
-  color: var(--accent-purple);
+  color: var(--accent-text);
   margin-bottom: 8px;
 }
 
@@ -407,10 +418,19 @@ const handleRegister = () => {
 }
 
 .feature-card:hover {
-  background: color-mix(in srgb, var(--bg-base) 95%, transparent);
-  box-shadow: 0 12px 40px color-mix(in srgb, var(--accent-purple) 15%, transparent);
-  border-color: var(--accent-purple);
-  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+/* 这些卡片现在是 role=button + tabindex=0，必须有可见焦点态，
+   否则键盘 Tab 过去完全没有反馈。 */
+.feature-card:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-base),
+    0 0 0 4px var(--accent);
+  border-color: var(--accent);
 }
 
 .feature-content {
@@ -419,12 +439,12 @@ const handleRegister = () => {
 
 .feature-icon {
   margin-bottom: 16px;
-  color: var(--accent-purple);
+  color: var(--accent-text);
   transition: color 0.2s ease;
 }
 
 .feature-card:hover .feature-icon {
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .feature-card:nth-child(1) {
@@ -494,32 +514,32 @@ const handleRegister = () => {
 }
 
 .btn-primary-large {
-  background: var(--accent-purple);
+  background: var(--accent);
   color: white;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-purple) 30%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .btn-primary-large:hover {
-  background: var(--accent-purple);
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-purple) 40%, transparent);
+  background: var(--accent);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent);
   transform: translateY(-2px);
 }
 
 .btn-secondary-large {
   background: transparent;
-  color: var(--accent-purple);
-  border: 2px solid var(--accent-purple);
+  color: var(--accent-text);
+  border: 2px solid var(--accent);
 }
 
 .btn-secondary-large:hover {
-  background: color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   transform: translateY(-2px);
 }
 
 /* Footer */
 .site-footer {
   padding: 32px 24px;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-default);
   text-align: center;
   position: relative;
   z-index: 1;
@@ -545,7 +565,7 @@ const handleRegister = () => {
 }
 
 .footer-links a:hover {
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .footer-copyright {
@@ -564,13 +584,6 @@ const handleRegister = () => {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* Gradient background animation */
-@keyframes gradientDrift {
-  0%, 100% { transform: translate(0, 0); }
-  33% { transform: translate(2%, -2%); }
-  66% { transform: translate(-2%, 2%); }
 }
 
 /* Accessibility: Reduced motion support */
@@ -645,7 +658,7 @@ const handleRegister = () => {
 
   .glass-card {
     padding: 24px;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
   }
 
   .stats-grid {
@@ -695,25 +708,25 @@ const handleRegister = () => {
 
 /* Dark theme support */
 [data-theme="dark"] .glass-card {
-  background: color-mix(in srgb, var(--surface-card) 80%, transparent);
-  border-color: color-mix(in srgb, var(--accent-purple) 20%, transparent);
+  background: var(--bg-surface);
+  border-color: var(--border-default);
 }
 
 [data-theme="dark"] .stat-item {
-  background: color-mix(in srgb, var(--accent-purple) 15%, transparent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 [data-theme="dark"] .stat-item:hover {
-  background: color-mix(in srgb, var(--accent-purple) 25%, transparent);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 [data-theme="dark"] .btn-secondary {
-  background: color-mix(in srgb, var(--accent-purple) 20%, transparent);
-  color: color-mix(in srgb, var(--accent-purple) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 [data-theme="dark"] .btn-secondary:hover {
-  background: color-mix(in srgb, var(--accent-purple) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 </style>

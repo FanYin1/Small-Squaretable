@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { ChatDotRound, Star } from '@element-plus/icons-vue';
 import LazyImage from '../ui/LazyImage.vue';
 import type { Character } from '@client/types';
+import { cleanDescription } from '@client/utils/sillytavern';
 
 const props = defineProps<{
   character: Character;
@@ -65,7 +66,7 @@ function handleStartChat() {
       <div class="info-section">
         <h3 class="character-name">{{ character.name }}</h3>
         <p class="character-description">
-          {{ character.description || $t('market.noDescription') }}
+          {{ cleanDescription(character.description, character.name, 100) || $t('market.noDescription') }}
         </p>
 
         <div v-if="character.tags && character.tags.length" class="tags">
@@ -119,7 +120,7 @@ function handleStartChat() {
   height: 100%;
   background: radial-gradient(
     300px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    color-mix(in srgb, var(--accent-purple) 10%, transparent),
+    color-mix(in srgb, var(--accent) 10%, transparent),
     transparent
   );
   pointer-events: none;
@@ -136,14 +137,14 @@ function handleStartChat() {
   cursor: pointer;
   transition: all var(--duration-slow) var(--ease-out);
   border-radius: var(--radius-xl);
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
 }
 
 .character-card:hover {
   transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 8px 32px color-mix(in srgb, var(--accent-purple) 12%, transparent);
-  border-color: var(--accent-purple);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
 }
 
 .character-card :deep(.el-card__body) {
@@ -196,9 +197,9 @@ function handleStartChat() {
 }
 
 .tags :deep(.el-tag) {
-  background: color-mix(in srgb, var(--accent-purple) 8%, transparent);
-  color: var(--accent-purple);
-  border-color: color-mix(in srgb, var(--accent-purple) 15%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent) 15%, transparent);
   font-size: 12px;
 }
 
@@ -220,7 +221,7 @@ function handleStartChat() {
 }
 
 .rating .el-icon {
-  color: var(--color-warning);
+  color: var(--color-warning-text);
   font-size: 16px;
 }
 
@@ -230,21 +231,21 @@ function handleStartChat() {
 }
 
 .card-footer :deep(.el-button) {
-  background: var(--accent-purple);
-  border-color: var(--accent-purple);
+  background: var(--accent);
+  border-color: var(--accent);
   font-size: 13px;
   padding: 6px 16px;
 }
 
 .card-footer :deep(.el-button:hover) {
-  background: var(--accent-purple);
-  border-color: var(--accent-purple);
+  background: var(--accent);
+  border-color: var(--accent);
   opacity: 0.85;
 }
 
 .card-footer :deep(.el-button:active) {
-  background: var(--accent-purple);
-  border-color: var(--accent-purple);
+  background: var(--accent);
+  border-color: var(--accent);
   opacity: 0.75;
 }
 

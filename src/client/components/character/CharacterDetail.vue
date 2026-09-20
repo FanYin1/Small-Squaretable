@@ -13,6 +13,7 @@ import { createLogger } from '@client/utils/logger';
 import FavoriteButton from '@client/components/social/FavoriteButton.vue';
 import CommentSection from '@client/components/social/CommentSection.vue';
 import type { RatingInput, RatingResponseDto } from '@/types/rating';
+import { cleanDescription } from '@client/utils/sillytavern';
 
 const logger = createLogger('CharacterDetail');
 
@@ -191,7 +192,7 @@ function handleClose() {
 
       <div class="detail-section">
         <h3>{{ t('characterDetail.description') }}</h3>
-        <p>{{ character.description || t('characterDetail.noDescription') }}</p>
+        <p>{{ cleanDescription(character.description, character.name, 500) || t('characterDetail.noDescription') }}</p>
       </div>
 
       <!-- Creator Notes -->
@@ -421,7 +422,7 @@ function handleClose() {
   padding: 12px;
   background: var(--bg-surface);
   border-radius: 8px;
-  border-left: 3px solid var(--accent-purple);
+  border-left: 3px solid var(--accent);
 }
 
 .creator-notes-section h4 {
@@ -472,7 +473,7 @@ function handleClose() {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .stat-item:last-child {

@@ -299,6 +299,39 @@ function handleExport(character: Character) {
   toast.success(t('myCharacters.exported'));
 }
 
+/**
+ * Compress avatar image to keep base64 data URL within server limits.
+ * Resizes to max 1024px and converts to JPEG at 85% quality.
+ */
+function compressAvatar(blob: Blob, maxSize = 1024): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(blob);
+    // 必须在两个分支都 revoke：批量导入几十张图时，每个未释放的 object URL
+    // 都会把整份 blob 留在内存里直到页面卸载。
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > maxSize || height > maxSize) {
+        const ratio = Math.min(maxSize / width, maxSize / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to load image for compression'));
+    };
+    img.src = objectUrl;
+  });
+}
+
 async function handleDuplicate(character: Character) {
   try {
     await characterApi.duplicateCharacter(character.id);
@@ -312,7 +345,7 @@ async function handleDuplicate(character: Character) {
 async function handleImport() {
   const input = document.createElement('input');
   input.type = 'file';
-  input.accept = '.json,.png';
+  input.accept = '.json,.png,.jpg,.jpeg,.webp';
 
   input.onchange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
@@ -329,12 +362,9 @@ async function handleImport() {
         try {
           const response = await fetch(avatarUrl);
           const blob = await response.blob();
-          const base64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-          avatarUrl = base64;
+          // Compress large images to keep the data URL within server limits
+          const compressed = await compressAvatar(blob);
+          avatarUrl = compressed;
           // Clean up blob URL
           URL.revokeObjectURL(characterData.avatarUrl!);
         } catch {
@@ -431,7 +461,7 @@ function handleStartChat(character: Character) {
         <el-button @click="batchMode = !batchMode" :type="batchMode ? 'primary' : 'default'" size="small">
           {{ t('myCharacters.batchMode') }}
         </el-button>
-        <input ref="importInput" type="file" multiple accept=".json,.png" style="display:none" @change="handleBatchImport" />
+        <input ref="importInput" type="file" multiple accept=".json,.png,.jpg,.jpeg,.webp" style="display:none" @change="handleBatchImport" />
         <el-button :icon="Upload" @click="importInput?.click()" size="small">
           {{ t('myCharacters.batchImport') }}
         </el-button>
@@ -666,11 +696,11 @@ function handleStartChat(character: Character) {
 }
 
 .character-tabs :deep(.el-tabs__item:hover) {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .character-tabs :deep(.el-tabs__item.is-active) {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -688,7 +718,7 @@ function handleStartChat(character: Character) {
   height: 20px;
   padding: 0 6px;
   background: var(--color-bg);
-  color: var(--accent);
+  color: var(--accent-text);
   border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
@@ -723,7 +753,7 @@ function handleStartChat(character: Character) {
 .batch-count {
   font-size: 14px;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--accent-text);
   margin-right: auto;
 }
 

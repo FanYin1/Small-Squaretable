@@ -1,0 +1,242 @@
+/* ============================================================
+   Small Squaretable — Immersive Surface Tokens (PILOT)
+   ------------------------------------------------------------
+   沉浸叙事向视觉语言的样板层。作用域限定在 .immersive 容器内，
+   不影响全站既有 token，便于并行评估与随时回滚。
+
+   设计原则：
+   1. 层次用「表面明度递增」表达，不用阴影（暗背景下阴影不可见）
+   2. 边框承担分隔职责，权重比浅色模式高一档
+   3. 主色琥珀在深炭底上作为「点」出现，不铺面
+   4. 深色下主按钮 = 琥珀底 + 深炭字（对比度 ~8.5:1），
+      绝不用琥珀底 + 白字（~2.1:1，不达标）
+   ============================================================ */
+
+/*
+ * 调色板同时声明给 .im-select-popper：Element Plus 的下拉会 teleport 到
+ * <body>，落在 .immersive 之外，只在作用域内声明 --im-* 会让文档级的
+ * popper 规则全部解析失败（var() 无回退 → 继承浅色主题值，下拉字变深灰）。
+ * 令牌名全部带 --im- 前缀，放在这里不会与任何既有全局令牌冲突。
+ */
+.immersive,
+.im-select-popper {
+  /* ========== Elevation：表面色阶取代阴影 ========== */
+  --im-base: #0F0E0D;
+  --im-surface: #1A1918;
+  --im-raised: #242220;
+  --im-overlay: #2D2B2A;
+  --im-sunken: #0A0908;
+
+  /* ========== Accent（沿用品牌琥珀，深色下提亮一档） ========== */
+  --im-accent: #F59E0B;
+  --im-accent-hover: #FBBF24;
+  --im-accent-press: #D97706;
+  /* 琥珀底上的前景色：深炭而非白色，保证 WCAG AA */
+  --im-accent-on: #1A1918;
+  /* 琥珀的低饱和衬底，用于 tag / 微高亮 */
+  --im-accent-wash: rgba(245, 158, 11, 0.10);
+  --im-accent-wash-strong: rgba(245, 158, 11, 0.18);
+
+  /* ========== Content（文本层级） ========== */
+  --im-content: #F2EFEA;
+  --im-content-muted: #A8A29B;
+  /* 实测对比度：base 5.57:1 / raised 4.58:1，均过 AA(4.5)。
+     原取值 #6E6862 只有 3.51:1，用于评分数、次要计数这类小字不达标。 */
+  --im-content-faint: #8F8982;
+
+  /* ========== Border（深色下分隔靠边框，权重更高） ========== */
+  --im-border: rgba(242, 239, 234, 0.10);
+  --im-border-strong: rgba(242, 239, 234, 0.16);
+  --im-border-accent: rgba(245, 158, 11, 0.45);
+
+  /* ========== Scrim：立绘上压字所需的渐变遮罩 ========== */
+  /*
+   * 遮罩：压住封面底部，让文字有可读底。
+   * 关键约束（实测得出，不要随意调低）：文字块所在的整个底部区间
+   * alpha 必须 ≥ 0.90——在纯白立绘这种最坏情况下，0.90 才能让
+   * faint(#8F8982) 达到 4.60:1 过 AA；0.82 时只有 3.54:1 不达标。
+   * 所以 0.90 一直保持到 34%（覆盖文字块，含悬停展开的简介），
+   * 之后再快速透出，避免把立绘整体压灰。
+   */
+  --im-scrim: linear-gradient(
+    to top,
+    rgba(10, 9, 8, 0.72) 0%,
+    rgba(10, 9, 8, 0.5) 30%,
+    rgba(10, 9, 8, 0.18) 62%,
+    rgba(10, 9, 8, 0.04) 100%
+  );
+
+  /*
+   * 文字底衬：铺在文字块自身背后，高度随文字块变化（简介展开时一起变高），
+   * 因此不受卡片比例影响——整卡渐变做不到这点，卡片越高文字越容易落到淡区。
+   * 只在自身顶部 10%（纯 padding，无文字）淡出，与上方 --im-scrim 接续。
+   */
+  --im-scrim-text: linear-gradient(
+    to top,
+    rgba(10, 9, 8, 0.97) 0%,
+    rgba(10, 9, 8, 0.93) 62%,
+    rgba(10, 9, 8, 0.9) 90%,
+    rgba(10, 9, 8, 0) 100%
+  );
+
+  /* ========== Focus：深色下焦点环必须可见 ========== */
+  --im-focus-ring: 0 0 0 2px var(--im-base), 0 0 0 4px var(--im-accent);
+
+  /* ========== Typography ========== */
+  --im-font-display: 'Newsreader', Georgia, serif;
+  --im-font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* 基准字号提到 15px（原 14px 偏小） */
+  --im-text-body: 15px;
+  --im-text-sm: 13px;
+  --im-text-xs: 11px;
+
+  /* ========== Radius ========== */
+  --im-radius: 14px;
+  --im-radius-lg: 20px;
+  --im-radius-pill: 9999px;
+
+  /* ========== Motion ========== */
+  --im-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --im-dur: 220ms;
+
+  background: var(--im-base);
+  color: var(--im-content);
+  font-family: var(--im-font-body);
+  font-size: var(--im-text-body);
+
+  /* ==========================================================
+   * 全局令牌桥接
+   * ----------------------------------------------------------
+   * 样板面内复用的既有子组件（FilterToolbar / EmptyState /
+   * SearchCombo / RecommendationCarousel）在自己的 scoped 样式里
+   * 读全局 --bg-surface / --text-* / --border-default。这里在
+   * .immersive 作用域内重定向这些名字，让它们靠级联变深色，
+   * 无需改动那些组件文件。作用域外的全局值不受影响。
+   *
+   * 注意：--accent-purple 是历史遗留别名（实际指向琥珀），
+   * 这里一并桥接，避免子组件拿到浅色主题的值。
+   * ========================================================== */
+  --bg-base: var(--im-base);
+  --bg-surface: var(--im-raised);
+  --bg-surface-hover: var(--im-overlay);
+  --bg-elevated: var(--im-overlay);
+  --text-primary: var(--im-content);
+  --text-secondary: var(--im-content-muted);
+  --text-tertiary: var(--im-content-faint);
+  --border-default: var(--im-border-strong);
+  --border-light: var(--im-border);
+  --accent: var(--im-accent);
+  --accent-hover: var(--im-accent-hover);
+  --accent-purple: var(--im-accent);
+  --accent-light: var(--im-accent-wash);
+  --accent-press: var(--im-accent-press);
+  --accent-on: var(--im-accent-on);
+
+  /*
+   * 侧栏用的是自己一套 --sidebar-* 令牌（不读 --bg-surface），
+   * 所以上面的桥接够不到它，实测侧栏仍渲染成 #FFFFFF 纯白，
+   * 与深色内容区拼出整条白边。这里补齐这一组。
+   * 选中态原为 #FEF3C7 浅琥珀底 + 深炭字（浅色模式配色），
+   * 深色下改为琥珀薄衬底 + 浅色字：琥珀底配浅字不达 AA。
+   */
+  --sidebar-bg: var(--im-surface);
+  --sidebar-border: var(--im-border-strong);
+  --sidebar-text: var(--im-content-muted);
+  --sidebar-text-active: var(--im-content);
+  --sidebar-hover: var(--im-raised);
+  --sidebar-active: var(--im-accent-wash-strong);
+
+  /* ==========================================================
+   * Element Plus 深度主题化（只改 --el-* 变量，不重写 DOM）
+   * ----------------------------------------------------------
+   * 样板面内仍有 el-select / el-checkbox / el-pagination。
+   * 这里给出深色映射，作用域内生效，不触碰组件内部结构，
+   * 因此 Element Plus 升级时不会像 :deep() 那样崩。
+   * ========================================================== */
+  --el-color-primary: var(--im-accent);
+  --el-color-primary-light-3: var(--im-accent-hover);
+  --el-color-primary-light-5: var(--im-accent-wash-strong);
+  --el-color-primary-light-7: var(--im-accent-wash);
+  --el-color-primary-light-9: var(--im-accent-wash);
+  --el-color-primary-dark-2: var(--im-accent-press);
+
+  --el-bg-color: var(--im-raised);
+  --el-bg-color-page: var(--im-base);
+  --el-bg-color-overlay: var(--im-overlay);
+
+  --el-text-color-primary: var(--im-content);
+  --el-text-color-regular: var(--im-content);
+  --el-text-color-secondary: var(--im-content-muted);
+  --el-text-color-placeholder: var(--im-content-faint);
+  --el-text-color-disabled: var(--im-content-faint);
+
+  --el-border-color: var(--im-border-strong);
+  --el-border-color-light: var(--im-border);
+  --el-border-color-lighter: var(--im-border);
+  --el-border-color-extra-light: var(--im-border);
+  --el-border-color-hover: var(--im-border-accent);
+
+  --el-fill-color: var(--im-raised);
+  --el-fill-color-light: var(--im-overlay);
+  --el-fill-color-lighter: var(--im-surface);
+  --el-fill-color-blank: var(--im-raised);
+  --el-fill-color-dark: var(--im-overlay);
+  --el-fill-color-darker: var(--im-overlay);
+
+  --el-disabled-bg-color: var(--im-surface);
+  --el-disabled-text-color: var(--im-content-faint);
+  --el-disabled-border-color: var(--im-border);
+
+  /* 深色下投影不可见，清零以免只是把黑加深 */
+  --el-box-shadow: none;
+  --el-box-shadow-light: none;
+}
+
+/* ============================================================
+ * 传送层：el-select 下拉被 teleport 到 <body>，落在 .immersive 之外，
+ * 拿不到作用域内的令牌。所以给下拉挂 popper-class="im-select-popper"，
+ * 在文档级按同一套 --im-* 取值声明——仍然只改 --el-* 变量。
+ * 这是深色主题最容易漏的一处：表面变深了但下拉还是白底。
+ * ============================================================ */
+.im-select-popper {
+  --el-bg-color-overlay: var(--im-overlay);
+  --el-border-color-light: var(--im-border-strong);
+  --el-text-color-regular: var(--im-content);
+  --el-text-color-secondary: var(--im-content-muted);
+  --el-fill-color-light: var(--im-raised);
+  --el-color-primary: var(--im-accent);
+  --el-box-shadow-light: none;
+
+  background: var(--im-overlay);
+  border: 1px solid var(--im-border-strong) !important;
+}
+
+.im-select-popper .el-select-dropdown__item {
+  color: var(--im-content);
+}
+
+.im-select-popper .el-select-dropdown__item.is-hovering {
+  background: var(--im-raised);
+}
+
+/* 选中项用琥珀字而非琥珀底：琥珀底配浅字不达 AA */
+.im-select-popper .el-select-dropdown__item.is-selected {
+  color: var(--im-accent);
+  font-weight: 600;
+  background: var(--im-accent-wash);
+}
+
+.im-select-popper .el-popper__arrow::before {
+  background: var(--im-overlay) !important;
+  border-color: var(--im-border-strong) !important;
+}
+
+/* 尊重 reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .immersive *,
+  .immersive *::before,
+  .immersive *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -13,6 +13,7 @@ import ActivityItem from '@client/components/social/ActivityItem.vue';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import type { FollowInfo } from '@/types/social';
 import type { Character } from '@client/types';
+import { cleanDescription } from '@client/utils/sillytavern';
 
 const logger = createLogger('UserProfile');
 const route = useRoute();
@@ -287,7 +288,7 @@ watch(userId, () => {
               <div class="character-info">
                 <h4 class="character-name">{{ character.name }}</h4>
                 <p class="character-desc">
-                  {{ character.description || t('market.noDescription') }}
+                  {{ cleanDescription(character.description, character.name, 80) || t('market.noDescription') }}
                 </p>
               </div>
               <div class="character-meta">
@@ -335,7 +336,7 @@ watch(userId, () => {
               <div class="character-info">
                 <h4 class="character-name">{{ character.name }}</h4>
                 <p class="character-desc">
-                  {{ character.description || t('market.noDescription') }}
+                  {{ cleanDescription(character.description, character.name, 80) || t('market.noDescription') }}
                 </p>
               </div>
               <div class="character-meta">
@@ -457,7 +458,7 @@ watch(userId, () => {
 }
 
 .profile-header {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 32px;
   margin-bottom: 24px;
@@ -535,7 +536,7 @@ watch(userId, () => {
   flex-shrink: 0;
 }
 .profile-tabs {
-  background: var(--surface-card);
+  background: var(--bg-surface);
   border-radius: 12px;
   padding: 24px;
   border: 1px solid var(--border-default);
@@ -547,15 +548,15 @@ watch(userId, () => {
 }
 
 .profile-tabs :deep(.el-tabs__active-bar) {
-  background-color: var(--accent-purple);
+  background-color: var(--accent);
 }
 
 .profile-tabs :deep(.el-tabs__item.is-active) {
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .profile-tabs :deep(.el-tabs__item:hover) {
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .tab-loading {
@@ -595,12 +596,12 @@ watch(userId, () => {
 }
 
 .character-mini-card:hover {
-  border-color: var(--accent-purple);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .character-mini-card:focus-visible {
-  outline: 2px solid var(--accent-purple);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -648,12 +649,12 @@ watch(userId, () => {
 }
 
 .character-rating .el-icon {
-  color: var(--color-warning);
+  color: var(--color-warning-text);
 }
 
 .character-meta :deep(.el-button) {
-  background: var(--accent-purple);
-  border-color: var(--accent-purple);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .character-meta :deep(.el-button:hover) {
@@ -679,12 +680,12 @@ watch(userId, () => {
 }
 
 .user-list-item:hover {
-  border-color: var(--accent-purple);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .user-list-item:focus-visible {
-  outline: 2px solid var(--accent-purple);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
