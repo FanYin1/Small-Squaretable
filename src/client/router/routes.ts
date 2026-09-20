@@ -17,6 +17,7 @@ const loadProfile = () => import(/* webpackChunkName: "profile" */ '../pages/Pro
 const loadSubscription = () => import(/* webpackChunkName: "subscription" */ '../pages/Subscription.vue');
 const loadWorldBooks = () => import(/* webpackChunkName: "worldbooks" */ '../pages/WorldBooks.vue');
 const loadWorldBookDetail = () => import(/* webpackChunkName: "worldbooks" */ '../pages/WorldBookDetail.vue');
+const loadUserPersonas = () => import(/* webpackChunkName: "personas" */ '../pages/UserPersonas.vue');
 const loadTerms = () => import('../pages/legal/Terms.vue');
 const loadPrivacy = () => import('../pages/legal/Privacy.vue');
 const loadAbout = () => import('../pages/legal/About.vue');
@@ -218,6 +219,15 @@ export const routes: RouteRecordRaw[] = [
     path: '/worldbooks',
     name: 'WorldBooks',
     component: loadWorldBooks,
+    meta: {
+      requiresAuth: true,
+      guestOnly: false,
+    },
+  },
+  {
+    path: '/personas',
+    name: 'UserPersonas',
+    component: loadUserPersonas,
     meta: {
       requiresAuth: true,
       guestOnly: false,

@@ -6,3 +6,4 @@ export * from './chat.repository';
 export * from './message.repository';
 export * from './rating.repository';
 export * from './usage.repository';
+export * from './user-persona.repository';
