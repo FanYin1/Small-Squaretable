@@ -72,7 +72,26 @@ export class LLMService {
       throw new AppError(`Model ${model} not found`, 404, 'MODEL_NOT_FOUND');
     }
 
-    const url = `${providerConfig.baseUrl}/chat/completions`;
+    // Special handling for Qwen3.5 models - use Ollama native API with think: false
+    let url = `${providerConfig.baseUrl}/chat/completions`;
+    let modifiedRequest: any = { ...request, stream: true };
+
+    if (model.includes('qwen3.5') && providerConfig.baseUrl.includes('11434')) {
+      // Use Ollama native API for Qwen3.5 to disable thinking
+      url = providerConfig.baseUrl.replace('/v1', '') + '/api/chat';
+      modifiedRequest = {
+        model,
+        messages: request.messages,
+        stream: true,
+        think: false,  // Disable thinking at top level
+        options: {
+          num_ctx: 16384,
+          num_predict: 4096,
+          temperature: request.temperature || 0.7,
+        },
+      };
+    }
+
     const headers = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${providerConfig.apiKey}`,
@@ -81,7 +100,7 @@ export class LLMService {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ ...request, stream: true }),
+      body: JSON.stringify(modifiedRequest),
       signal,
     });
 

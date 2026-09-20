@@ -116,11 +116,16 @@ export class PluginRepository extends BaseRepository {
   /**
    * Count total published plugins.
    */
-  async countPublished(): Promise<number> {
+  async countPublished(search?: string): Promise<number> {
+    const conditions = [eq(plugins.isPublished, true)];
+    if (search) {
+      const pattern = `%${search}%`;
+      conditions.push(or(ilike(plugins.name, pattern), ilike(plugins.description, pattern))!);
+    }
     const [result] = await this.db
       .select({ count: sql<number>`count(*)::int` })
       .from(plugins)
-      .where(eq(plugins.isPublished, true));
+      .where(and(...conditions));
     return result?.count || 0;
   }
 
@@ -189,11 +194,15 @@ export class PluginRepository extends BaseRepository {
    * Find all installs for a user, joined with plugin data.
    */
   async findInstallsByUserId(userId: string): Promise<(PluginInstall & { plugin: Plugin })[]> {
-    return this.db
+    const rows = await this.db
       .select()
       .from(pluginInstalls)
       .innerJoin(plugins, eq(pluginInstalls.pluginId, plugins.id))
-      .where(eq(pluginInstalls.userId, userId)) as any;
+      .where(eq(pluginInstalls.userId, userId));
+    return rows.map((row) => ({
+      ...row.plugin_installs,
+      plugin: row.plugins,
+    }));
   }
 
   /**
@@ -213,7 +222,7 @@ export class PluginRepository extends BaseRepository {
    * Uses PostgreSQL array contains operator (@>) to check if the event is in the plugin's events array.
    */
   async findEnabledInstallsByEvent(userId: string, event: string): Promise<(PluginInstall & { plugin: Plugin })[]> {
-    return this.db
+    const rows = await this.db
       .select()
       .from(pluginInstalls)
       .innerJoin(plugins, eq(pluginInstalls.pluginId, plugins.id))
@@ -223,7 +232,11 @@ export class PluginRepository extends BaseRepository {
           eq(pluginInstalls.isEnabled, true),
           sql`${plugins.events}::text[] @> ARRAY[${event}]::text[]`,
         ),
-      ) as any;
+      );
+    return rows.map((row) => ({
+      ...row.plugin_installs,
+      plugin: row.plugins,
+    }));
   }
 
   /**

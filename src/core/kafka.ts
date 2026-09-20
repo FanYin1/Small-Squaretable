@@ -7,13 +7,21 @@ const kafka = new Kafka({
 });
 
 let producer: Producer | null = null;
+let producerFailed = false;
 
-export async function getKafkaProducer(): Promise<Producer> {
-  if (!producer) {
+export async function getKafkaProducer(): Promise<Producer | null> {
+  if (producerFailed) return null;
+  if (producer) return producer;
+
+  try {
     producer = kafka.producer();
     await producer.connect();
+    return producer;
+  } catch {
+    producerFailed = true;
+    producer = null;
+    return null;
   }
-  return producer;
 }
 
 export async function createKafkaConsumer(groupId: string): Promise<Consumer> {

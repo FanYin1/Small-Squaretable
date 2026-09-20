@@ -381,19 +381,21 @@ describe('PluginRepository', () => {
 
   describe('findInstallsByUserId', () => {
     it('should return installs with plugin data', async () => {
-      const installsWithPlugin = [
+      // Drizzle innerJoin returns { plugin_installs: ..., plugins: ... }
+      const drizzleJoinRows = [
         {
-          ...mockInstallRecord,
-          plugin: mockPluginRecord,
+          plugin_installs: mockInstallRecord,
+          plugins: mockPluginRecord,
         },
       ];
-      const chain = createChainMock(installsWithPlugin);
-      chain.then = vi.fn((resolve: (v: unknown) => void) => resolve(installsWithPlugin));
+      const chain = createChainMock(drizzleJoinRows);
+      chain.then = vi.fn((resolve: (v: unknown) => void) => resolve(drizzleJoinRows));
       mockDb.select = chain.select;
 
       const result = await repository.findInstallsByUserId('user-a');
 
-      expect(result).toEqual(installsWithPlugin);
+      // Repository maps to flat shape: { ...install, plugin: pluginRecord }
+      expect(result).toEqual([{ ...mockInstallRecord, plugin: mockPluginRecord }]);
       expect(chain.select).toHaveBeenCalled();
       expect(chain.from).toHaveBeenCalled();
       expect(chain.innerJoin).toHaveBeenCalled();
@@ -425,19 +427,21 @@ describe('PluginRepository', () => {
 
   describe('findEnabledInstallsByEvent', () => {
     it('should filter by isEnabled and event', async () => {
-      const installsWithPlugin = [
+      // Drizzle innerJoin returns { plugin_installs: ..., plugins: ... }
+      const drizzleJoinRows = [
         {
-          ...mockInstallRecord,
-          plugin: mockPluginRecord,
+          plugin_installs: mockInstallRecord,
+          plugins: mockPluginRecord,
         },
       ];
-      const chain = createChainMock(installsWithPlugin);
-      chain.then = vi.fn((resolve: (v: unknown) => void) => resolve(installsWithPlugin));
+      const chain = createChainMock(drizzleJoinRows);
+      chain.then = vi.fn((resolve: (v: unknown) => void) => resolve(drizzleJoinRows));
       mockDb.select = chain.select;
 
       const result = await repository.findEnabledInstallsByEvent('user-a', 'chat.message.before');
 
-      expect(result).toEqual(installsWithPlugin);
+      // Repository maps to flat shape: { ...install, plugin: pluginRecord }
+      expect(result).toEqual([{ ...mockInstallRecord, plugin: mockPluginRecord }]);
       expect(chain.select).toHaveBeenCalled();
       expect(chain.from).toHaveBeenCalled();
       expect(chain.innerJoin).toHaveBeenCalled();

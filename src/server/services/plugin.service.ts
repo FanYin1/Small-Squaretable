@@ -58,11 +58,13 @@ export class PluginService {
 
   async listPublished(query: PluginMarketplaceQuery): Promise<{ items: PluginInfo[]; total: number }> {
     const offset = (query.page - 1) * query.limit;
-    const [plugins, total] = await Promise.all([
-      this.pluginRepo.findPublished({ limit: query.limit, offset, sort: query.sort }),
-      this.pluginRepo.countPublished(),
+    const [items, total] = await Promise.all([
+      query.search
+        ? this.pluginRepo.searchPlugins(query.search, query.limit, offset)
+        : this.pluginRepo.findPublished({ limit: query.limit, offset, sort: query.sort }),
+      this.pluginRepo.countPublished(query.search),
     ]);
-    return { items: plugins.map((p) => this.toPluginInfo(p)), total };
+    return { items: items.map((p) => this.toPluginInfo(p)), total };
   }
 
   async searchPlugins(q: string, limit: number, offset: number): Promise<PluginInfo[]> {
@@ -103,11 +105,11 @@ export class PluginService {
 
   async uninstallPlugin(installId: string, userId: string): Promise<void> {
     const installs = await this.pluginRepo.findInstallsByUserId(userId);
-    const install = installs.find((i: any) => i.id === installId);
+    const install = installs.find((i) => i.id === installId);
     if (!install) throw new NotFoundError('Install');
-    await this.pluginSandbox.unloadPlugin(`${(install as any).pluginId}:${userId}`);
+    await this.pluginSandbox.unloadPlugin(`${install.pluginId}:${userId}`);
     await this.pluginRepo.deleteInstall(installId, userId);
-    await this.pluginRepo.decrementInstallCount((install as any).pluginId);
+    await this.pluginRepo.decrementInstallCount(install.pluginId);
   }
 
   async getUserInstalls(userId: string): Promise<PluginInstallInfo[]> {
@@ -142,7 +144,7 @@ export class PluginService {
     if (installs.length === 0) return [];
     const results: PluginExecutionResult[] = [];
     for (const install of installs) {
-      const workerId = `${(install as any).pluginId}:${userId}`;
+      const workerId = `${install.pluginId}:${userId}`;
       const result = await this.pluginSandbox.sendEvent(workerId, event, payload);
       results.push(result);
       if (event === 'chat.message.before' && result.success && result.output) {

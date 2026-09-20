@@ -127,20 +127,23 @@ pluginRoutes.get(
   async (c) => {
     const query = c.req.valid('query');
     const result = await pluginService.listPublished(query);
+    const totalPages = Math.ceil(result.total / query.limit);
 
     return c.json(
       {
         success: true,
-        data: result.items,
-        meta: {
-          timestamp: new Date().toISOString(),
+        data: {
+          items: result.items,
           pagination: {
             page: query.page,
             limit: query.limit,
             total: result.total,
-            totalPages: Math.ceil(result.total / query.limit),
+            totalPages,
+            hasNext: query.page < totalPages,
+            hasPrev: query.page > 1,
           },
         },
+        meta: { timestamp: new Date().toISOString() },
       },
       200,
     );

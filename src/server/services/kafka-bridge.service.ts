@@ -34,6 +34,8 @@ export class KafkaBridgeService {
 
     try {
       const producer = await getKafkaProducer();
+      if (!producer) return; // Kafka not available, silently skip
+
       const message = {
         eventId: randomUUID(),
         eventType: event,

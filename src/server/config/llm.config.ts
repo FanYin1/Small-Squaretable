@@ -61,6 +61,21 @@ export function loadLLMConfig(): LLMProviderConfig[] {
     });
   }
 
+  // Ollama 本地模型配置 (无需 API Key)
+  if (process.env.OLLAMA_BASE_URL) {
+    const models = process.env.OLLAMA_MODELS
+      ? process.env.OLLAMA_MODELS.split(',').map((m) => m.trim())
+      : ['dolphin-mistral:7b-v2.8-q4_K_M'];
+
+    configs.push({
+      provider: 'ollama',
+      apiKey: 'ollama',
+      baseUrl: process.env.OLLAMA_BASE_URL,
+      models,
+      defaultModel: process.env.OLLAMA_DEFAULT_MODEL || models[0],
+    });
+  }
+
   return configs;
 }
 
@@ -118,6 +133,17 @@ const MODEL_REGISTRY: Record<string, Omit<ModelMeta, 'id' | 'provider'>> = {
   'claude-3-haiku-20240307': { contextWindow: 200000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
   'claude-2.1': { contextWindow: 200000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
   'claude-2.0': { contextWindow: 100000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  // GLM (智谱AI)
+  'glm-4': { contextWindow: 128000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'glm-4-plus': { contextWindow: 128000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'glm-4-air': { contextWindow: 128000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'glm-4-airx': { contextWindow: 8192, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'glm-4-flash': { contextWindow: 128000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'glm-4.5-air': { contextWindow: 128000, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  // Ollama (Qwen3)
+  'huihui_ai/qwen3-abliterated:4b': { contextWindow: 40960, maxOutputTokens: 8192, defaultTemperature: 0.7 },
+  'qwen3.5:4b': { contextWindow: 16384, maxOutputTokens: 4096, defaultTemperature: 0.7 },
+  'qwen3.5:2b': { contextWindow: 12288, maxOutputTokens: 4096, defaultTemperature: 0.7 },
 };
 
 /**
