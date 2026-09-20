@@ -1,77 +1,151 @@
+/* ============================================================
+   Small Squaretable — Design System Tokens
+   Claude-style warm neutral palette
+   ============================================================ */
+
 :root {
-  /* ========== 品牌颜色 ========== */
-  /* 主色调 - 蓝色系 */
-  --color-primary: #3B82F6;
-  --color-secondary: #60A5FA;
-  --color-cta: #22C55E;
-  --color-text: #1E3A8A;
-  --color-bg: #EFF6FF;
-  --color-text-primary: var(--text-color-primary);
-  --color-text-secondary: var(--text-color-secondary);
-  --color-border: var(--border-color);
-  --color-border-light: var(--border-color-light);
-  --color-primary-dark: #2563EB;
-  --color-primary-light: #DBEAFE;
-  --color-success-strong: #10B981;
-  --color-success-strong-dark: #059669;
-  --color-bg-light: #F0F9FF;
-  --color-bg-dark: #1F2937;
-  --color-bg-darker: #111827;
-  --color-surface-dark: #1F2937;
-  --color-surface-darker: #374151;
+  /* ========== Accent (Amber) ==========
+   *
+   * 琥珀分「填充」与「文字」两个角色，这是本令牌集最重要的一处区分。
+   * 原因：同一个 #D97706 既当按钮底色又当链接文字色，而两者的对比度
+   * 要求是互斥的——作填充只需与页面底可辨（3:1），作文字必须与所在
+   * 表面达 4.5:1。实测 #D97706 在白底上只有 3.19:1，所有琥珀文字
+   * （代码库里 114 处 `color: var(--accent)`）都不达 AA。
+   *
+   * 所以：
+   *   --accent        填充/描边/焦点环用，保持品牌原色不动
+   *   --accent-text   文字/图标用，压深到刚好过 4.5:1
+   * 新代码里凡是 `color:` 一律取 --accent-text，`background:` 取 --accent。
+   */
+  --accent: #D97706;
+  --accent-hover: #B45309;
+  --accent-press: #92400E;
+  --accent-light: #FEF3C7;
+  --accent-subtle: #FFFBEB;
+  --accent-gradient: linear-gradient(135deg, #D97706, #F59E0B);
 
-  /* 扩展颜色 */
-  --color-success: #67c23a;
-  --color-warning: #e6a23c;
-  --color-danger: #f56c6c;
-  --color-info: #909399;
+  /*
+   * 琥珀作文字。取值按「它会落到的全部表面里最难的那一个」解出：
+   * 白 5.12 / 米 4.87 / 次级面 4.62 / 琥珀薄底 4.60，四种都过 4.5。
+   * 第一版只对着白底解出 #B36205，在次级面上只有 4.29:1——一个令牌
+   * 不会只用在一种表面上，所以必须按最差的表面定值。色相同 #D97706。
+   */
+  --accent-text: #A55B05;
 
-  /* ========== 背景色 ========== */
-  --bg-color: #ffffff;
-  --bg-color-page: #f5f7fa;
-  --bg-color-overlay: rgba(0, 0, 0, 0.5);
+  /*
+   * 琥珀底上的前景色。深炭而非白：
+   *   深炭 #1A1918 on #D97706 = 5.51:1（过 AA）
+   *   白    #FFFFFF on #D97706 = 3.19:1（不过 AA）
+   * 深色主题下琥珀更亮，白字只有 ≈2.1:1，差距更大。
+   * 任何以 --accent 作背景的控件，前景都应取这个值。
+   */
+  --accent-on: #1A1918;
 
-  /* ========== 文字颜色 ========== */
-  --text-color-primary: #303133;
-  --text-color-regular: #606266;
-  --text-color-secondary: #909399;
-  --text-color-placeholder: #c0c4cc;
+  /* ========== Backgrounds ========== */
+  --bg-base: #FAF9F6;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F5F3EF;
+  --bg-hover: #F0EDE8;
+  --bg-color-overlay: rgba(0, 0, 0, 0.4);
 
-  /* ========== 边框颜色 ========== */
-  --border-color: #dcdfe6;
-  --border-color-light: #e4e7ed;
-  --border-color-lighter: #ebeef5;
+  /* ========== Text ========== */
+  --text-primary: #2D2B2A;
+  /*
+   * 压深以给三级文字腾出层级空间：白 7.76 / 米 7.37 / 次级面 7.00。
+   * 原 #6B6560 与达标后的三级色 #726D67 只差 1.12:1，两层会塌成一层。
+   */
+  --text-secondary: #57524E;
+  /*
+   * 三级文字（时间戳、计数、占位符）。原值 #A39E99 在白底上只有 2.66:1，
+   * 远不达 AA——而它有 74 处使用，是全站最大的一处可读性缺口。
+   * 压到 #726D67：白 5.12 / 米 4.87 / 次级面 4.62，三种表面都过线。
+   */
+  --text-tertiary: #726D67;
+  --text-inverse: #FFFFFF;
+  /*
+   * 纯装饰性的极淡文字（水印式说明），使用时必须确认它不承载信息，
+   * 否则应改用 --text-tertiary。保留原色值供这类场景显式选用。
+   */
+  --text-faint: #A39E99;
 
-  /* ========== 间距系统 (8px基础单位) ========== */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
+  /* ========== Borders ==========
+   *
+   * 分两类，依据 WCAG 1.4.11：
+   *   - 装饰性分隔线（卡片描边、列表分割）不承载信息，规范豁免对比度要求，
+   *     保持柔和，这是暖中性观感的来源，不应为了凑数字而加深。
+   *   - 表单控件的边界是「识别控件位置」的唯一视觉线索，属非文本对比，
+   *     需 3:1，用 --border-interactive。
+   */
+  --border-default: #E8E5E0;
+  --border-subtle: #F0EDE8;
+  --border-strong: #D4D0CA;
+  /* 交互控件边界：白 3.44 / 米 3.27 / 次级面 3.11，三种表面都过 3:1 */
+  --border-interactive: #93897A;
 
-  /* ========== 圆角 ========== */
-  --border-radius-sm: 4px;
-  --border-radius-md: 8px;
-  --border-radius-lg: 16px;
+  /* ========== Shadows ========== */
+  --shadow-sm: 0 1px 2px rgba(45, 43, 42, 0.05);
+  --shadow-md: 0 4px 12px rgba(45, 43, 42, 0.08);
+  --shadow-lg: 0 8px 24px rgba(45, 43, 42, 0.12);
 
-  /* ========== 侧边栏 ========== */
-  --sidebar-bg: #1F2937;
-  --sidebar-hover-bg: #374151;
-  --sidebar-active-bg: var(--color-primary);
-  --sidebar-text-color: #F9FAFB;
+  /* ========== Focus ==========
+   *
+   * 全站统一焦点环。现状是 129 个文件里只有 12 个定义了焦点样式，
+   * 其余靠浏览器默认，且有多处 `outline: none` 直接抹掉——键盘用户
+   * 无法知道焦点在哪。这里给出唯一取值，后续各面统一引用。
+   *
+   * 双环结构：内环取页面底色把焦点环与控件自身隔开，外环是琥珀。
+   * 这样无论控件本身什么底色，焦点环都不会糊在一起。
+   *
+   * 浅色不直接用品牌色 #D97706：它在次级面 #F5F3EF 上只有 2.87:1，
+   * 而焦点环是非文本对比，需 3:1。压到 #CF7206（白 3.46 / 米 3.29 /
+   * 次级面 3.12）。焦点环与品牌填充色略有色差是可接受的——它是功能性
+   * 指示物，可辨优先于配色一致。
+   */
+  --focus-ring-color: #CF7206;
+  --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--focus-ring-color);
+  --focus-ring-inset: inset 0 0 0 2px var(--focus-ring-color);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
 
-  /* ========== 阴影 ========== */
-  --box-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-  --box-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
-  --box-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
+  /* ========== Radius ========== */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
 
-  /* ========== 玻璃态效果 (Glassmorphism) ========== */
-  --backdrop-blur: blur(16px);
-  --glass-bg: rgba(255, 255, 255, 0.1);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.2);
+  /* ========== Sidebar ========== */
+  --sidebar-width: 280px;
+  --sidebar-bg: #FFFFFF;
+  --sidebar-border: #E8E5E0;
+  --sidebar-text: #6B6560;
+  --sidebar-text-active: #2D2B2A;
+  --sidebar-hover: #F5F3EF;
+  --sidebar-active: #FEF3C7;
 
-  /* ========== 字体 ========== */
-  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* ========== Semantic Colors ==========
+   *
+   * 同样拆填充/文字两角色（理由见 Accent 段）。
+   * --color-* 保持饱和用于填充与图标底；--color-*-text 供 `color:` 使用。
+   * 实测原值作文字全部不达标：success 3.77:1 / warning 3.19:1。
+   */
+  --color-success: #059669;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+  --color-info: #6B6560;
+
+  /*
+   * 语义色作文字用。同样按最难的表面（次级面 #F5F3EF）解，
+   * 保证在白、米、次级面三种底上都过 4.5:1，色相与各自的填充色一致。
+   */
+  --color-success-text: #047D58;
+  --color-warning-text: #A65B05;
+  --color-danger-text: #D52222;
+  --color-info-text: #736D67;
+
+  /* ========== Typography ========== */
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Newsreader', 'Georgia', serif;
   --font-size-h1: 32px;
   --font-size-h2: 28px;
   --font-size-h3: 24px;
@@ -83,53 +157,243 @@
   --font-size-body-sm: 12px;
   --font-size-caption: 12px;
 
-  /* ========== 动画和过渡 ========== */
-  --transition-fast: 150ms;
+  /* ========== Spacing ========== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  /* ========== Transitions ========== */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
   --transition-duration: 200ms;
-  --transition-slow: 300ms;
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ========== チャット ========== */
-  --chat-bg: #ffffff;
-  --chat-sidebar-bg: #f9f9f9;
-  --chat-user-msg-bg: #f5f5f5;
-  --chat-divider: #e5e5e5;
-  --chat-assistant-msg-bg: #fafafa;
+  /* ========== Chat ========== */
+  --chat-bg: #FAF9F6;
+  --chat-sidebar-bg: #FFFFFF;
+  --chat-user-msg-bg: #F5F3EF;
+  --chat-divider: #E8E5E0;
+  --chat-assistant-msg-bg: #FFFFFF;
 
-  /* ========== 响应式断点 ========== */
+  /* ========== Breakpoints ========== */
   --breakpoint-mobile: 640px;
   --breakpoint-tablet: 1024px;
+
+  /* ========== Legacy Aliases (backward compat) ========== */
+  --color-primary: var(--accent);
+  --color-secondary: #F59E0B;
+  --color-cta: var(--color-success);
+  --color-text: var(--text-primary);
+  --color-bg: var(--bg-surface);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-tertiary);
+  --color-border: var(--border-default);
+  --color-border-light: var(--border-subtle);
+  --color-primary-dark: var(--accent-hover);
+  --color-primary-light: var(--accent-light);
+  --color-success-strong: var(--color-success);
+  --color-success-strong-dark: #047857;
+  --color-bg-light: var(--bg-subtle);
+  --color-bg-dark: #2D2B2A;
+  --color-bg-darker: #1A1918;
+  --color-surface-dark: #2D2B2A;
+  --color-surface-darker: #3D3A38;
+  --bg-color: var(--bg-surface);
+  --bg-color-page: var(--bg-base);
+  --text-color-primary: var(--text-primary);
+  --text-color-regular: var(--text-secondary);
+  --text-color-secondary: var(--text-tertiary);
+  --text-color-placeholder: var(--text-tertiary);
+  --border-color: var(--border-default);
+  --border-color-light: var(--border-subtle);
+  --border-color-lighter: var(--border-subtle);
+  --box-shadow-sm: var(--shadow-sm);
+  --box-shadow-md: var(--shadow-md);
+  --box-shadow-lg: var(--shadow-lg);
+  --border-radius-sm: var(--radius-sm);
+  --border-radius-md: var(--radius-md);
+  --border-radius-lg: var(--radius-lg);
+  --font-family: var(--font-body);
+  --sidebar-hover-bg: var(--sidebar-hover);
+  --sidebar-active-bg: var(--accent);
+  --sidebar-text-color: var(--sidebar-text);
+  --sidebar-width-expanded: var(--sidebar-width);
+
+  /* Iteration 13 aliases */
+  --accent-purple: var(--accent);
+  --accent-cyan: var(--color-info);
+  --accent-pink: var(--color-danger);
+  --surface-card: var(--bg-surface);
+  --surface-hover: var(--bg-hover);
+  --surface-active: var(--bg-subtle);
+
+  /* Missing aliases used by components */
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 30px;
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+
+  /* ========== Glassmorphism (legacy) ========== */
+  --backdrop-blur: blur(16px);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: 1px solid var(--border-subtle);
+
+  /* ========== Element Plus Overrides ========== */
+  --el-color-primary: #D97706;
+  --el-color-primary-light-3: #FBBF24;
+  --el-color-primary-light-5: #FDE68A;
+  --el-color-primary-light-7: #FEF3C7;
+  --el-color-primary-light-9: #FFFBEB;
+  --el-color-primary-dark-2: #B45309;
+  --el-bg-color: #FFFFFF;
+  --el-bg-color-page: #FAF9F6;
+  --el-bg-color-overlay: #FFFFFF;
+  --el-text-color-primary: #2D2B2A;
+  --el-text-color-regular: #6B6560;
+  --el-text-color-secondary: var(--text-tertiary);
+  /* 占位符是可读信息（提示输入格式），原 #A39E99 只有 2.66:1，改走达标的三级色 */
+  --el-text-color-placeholder: var(--text-tertiary);
+  /* 输入框/选择器的边界属交互控件，需 3:1；装饰性的 -light 系列保持柔和 */
+  --el-border-color: var(--border-interactive);
+  --el-border-color-light: #F0EDE8;
+  --el-border-color-lighter: #F5F3EF;
+  --el-border-color-extra-light: #FAF9F6;
+  --el-fill-color-blank: #FFFFFF;
+  --el-fill-color-light: #F5F3EF;
+  --el-font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --el-font-size-base: 14px;
+  --el-border-radius-base: 8px;
+  --el-color-success: #059669;
+  --el-color-warning: #D97706;
+  --el-color-danger: #DC2626;
+  --el-color-info: #6B6560;
 }
 
-/* ========== 暗色主题 ========== */
+/* ========== Dark Theme ========== */
 .dark,
 [data-theme="dark"] {
-  /* 背景色 */
-  --bg-color: #1d1e1f;
-  --bg-color-page: #141414;
-  --bg-color-overlay: rgba(0, 0, 0, 0.7);
+  --accent: #F59E0B;
+  --accent-hover: #FBBF24;
+  --accent-press: #D97706;
+  --accent-light: #451A03;
+  --accent-subtle: #2D1F0E;
+  /*
+   * 深色下琥珀本身已足够亮：#F59E0B on #2D2B2A = 6.56:1，
+   * 所以文字角色不需要另取值，直接等同填充色。
+   * 浅色主题下两者必须分开（见 :root 段说明）。
+   */
+  --accent-text: #F59E0B;
+  /* 深色下琥珀更亮，深炭前景 8.17:1；白字仅 2.15:1，不可用 */
+  --accent-on: #1A1918;
 
-  /* 文字颜色 */
-  --text-color-primary: #e5eaf3;
-  --text-color-regular: #cfd3dc;
-  --text-color-secondary: #a3a6ad;
-  --text-color-placeholder: #6c6e72;
+  --bg-base: #1A1918;
+  --bg-surface: #2D2B2A;
+  --bg-subtle: #363432;
+  --bg-hover: #3D3A38;
+  --bg-color-overlay: rgba(0, 0, 0, 0.6);
 
-  /* 边框颜色 */
-  --border-color: #414243;
-  --border-color-light: #363637;
-  --border-color-lighter: #2b2b2c;
+  --text-primary: #E8E5E0;
+  /* 提亮以给三级文字腾出层级空间：surface 7.96 / base 9.91 / 次级面 7.00 */
+  --text-secondary: #C5C2BF;
+  /*
+   * 原 #6B6560 在 #2D2B2A 上仅 2.45:1。提亮到 #A39D98：
+   * surface 5.26 / base 6.55 / 次级面 4.62，三种表面都过 4.5。
+   *
+   * 注意这同时逼着上一层也得动：#A39D98 与原 secondary #A39E99 只差
+   * 1.01:1，肉眼完全分不开，三级文字层级会塌成两级。所以 secondary
+   * 一并提到 #C5C2BF，把三层重新拉开（见下）。
+   */
+  --text-tertiary: #A39D98;
+  --text-faint: #6B6560;
 
-  /* チャット - 暗色模式 */
-  --chat-bg: #0d0d0d;
-  --chat-sidebar-bg: #171717;
-  --chat-user-msg-bg: #222222;
-  --chat-divider: #333333;
-  --chat-assistant-msg-bg: #1a1a1a;
+  --border-default: #3D3A38;
+  --border-subtle: #363432;
+  --border-strong: #4A4745;
+  /* 交互控件边界：surface 3.56 / base 4.43 / 次级面 3.13，三种都过 3:1 */
+  --border-interactive: #847F7B;
 
-  /* 玻璃态效果 - 暗色模式调整 */
-  --glass-bg: rgba(0, 0, 0, 0.2);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  /* 深色下焦点环改用更亮的琥珀：#F59E0B on #1A1918 = 8.17:1 */
+  --focus-ring-color: #F59E0B;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  --sidebar-bg: #2D2B2A;
+  --sidebar-border: #3D3A38;
+  /* 跟随提亮后的 --text-secondary，否则侧栏未选中项比正文暗一档 */
+  --sidebar-text: #C5C2BF;
+  --sidebar-text-active: #E8E5E0;
+  --sidebar-hover: #363432;
+  --sidebar-active: #451A03;
+
+  /*
+   * 语义色深色版。浅色主题的取值在深底上全部偏暗：
+   *   success 3.74:1 / danger 2.92:1 / warning 4.42:1 / info 2.45:1
+   * 这里既提亮填充色，也给出对应的文字色。
+   */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #A39E99;
+
+  /* 文字变体按最难的深色表面 #363432 解，三种深底都过 4.5:1 */
+  --color-success-text: #10B47D;
+  --color-warning-text: #F59E0B;
+  --color-danger-text: #F47979;
+  --color-info-text: #A39D98;
+
+  --chat-bg: #1A1918;
+  --chat-sidebar-bg: #2D2B2A;
+  --chat-user-msg-bg: #363432;
+  --chat-divider: #3D3A38;
+  --chat-assistant-msg-bg: #2D2B2A;
+
+  /* Legacy dark aliases */
+  --bg-color: var(--bg-surface);
+  --bg-color-page: var(--bg-base);
+  --text-color-primary: var(--text-primary);
+  --text-color-regular: #C4BFB9;
+  --text-color-secondary: var(--text-tertiary);
+  --text-color-placeholder: var(--text-tertiary);
+  --border-color: var(--border-default);
+  --border-color-light: var(--border-subtle);
+  --border-color-lighter: #2D2B2A;
+  --surface-card: var(--bg-surface);
+  --surface-hover: var(--bg-hover);
+
+  --glass-bg: rgba(0, 0, 0, 0.3);
+  --glass-border: 1px solid var(--border-subtle);
+
+  /* Element Plus dark overrides */
+  --el-color-primary: #F59E0B;
+  --el-color-primary-light-3: #FBBF24;
+  --el-color-primary-light-5: #78350F;
+  --el-color-primary-light-7: #451A03;
+  --el-color-primary-light-9: #2D1F0E;
+  --el-color-primary-dark-2: #FBBF24;
+  --el-bg-color: #2D2B2A;
+  --el-bg-color-page: #1A1918;
+  --el-bg-color-overlay: #1d1e1f;
+  --el-text-color-primary: #E8E5E0;
+  --el-text-color-regular: #A39E99;
+  --el-text-color-secondary: var(--text-tertiary);
+  --el-text-color-placeholder: var(--text-tertiary);
+  --el-border-color: var(--border-interactive);
+  --el-border-color-light: #363432;
+  --el-border-color-lighter: #2D2B2A;
+  --el-border-color-extra-light: #1A1918;
+  --el-fill-color-blank: #2D2B2A;
+  --el-fill-color-light: #363432;
 }
