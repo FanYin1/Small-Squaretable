@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, provide, readonly } from 'vue';
+import { ref, provide } from 'vue';
 import Toast from './Toast.vue';
 
 interface ToastItem {
@@ -46,7 +46,7 @@ const removeToast = (id: string) => {
 // Provide toast context to child components
 provide<ToastContext>('toast', {
   addToast,
-  removeToast: readonly(removeToast),
+  removeToast,
 });
 
 const handleClose = (id: string) => {

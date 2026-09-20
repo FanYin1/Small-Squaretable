@@ -78,6 +78,9 @@ import { ref, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { CopyDocument } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
+import { createLogger } from '@client/utils/logger';
+
+const logger = createLogger('SystemPromptViewer');
 import { api } from '../../services/api';
 
 interface SystemPromptData {
@@ -118,7 +121,7 @@ async function fetchPromptData() {
     );
     promptData.value = response;
   } catch (error) {
-    console.error('Failed to fetch system prompt:', error);
+    logger.error('Failed to fetch system prompt', error);
   } finally {
     loading.value = false;
   }

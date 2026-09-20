@@ -121,6 +121,9 @@ import { ref, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Refresh } from '@element-plus/icons-vue';
 import { api } from '../../services/api';
+import { createLogger } from '@client/utils/logger';
+
+const logger = createLogger('PerformanceMetrics');
 
 interface PerformanceData {
   embeddingLatency: number;
@@ -179,7 +182,7 @@ async function refresh() {
       Object.assign(modelStatus, response.modelStatus);
     }
   } catch (error) {
-    console.error('Failed to fetch performance metrics:', error);
+    logger.error('Failed to fetch performance metrics', error);
   } finally {
     loading.value = false;
   }

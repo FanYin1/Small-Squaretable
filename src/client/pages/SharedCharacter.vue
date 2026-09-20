@@ -15,7 +15,7 @@
 
       <el-card v-if="character.description" class="character-section">
         <template #header>{{ t('characterDetail.description') }}</template>
-        <p class="description-text">{{ character.description }}</p>
+        <p class="description-text">{{ cleanDescription(character.description, character.name, 500) }}</p>
       </el-card>
 
       <div v-if="character.tags?.length" class="character-tags">
@@ -44,6 +44,7 @@ import { ElMessage } from 'element-plus';
 import { shareApi } from '@client/services/share.api';
 import { useUserStore } from '@client/stores/user';
 import type { Character } from '@client/types';
+import { cleanDescription } from '@client/utils/sillytavern';
 
 const route = useRoute();
 const router = useRouter();

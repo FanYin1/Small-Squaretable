@@ -77,7 +77,7 @@ function handleDialogOpen() {
         </el-button>
       </el-form>
 
-      <el-link type="primary" :underline="false" class="mfa-switch-link" @click="switchMode">
+      <el-link type="primary" underline="never" class="mfa-switch-link" @click="switchMode">
         {{ useBackupCode ? t('mfa.useTotpCode') : t('mfa.useBackupCode') }}
       </el-link>
     </div>
@@ -101,7 +101,7 @@ function handleDialogOpen() {
   font-size: 16px;
   font-weight: 600;
   border-radius: 8px;
-  background-color: var(--accent-purple);
+  background-color: var(--accent);
   border: none;
   color: white;
 }

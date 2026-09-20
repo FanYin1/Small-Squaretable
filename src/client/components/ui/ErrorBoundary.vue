@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { ElResult, ElButton } from 'element-plus';
 import { WarningFilled } from '@element-plus/icons-vue';
+import { createLogger } from '@client/utils/logger';
+
+const logger = createLogger('ErrorBoundary');
+const { t } = useI18n();
 
 interface Props {
   title?: string;
@@ -9,8 +14,8 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  title: 'Something went wrong',
-  description: 'An unexpected error occurred. Please try again.',
+  title: () => t('error.title'),
+  description: () => t('error.description'),
 });
 
 const emit = defineEmits<{
@@ -29,7 +34,7 @@ const handleRetry = () => {
 const handleError = (error: Error) => {
   hasError.value = true;
   errorMessage.value = error.message;
-  console.error('Error caught by ErrorBoundary:', error);
+  logger.error('Error caught by ErrorBoundary', error);
 };
 
 defineExpose({
@@ -43,7 +48,7 @@ defineExpose({
       <template #extra>
         <div class="error-details">
           <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-          <ElButton type="primary" @click="handleRetry">Retry</ElButton>
+          <ElButton type="primary" @click="handleRetry">{{ t('error.retry') }}</ElButton>
         </div>
       </template>
     </ElResult>
