@@ -33,7 +33,14 @@ export const worldbookEntries = pgTable('worldbook_entries', {
   isEnabled: boolean('is_enabled').default(true).notNull(),
   priority: integer('priority').default(0).notNull(),
   settings: jsonb('settings').default({}).notNull(),
+  characterFilter: jsonb('character_filter').default([]).notNull(), // Array of character IDs
+  scanDepth: integer('scan_depth'), // Number of recent messages to scan
+  contextPercentage: integer('context_percentage'), // Max % of context budget
+  recursive: boolean('recursive').default(true).notNull(), // Content will be scanned for keywords
+  preventRecursion: boolean('prevent_recursion').default(false).notNull(), // Won't be triggered by recursive scans
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   searchVector: tsvector('search_vector'),
-});
+}, (table) => ({
+  characterFilterIdx: index('idx_worldbook_entries_character_filter').using('gin', table.characterFilter),
+}));

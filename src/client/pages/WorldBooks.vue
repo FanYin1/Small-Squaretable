@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { Plus, Edit, Delete, Search } from '@element-plus/icons-vue';
+import { Plus, Edit, Delete, Search, Upload } from '@element-plus/icons-vue';
 import { ElMessageBox } from 'element-plus';
 import { useToast } from '@client/composables/useToast';
 import { worldbookApi } from '@client/services/worldbook.api';
@@ -134,6 +134,29 @@ async function handleDelete(book: WorldBook) {
     if (e !== 'cancel') toast.error(t('worldBooks.deleteFailed'));
   }
 }
+
+const importFileRef = ref<HTMLInputElement | null>(null);
+
+function triggerImportFile() {
+  importFileRef.value?.click();
+}
+
+async function handleImportFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const result = await worldbookApi.importFile(data);
+    toast.success(t('worldBooks.importSuccess', { count: (result as any)?.imported ?? 0 }));
+    await fetchWorldBooks();
+  } catch {
+    toast.error(t('worldBooks.importFailed'));
+  } finally {
+    input.value = '';
+  }
+}
 </script>
 
 <template>
@@ -141,9 +164,19 @@ async function handleDelete(book: WorldBook) {
     <template #title>{{ t('worldBooks.title') }}</template>
     <template #subtitle>{{ t('worldBooks.subtitle') }}</template>
     <template #actions>
+      <el-button :icon="Upload" @click="triggerImportFile">
+        {{ t('worldBooks.importFile') }}
+      </el-button>
       <el-button type="primary" :icon="Plus" @click="openCreate">
         {{ t('worldBooks.createNew') }}
       </el-button>
+      <input
+        ref="importFileRef"
+        type="file"
+        accept=".json"
+        style="display: none"
+        @change="handleImportFile"
+      />
     </template>
 
     <div class="worldbooks-page">
@@ -166,7 +199,7 @@ async function handleDelete(book: WorldBook) {
       >
         <el-table-column prop="name" :label="t('worldBooks.name')" min-width="180">
           <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click="openDetail(row)">
+            <el-link type="primary" underline="never" @click="openDetail(row)">
               {{ row.name }}
             </el-link>
           </template>

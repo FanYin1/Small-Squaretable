@@ -31,6 +31,11 @@ export interface WorldBookEntry {
   isEnabled: boolean;
   priority: number;
   settings: Record<string, unknown>;
+  characterFilter?: string[]; // Array of character IDs
+  scanDepth?: number; // Number of recent messages to scan
+  contextPercentage?: number; // Max % of context budget
+  recursive?: boolean; // Content will be scanned for keywords (default: true)
+  preventRecursion?: boolean; // Won't be triggered by recursive scans (default: false)
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +47,26 @@ export interface CreateEntryInput {
   isEnabled?: boolean;
   priority?: number;
   settings?: Record<string, unknown>;
+  characterFilter?: string[];
+  scanDepth?: number;
+  contextPercentage?: number;
+  recursive?: boolean;
+  preventRecursion?: boolean;
+}
+
+export interface ScanResult {
+  matches: Array<{
+    id: string;
+    keys: string[];
+    secondaryKeys?: string[];
+    content: string;
+    comment?: string;
+    depth: number;
+    constant: boolean;
+    matchedKeys: string[];
+    tokens: number;
+    recursionDepth: number;
+  }>;
 }
 
 export const worldbookApi = {
@@ -60,6 +85,10 @@ export const worldbookApi = {
     api.delete(`/worldbooks/${worldbookId}/entries/${entryId}`),
   importEntries: (worldbookId: string, data: Record<string, unknown>) =>
     api.post(`/worldbooks/${worldbookId}/import`, data),
+  importFile: (data: Record<string, unknown>) =>
+    api.post<{ worldBookId: string; name: string; imported: number }>('/worldbooks/import-file', data),
   exportWorldBook: (worldbookId: string) =>
     api.get<Record<string, unknown>>(`/worldbooks/${worldbookId}/export`),
+  scanEntries: (worldbookId: string, text: string) =>
+    api.post<ScanResult>(`/worldbooks/${worldbookId}/scan`, { text }),
 };

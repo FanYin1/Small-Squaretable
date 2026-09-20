@@ -11,6 +11,8 @@ import { authMiddleware } from '../middleware/auth';
 import { worldBookRepository } from '../../db/repositories/worldbook.repository';
 import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.repository';
 import type { ApiResponse } from '../../types/api';
+import { worldInfoEngine } from '../services/worldinfo-engine.service';
+import { countTokens } from '../utils/tokens';
 
 // --- Validation schemas ---
 
@@ -35,6 +37,8 @@ const createEntrySchema = z.object({
   isEnabled: z.boolean().default(true),
   priority: z.number().int().default(0),
   settings: z.record(z.unknown()).default({}),
+  recursive: z.boolean().default(true),
+  preventRecursion: z.boolean().default(false),
 });
 
 const updateEntrySchema = z.object({
@@ -44,6 +48,8 @@ const updateEntrySchema = z.object({
   isEnabled: z.boolean().optional(),
   priority: z.number().int().optional(),
   settings: z.record(z.unknown()).optional(),
+  recursive: z.boolean().optional(),
+  preventRecursion: z.boolean().optional(),
 });
 
 export const worldbooksRouter = new Hono();
@@ -91,6 +97,101 @@ worldbooksRouter.post(
     );
   }
 );
+
+// Import a standalone world book JSON file (creates world book + entries)
+// Must be registered before /:id routes to avoid param capture
+worldbooksRouter.post('/import-file', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json();
+
+  const entries = body.entries;
+  if (!entries || typeof entries !== 'object') {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid world book format: missing entries object' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400
+    );
+  }
+
+  const name = body.name || body.originalData?.name || 'Imported World Book';
+  const description = body.description || body.originalData?.description || null;
+
+  const worldBook = await worldBookRepository.create({
+    name,
+    scope: 'global',
+    ownerId: user.id,
+    settings: {},
+  });
+
+  const positionMap: Record<number, string> = {
+    0: 'before', 1: 'after', 2: 'ANTop', 3: 'ANBottom',
+    4: 'atDepth', 5: 'EMTop', 6: 'EMBottom',
+  };
+  const selectiveLogicMap: Record<number, string> = {
+    0: 'AND_ANY', 1: 'AND_ALL', 2: 'NOT_ANY', 3: 'NOT_ALL',
+  };
+
+  const entryKeys = Object.keys(entries).sort((a, b) => Number(a) - Number(b));
+  let importedCount = 0;
+
+  for (const key of entryKeys) {
+    const e = entries[key];
+    if (!e || typeof e !== 'object') continue;
+
+    const primaryKeys = Array.isArray(e.keys) ? e.keys
+      : Array.isArray(e.key) ? e.key : [];
+    const secondaryKeys = Array.isArray(e.secondary_keys) ? e.secondary_keys
+      : Array.isArray(e.keysecondary) ? e.keysecondary : undefined;
+    const order = typeof e.insertion_order === 'number' ? e.insertion_order
+      : typeof e.order === 'number' ? e.order : 100;
+    const enabled = typeof e.enabled === 'boolean' ? e.enabled
+      : typeof e.disable === 'boolean' ? !e.disable : true;
+    const position = typeof e.position === 'number'
+      ? (positionMap[e.position] ?? 'before')
+      : typeof e.position === 'string' ? e.position : 'before';
+    const extPosition = e.extensions?.position;
+    const finalPosition = typeof extPosition === 'number'
+      ? (positionMap[extPosition] ?? position) : position;
+    const depth = typeof e.depth === 'number' ? e.depth
+      : typeof e.extensions?.depth === 'number' ? e.extensions.depth : 4;
+
+    await worldBookEntryRepository.create({
+      worldBookId: worldBook.id,
+      keys: primaryKeys,
+      keysSecondary: secondaryKeys,
+      selectiveLogic: selectiveLogicMap[e.selectiveLogic] ?? 'AND_ANY',
+      content: typeof e.content === 'string' ? e.content : '',
+      comment: typeof e.comment === 'string' ? e.comment
+        : typeof e.name === 'string' ? e.name : null,
+      position: finalPosition,
+      depth,
+      order,
+      enabled,
+      constant: e.constant === true,
+      probability: typeof e.probability === 'number' ? e.probability : 100,
+      sticky: typeof e.sticky === 'number' ? e.sticky : 0,
+      cooldown: typeof e.cooldown === 'number' ? e.cooldown : 0,
+      delay: typeof e.delay === 'number' ? e.delay : 0,
+      caseSensitive: e.case_sensitive === true || e.caseSensitive === true,
+      matchWholeWords: e.match_whole_words === true || e.matchWholeWords === true,
+      preventRecursion: e.prevent_recursion === true || e.preventRecursion === true,
+      excludeRecursion: e.exclude_recursion === true || e.excludeRecursion === true,
+    });
+    importedCount++;
+  }
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: { worldBookId: worldBook.id, name, imported: importedCount },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    201
+  );
+});
 
 // Get world book by ID (ownership check)
 worldbooksRouter.get('/:id', authMiddleware(), async (c) => {
@@ -243,6 +344,8 @@ worldbooksRouter.post(
       order: input.position,
       enabled: input.isEnabled,
       depth: input.priority,
+      recursive: input.recursive,
+      preventRecursion: input.preventRecursion,
     });
 
     return c.json<ApiResponse>(
@@ -337,8 +440,8 @@ worldbooksRouter.post('/:id/import', authMiddleware(), async (c) => {
   }
 
   const positionMap: Record<number, string> = {
-    0: 'before', 1: 'after', 2: 'EMTop', 3: 'EMBottom',
-    4: 'atDepth', 5: 'ANTop', 6: 'ANBottom',
+    0: 'before', 1: 'after', 2: 'ANTop', 3: 'ANBottom',
+    4: 'atDepth', 5: 'EMTop', 6: 'EMBottom',
   };
 
   const selectiveLogicMap: Record<number, string> = {
@@ -352,26 +455,58 @@ worldbooksRouter.post('/:id/import', authMiddleware(), async (c) => {
     const e = entries[key];
     if (!e || typeof e !== 'object') continue;
 
+    // Normalize field names: support both character_book format (keys, secondary_keys,
+    // insertion_order, enabled) and standalone world book format (key, keysecondary,
+    // order, disable)
+    const primaryKeys = Array.isArray(e.keys) ? e.keys
+      : Array.isArray(e.key) ? e.key
+      : [];
+    const secondaryKeys = Array.isArray(e.secondary_keys) ? e.secondary_keys
+      : Array.isArray(e.keysecondary) ? e.keysecondary
+      : undefined;
+    const order = typeof e.insertion_order === 'number' ? e.insertion_order
+      : typeof e.order === 'number' ? e.order
+      : 100;
+    // 'enabled' (true=on) vs 'disable' (false=on, inverted logic)
+    const enabled = typeof e.enabled === 'boolean' ? e.enabled
+      : typeof e.disable === 'boolean' ? !e.disable
+      : true;
+    const position = typeof e.position === 'number'
+      ? (positionMap[e.position] ?? 'before')
+      : typeof e.position === 'string'
+        ? e.position
+        : 'before';
+    // extensions.position overrides top-level position (SillyTavern V3 behavior)
+    const extPosition = e.extensions?.position;
+    const finalPosition = typeof extPosition === 'number'
+      ? (positionMap[extPosition] ?? position)
+      : position;
+    const depth = typeof e.depth === 'number' ? e.depth
+      : typeof e.extensions?.depth === 'number' ? e.extensions.depth
+      : 4;
+
     const entry = await worldBookEntryRepository.create({
       worldBookId: id,
-      keys: Array.isArray(e.keys) ? e.keys : [],
-      keysSecondary: Array.isArray(e.secondary_keys) ? e.secondary_keys : undefined,
+      keys: primaryKeys,
+      keysSecondary: secondaryKeys,
       selectiveLogic: selectiveLogicMap[e.selectiveLogic] ?? 'AND_ANY',
       content: typeof e.content === 'string' ? e.content : '',
-      comment: typeof e.comment === 'string' ? e.comment : null,
-      position: positionMap[e.position] ?? 'before',
-      depth: typeof e.depth === 'number' ? e.depth : 4,
-      order: typeof e.insertion_order === 'number' ? e.insertion_order : 100,
-      enabled: e.enabled !== false,
+      comment: typeof e.comment === 'string' ? e.comment
+        : typeof e.name === 'string' ? e.name
+        : null,
+      position: finalPosition,
+      depth,
+      order,
+      enabled,
       constant: e.constant === true,
       probability: typeof e.probability === 'number' ? e.probability : 100,
       sticky: typeof e.sticky === 'number' ? e.sticky : 0,
       cooldown: typeof e.cooldown === 'number' ? e.cooldown : 0,
       delay: typeof e.delay === 'number' ? e.delay : 0,
-      caseSensitive: e.case_sensitive === true,
-      matchWholeWords: e.match_whole_words === true,
-      preventRecursion: e.prevent_recursion === true,
-      excludeRecursion: e.exclude_recursion === true,
+      caseSensitive: e.case_sensitive === true || e.caseSensitive === true,
+      matchWholeWords: e.match_whole_words === true || e.matchWholeWords === true,
+      preventRecursion: e.prevent_recursion === true || e.preventRecursion === true,
+      excludeRecursion: e.exclude_recursion === true || e.excludeRecursion === true,
     });
     created.push(entry);
   }
@@ -491,3 +626,56 @@ worldbooksRouter.delete('/:id/entries/:entryId', authMiddleware(), async (c) => 
     200
   );
 });
+
+// Scan entries - test which entries would be triggered by sample text
+const scanSchema = z.object({
+  text: z.string().min(1),
+});
+
+worldbooksRouter.post('/:id/scan', authMiddleware(), zValidator('json', scanSchema), async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const { text } = c.req.valid('json');
+
+  const worldbook = await worldBookRepository.findById(id);
+  if (!worldbook || worldbook.userId !== user.id) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'World book not found' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      404
+    );
+  }
+
+  // Get all entries for this world book
+  const entries = await worldBookEntryRepository.findByWorldBook(id);
+
+  // Scan text against entries using the world info engine
+  const scanResult = worldInfoEngine.scanText(text, entries);
+
+  // Format results with token counts and recursion depth
+  const matches = scanResult.map(match => ({
+    id: match.entry.id,
+    keys: match.entry.keys,
+    secondaryKeys: match.entry.secondaryKeys,
+    content: match.entry.content,
+    comment: match.entry.comment,
+    depth: match.entry.depth,
+    constant: match.entry.constant,
+    matchedKeys: match.matchedKeys,
+    tokens: countTokens(match.entry.content),
+    recursionDepth: match.recursionDepth,
+  }));
+
+  return c.json<ApiResponse>(
+    {
+      success: true,
+      data: { matches },
+      meta: { timestamp: new Date().toISOString() },
+    },
+    200
+  );
+});
+

@@ -46,8 +46,6 @@ interface EntrySettings {
   delay: number;
   caseSensitive: boolean;
   matchWholeWords: boolean;
-  preventRecursion: boolean;
-  excludeRecursion: boolean;
 }
 
 interface EntryForm {
@@ -57,16 +55,19 @@ interface EntryForm {
   priority: number;
   isEnabled: boolean;
   settings: EntrySettings;
+  recursive: boolean;
+  preventRecursion: boolean;
 }
 
 const defaultSettings = (): EntrySettings => ({
   keys: [], keysSecondary: [], selectiveLogic: 0, comment: '', depth: 4, order: 100,
   constant: false, probability: 100, sticky: 0, cooldown: 0, delay: 0,
-  caseSensitive: false, matchWholeWords: false, preventRecursion: false, excludeRecursion: false,
+  caseSensitive: false, matchWholeWords: false,
 });
 
 const defaultEntryForm = (): EntryForm => ({
-  keyword: '', content: '', position: 0, priority: 10, isEnabled: true, settings: defaultSettings(),
+  keyword: '', content: '', position: 0, priority: 10, isEnabled: true,
+  settings: defaultSettings(), recursive: true, preventRecursion: false,
 });
 
 const newEntryForm = ref<EntryForm>(defaultEntryForm());
@@ -135,6 +136,8 @@ function entryToForm(entry: WorldBookEntry): EntryForm {
     keyword: entry.keyword, content: entry.content, position: entry.position,
     priority: entry.priority, isEnabled: entry.isEnabled,
     settings: { ...defaultSettings(), ...s, keys, keysSecondary: s?.keysSecondary || [] },
+    recursive: entry.recursive ?? true,
+    preventRecursion: entry.preventRecursion ?? false,
   };
 }
 
@@ -142,6 +145,7 @@ function formToInput(form: EntryForm): CreateEntryInput & { isEnabled: boolean }
   return {
     keyword: form.settings.keys.join(', '), content: form.content, position: form.position,
     priority: form.priority, isEnabled: form.isEnabled, settings: { ...form.settings },
+    recursive: form.recursive, preventRecursion: form.preventRecursion,
   };
 }
 
@@ -419,11 +423,13 @@ async function handleImportFile(event: Event) {
           </div>
           <div class="form-section">
             <h4>{{ t('worldBookEditor.recursionControl') }}</h4>
-            <el-form-item :label="t('worldBookEditor.preventRecursionLabel')">
-              <el-switch v-model="newEntryForm.settings.preventRecursion" />
+            <el-form-item :label="t('worldBookEditor.recursiveLabel')">
+              <el-switch v-model="newEntryForm.recursive" />
+              <div class="hint">{{ t('worldBookEditor.recursiveHint') }}</div>
             </el-form-item>
-            <el-form-item :label="t('worldBookEditor.excludeRecursionLabel')">
-              <el-switch v-model="newEntryForm.settings.excludeRecursion" />
+            <el-form-item :label="t('worldBookEditor.preventRecursionLabel')">
+              <el-switch v-model="newEntryForm.preventRecursion" />
+              <div class="hint">{{ t('worldBookEditor.preventRecursionHint') }}</div>
             </el-form-item>
           </div>
         </el-form>
@@ -552,11 +558,13 @@ async function handleImportFile(event: Event) {
               </div>
               <div class="form-section">
                 <h4>{{ t('worldBookEditor.recursionControl') }}</h4>
-                <el-form-item :label="t('worldBookEditor.preventRecursionLabel')">
-                  <el-switch v-model="editForms[entry.id].settings.preventRecursion" />
+                <el-form-item :label="t('worldBookEditor.recursiveLabel')">
+                  <el-switch v-model="editForms[entry.id].recursive" />
+                  <div class="hint">{{ t('worldBookEditor.recursiveHint') }}</div>
                 </el-form-item>
-                <el-form-item :label="t('worldBookEditor.excludeRecursionLabel')">
-                  <el-switch v-model="editForms[entry.id].settings.excludeRecursion" />
+                <el-form-item :label="t('worldBookEditor.preventRecursionLabel')">
+                  <el-switch v-model="editForms[entry.id].preventRecursion" />
+                  <div class="hint">{{ t('worldBookEditor.preventRecursionHint') }}</div>
                 </el-form-item>
               </div>
             </el-form>
@@ -715,6 +723,13 @@ async function handleImportFile(event: Event) {
   text-align: center;
   padding: 48px 16px;
   color: var(--text-secondary);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
 @media (max-width: 640px) {

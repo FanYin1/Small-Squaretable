@@ -31,8 +31,10 @@ export class WorldBookEntryRepository extends BaseRepository {
     delay?: number;
     caseSensitive?: boolean;
     matchWholeWords?: boolean;
+    recursive?: boolean;
     preventRecursion?: boolean;
-    excludeRecursion?: boolean;
+    /** 0=system, 1=user, 2=assistant (SillyTavern convention) */
+    role?: number;
   }) {
     const [row] = await this.db
       .insert(worldbookEntries)
@@ -43,6 +45,8 @@ export class WorldBookEntryRepository extends BaseRepository {
         position: data.order ?? 0,
         isEnabled: data.enabled ?? true,
         priority: data.depth ?? 0,
+        recursive: data.recursive ?? true,
+        preventRecursion: data.preventRecursion ?? false,
         settings: {
           keys: data.keys,
           keysSecondary: data.keysSecondary,
@@ -58,8 +62,7 @@ export class WorldBookEntryRepository extends BaseRepository {
           delay: data.delay,
           caseSensitive: data.caseSensitive,
           matchWholeWords: data.matchWholeWords,
-          preventRecursion: data.preventRecursion,
-          excludeRecursion: data.excludeRecursion,
+          role: data.role,
         },
       })
       .returning();
@@ -93,6 +96,8 @@ export class WorldBookEntryRepository extends BaseRepository {
     isEnabled?: boolean;
     priority?: number;
     settings?: Record<string, unknown>;
+    recursive?: boolean;
+    preventRecursion?: boolean;
   }) {
     const updateData = { ...data, updatedAt: new Date() };
     const [row] = await this.db.update(worldbookEntries).set(updateData)
