@@ -51,33 +51,35 @@ const rules: FormRules = {
 const handleLogin = async (formEl: FormInstance | undefined) => {
   if (!formEl) return;
 
-  await formEl.validate(async (valid) => {
-    if (!valid) return;
+  try {
+    await formEl.validate();
+  } catch {
+    return; // Validation failed — Element Plus shows inline errors
+  }
 
-    loading.value = true;
-    try {
-      const result = await userStore.login(loginForm.email, loginForm.password);
+  loading.value = true;
+  try {
+    const result = await userStore.login(loginForm.email, loginForm.password);
 
-      if (result.requiresMfa) {
-        // Show MFA challenge dialog
-        showMfaDialog.value = true;
-        mfaError.value = null;
-        return;
-      }
-
-      toast.success(t('auth.loginSuccess'));
-
-      // Redirect to the original page or home
-      const redirect = (route.query.redirect as string) || '/';
-      router.push(redirect);
-    } catch (error) {
-      toast.error(t('auth.loginFailed'), {
-        message: userStore.error || t('auth.invalidCredentials')
-      });
-    } finally {
-      loading.value = false;
+    if (result.requiresMfa) {
+      // Show MFA challenge dialog
+      showMfaDialog.value = true;
+      mfaError.value = null;
+      return;
     }
-  });
+
+    toast.success(t('auth.loginSuccess'));
+
+    // Redirect to the original page or chat
+    const redirect = (route.query.redirect as string) || '/chat';
+    router.push(redirect);
+  } catch (error) {
+    toast.error(t('auth.loginFailed'), {
+      message: userStore.error || t('auth.invalidCredentials')
+    });
+  } finally {
+    loading.value = false;
+  }
 };
 
 // Handle MFA challenge submission
@@ -88,7 +90,7 @@ const handleMfaSubmit = async (code: string) => {
     await userStore.completeMfaChallenge(code);
     showMfaDialog.value = false;
     toast.success(t('auth.loginSuccess'));
-    const redirect = (route.query.redirect as string) || '/';
+    const redirect = (route.query.redirect as string) || '/chat';
     router.push(redirect);
   } catch {
     mfaError.value = userStore.error || t('mfa.invalidCode');
@@ -155,7 +157,12 @@ const loginWithOAuth = (provider: string) => {
               <template #suffix>
                 <el-icon
                   class="password-toggle"
+                  role="button"
+                  tabindex="0"
+                  :aria-label="showPassword ? t('auth.hidePassword') : t('auth.showPassword')"
                   @click="showPassword = !showPassword"
+                  @keydown.enter="showPassword = !showPassword"
+                  @keydown.space.prevent="showPassword = !showPassword"
                 >
                   <View v-if="!showPassword" />
                   <Hide v-else />
@@ -171,7 +178,7 @@ const loginWithOAuth = (provider: string) => {
               </el-checkbox>
               <el-link
                 type="primary"
-                :underline="false"
+                underline="never"
                 class="forgot-link"
                 @click="router.push({ name: 'ForgotPassword' })"
               >
@@ -196,7 +203,7 @@ const loginWithOAuth = (provider: string) => {
 
         <div class="social-login">
           <button class="social-btn" @click="loginWithOAuth('google')">
-            <svg class="social-icon" viewBox="0 0 24 24" width="20" height="20">
+            <svg class="social-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -205,7 +212,7 @@ const loginWithOAuth = (provider: string) => {
             {{ t('auth.continueWithGoogle') }}
           </button>
           <button class="social-btn" @click="loginWithOAuth('github')">
-            <svg class="social-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <svg class="social-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
               <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
             </svg>
             {{ t('auth.continueWithGitHub') }}
@@ -214,7 +221,7 @@ const loginWithOAuth = (provider: string) => {
 
         <div class="register-link">
           <span class="register-text">{{ t('auth.noAccount') }}</span>
-          <el-link type="primary" :underline="false" @click="goToRegister">
+          <el-link type="primary" underline="never" @click="goToRegister">
             {{ t('auth.registerNow') }}
           </el-link>
         </div>
@@ -239,11 +246,7 @@ const loginWithOAuth = (provider: string) => {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: var(--bg-surface);
-  background-image:
-    radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--accent-purple) 12%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent-cyan) 8%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent-pink) 5%, transparent) 0%, transparent 50%);
+  background: var(--bg-base);
 }
 
 .login-container {
@@ -253,11 +256,11 @@ const loginWithOAuth = (provider: string) => {
 }
 
 .login-card {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background-color: var(--surface-card);
+  background-color: var(--bg-surface);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
 }
 
 .card-header {
@@ -299,7 +302,7 @@ const loginWithOAuth = (provider: string) => {
 }
 
 .password-toggle:hover {
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .login-button {
@@ -307,28 +310,28 @@ const loginWithOAuth = (provider: string) => {
   height: 44px;
   font-size: 16px;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   transition: all 0.2s ease;
-  background-color: var(--accent-purple);
+  background-color: var(--accent);
   border: none;
   color: white;
 }
 
 .login-button:hover {
-  background-color: var(--accent-purple);
+  background-color: var(--accent-hover);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-purple) 15%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .login-button:active {
-  background-color: var(--accent-purple);
+  background-color: var(--accent-hover);
   transform: translateY(0);
 }
 
 .register-link {
   text-align: center;
   padding: 16px 0 0;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-default);
   margin-top: 16px;
 }
 
@@ -352,9 +355,9 @@ const loginWithOAuth = (provider: string) => {
   justify-content: center;
   gap: 8px;
   padding: 10px 16px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
   color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
@@ -363,10 +366,10 @@ const loginWithOAuth = (provider: string) => {
 }
 
 .social-btn:hover {
-  border-color: var(--accent-purple);
-  background: var(--surface-hover);
+  border-color: var(--accent);
+  background: var(--bg-hover);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .social-icon {
@@ -442,20 +445,20 @@ const loginWithOAuth = (provider: string) => {
 
 /* Input styling */
 :deep(.el-input__wrapper) {
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  background-color: var(--surface-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-surface);
   transition: all 0.2s ease;
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
 }
 
 :deep(.el-input__inner) {
@@ -500,23 +503,23 @@ const loginWithOAuth = (provider: string) => {
 }
 
 :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: var(--accent-purple);
-  border-color: var(--accent-purple);
+  background-color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* Link styling */
 :deep(.el-link) {
-  color: var(--accent-purple);
+  color: var(--accent-text);
   transition: color 0.2s ease;
 }
 
 :deep(.el-link:hover) {
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 /* Divider styling */
 :deep(.el-divider) {
-  background-color: var(--border-subtle);
+  background-color: var(--border-default);
   margin: 20px 0;
 }
 

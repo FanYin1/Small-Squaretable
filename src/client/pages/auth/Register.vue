@@ -133,7 +133,7 @@ const handleRegister = async () => {
     toast.success(t('auth.registerSuccess'));
 
     // Redirect to home page after successful registration
-    router.push({ name: 'Home' });
+    router.push({ name: 'Chat' });
   } catch (error: unknown) {
     toast.error(t('auth.registerFailed'), {
       message: error instanceof Error ? error.message : t('auth.checkInputRetry')
@@ -320,21 +320,17 @@ const loginWithOAuth = (provider: string) => {
   justify-content: center;
   min-height: 100vh;
   padding: 20px;
-  background: var(--bg-surface);
-  background-image:
-    radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--accent-purple) 12%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent-cyan) 8%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent-pink) 5%, transparent) 0%, transparent 50%);
+  background: var(--bg-base);
 }
 
 .register-card {
   max-width: 480px;
   width: 100%;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
   overflow: hidden;
 }
 
@@ -365,7 +361,7 @@ const loginWithOAuth = (provider: string) => {
 }
 
 .password-toggle:hover {
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 .password-strength {
@@ -374,7 +370,7 @@ const loginWithOAuth = (provider: string) => {
 
 .strength-bar {
   height: 4px;
-  background-color: var(--border-subtle);
+  background-color: var(--border-default);
   border-radius: 2px;
   overflow: hidden;
   margin-bottom: 4px;
@@ -393,13 +389,13 @@ const loginWithOAuth = (provider: string) => {
 }
 
 .terms-link {
-  color: var(--accent-purple);
+  color: var(--accent-text);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 .terms-link:hover {
-  color: var(--accent-purple);
+  color: var(--accent-text);
   text-decoration: underline;
 }
 
@@ -409,20 +405,20 @@ const loginWithOAuth = (provider: string) => {
   font-size: 16px;
   font-weight: 600;
   margin-top: 8px;
-  background-color: var(--accent-purple);
+  background-color: var(--accent);
   border: none;
   color: white;
   transition: all 0.2s ease;
 }
 
 .register-button:hover {
-  background-color: var(--accent-purple);
+  background-color: var(--accent);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-purple) 15%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .register-button:active {
-  background-color: var(--accent-purple);
+  background-color: var(--accent);
   transform: translateY(0);
 }
 
@@ -432,7 +428,7 @@ const loginWithOAuth = (provider: string) => {
   color: var(--text-secondary);
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-default);
 }
 
 .social-divider {
@@ -452,9 +448,9 @@ const loginWithOAuth = (provider: string) => {
   justify-content: center;
   gap: 8px;
   padding: 10px 16px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
   color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
@@ -463,10 +459,10 @@ const loginWithOAuth = (provider: string) => {
 }
 
 .social-btn:hover {
-  border-color: var(--accent-purple);
-  background: var(--surface-hover);
+  border-color: var(--accent);
+  background: var(--bg-hover);
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .social-icon {
@@ -530,20 +526,20 @@ const loginWithOAuth = (provider: string) => {
 
 /* Input styling */
 :deep(.el-input__wrapper) {
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  background-color: var(--surface-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-surface);
   transition: all 0.2s ease;
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 :deep(.el-input__inner) {
@@ -588,18 +584,18 @@ const loginWithOAuth = (provider: string) => {
 }
 
 :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: var(--accent-purple);
-  border-color: var(--accent-purple);
+  background-color: var(--accent);
+  border-color: var(--accent);
 }
 
 /* Link styling */
 :deep(.el-link) {
-  color: var(--accent-purple);
+  color: var(--accent-text);
   transition: color 0.2s ease;
 }
 
 :deep(.el-link:hover) {
-  color: var(--accent-purple);
+  color: var(--accent-text);
 }
 
 /* Form wrapper padding */
@@ -621,7 +617,7 @@ const loginWithOAuth = (provider: string) => {
 
 /* Divider styling */
 :deep(.el-divider) {
-  background-color: var(--border-subtle);
+  background-color: var(--border-default);
   margin: 20px 0;
 }
 

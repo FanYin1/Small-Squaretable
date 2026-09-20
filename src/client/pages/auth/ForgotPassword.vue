@@ -109,7 +109,7 @@ const goToLogin = () => {
         </el-form>
 
         <div class="back-link">
-          <el-link type="primary" :underline="false" @click="goToLogin">
+          <el-link type="primary" underline="never" @click="goToLogin">
             {{ t('auth.backToLogin') }}
           </el-link>
         </div>
@@ -125,11 +125,7 @@ const goToLogin = () => {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: var(--bg-surface);
-  background-image:
-    radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--accent-purple) 12%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent-cyan) 8%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent-pink) 5%, transparent) 0%, transparent 50%);
+  background: var(--bg-base);
 }
 
 .forgot-container {
@@ -139,11 +135,11 @@ const goToLogin = () => {
 }
 
 .forgot-card {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  background-color: var(--surface-card);
+  background-color: var(--bg-surface);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--text-primary) 8%, transparent);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-default);
 }
 
 .card-header {
@@ -175,17 +171,17 @@ const goToLogin = () => {
   height: 44px;
   font-size: 16px;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   transition: all 0.2s ease;
-  background-color: var(--accent-purple);
+  background-color: var(--accent);
   border: none;
   color: white;
 }
 
 .submit-button:hover {
-  background-color: var(--accent-purple);
+  background-color: var(--accent);
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-purple) 15%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .success-state {
@@ -198,8 +194,8 @@ const goToLogin = () => {
   height: 44px;
   font-size: 16px;
   font-weight: 600;
-  border-radius: 8px;
-  background-color: var(--accent-purple);
+  border-radius: var(--radius-md);
+  background-color: var(--accent);
   border: none;
   color: white;
 }
@@ -207,7 +203,7 @@ const goToLogin = () => {
 .back-link {
   text-align: center;
   padding: 16px 0 0;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-default);
   margin-top: 16px;
 }
 
@@ -230,20 +226,20 @@ const goToLogin = () => {
 :deep(.el-form-item) { margin-bottom: 20px; }
 :deep(.el-form-item:last-of-type) { margin-bottom: 0; }
 :deep(.el-input__wrapper) {
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  background-color: var(--surface-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-surface);
   transition: all 0.2s ease;
 }
 :deep(.el-input__wrapper:hover) {
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 :deep(.el-input__wrapper.is-focus) {
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-purple) 10%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 :deep(.el-input__inner) { color: var(--text-primary); }
 :deep(.el-input__inner::placeholder) { color: var(--text-tertiary); }
-:deep(.el-link) { color: var(--accent-purple); transition: color 0.2s ease; }
+:deep(.el-link) { color: var(--accent-text); transition: color 0.2s ease; }
 </style>

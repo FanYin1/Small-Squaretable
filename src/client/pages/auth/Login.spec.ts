@@ -174,7 +174,7 @@ describe('Login Page', () => {
 
     // Mock form validation
     const mockFormRef = {
-      validate: vi.fn((callback) => callback(true)),
+      validate: vi.fn().mockResolvedValue(true),
     };
     vm.loginFormRef = mockFormRef;
 
@@ -182,7 +182,7 @@ describe('Login Page', () => {
 
     expect(userStore.login).toHaveBeenCalledWith('test@example.com', 'password123');
     expect(mockToast.success).toHaveBeenCalledWith('登录成功');
-    expect(mockPush).toHaveBeenCalledWith('/');
+    expect(mockPush).toHaveBeenCalledWith('/chat');
   });
 
   it('should redirect to original page after login', async () => {
@@ -213,7 +213,7 @@ describe('Login Page', () => {
     vm.loginForm.password = 'password123';
 
     const mockFormRef = {
-      validate: vi.fn((callback) => callback(true)),
+      validate: vi.fn().mockResolvedValue(true),
     };
     vm.loginFormRef = mockFormRef;
 
@@ -249,7 +249,7 @@ describe('Login Page', () => {
     vm.loginForm.password = 'wrongpassword';
 
     const mockFormRef = {
-      validate: vi.fn((callback) => callback(true)),
+      validate: vi.fn().mockResolvedValue(true),
     };
     vm.loginFormRef = mockFormRef;
 
@@ -289,7 +289,7 @@ describe('Login Page', () => {
     vm.loginForm.password = 'password123';
 
     const mockFormRef = {
-      validate: vi.fn((callback) => callback(true)),
+      validate: vi.fn().mockResolvedValue(true),
     };
     vm.loginFormRef = mockFormRef;
 
@@ -382,7 +382,7 @@ describe('Login Page', () => {
 
     // Mock form validation failure
     const mockFormRef = {
-      validate: vi.fn((callback) => callback(false)),
+      validate: vi.fn().mockRejectedValue(new Error('validation failed')),
     };
     vm.loginFormRef = mockFormRef;
 
