@@ -8,6 +8,10 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
 
+  // _ 前缀 = 一次性脚本（截图、审计），不是回归用例。默认 testMatch 会把它们
+  // 一起跑掉，所以显式排除。
+  testIgnore: '**/_*.spec.ts',
+
   // Seed test data (user + character + chat) before running tests
   globalSetup: './e2e/seed.ts',
 

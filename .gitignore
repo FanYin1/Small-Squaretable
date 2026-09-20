@@ -60,3 +60,19 @@ e2e/.auth-state.json
 
 # Worktrees
 .worktrees/
+
+# 样板面（Market 沉浸叙事）的一次性评估产物，不是回归测试的一部分：
+#   .pilot-art/     — curl 下来的 Unsplash 人像，第三方版权，不入库
+#   pilot-shots/    — 截图输出，3MB 二进制
+#   e2e/_pilot-*    — 生成上面两者的临时脚本；playwright.config.ts 的
+#                     testIgnore 已排除 _ 前缀，跑全量 e2e 时不会被带上
+.pilot-art/
+pilot-shots/
+e2e/_pilot-*.spec.ts
+
+# 根目录的临时工作笔记（ERA 兼容性那轮），结论已经写进 commit message
+# 和 docs/improvements/，留在磁盘上仅供回看
+/findings.md
+/progress.md
+/task_plan.md
+/image.png
