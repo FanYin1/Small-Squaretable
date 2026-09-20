@@ -45,6 +45,18 @@ temp/
 # Database
 *.db
 *.sqlite
+# Redis 落盘快照。开发时跑 redis-server 会在工作目录生成，里面是真实缓存内容。
+dump.rdb
+
+# Playwright seed 产物。e2e/seed.ts 把真实 accessToken / refreshToken / userId
+# 写进这个文件。曾经被跟踪过，历史里泄漏了一个真实 userId（7fda4c2）；
+# 现已取消跟踪，不要再加回来。
+e2e/.auth-state.json
+
+# 临时备份。改大文件前手抖 cp 出来的，不该进版本库——版本库本身就是备份。
+*.backup
+*.bak
+*.orig
 
 # Worktrees
 .worktrees/
