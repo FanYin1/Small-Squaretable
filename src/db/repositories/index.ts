@@ -7,3 +7,5 @@ export * from './message.repository';
 export * from './rating.repository';
 export * from './usage.repository';
 export * from './user-persona.repository';
+export * from './character-preset.repository';
+export * from './chat-override.repository';
