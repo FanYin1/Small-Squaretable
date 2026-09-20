@@ -4,7 +4,27 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#409eff" />
+    <!--
+      原值是 Element Plus 默认蓝 #409eff，与品牌毫无关系——它决定移动端浏览器
+      地址栏的底色，是用户看到的第一块颜色。改为设计令牌里的 --bg-base。
+      两条 media 分别对应浅色 / 深色，顺序不能反（后者更具体）。
+    -->
+    <meta name="theme-color" content="#FAF9F6" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1A1918" media="(prefers-color-scheme: dark)" />
+
+    <!--
+      首屏字体预载。@font-face 在打包后的 CSS 里，浏览器要先下完那份 CSS 才发现
+      woff2；preload 让两者并行。只预载 latin 分片：latin-ext 与斜体是按需触发的，
+      预载了却用不上会换来一条控制台告警和一次浪费的下载。
+    -->
+    <link
+      rel="preload"
+      href="/fonts/plus-jakarta-sans-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preload" href="/fonts/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Small Squaretable</title>

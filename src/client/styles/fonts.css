@@ -1,0 +1,94 @@
+/*
+ * 字体自托管。
+ *
+ * 原先是 global.css 顶部一行 @import url(fonts.googleapis.com/...)。
+ * 换掉它的三个理由，按严重程度排：
+ *
+ * 1. 渲染阻塞。CSS 里的 @import 是串行的：浏览器要先下完 global.css、
+ *    解析到第 2 行、才发起对 Google 的请求，再等那份 CSS 回来才知道
+ *    woff2 在哪。三个往返都排在首屏渲染前面。
+ * 2. 在中国大陆 fonts.googleapis.com 不可达，这个测试环境里 Chromium
+ *    也没有外网。届时 --font-display 会静默退回 Georgia，衬线标题
+ *    是「沉浸叙事」方向的主要识别特征，退化了没人会收到报错。
+ * 3. 每个访客的 IP 都会送到 Google（GDPR 下已有判例）。
+ *
+ * 两个家族都是可变字体（variable font），一个文件覆盖全部字重，
+ * 所以自托管的代价只有 6 个文件 / 192KB，而且按 unicode-range 分片，
+ * 纯拉丁页面只会真的下载 latin 那两个（85KB）。
+ *
+ * 字重声明为区间 `font-weight: 300 700`，浏览器在区间内插值，
+ * 不需要为每档字重各写一条 @font-face。
+ * unicode-range 与 Google 下发的分片定义逐字一致——改动它会让某些
+ * 字符落到错误的分片上、或者干脆不触发下载。
+ *
+ * 保留 font-display: swap：先用回退字体画出文字，字体到了再换。
+ * 宁可短暂字形跳动，也不要一段时间的空白文字。
+ */
+
+/* ========== Plus Jakarta Sans（正文） ========== */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ========== Newsreader（标题衬线） ========== */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/newsreader-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/newsreader-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/newsreader-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/newsreader-italic-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}

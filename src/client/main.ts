@@ -11,6 +11,8 @@ import { initSentry } from './utils/sentry';
 import i18n from './i18n';
 
 // 导入全局样式
+// fonts.css 放最前：@font-face 先注册，后面的规则引用字体族时才不会有一帧回退。
+import './styles/fonts.css';
 import './styles/variables.css';
 import './styles/global.css';
 import './styles/transitions.css';
