@@ -113,6 +113,9 @@ async function createCharacterWorldBook(
     // Create entries
     const entries = Array.isArray(characterBook.entries) ? characterBook.entries : [];
     for (const entry of entries) {
+      // extensions.position (numeric) takes precedence over top-level position (string)
+      // This is critical for V2/V3 cards where extensions.position=4 means atDepth
+      const effectivePosition = entry.extensions?.position ?? entry.position;
       await worldBookEntryRepository.create({
         worldBookId: worldBook.id,
         keys: Array.isArray(entry.keys) ? entry.keys : [],
@@ -120,19 +123,20 @@ async function createCharacterWorldBook(
         selectiveLogic: mapSelectiveLogic(entry),
         content: entry.content ?? '',
         comment: entry.comment || entry.name || null,
-        position: mapPosition(entry.position),
-        depth: entry.depth ?? entry.extensions?.depth ?? 4,
+        position: mapPosition(effectivePosition),
+        depth: entry.extensions?.depth ?? entry.depth ?? 4,
         order: entry.insertion_order ?? 100,
         enabled: entry.enabled ?? true,
         constant: entry.constant ?? false,
-        probability: entry.probability ?? 100,
-        sticky: entry.sticky ?? 0,
-        cooldown: entry.cooldown ?? 0,
-        delay: entry.delay ?? 0,
-        caseSensitive: entry.case_sensitive ?? false,
-        matchWholeWords: entry.match_whole_words ?? false,
-        preventRecursion: entry.prevent_recursion ?? false,
-        excludeRecursion: entry.exclude_recursion ?? false,
+        probability: entry.extensions?.probability ?? entry.probability ?? 100,
+        sticky: entry.extensions?.sticky ?? entry.sticky ?? 0,
+        cooldown: entry.extensions?.cooldown ?? entry.cooldown ?? 0,
+        delay: entry.extensions?.delay ?? entry.delay ?? 0,
+        caseSensitive: entry.extensions?.case_sensitive ?? entry.case_sensitive ?? false,
+        matchWholeWords: entry.extensions?.match_whole_words ?? entry.match_whole_words ?? false,
+        preventRecursion: entry.extensions?.prevent_recursion ?? entry.prevent_recursion ?? false,
+        excludeRecursion: entry.extensions?.exclude_recursion ?? entry.exclude_recursion ?? false,
+        role: entry.extensions?.role ?? entry.role,
       });
     }
 
@@ -152,7 +156,20 @@ export const characterRoutes = new Hono();
 characterRoutes.post(
   '/',
   authMiddleware(),
-  zValidator('json', createCharacterSchema),
+  zValidator('json', createCharacterSchema, (result, c) => {
+    if (!result.success) {
+      const firstIssue = result.error.issues[0];
+      const path = firstIssue?.path?.join('.') || '';
+      const detail = path ? `${path}: ${firstIssue?.message}` : firstIssue?.message;
+      charLogger.warn('Character creation validation failed', {
+        issues: result.error.issues.map(i => ({ path: i.path.join('.'), message: i.message, code: i.code })),
+      });
+      return c.json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: `Validation failed: ${detail}` },
+      }, 400);
+    }
+  }),
   async (c) => {
     const user = c.get('user');
     const input = c.req.valid('json');
@@ -394,9 +411,18 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
         let tags: string[];
         let avatarUrl: string | undefined;
 
-        if (file.name.endsWith('.json')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Detect actual format by magic bytes (handles mismatched extensions like .jpg that is really PNG)
+        const isPng = buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
+        const isJpeg = buffer.length >= 3 && buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
+        const isWebp = buffer.length >= 4 && buffer.slice(0, 4).toString('ascii') === 'RIFF';
+        const isJson = file.name.endsWith('.json') || (!isPng && !isJpeg && !isWebp && (buffer[0] === 0x7B || buffer[0] === 0x5B));
+
+        if (isJson) {
           // Parse JSON character card
-          const text = await file.text();
+          const text = buffer.toString('utf-8');
           const parsed = JSON.parse(text);
 
           // Handle V2 format — unwrap .data so fields are at top level
@@ -407,19 +433,8 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
           cardData = data;
           avatarUrl = data.avatar || undefined;
 
-        } else if (file.name.endsWith('.png')) {
-          // Extract JSON from PNG tEXt chunk
-          const arrayBuffer = await file.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-
-          // Verify PNG signature
-          const sig = buffer.slice(0, 8);
-          if (sig.compare(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) !== 0) {
-            failed.push({ filename: file.name, error: 'Invalid PNG file' });
-            continue;
-          }
-
-          // Find tEXt chunk with 'chara' keyword
+        } else if (isPng) {
+          // Try to extract JSON from PNG tEXt chunk
           let pos = 8;
           let found = false;
           while (pos < buffer.length) {
@@ -436,11 +451,10 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
                   const jsonStr = Buffer.from(base64Data, 'base64').toString('utf-8');
                   const parsed = JSON.parse(jsonStr);
                   const data = parsed.data || parsed;
-                  name = data.name || parsed.name || file.name.replace('.png', '');
+                  name = data.name || parsed.name || file.name.replace(/\.[^.]+$/, '');
                   description = data.description || parsed.description || '';
                   tags = data.tags || parsed.tags || [];
                   cardData = data;
-                  // Use the PNG itself as avatar
                   avatarUrl = `data:image/png;base64,${buffer.toString('base64')}`;
                   found = true;
                   break;
@@ -453,11 +467,23 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
           }
 
           if (!found) {
-            failed.push({ filename: file.name, error: 'No character data found in PNG' });
-            continue;
+            // PNG without character data — treat as image-only import
+            avatarUrl = `data:image/png;base64,${buffer.toString('base64')}`;
+            name = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').trim() || 'Imported Character';
+            description = '';
+            tags = [];
+            cardData = { name, description: '', personality: '', scenario: '', first_mes: '', mes_example: '' };
           }
+        } else if (isJpeg || isWebp) {
+          // Image-only import: use as avatar, derive name from filename
+          const mime = isJpeg ? 'image/jpeg' : 'image/webp';
+          avatarUrl = `data:${mime};base64,${buffer.toString('base64')}`;
+          name = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').trim() || 'Imported Character';
+          description = '';
+          tags = [];
+          cardData = { name, description: '', personality: '', scenario: '', first_mes: '', mes_example: '' };
         } else {
-          failed.push({ filename: file.name, error: 'Unsupported file format (use .json or .png)' });
+          failed.push({ filename: file.name, error: 'Unsupported file format (use .json, .png, .jpg or .webp)' });
           continue;
         }
 
@@ -467,7 +493,7 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
           description: description! || '',
           avatarUrl: avatarUrl || undefined,
           cardData: cardData! || {},
-          tags: Array.isArray(tags!) ? tags!.slice(0, 20) : [],
+          tags: Array.isArray(tags!) ? tags!.slice(0, 100) : [],
           isNsfw: false,
         });
 
@@ -1102,6 +1128,20 @@ async function buildCharacterBook(characterId: string): Promise<Record<string, u
   return {
     entries: entries.map((e, i) => {
       const settings = (e.settings as Record<string, unknown>) || {};
+      // Rebuild entry-level extensions from settings (imported from V2/V3 card format)
+      const extensions: Record<string, unknown> = {};
+      const extFields = [
+        ['position', 'position'], ['depth', 'depth'], ['probability', 'probability'],
+        ['sticky', 'sticky'], ['cooldown', 'cooldown'], ['delay', 'delay'],
+        ['caseSensitive', 'case_sensitive'], ['matchWholeWords', 'match_whole_words'],
+        ['preventRecursion', 'prevent_recursion'], ['excludeRecursion', 'exclude_recursion'],
+        ['role', 'role'],
+      ] as const;
+      for (const [settingsKey, extKey] of extFields) {
+        if (settings[settingsKey] !== undefined) {
+          extensions[extKey] = settings[settingsKey];
+        }
+      }
       return {
         keys: settings.keys || e.keyword.split(',').map((k: string) => k.trim()),
         secondary_keys: settings.keysSecondary || [],
@@ -1114,9 +1154,10 @@ async function buildCharacterBook(characterId: string): Promise<Record<string, u
         priority: settings.depth ?? e.priority ?? 10,
         id: i,
         position: settings.position ?? 'after_char',
-        extensions: {},
+        extensions,
         selective: Array.isArray(settings.keysSecondary) && (settings.keysSecondary as unknown[]).length > 0,
         constant: settings.constant ?? false,
+        selective_logic: settings.selectiveLogic ?? undefined,
       };
     }),
     name: wb.name || 'World Book',

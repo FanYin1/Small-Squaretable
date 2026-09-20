@@ -42,13 +42,13 @@ CREATE TABLE "usage" (
 --> statement-breakpoint
 ALTER TABLE "tenants" ADD COLUMN "subscription_id" uuid;--> statement-breakpoint
 ALTER TABLE "tenants" ADD COLUMN "stripe_customer_id" varchar(255);--> statement-breakpoint
-ALTER TABLE "characters" ADD COLUMN "rating_quality_avg" numeric(3, 2);--> statement-breakpoint
-ALTER TABLE "characters" ADD COLUMN "rating_creativity_avg" numeric(3, 2);--> statement-breakpoint
-ALTER TABLE "characters" ADD COLUMN "rating_interactivity_avg" numeric(3, 2);--> statement-breakpoint
-ALTER TABLE "characters" ADD COLUMN "rating_accuracy_avg" numeric(3, 2);--> statement-breakpoint
-ALTER TABLE "characters" ADD COLUMN "rating_entertainment_avg" numeric(3, 2);--> statement-breakpoint
-ALTER TABLE "characters" ADD COLUMN "rating_overall_avg" numeric(3, 2);--> statement-breakpoint
-ALTER TABLE "characters" ADD COLUMN "search_vector" "tsvector";--> statement-breakpoint
+ALTER TABLE "characters" ADD COLUMN IF NOT EXISTS "rating_quality_avg" numeric(3, 2);--> statement-breakpoint
+ALTER TABLE "characters" ADD COLUMN IF NOT EXISTS "rating_creativity_avg" numeric(3, 2);--> statement-breakpoint
+ALTER TABLE "characters" ADD COLUMN IF NOT EXISTS "rating_interactivity_avg" numeric(3, 2);--> statement-breakpoint
+ALTER TABLE "characters" ADD COLUMN IF NOT EXISTS "rating_accuracy_avg" numeric(3, 2);--> statement-breakpoint
+ALTER TABLE "characters" ADD COLUMN IF NOT EXISTS "rating_entertainment_avg" numeric(3, 2);--> statement-breakpoint
+ALTER TABLE "characters" ADD COLUMN IF NOT EXISTS "rating_overall_avg" numeric(3, 2);--> statement-breakpoint
+ALTER TABLE "characters" ADD COLUMN IF NOT EXISTS "search_vector" "tsvector";--> statement-breakpoint
 ALTER TABLE "ratings" ADD CONSTRAINT "ratings_character_id_characters_id_fk" FOREIGN KEY ("character_id") REFERENCES "public"."characters"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ratings" ADD CONSTRAINT "ratings_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
