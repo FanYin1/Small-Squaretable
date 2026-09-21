@@ -34,6 +34,7 @@ import { createLogger } from '../services/logger.service';
 import { extractVariableInserts, extractVariableEdits, extractVariableDeletes } from '../utils/variable-insert';
 import { chatVariableStore } from '../services/chat-variable.service';
 import { applyMacros, createMacroContextWithVars } from '../services/macro.service';
+import { meterUsage } from '../services/usage-meter';
 
 const logger = createLogger({ service: 'chats-route' });
 
@@ -506,6 +507,15 @@ chatRoutes.post(
         })
       : await chatService.addMessage(chatId, input);
 
+    // 计量放在消息确实落库之后：先记账再写库的话，写库失败会留下幻影用量。
+    // 上面的 requireQuota 只是读累计值，不写；两者必须成对出现，否则
+    // messages 的用量恒为 0，gate 永远不会拒绝。
+    // await 但不影响响应——meterUsage 内部吞掉失败并记 error 日志。
+    await meterUsage(user.tenantId, 'messages', 1, {
+      transport: 'http',
+      chatId,
+      role: input.role,
+    });
 
     eventBus.emit('chat.message.sent', { chatId, messageId: message.id, userId: user.id, role: input.role });
 

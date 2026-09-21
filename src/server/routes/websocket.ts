@@ -27,6 +27,8 @@ import { applyRegexScripts, getRegexScripts, RegexPlacement } from '../services/
 import { formatMessagesWithTemplate } from '../config/prompt-templates';
 import { extractVariableInserts, extractVariableEdits, extractVariableDeletes } from '../utils/variable-insert';
 import { chatVariableStore } from '../services/chat-variable.service';
+import { featureService } from '../services/feature.service';
+import { meterUsage } from '../services/usage-meter';
 import {
   WSMessageType,
   type WSMessageUnion,
@@ -180,10 +182,34 @@ export class WebSocketHandler {
     wsLogger.debug('Processing message', { chatId, contentPreview: content.substring(0, 50) });
 
     try {
+      // 配额检查必须在这里做一次：WebSocket 不经过 Hono 中间件链，
+      // HTTP 那边的 requireQuota('messages') 对这条链路完全无效，
+      // 而客户端只要连上 WebSocket 就默认走这里。
+      const quota = await featureService.checkQuota(clientInfo.tenantId, 'messages');
+      if (!quota.allowed) {
+        websocketService.sendToClient(clientId, {
+          type: WSMessageType.ERROR,
+          timestamp: new Date().toISOString(),
+          data: {
+            code: 'QUOTA_EXCEEDED',
+            message: `Message quota exceeded (${quota.currentUsage}/${quota.limit})`,
+          },
+        });
+        return;
+      }
+
       // 保存用户消息到数据库
       const userMessage = await chatService.addMessage(chatId, {
         role: 'user',
         content,
+      });
+
+      // 先落库再记账：反过来的话写库失败会留下幻影用量。
+      // 不 throw——消息已经存下来了，这里失败只该进日志。
+      await meterUsage(clientInfo.tenantId, 'messages', 1, {
+        transport: 'websocket',
+        chatId,
+        role: 'user',
       });
 
       // 广播用户消息到聊天室
@@ -202,10 +228,22 @@ export class WebSocketHandler {
 
       if (isGroup) {
         // --- Group chat: multi-character response loop ---
-        await this.handleGroupChatResponse(chatId, content, clientInfo.userId, mentionedCharacterIds);
+        await this.handleGroupChatResponse(
+          chatId,
+          content,
+          clientInfo.userId,
+          mentionedCharacterIds,
+          clientInfo.tenantId
+        );
       } else {
         // --- Single-character path (unchanged) ---
-        await this.handleSingleCharacterResponse(chatId, content, clientInfo.userId, userMessage.id);
+        await this.handleSingleCharacterResponse(
+          chatId,
+          content,
+          clientInfo.userId,
+          userMessage.id,
+          clientInfo.tenantId
+        );
       }
     } catch (error) {
       wsLogger.error('Error handling user message', { error: (error as Error).message, stack: (error as Error).stack });
@@ -227,7 +265,8 @@ export class WebSocketHandler {
     chatId: string,
     content: string,
     userId: string,
-    userMessageId: number
+    userMessageId: number,
+    tenantId?: string
   ): Promise<void> {
     const chat = await chatRepository.findById(chatId);
     if (!chat) throw new Error('Chat not found');
@@ -398,6 +437,23 @@ export class WebSocketHandler {
       content: fullContent,
     });
 
+    // 助手消息同样计入 messages：HTTP 回退路径下用户消息和助手消息
+    // 是两次独立请求、各记一条，这里少记的话同样的对话在两条通道上
+    // 会得出不同的用量。
+    await meterUsage(tenantId, 'messages', 1, {
+      transport: 'websocket',
+      chatId,
+      role: 'assistant',
+    });
+
+    // llm_tokens 只在 llm.ts 的 HTTP 路由里记过，WebSocket 的流式生成
+    // 走的是本文件的 streamLlmResponse，历史上一个 token 都没记。
+    await meterUsage(tenantId, 'llm_tokens', llmService.countTokens(fullContent), {
+      transport: 'websocket',
+      chatId,
+      model,
+    });
+
     // Extract ERA VariableInsert blocks and persist to chat variables
     const extractedVars = extractVariableInserts(fullContent);
     for (const v of extractedVars) {
@@ -455,7 +511,8 @@ export class WebSocketHandler {
     chatId: string,
     userContent: string,
     userId: string,
-    mentionedCharacterIds?: string[]
+    mentionedCharacterIds?: string[],
+    tenantId?: string
   ): Promise<void> {
     // Load chat to determine model
     const chat = await chatRepository.findById(chatId);
@@ -540,6 +597,21 @@ export class WebSocketHandler {
         chatId,
         role: 'assistant',
         content: fullContent,
+        characterId: character.id,
+      });
+
+      // 群聊每个发言角色各算一条消息：一轮群聊的真实成本就是 N 次生成，
+      // 按轮计费会让 team 计划的大群聊几乎免费。
+      await meterUsage(tenantId, 'messages', 1, {
+        transport: 'websocket',
+        chatId,
+        role: 'assistant',
+        characterId: character.id,
+      });
+      await meterUsage(tenantId, 'llm_tokens', llmService.countTokens(fullContent), {
+        transport: 'websocket',
+        chatId,
+        model,
         characterId: character.id,
       });
 
