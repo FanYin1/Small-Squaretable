@@ -79,6 +79,15 @@ subscriptionRoutes.post(
   }
 );
 
+/**
+ * Stripe webhook。由 Stripe 服务器直接调用，所以没有 authMiddleware，
+ * 也不在 tenantMiddleware 的保护范围内（见 server/config/public-paths）。
+ * 真实性完全由 stripe-signature 签名校验保证。
+ *
+ * 这里刻意不 try/catch：handleWebhook 抛错要一路冒泡到 errorHandler 转成 5xx，
+ * Stripe 看到 5xx 才会重投（重投是安全的，事件按 event.id 去重）。
+ * 把异常吞掉返回 200 等于告诉 Stripe「收到了」，而库里其实什么都没写。
+ */
 subscriptionRoutes.post('/webhook', async (c) => {
   const signature = c.req.header('stripe-signature');
   if (!signature) {

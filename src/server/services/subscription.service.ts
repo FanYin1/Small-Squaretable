@@ -1,12 +1,16 @@
 import Stripe from 'stripe';
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
+import { stripeWebhookEventRepository } from '../../db/repositories/stripe-webhook-event.repository';
 import { NotFoundError, ValidationError } from '../../core/errors';
 import { config } from '../../core/config';
+import { logger } from './logger.service';
 import type { Subscription } from '../../db/schema/subscriptions';
 
 const stripe = new Stripe(config.stripeSecretKey, {
   apiVersion: '2026-01-28.clover',
 });
+
+const subscriptionLogger = logger.child({ module: 'subscription' });
 
 export type PlanType = 'free' | 'pro' | 'team';
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing';
@@ -89,6 +93,16 @@ export class SubscriptionService {
     return session.url;
   }
 
+  /**
+   * 处理 Stripe webhook。
+   *
+   * 两件事必须按顺序发生：先验签（决定这个请求可不可信），再去重
+   * （决定这个事件该不该再处理一次）。Stripe 是 at-least-once 投递，
+   * 同一个 event.id 会重投，所以发放权限的逻辑必须挡在去重后面。
+   *
+   * 抛错交给调用方转成 5xx —— Stripe 看到 5xx 会重试，这是我们想要的：
+   * 处理失败不能静默吞掉，否则用户付了钱而库里没有记录。
+   */
   async handleWebhook(payload: string, signature: string): Promise<void> {
     const webhookSecret = config.stripeWebhookSecret;
     let event: Stripe.Event;
@@ -99,6 +113,31 @@ export class SubscriptionService {
       throw new ValidationError('Invalid webhook signature');
     }
 
+    const claimed = await stripeWebhookEventRepository.claim(event.id, event.type);
+    if (!claimed) {
+      // 已处理过或正在处理。返回成功让 Stripe 停止重投，这正是幂等的意义。
+      subscriptionLogger.info('Skipping duplicate Stripe webhook event', {
+        eventId: event.id,
+        eventType: event.type,
+      });
+      return;
+    }
+
+    try {
+      await this.dispatchEvent(event);
+      await stripeWebhookEventRepository.markProcessed(event.id);
+    } catch (error) {
+      // 记为 failed，下一次重投可以重新抢占；同时原样抛出让 Stripe 知道要重试。
+      await stripeWebhookEventRepository.markFailed(event.id, String(error));
+      subscriptionLogger.error('Failed to process Stripe webhook event', error as Error, {
+        eventId: event.id,
+        eventType: event.type,
+      });
+      throw error;
+    }
+  }
+
+  private async dispatchEvent(event: Stripe.Event): Promise<void> {
     switch (event.type) {
       case 'checkout.session.completed':
         await this.handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
@@ -112,6 +151,16 @@ export class SubscriptionService {
       case 'invoice.payment_failed':
         await this.handlePaymentFailed(event.data.object as Stripe.Invoice);
         break;
+      case 'invoice.paid':
+        // 续费成功。付款失败时我们把状态打到 past_due，这里必须能恢复回 active，
+        // 否则用户补交了钱还是被降级对待。
+        await this.handleInvoicePaid(event.data.object as Stripe.Invoice);
+        break;
+      default:
+        subscriptionLogger.debug('Ignoring unhandled Stripe event type', {
+          eventId: event.id,
+          eventType: event.type,
+        });
     }
   }
 
@@ -160,12 +209,34 @@ export class SubscriptionService {
   }
 
   private async handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
-    const sub = (invoice as unknown as { subscription?: string | { id: string } }).subscription;
-    const subscriptionId = typeof sub === 'string' ? sub : sub?.id;
+    const subscriptionId = this.extractSubscriptionId(invoice);
     if (!subscriptionId) return;
     await subscriptionRepository.updateByStripeSubscriptionId(subscriptionId, {
       status: 'past_due',
     });
+  }
+
+  /**
+   * 续费成功。只在当前是 past_due 时才需要动 —— 但这里无条件写 active 也是安全的：
+   * invoice.paid 意味着这个周期的钱确实收到了。取消（canceled）走的是
+   * customer.subscription.deleted，不会有 invoice.paid 跟在后面。
+   */
+  private async handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
+    const subscriptionId = this.extractSubscriptionId(invoice);
+    if (!subscriptionId) return;
+
+    const existing = await subscriptionRepository.findByStripeSubscriptionId(subscriptionId);
+    if (!existing || existing.status !== 'past_due') return;
+
+    await subscriptionRepository.updateByStripeSubscriptionId(subscriptionId, {
+      status: 'active',
+    });
+  }
+
+  /** invoice.subscription 在不同 API 版本里可能是 id 字符串或展开后的对象 */
+  private extractSubscriptionId(invoice: Stripe.Invoice): string | undefined {
+    const sub = (invoice as unknown as { subscription?: string | { id: string } }).subscription;
+    return typeof sub === 'string' ? sub : sub?.id;
   }
 
   private mapStripeStatus(status: Stripe.Subscription.Status): SubscriptionStatus {

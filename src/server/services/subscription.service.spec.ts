@@ -11,6 +11,18 @@ import type Stripe from 'stripe';
 vi.mock('../../db/repositories/subscription.repository');
 vi.mock('../../db/repositories/user.repository');
 
+// webhook 去重表。这里默认「抢占成功」，让每个用例都走完整的处理链路；
+// 去重本身（重复投递、失败重试、卡死回收）在
+// subscription-webhook.integration.spec.ts 和 repository 自己的 spec 里验。
+vi.mock('../../db/repositories/stripe-webhook-event.repository', () => ({
+  stripeWebhookEventRepository: {
+    claim: vi.fn().mockResolvedValue(true),
+    markProcessed: vi.fn().mockResolvedValue(undefined),
+    markFailed: vi.fn().mockResolvedValue(undefined),
+    findById: vi.fn().mockResolvedValue(null),
+  },
+}));
+
 // Create mock Stripe instance - must be defined before vi.mock
 const mockCustomersCreate = vi.fn();
 const mockCheckoutSessionsCreate = vi.fn();
