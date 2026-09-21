@@ -16,7 +16,7 @@ import { auditService } from '../../services/audit.service';
 import { reportRepository } from '../../../db/repositories/report.repository';
 import { NotFoundError } from '../../../core/errors';
 import { paginationSchema } from '../../../types/api';
-import { VIOLATION_CATEGORIES } from '../../../types/moderation';
+import { MODERATION_STATUSES, VIOLATION_CATEGORIES } from '../../../types/moderation';
 import type { ApiResponse } from '../../../types/api';
 
 export const adminContentRoutes = new Hono();
@@ -33,9 +33,20 @@ const resolveReportSchema = z.object({
   reason: z.string().optional(),
 });
 
+// 状态清单与 pgEnum 同源，见 types/moderation.ts
+const moderationQueueSchema = paginationSchema.extend({
+  status: z.enum(MODERATION_STATUSES).default('pending'),
+});
+
 const hideContentSchema = z.object({
   category: violationCategorySchema.optional(),
   reason: z.string().max(2000).optional(),
+});
+
+// 驳回的理由是必填的：作者要靠它知道改什么，trim 后为空同样不算填
+const rejectContentSchema = z.object({
+  category: violationCategorySchema.optional(),
+  reason: z.string().trim().min(1).max(2000),
 });
 
 // GET /reports — List pending reports (paginated)
@@ -45,6 +56,24 @@ adminContentRoutes.get(
   async (c) => {
     const { page, limit } = c.req.valid('query');
     const result = await moderationService.getPendingReports(page, limit);
+
+    return c.json<ApiResponse>({
+      success: true,
+      data: result,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  },
+);
+
+// GET /characters — 主动审核队列（默认 pending）
+// 举报队列只覆盖「已经有人投诉」的内容；作者发布后角色是 pending，
+// 公开入口要求 approved，没有这条路由这批内容不会出现在任何人的视野里。
+adminContentRoutes.get(
+  '/characters',
+  zValidator('query', moderationQueueSchema),
+  async (c) => {
+    const { status, page, limit } = c.req.valid('query');
+    const result = await moderationService.getCharactersByStatus(status, page, limit);
 
     return c.json<ApiResponse>({
       success: true,
@@ -127,6 +156,38 @@ adminContentRoutes.post('/hide/:targetType/:targetId', async (c) => {
   return c.json<ApiResponse>({
     success: true,
     data: { message: 'Content hidden' },
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
+// POST /reject/:targetType/:targetId — 驳回（作者可修改后重新提交）
+// 和 hide 的区别不是措辞：hide → 'hidden'，作者点发布也回不了审核队列；
+// reject → 'rejected'，作者改完能重新提交。待审队列里用的是这一条。
+adminContentRoutes.post('/reject/:targetType/:targetId', async (c) => {
+  const targetType = c.req.param('targetType');
+  const targetId = c.req.param('targetId');
+  const user = c.get('user');
+
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = rejectContentSchema.safeParse(body);
+  if (!parsed.success) {
+    // 理由会原样展示给作者，空理由等于没有解释
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'A rejection reason is required' },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      400,
+    );
+  }
+
+  const { category, reason } = parsed.data;
+  await moderationService.takeAction(user.id, targetType, targetId, 'reject', reason, category);
+
+  return c.json<ApiResponse>({
+    success: true,
+    data: { message: 'Content rejected' },
     meta: { timestamp: new Date().toISOString() },
   });
 });

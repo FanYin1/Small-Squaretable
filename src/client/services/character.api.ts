@@ -7,6 +7,7 @@
 import { api } from './api';
 import type { Character, CharacterCardData } from '@client/types';
 import type { SearchResult, SearchResultItem } from '@/types/search';
+import type { ModerationStatusValue, ViolationCategory } from '@/types/moderation';
 
 export interface GetCharactersParams {
   search?: string;
@@ -45,6 +46,9 @@ export const mapSearchItemToCharacter = (item: SearchResultItem): Character => (
   viewCount: item.viewCount,
   isPublic: item.isPublic,
   isNsfw: item.isNsfw,
+  // 搜索只返回已通过的角色，但形状要和 transformCharacter 一致，
+  // 否则组件得按来源写两套判断
+  moderationStatus: item.moderationStatus || undefined,
   createdAt: toIsoString(item.createdAt) || new Date().toISOString(),
   updatedAt: toIsoString(item.updatedAt),
 });
@@ -82,6 +86,9 @@ interface BackendCharacter {
   category?: string | null;
   isPublic: boolean;
   isNsfw: boolean;
+  moderationStatus?: ModerationStatusValue | null;
+  violationCategory?: ViolationCategory | null;
+  moderationNote?: string | null;
   downloadCount: number;
   viewCount: number;
   ratingAvg?: string | null;
@@ -104,7 +111,7 @@ interface BackendPaginatedResponse {
 }
 
 // Transform backend character to frontend format
-function transformCharacter(item: BackendCharacter): Character {
+export function transformCharacter(item: BackendCharacter): Character {
   return {
     id: item.id,
     name: item.name,
@@ -118,6 +125,10 @@ function transformCharacter(item: BackendCharacter): Character {
     viewCount: item.viewCount,
     isPublic: item.isPublic,
     isNsfw: item.isNsfw,
+    // isPublic 单独看不出角色是否真的可见：发布后是 pending，公开入口只认 approved
+    moderationStatus: item.moderationStatus || undefined,
+    violationCategory: item.violationCategory || undefined,
+    moderationNote: item.moderationNote || undefined,
     cardData: item.cardData || undefined,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,

@@ -82,6 +82,7 @@ vi.mock('../../services/auth.service', () => ({
 vi.mock('../../services/moderation.service', () => ({
   moderationService: {
     getPendingReports: vi.fn(),
+    getCharactersByStatus: vi.fn(),
     resolveReport: vi.fn(),
     takeAction: vi.fn(),
   },
@@ -367,6 +368,40 @@ describe('Admin Routes', () => {
       });
     });
 
+    // 举报队列是被动的：只有被举报过的内容才进得去。发布后角色是 'pending'，
+    // 公开入口要求 'approved'，没有这条主动队列这批内容谁都看不到。
+    describe('GET /admin/content/characters', () => {
+      const queuePage = {
+        items: [{ id: 'char-1', name: 'A', moderationStatus: 'pending' }],
+        pagination: { page: 1, limit: 20, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
+      };
+
+      it('lists characters awaiting review by default', async () => {
+        vi.mocked(moderationService.getCharactersByStatus).mockResolvedValue(queuePage as any);
+
+        const res = await app.request('/api/v1/admin/content/characters');
+        expect(res.status).toBe(200);
+        const data = await res.json();
+        expect(data.success).toBe(true);
+        expect(data.data.items).toHaveLength(1);
+        expect(moderationService.getCharactersByStatus).toHaveBeenCalledWith('pending', 1, 20);
+      });
+
+      it('honours the status filter so rejected content can be revisited', async () => {
+        vi.mocked(moderationService.getCharactersByStatus).mockResolvedValue(queuePage as any);
+
+        const res = await app.request('/api/v1/admin/content/characters?status=rejected&page=2&limit=50');
+        expect(res.status).toBe(200);
+        expect(moderationService.getCharactersByStatus).toHaveBeenCalledWith('rejected', 2, 50);
+      });
+
+      it('rejects an unknown status at the boundary instead of passing it to the query', async () => {
+        const res = await app.request('/api/v1/admin/content/characters?status=bogus');
+        expect(res.status).toBe(400);
+        expect(moderationService.getCharactersByStatus).not.toHaveBeenCalled();
+      });
+    });
+
     describe('GET /admin/content/reports/:id', () => {
       it('should return report details', async () => {
         vi.mocked(reportRepository.findById).mockResolvedValue({
@@ -432,6 +467,54 @@ describe('Admin Routes', () => {
         expect(res.status).toBe(200);
         expect(moderationService.takeAction).toHaveBeenCalledWith(
           'admin-123', 'character', 'char-1', 'hide', '过度暴力描写', 'violence',
+        );
+      });
+    });
+
+    // 驳回和下架不是一回事：hide → 'hidden'，作者无法自行撤销；
+    // 队列里的驳回必须是 'rejected'，作者改完能重新提交。
+    describe('POST /admin/content/reject/:targetType/:targetId', () => {
+      it('dispatches the reject action so the author can resubmit', async () => {
+        vi.mocked(moderationService.takeAction).mockResolvedValue(undefined);
+
+        const res = await app.request('/api/v1/admin/content/reject/character/char-1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: 'pornography', reason: '含明确性描写' }),
+        });
+
+        expect(res.status).toBe(200);
+        expect(moderationService.takeAction).toHaveBeenCalledWith(
+          'admin-123', 'character', 'char-1', 'reject', '含明确性描写', 'pornography',
+        );
+      });
+
+      // 理由会原样展示给作者，空理由等于没有解释
+      it('rejects an empty reason at the boundary', async () => {
+        vi.mocked(moderationService.takeAction).mockResolvedValue(undefined);
+
+        const res = await app.request('/api/v1/admin/content/reject/character/char-1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: '   ' }),
+        });
+
+        expect(res.status).toBe(400);
+        expect(moderationService.takeAction).not.toHaveBeenCalled();
+      });
+
+      it('accepts a reason without a category', async () => {
+        vi.mocked(moderationService.takeAction).mockResolvedValue(undefined);
+
+        const res = await app.request('/api/v1/admin/content/reject/character/char-1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: '设定与公开规范不符' }),
+        });
+
+        expect(res.status).toBe(200);
+        expect(moderationService.takeAction).toHaveBeenCalledWith(
+          'admin-123', 'character', 'char-1', 'reject', '设定与公开规范不符', undefined,
         );
       });
     });

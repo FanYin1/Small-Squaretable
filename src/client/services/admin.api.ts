@@ -6,6 +6,7 @@
  */
 
 import { api } from './api';
+import type { ModerationStatusValue, ViolationCategory } from '@/types/moderation';
 
 // ── Types ──
 
@@ -70,6 +71,50 @@ export interface ReportListResponse {
 
 export interface ResolveReportInput {
   action: 'approve' | 'reject' | 'dismiss';
+  reason?: string;
+}
+
+/**
+ * 待审队列条目。
+ *
+ * 和举报不是一回事：举报队列只装被投诉过的内容，这里装的是作者主动提交、
+ * 还没被任何人看过的角色。公开发现入口要求 approved，所以这批内容在审完
+ * 之前对所有人不可见。
+ */
+export interface ModerationQueueItem {
+  id: string;
+  name: string;
+  description?: string;
+  avatarUrl?: string;
+  creatorId: string;
+  isNsfw?: boolean;
+  moderationStatus: ModerationStatusValue;
+  violationCategory?: ViolationCategory;
+  moderationNote?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ModerationQueueParams {
+  status?: ModerationStatusValue;
+  page?: number;
+  limit?: number;
+}
+
+export interface ModerationQueueResponse {
+  items: ModerationQueueItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export interface RejectCharacterInput {
+  category?: ViolationCategory;
   reason?: string;
 }
 
@@ -151,6 +196,29 @@ export const adminApi = {
 
   resolveReport: (id: string, data: ResolveReportInput) =>
     api.post<ContentReport>(`/admin/content/reports/${id}/resolve`, data),
+
+  // ── Moderation Queue ──
+  // 默认 pending：后台打开就该看到待办，而不是一张空列表。
+
+  getModerationQueue: (params: ModerationQueueParams = {}) =>
+    api.get<ModerationQueueResponse>(
+      '/admin/content/characters' + buildQuery({ status: 'pending', ...params }),
+    ),
+
+  /** 通过 = unhide，服务端记 'approve' 动作并把状态写成 approved */
+  approveCharacter: (id: string) =>
+    api.post<void>(`/admin/content/unhide/character/${id}`),
+
+  /**
+   * 驳回：走 reject 而不是 hide。hide → 'hidden'，作者无法自行撤销；
+   * reject → 'rejected'，作者改完能重新提交。分类和理由都会回显给作者。
+   */
+  rejectCharacter: (id: string, data: RejectCharacterInput) =>
+    api.post<void>(`/admin/content/reject/character/${id}`, data),
+
+  /** 下架已上线的内容：作者点发布也回不来，属于处置而非审核结论 */
+  hideCharacter: (id: string, data: RejectCharacterInput = {}) =>
+    api.post<void>(`/admin/content/hide/character/${id}`, data),
 
   // ── System ──
 

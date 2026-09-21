@@ -6,7 +6,7 @@
  */
 
 import { pgEnum } from 'drizzle-orm/pg-core';
-import { VIOLATION_CATEGORIES } from '../../types/moderation';
+import { MODERATION_STATUSES, VIOLATION_CATEGORIES } from '../../types/moderation';
 
 /**
  * 违规分类。
@@ -29,14 +29,11 @@ export const violationCategoryEnum = pgEnum('violation_category', VIOLATION_CATE
  * - rejected：审核驳回，作者可见可修改，公开入口不可见。
  * - hidden：管理员下架。此前 takeAction('hide') 只写审核日志、
  *   不改任何业务状态，所以后台点「隐藏」返回 200 而角色照常可见。
+ *
+ * 同 violationCategoryEnum：清单在 types/moderation.ts，后台队列筛选和
+ * 作者侧徽标都读同一份，不要在这里另写一遍。
  */
-export const moderationStatusEnum = pgEnum('moderation_status', [
-  'draft',
-  'pending',
-  'approved',
-  'rejected',
-  'hidden',
-]);
+export const moderationStatusEnum = pgEnum('moderation_status', MODERATION_STATUSES);
 
 export type ViolationCategory = (typeof violationCategoryEnum.enumValues)[number];
 export type ModerationStatus = (typeof moderationStatusEnum.enumValues)[number];

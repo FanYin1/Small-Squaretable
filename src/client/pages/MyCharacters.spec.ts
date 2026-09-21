@@ -127,6 +127,12 @@ const stubs = {
     props: ['type'],
   },
   CharacterPublishForm: { template: '<div />' },
+  // 渲染成 data-* 才能断言透传的字段：声明了 props 的 stub 会把绑定吃掉，
+  // 属性不会出现在 DOM 里
+  ModerationStatusBadge: {
+    template: '<span class="moderation-badge" :data-status="status" :data-note="note" :data-category="category" />',
+    props: ['status', 'note', 'category'],
+  },
   'el-input': { template: '<input v-bind="$attrs" />' },
   'el-button': { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' },
   'el-tabs': { template: '<div class="el-tabs"><slot /></div>', props: ['modelValue'] },
@@ -192,5 +198,49 @@ describe('MyCharacters', () => {
     const emptyState = wrapper.find('.empty-state');
     expect(emptyState.exists()).toBe(true);
     expect(emptyState.attributes('data-type')).toBe('no-data');
+  });
+
+  /**
+   * 「已发布」这一个标签分不清在审、被驳回、已上线三种状态。发布后角色是
+   * pending，公开入口要求 approved，所以作者会以为上线了、实际还在排队。
+   */
+  describe('审核状态', () => {
+    const published = (moderationStatus: string, extra: Record<string, unknown> = {}) => [{
+      ...sampleCharacters[0],
+      isPublic: true,
+      moderationStatus,
+      ...extra,
+    }];
+
+    it('待审核的角色带上状态徽标', async () => {
+      const wrapper = mountPage(published('pending'));
+      await flushPromises();
+      await nextTick();
+      wrapper.vm.activeTab = 'published';
+      await nextTick();
+
+      const badge = wrapper.find('.moderation-badge');
+      expect(badge.exists()).toBe(true);
+      expect(badge.attributes('data-status')).toBe('pending');
+    });
+
+    it('驳回理由传给徽标，作者才知道改什么', async () => {
+      const wrapper = mountPage(published('rejected', { moderationNote: '过度暴力描写' }));
+      await flushPromises();
+      await nextTick();
+      wrapper.vm.activeTab = 'published';
+      await nextTick();
+
+      expect(wrapper.find('.moderation-badge').attributes('data-note')).toBe('过度暴力描写');
+    });
+
+    // 私有 tab 里的角色都是 draft，挂徽标只是噪音
+    it('未发布的角色不显示徽标', async () => {
+      const wrapper = mountPage();
+      await flushPromises();
+      await nextTick();
+
+      expect(wrapper.find('.moderation-badge').exists()).toBe(false);
+    });
   });
 });

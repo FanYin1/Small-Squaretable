@@ -20,6 +20,23 @@ export const VIOLATION_CATEGORIES = [
 
 export type ViolationCategory = (typeof VIOLATION_CATEGORIES)[number];
 
+/**
+ * 角色审核状态，同样是唯一来源（pgEnum、后台队列筛选、作者侧徽标都用它）。
+ *
+ * 生命周期：draft（未发布）→ pending（作者已提交，等待审核）
+ * → approved（公开可见，公开发现入口只认这个值）/ rejected（驳回，带理由）
+ * → hidden（管理员下架，作者无法自行撤销）。
+ */
+export const MODERATION_STATUSES = [
+  'draft',
+  'pending',
+  'approved',
+  'rejected',
+  'hidden',
+] as const;
+
+export type ModerationStatusValue = (typeof MODERATION_STATUSES)[number];
+
 export const REPORT_TARGET_TYPES = ['character', 'comment', 'user'] as const;
 
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];

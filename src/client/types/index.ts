@@ -1,3 +1,5 @@
+import type { ModerationStatusValue, ViolationCategory } from '@/types/moderation';
+
 export interface User {
   id: string;
   email: string;
@@ -95,6 +97,14 @@ export interface Character {
   viewCount?: number;
   isPublic: boolean;
   isNsfw?: boolean;
+  /**
+   * 审核状态。isPublic 只表示作者的发布意图，公开入口要求 approved，
+   * 所以 isPublic=true 且 moderationStatus='pending' 的角色实际不可见。
+   * 老接口可能不返回这些字段，因此都是可选的。
+   */
+  moderationStatus?: ModerationStatusValue;
+  violationCategory?: ViolationCategory;
+  moderationNote?: string;
   creatorId?: string;
   cardData?: CharacterCardData;
   createdAt: string;

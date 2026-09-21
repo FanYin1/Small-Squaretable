@@ -189,8 +189,14 @@ describe('CharacterService', () => {
       const result = await characterService.publish(characterId, userId, tenantId);
 
       expect(result).toEqual(mockPublishedCharacter);
+      // 发布同时进入待审核：公开发现入口要求 moderation_status = 'approved'，
+      // 只写 isPublic 的话角色会停在 'draft' 上，谁都看不到。
+      // 状态机的例外分支见 character-publish-pending.spec.ts
       expect(characterRepository.update).toHaveBeenCalledWith(characterId, tenantId, {
         isPublic: true,
+        moderationStatus: 'pending',
+        violationCategory: null,
+        moderationNote: null,
       });
     });
 

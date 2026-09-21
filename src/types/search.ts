@@ -3,6 +3,7 @@
  */
 
 import { z } from 'zod';
+import type { ModerationStatusValue } from './moderation';
 
 /**
  * 搜索查询参数验证 Schema
@@ -50,6 +51,8 @@ export interface SearchResultItem {
   tags?: string[];
   isPublic: boolean;
   isNsfw: boolean;
+  /** 搜索只返回 approved 的角色，带上是为了和 Character 的形状一致 */
+  moderationStatus?: ModerationStatusValue;
   downloadCount: number;
   viewCount: number;
   ratingAvg?: number;

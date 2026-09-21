@@ -43,6 +43,31 @@ describe('report category translations', () => {
           expect(report?.[key], `missing ${name} report.${key}`).toBeTruthy();
         }
       });
+
+      // ModerationStatusBadge 同样用 t(`moderation.status.${status}`) 动态取键
+      describe('moderation status labels', () => {
+        const moderation = messages.moderation as Record<string, unknown> | undefined;
+
+        it('has a label for every status the badge renders', () => {
+          const statuses = (moderation?.status ?? {}) as Record<string, string>;
+          // draft 刻意没有标签：未发布状态不渲染徽标
+          for (const status of ['pending', 'approved', 'rejected', 'hidden']) {
+            expect(statuses[status], `missing ${name} moderation.status.${status}`).toBeTruthy();
+          }
+        });
+
+        it('has the review queue strings the admin page renders', () => {
+          const queue = (moderation?.queue ?? {}) as Record<string, string>;
+          for (const key of [
+            'title', 'empty', 'submittedAt', 'author', 'preview',
+            'approve', 'reject', 'approveConfirm', 'rejectTitle',
+            'rejectReason', 'approved', 'rejected', 'actionFailed',
+            'reportsTab',
+          ]) {
+            expect(queue[key], `missing ${name} moderation.queue.${key}`).toBeTruthy();
+          }
+        });
+      });
     });
   }
 });

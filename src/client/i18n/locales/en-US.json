@@ -972,6 +972,33 @@
     "connectionError": "Connection error",
     "disconnected": "Disconnected"
   },
+  "moderation": {
+    "status": {
+      "pending": "Under review",
+      "approved": "Live",
+      "rejected": "Rejected",
+      "hidden": "Taken down"
+    },
+    "pendingHint": "Submitted for review. It appears in the marketplace once approved.",
+    "rejectedHint": "Did not pass review. You can edit and resubmit.",
+    "hiddenHint": "Taken down by a moderator. Contact support if you disagree.",
+    "queue": {
+      "reportsTab": "Report queue",
+      "title": "Characters awaiting review",
+      "empty": "Nothing waiting for review",
+      "submittedAt": "Submitted",
+      "author": "Author",
+      "preview": "View details",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approveConfirm": "Approve this character? It will appear in the public marketplace.",
+      "rejectTitle": "Reject character",
+      "rejectReason": "Reason (shown to the author)",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "actionFailed": "Action failed, please try again"
+    }
+  },
   "report": {
     "title": "Report content",
     "hint": "Reports go to human reviewers. Pornographic content is not allowed on this platform and will be taken down.",

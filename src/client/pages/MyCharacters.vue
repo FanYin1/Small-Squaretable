@@ -17,6 +17,7 @@ import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import CharacterCard from '@client/components/character/CharacterCard.vue';
 import EmptyState from '@client/components/market/EmptyState.vue';
 import CharacterPublishForm from '@client/components/character/CharacterPublishForm.vue';
+import ModerationStatusBadge from '@client/components/character/ModerationStatusBadge.vue';
 import CollectionSidebar from '@client/components/character/CollectionSidebar.vue';
 import { downloadCharacterJson, readCharacterFile } from '@client/utils/sillytavern';
 import type { Character, CharacterCollection } from '@client/types';
@@ -515,6 +516,15 @@ function handleStartChat(character: Character) {
             @click="handleCardClick(character.id)"
           />
 
+          <!-- isPublic 只表示作者点过发布；能不能被看到由审核状态决定 -->
+          <div v-if="character.isPublic" class="card-moderation">
+            <ModerationStatusBadge
+              :status="character.moderationStatus"
+              :category="character.violationCategory"
+              :note="character.moderationNote"
+            />
+          </div>
+
           <div class="card-actions-overlay">
             <el-button
               type="primary"
@@ -790,6 +800,15 @@ function handleStartChat(character: Character) {
 .character-card-wrapper:focus-within .card-actions-overlay {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* 审核状态徽标：贴在卡片左上角，不被 hover 的操作层遮住 */
+.card-moderation {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* 操作按钮覆盖层 */

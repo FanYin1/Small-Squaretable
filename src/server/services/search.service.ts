@@ -133,6 +133,8 @@ export class SearchService {
         tags: characters.tags,
         isPublic: characters.isPublic,
         isNsfw: characters.isNsfw,
+        // filter='my' 会返回作者自己的待审/被驳回角色，前端要靠这个字段区分
+        moderationStatus: characters.moderationStatus,
         downloadCount: characters.downloadCount,
         viewCount: characters.viewCount,
         ratingAvg: characters.ratingAvg,

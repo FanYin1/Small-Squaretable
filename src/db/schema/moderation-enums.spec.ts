@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { violationCategoryEnum, moderationStatusEnum } from './moderation-enums';
-import { VIOLATION_CATEGORIES } from '../../types/moderation';
+import { MODERATION_STATUSES, VIOLATION_CATEGORIES } from '../../types/moderation';
 
 /**
  * pgEnum、路由的 zod schema、前端选项三处共用 types/moderation.ts。
@@ -22,5 +22,11 @@ describe('moderation enums', () => {
     expect(moderationStatusEnum.enumValues).toEqual([
       'draft', 'pending', 'approved', 'rejected', 'hidden',
     ]);
+  });
+
+  // 后台队列筛选和作者侧徽标都读 MODERATION_STATUSES，漏一个状态就会出现
+  // 数据库里存在、后台却筛不出来的角色
+  it('moderationStatusEnum matches the shared status list', () => {
+    expect(moderationStatusEnum.enumValues).toEqual([...MODERATION_STATUSES]);
   });
 });

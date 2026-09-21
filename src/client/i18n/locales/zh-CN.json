@@ -972,6 +972,33 @@
     "connectionError": "连接失败",
     "disconnected": "未连接"
   },
+  "moderation": {
+    "status": {
+      "pending": "待审核",
+      "approved": "已上线",
+      "rejected": "已驳回",
+      "hidden": "已下架"
+    },
+    "pendingHint": "已提交审核，通过后才会出现在市场里。",
+    "rejectedHint": "未通过审核。修改后可重新提交。",
+    "hiddenHint": "已被管理员下架，请联系客服。",
+    "queue": {
+      "reportsTab": "举报队列",
+      "title": "待审角色",
+      "empty": "暂无待审内容",
+      "submittedAt": "提交时间",
+      "author": "作者",
+      "preview": "查看详情",
+      "approve": "通过",
+      "reject": "驳回",
+      "approveConfirm": "确认通过这个角色？通过后会出现在公开市场。",
+      "rejectTitle": "驳回角色",
+      "rejectReason": "驳回理由（会展示给作者）",
+      "approved": "已通过",
+      "rejected": "已驳回",
+      "actionFailed": "操作失败，请重试"
+    }
+  },
   "report": {
     "title": "举报内容",
     "hint": "举报会交由人工复核。本平台不允许色情内容，确认违规将被下架。",

@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Refresh } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useAdminStore } from '@client/stores/admin';
-import type { ContentReport } from '@client/services/admin.api';
+import { adminApi } from '@client/services/admin.api';
+import type { ContentReport, ModerationQueueItem } from '@client/services/admin.api';
+import { VIOLATION_CATEGORIES } from '@/types/moderation';
+import type { ViolationCategory } from '@/types/moderation';
 
 const { t } = useI18n();
 const adminStore = useAdminStore();
@@ -12,6 +15,94 @@ const adminStore = useAdminStore();
 const currentPage = ref(1);
 const pageSize = ref(20);
 const statusFilter = ref('pending');
+
+// ── 待审队列 ──
+// 举报队列是被动的，只装被投诉过的内容。作者发布后角色是 pending，
+// 公开发现入口只认 approved，没有这条主动队列这批内容永久隐形。
+
+const activeTab = ref('queue');
+const queueItems = ref<ModerationQueueItem[]>([]);
+const queueTotal = ref(0);
+const queuePage = ref(1);
+const queueLoading = ref(false);
+
+const rejectVisible = ref(false);
+const rejectTarget = ref<ModerationQueueItem | null>(null);
+const rejectForm = reactive<{ category?: ViolationCategory; reason: string }>({
+  category: undefined,
+  reason: '',
+});
+
+async function loadQueue() {
+  queueLoading.value = true;
+  try {
+    const res = await adminApi.getModerationQueue({
+      status: 'pending',
+      page: queuePage.value,
+      limit: pageSize.value,
+    });
+    queueItems.value = res.items ?? [];
+    queueTotal.value = res.pagination?.total ?? 0;
+  } catch {
+    ElMessage.error(t('moderation.queue.actionFailed'));
+  } finally {
+    queueLoading.value = false;
+  }
+}
+
+function handleQueuePageChange(page: number) {
+  queuePage.value = page;
+  loadQueue();
+}
+
+async function handleApprove(item: ModerationQueueItem) {
+  try {
+    await ElMessageBox.confirm(
+      t('moderation.queue.approveConfirm'),
+      t('moderation.queue.approve'),
+      { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' },
+    );
+  } catch {
+    // 取消：误点不该直接把内容放上线
+    return;
+  }
+
+  try {
+    await adminApi.approveCharacter(item.id);
+    ElMessage.success(t('moderation.queue.approved'));
+    await loadQueue();
+  } catch {
+    ElMessage.error(t('moderation.queue.actionFailed'));
+  }
+}
+
+function openReject(item: ModerationQueueItem) {
+  rejectTarget.value = item;
+  rejectForm.category = undefined;
+  rejectForm.reason = '';
+  rejectVisible.value = true;
+}
+
+async function submitReject() {
+  const target = rejectTarget.value;
+  // 理由会原样展示给作者，空理由等于没有解释
+  if (!target || !rejectForm.reason.trim()) {
+    ElMessage.error(t('report.reasonRequired'));
+    return;
+  }
+
+  try {
+    await adminApi.rejectCharacter(target.id, {
+      ...(rejectForm.category ? { category: rejectForm.category } : {}),
+      reason: rejectForm.reason.trim(),
+    });
+    ElMessage.success(t('moderation.queue.rejected'));
+    rejectVisible.value = false;
+    await loadQueue();
+  } catch {
+    ElMessage.error(t('moderation.queue.actionFailed'));
+  }
+}
 
 function loadReports() {
   adminStore.fetchReports({
@@ -54,23 +145,73 @@ function getStatusType(status: string) {
   }
 }
 
-onMounted(() => loadReports());
+onMounted(() => {
+  loadQueue();
+  loadReports();
+});
+
+// 测试要驱动这些动作；<script setup> 默认不暴露任何东西
+defineExpose({ handleApprove, openReject, submitReject, rejectForm, loadQueue });
 </script>
 
 <template>
   <div class="content-moderation">
     <div class="page-header">
       <h2 class="page-title">{{ t('admin.content.title') }}</h2>
-      <div class="header-actions">
-        <el-radio-group v-model="statusFilter" size="small" @change="handleStatusFilter">
-          <el-radio-button value="pending">{{ t('admin.content.pending') }}</el-radio-button>
-          <el-radio-button value="resolved">{{ t('admin.content.resolved') }}</el-radio-button>
-          <el-radio-button value="dismissed">{{ t('admin.content.dismissed') }}</el-radio-button>
-          <el-radio-button value="">{{ t('admin.content.all') }}</el-radio-button>
-        </el-radio-group>
-        <el-button :icon="Refresh" @click="loadReports">{{ t('common.refresh') }}</el-button>
-      </div>
     </div>
+
+    <el-tabs v-model="activeTab">
+      <!-- 待审队列放在第一个：这是唯一能让新角色上线的入口 -->
+      <el-tab-pane name="queue" :label="t('moderation.queue.title')">
+        <div class="pane-actions">
+          <el-button :icon="Refresh" @click="loadQueue">{{ t('common.refresh') }}</el-button>
+        </div>
+
+        <el-empty v-if="!queueLoading && queueItems.length === 0" :description="t('moderation.queue.empty')" />
+
+        <template v-else>
+          <el-table v-loading="queueLoading" :data="queueItems" stripe row-key="id" class="reports-table">
+            <el-table-column prop="name" :label="t('characterEditor.name')" min-width="200" />
+            <el-table-column prop="creatorId" :label="t('moderation.queue.author')" min-width="180" />
+            <el-table-column prop="updatedAt" :label="t('moderation.queue.submittedAt')" width="180">
+              <template #default="{ row }">
+                {{ new Date(row.updatedAt).toLocaleDateString() }}
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('admin.users.actions')" width="200" fixed="right">
+              <template #default="{ row }">
+                <el-button size="small" text type="success" @click="handleApprove(row)">
+                  {{ t('moderation.queue.approve') }}
+                </el-button>
+                <el-button size="small" text type="danger" @click="openReject(row)">
+                  {{ t('moderation.queue.reject') }}
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <div class="pagination-wrapper">
+            <el-pagination
+              v-model:current-page="queuePage"
+              :page-size="pageSize"
+              :total="queueTotal"
+              layout="total, prev, pager, next"
+              @current-change="handleQueuePageChange"
+            />
+          </div>
+        </template>
+      </el-tab-pane>
+
+      <el-tab-pane name="reports" :label="t('moderation.queue.reportsTab')">
+        <div class="pane-actions">
+          <el-radio-group v-model="statusFilter" size="small" @change="handleStatusFilter">
+            <el-radio-button value="pending">{{ t('admin.content.pending') }}</el-radio-button>
+            <el-radio-button value="resolved">{{ t('admin.content.resolved') }}</el-radio-button>
+            <el-radio-button value="dismissed">{{ t('admin.content.dismissed') }}</el-radio-button>
+            <el-radio-button value="">{{ t('admin.content.all') }}</el-radio-button>
+          </el-radio-group>
+          <el-button :icon="Refresh" @click="loadReports">{{ t('common.refresh') }}</el-button>
+        </div>
 
     <el-table
       v-loading="adminStore.loadingReports"
@@ -124,15 +265,41 @@ onMounted(() => loadReports());
       </el-table-column>
     </el-table>
 
-    <div class="pagination-wrapper">
-      <el-pagination
-        v-model:current-page="currentPage"
-        :page-size="pageSize"
-        :total="adminStore.reportsTotal"
-        layout="total, prev, pager, next"
-        @current-change="handlePageChange"
+        <div class="pagination-wrapper">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="adminStore.reportsTotal"
+            layout="total, prev, pager, next"
+            @current-change="handlePageChange"
+          />
+        </div>
+      </el-tab-pane>
+    </el-tabs>
+
+    <!-- 驳回理由会原样展示给作者，所以分类和说明分开填 -->
+    <el-dialog v-model="rejectVisible" :title="t('moderation.queue.rejectTitle')" width="480px">
+      <el-select v-model="rejectForm.category" :placeholder="t('report.category')" clearable class="reject-field">
+        <el-option
+          v-for="cat in VIOLATION_CATEGORIES"
+          :key="cat"
+          :value="cat"
+          :label="t(`report.categories.${cat}`)"
+        />
+      </el-select>
+      <el-input
+        v-model="rejectForm.reason"
+        type="textarea"
+        :rows="4"
+        :maxlength="2000"
+        :placeholder="t('moderation.queue.rejectReason')"
+        class="reject-field"
       />
-    </div>
+      <template #footer>
+        <el-button @click="rejectVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="danger" @click="submitReject">{{ t('moderation.queue.reject') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -159,10 +326,18 @@ onMounted(() => loadReports());
   margin: 0;
 }
 
-.header-actions {
+.pane-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.reject-field {
+  width: 100%;
+  margin-bottom: 12px;
 }
 
 .reports-table {

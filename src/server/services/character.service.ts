@@ -9,6 +9,36 @@ import { NotFoundError, ForbiddenError } from '../../core/errors';
 import type { CreateCharacterInput, UpdateCharacterInput } from '../../types/character';
 import type { PaginationParams, PaginatedResponse } from '../../types/api';
 import type { Character } from '../../db/schema/characters';
+import type { ModerationStatus } from '../../db/schema/moderation-enums';
+
+/**
+ * 发布时的审核状态迁移。
+ *
+ * 公开发现入口要求 moderation_status = 'approved'，所以发布必须显式进入
+ * 'pending'——否则新角色停在默认的 'draft' 上，既不可见也进不了审核队列。
+ *
+ * 两个例外不能覆盖：已 approved 的重新发布不该无谓地退回排队；被管理员
+ * 'hidden' 的更不能靠作者自己点一次发布就重新参与审核（那等于绕过处置）。
+ */
+function publishStatusPatch(
+  current: ModerationStatus | null | undefined,
+): Partial<{ moderationStatus: ModerationStatus; violationCategory: null; moderationNote: null }> {
+  if (current === 'approved' || current === 'hidden') {
+    return {};
+  }
+  // 重新提交时清掉上一轮的驳回结论，避免作者侧继续显示旧理由
+  return { moderationStatus: 'pending', violationCategory: null, moderationNote: null };
+}
+
+/**
+ * 下架时的审核状态迁移：把排队中的角色退回 'draft'，别占着审核队列。
+ * 'hidden' 同样保留——作者下架不构成对管理员处置的撤销。
+ */
+function unpublishStatusPatch(
+  current: ModerationStatus | null | undefined,
+): Partial<{ moderationStatus: ModerationStatus }> {
+  return current === 'pending' ? { moderationStatus: 'draft' } : {};
+}
 
 export class CharacterService {
   constructor(private characterRepo = characterRepository) {}
@@ -101,6 +131,7 @@ export class CharacterService {
 
     const updated = await this.characterRepo.update(characterId, tenantId, {
       isPublic: true,
+      ...publishStatusPatch(character.moderationStatus),
     });
 
     if (!updated) {
@@ -122,6 +153,7 @@ export class CharacterService {
 
     const updated = await this.characterRepo.update(characterId, tenantId, {
       isPublic: false,
+      ...unpublishStatusPatch(character.moderationStatus),
     });
 
     if (!updated) {

@@ -3,7 +3,7 @@ import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { characters, type Character, type NewCharacter } from '../schema/characters';
 import type { ModerationStatus, ViolationCategory } from '../schema/moderation-enums';
-import type { PaginationParams } from '../../types/api';
+import type { PaginationParams, PaginatedResponse } from '../../types/api';
 
 export interface CharacterFilters {
   tenantId?: string;
@@ -242,6 +242,55 @@ export class CharacterRepository extends BaseRepository {
       .from(characters)
       .where(PUBLIC_VISIBLE());
     return result[0]?.count ?? 0;
+  }
+
+  /**
+   * 审核队列：按审核状态跨租户列出角色。
+   *
+   * 不带 tenantId 约束和 updateModerationStatus 同理——平台审核员要能看到
+   * 任何租户提交的内容；越权防护在路由层的 requireRole('moderator')。
+   * 补上租户隔离会让审核员只看到自己租户的队列，绝大多数待审内容静默消失。
+   *
+   * 没有这个查询，'pending' 就只是「另一种隐形」：公开入口要求 'approved'，
+   * 而后台此前只列举报，待审角色谁都看不到。
+   */
+  async findByModerationStatus(
+    status: ModerationStatus,
+    page = 1,
+    limit = 20,
+  ): Promise<PaginatedResponse<Character>> {
+    const offset = (page - 1) * limit;
+    const condition = eq(characters.moderationStatus, status);
+
+    const [items, countRows] = await Promise.all([
+      this.db
+        .select()
+        .from(characters)
+        .where(condition)
+        // 先提交的先审，避免新内容把队尾的老内容永远压住
+        .orderBy(asc(characters.updatedAt))
+        .limit(limit)
+        .offset(offset),
+      this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(characters)
+        .where(condition),
+    ]);
+
+    const total = countRows[0]?.count ?? 0;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
   }
 
   /**

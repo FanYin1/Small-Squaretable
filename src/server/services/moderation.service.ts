@@ -9,12 +9,17 @@ import type { ModerationRepository } from '../../db/repositories/moderation.repo
 import type { CharacterRepository } from '../../db/repositories/character.repository';
 import type { UserRepository } from '../../db/repositories/user.repository';
 import type { Report } from '../../db/schema/reports';
+import type { Character } from '../../db/schema/characters';
 import type { ModerationStatus, ViolationCategory } from '../../db/schema/moderation-enums';
 import type { PaginatedResponse } from '../../types/api';
+import { MODERATION_STATUSES } from '../../types/moderation';
 import { NotFoundError, BadRequestError } from '../../core/errors';
 
 const VALID_TARGET_TYPES = ['character', 'comment', 'user'];
 const VALID_ACTIONS = ['approve', 'reject', 'hide', 'suspend', 'unsuspend'];
+
+/** 校验后台传入的队列筛选值。清单来自 types/moderation.ts，与 pgEnum 同源。 */
+const VALID_MODERATION_STATUSES: readonly string[] = MODERATION_STATUSES;
 
 /**
  * 处置动作 → 角色审核状态。
@@ -185,6 +190,23 @@ export class ModerationService {
   async getPendingReports(page: number = 1, limit: number = 20): Promise<PaginatedResponse<Report>> {
     return this.reportRepo.findPending(page, limit);
   }
+
+  /**
+   * 按审核状态列出角色（moderator/admin）。
+   *
+   * 举报队列是被动的：只有用户举报过的内容才会进去。发布进入 'pending' 之后
+   * 需要一条主动的队列，否则新角色既不可见（公开入口要求 'approved'）也无人可审。
+   */
+  async getCharactersByStatus(
+    status: ModerationStatus = 'pending',
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<PaginatedResponse<Character>> {
+    if (!VALID_MODERATION_STATUSES.includes(status)) {
+      throw new BadRequestError(`Invalid moderation status: ${status}`);
+    }
+    return this.characterRepo.findByModerationStatus(status, page, limit);
+  }
 }
 
 // Singleton — lazy-initialized to avoid circular imports
@@ -222,4 +244,6 @@ export const moderationService = {
     getModerationService().takeAction(...args),
   getPendingReports: (...args: Parameters<ModerationService['getPendingReports']>) =>
     getModerationService().getPendingReports(...args),
+  getCharactersByStatus: (...args: Parameters<ModerationService['getCharactersByStatus']>) =>
+    getModerationService().getCharactersByStatus(...args),
 };
