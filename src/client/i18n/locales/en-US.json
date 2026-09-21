@@ -972,6 +972,28 @@
     "connectionError": "Connection error",
     "disconnected": "Disconnected"
   },
+  "report": {
+    "title": "Report content",
+    "hint": "Reports go to human reviewers. Pornographic content is not allowed on this platform and will be taken down.",
+    "category": "What is the problem?",
+    "categories": {
+      "pornography": "Pornographic or sexually explicit",
+      "violence": "Graphic violence",
+      "harassment": "Harassment or hate speech",
+      "infringement": "Copyright or trademark infringement",
+      "other": "Something else"
+    },
+    "reason": "Details",
+    "reasonPlaceholder": "Tell us what you saw. Specific details help reviewers act faster.",
+    "reasonRequired": "Please describe the problem",
+    "categoryRequired": "Please pick a category",
+    "submit": "Submit report",
+    "submitSuccess": "Report submitted. A reviewer will look at it.",
+    "submitFailed": "Could not submit the report. Please try again.",
+    "reportCharacter": "Report this character",
+    "reportComment": "Report",
+    "loginRequired": "Please sign in to report content"
+  },
   "social": {
     "follow": "Follow",
     "following": "Following",

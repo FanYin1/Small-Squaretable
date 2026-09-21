@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { ChatDotRound, Download, Upload, ArrowLeft, Edit, Share, FolderAdd } from '@element-plus/icons-vue';
+import { ChatDotRound, Download, Upload, ArrowLeft, Edit, Share, FolderAdd, Warning } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useCharacterStore, useUserStore } from '@client/stores';
 import { api } from '@client/services/api';
@@ -14,6 +14,7 @@ import FavoriteButton from '@client/components/social/FavoriteButton.vue';
 import CommentSection from '@client/components/social/CommentSection.vue';
 import ShareDialog from '@client/components/character/ShareDialog.vue';
 import CharacterStats from '@client/components/character/CharacterStats.vue';
+import ReportDialog from '@client/components/moderation/ReportDialog.vue';
 import type { RatingInput, RatingResponseDto } from '@/types/rating';
 import type { CharacterCollection } from '@client/types';
 import { cleanDescription } from '@client/utils/sillytavern';
@@ -42,6 +43,7 @@ const showRatingDialog = ref(false);
 const submittingRating = ref(false);
 const importing = ref(false);
 const showShareDialog = ref(false);
+const showReportDialog = ref(false);
 const collections = ref<CharacterCollection[]>([]);
 const addingToCollection = ref(false);
 
@@ -82,6 +84,14 @@ async function fetchRatings() {
     ratings.value = response;
     if (response?.userRating) userRating.value = response.userRating;
   } catch { /* ratings are optional */ }
+}
+
+function openReportDialog() {
+  if (!isAuthenticated.value) {
+    ElMessage.warning(t('report.loginRequired'));
+    return;
+  }
+  showReportDialog.value = true;
 }
 
 async function handleAddToCollection(collectionId: string) {
@@ -196,6 +206,15 @@ async function handleAddToCollection(collectionId: string) {
             <el-button type="primary" :icon="ChatDotRound" @click="router.push({ name: 'Chat', query: { characterId: character.id } })">
               {{ t('market.startChat') }}
             </el-button>
+            <el-button
+              v-if="!isOwner"
+              text
+              class="btn-report"
+              :icon="Warning"
+              @click="openReportDialog"
+            >
+              {{ t('report.reportCharacter') }}
+            </el-button>
           </div>
 
           <CommentSection :character-id="characterId" />
@@ -204,6 +223,11 @@ async function handleAddToCollection(collectionId: string) {
             v-model="showShareDialog"
             :character="character"
             @shared="fetchCharacter"
+          />
+          <ReportDialog
+            v-model="showReportDialog"
+            target-type="character"
+            :target-id="characterId"
           />
         </div>
       </template>
@@ -226,6 +250,14 @@ async function handleAddToCollection(collectionId: string) {
   gap: 16px;
   padding: 80px 20px;
   color: var(--text-secondary);
+}
+
+.btn-report {
+  color: var(--text-secondary);
+}
+
+.btn-report:hover {
+  color: var(--el-color-danger);
 }
 
 .detail-header {

@@ -25,5 +25,6 @@ export * from './character-relationship.api';
 export * from './character-growth.api';
 export * from './search.api';
 export * from './share.api';
+export * from './report.api';
 export * from './collaborator.api';
 export * from './character-template.api';

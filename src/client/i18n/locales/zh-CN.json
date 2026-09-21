@@ -972,6 +972,28 @@
     "connectionError": "连接失败",
     "disconnected": "未连接"
   },
+  "report": {
+    "title": "举报内容",
+    "hint": "举报会交由人工复核。本平台不允许色情内容，确认违规将被下架。",
+    "category": "问题类型",
+    "categories": {
+      "pornography": "色情或性暴露内容",
+      "violence": "血腥暴力",
+      "harassment": "骚扰或仇恨言论",
+      "infringement": "侵犯版权或商标",
+      "other": "其他问题"
+    },
+    "reason": "补充说明",
+    "reasonPlaceholder": "描述你看到的问题。写得具体一些，审核处理会更快。",
+    "reasonRequired": "请描述具体问题",
+    "categoryRequired": "请选择问题类型",
+    "submit": "提交举报",
+    "submitSuccess": "举报已提交，会有人工复核。",
+    "submitFailed": "举报提交失败，请重试。",
+    "reportCharacter": "举报此角色",
+    "reportComment": "举报",
+    "loginRequired": "请先登录后再举报"
+  },
   "social": {
     "follow": "关注",
     "following": "已关注",

@@ -16,6 +16,7 @@ import { auditService } from '../../services/audit.service';
 import { reportRepository } from '../../../db/repositories/report.repository';
 import { NotFoundError } from '../../../core/errors';
 import { paginationSchema } from '../../../types/api';
+import { VIOLATION_CATEGORIES } from '../../../types/moderation';
 import type { ApiResponse } from '../../../types/api';
 
 export const adminContentRoutes = new Hono();
@@ -23,9 +24,8 @@ export const adminContentRoutes = new Hono();
 // All content moderation routes require at least moderator role
 adminContentRoutes.use('*', authMiddleware(), requireRole('moderator'));
 
-const violationCategorySchema = z.enum([
-  'pornography', 'violence', 'harassment', 'infringement', 'other',
-]);
+// 与 pgEnum 和前端选项同源，见 types/moderation.ts
+const violationCategorySchema = z.enum(VIOLATION_CATEGORIES);
 
 const resolveReportSchema = z.object({
   status: z.enum(['resolved', 'dismissed']),

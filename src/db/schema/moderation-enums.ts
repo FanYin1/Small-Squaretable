@@ -6,6 +6,7 @@
  */
 
 import { pgEnum } from 'drizzle-orm/pg-core';
+import { VIOLATION_CATEGORIES } from '../../types/moderation';
 
 /**
  * 违规分类。
@@ -13,14 +14,11 @@ import { pgEnum } from 'drizzle-orm/pg-core';
  * 平台不允许色情内容，pornography 是「违规待处置」而不是分级标记。
  * violence 之前在 schema 里完全没有表达能力——只有 characters.isNsfw
  * 一个布尔值，无法区分色情和暴力，审核后台也就拿不到可统计的口径。
+ *
+ * 清单本身在 types/moderation.ts，前端要渲染同一份选项。
+ * 不要在这里另写一遍：漏改一处就会出现前端能选、数据库放不进的分类。
  */
-export const violationCategoryEnum = pgEnum('violation_category', [
-  'pornography',
-  'violence',
-  'harassment',
-  'infringement',
-  'other',
-]);
+export const violationCategoryEnum = pgEnum('violation_category', VIOLATION_CATEGORIES);
 
 /**
  * 角色的审核状态。

@@ -6,6 +6,7 @@ import { socialApi } from '@client/services/social.api';
 import { useUserStore } from '@client/stores/user';
 import { useDateTime } from '@client/composables/useDateTime';
 import { createLogger } from '@client/utils/logger';
+import ReportDialog from '@client/components/moderation/ReportDialog.vue';
 import type { CommentWithAuthor } from '@/types/social';
 
 const logger = createLogger('CommentItem');
@@ -26,6 +27,17 @@ const userStore = useUserStore();
 const { formatRelativeTime } = useDateTime();
 
 const isOwnComment = computed(() => userStore.user?.id === props.comment.author.id);
+
+// 举报入口：自己的评论不给举报按钮
+const showReportDialog = ref(false);
+
+function openReportDialog() {
+  if (!userStore.isAuthenticated) {
+    ElMessage.warning(t('report.loginRequired'));
+    return;
+  }
+  showReportDialog.value = true;
+}
 
 // Edit state
 const isEditing = ref(false);
@@ -214,6 +226,9 @@ function handleReplyUpdated(updated: CommentWithAuthor) {
               {{ t('social.delete') }}
             </el-button>
           </template>
+          <el-button v-else text size="small" class="report-action" @click="openReportDialog">
+            {{ t('report.reportComment') }}
+          </el-button>
         </div>
 
         <!-- Reply input -->
@@ -245,6 +260,12 @@ function handleReplyUpdated(updated: CommentWithAuthor) {
             {{ showReplies ? t('common.close') : t('social.reply') + ` (${comment.replyCount ?? replies.length})` }}
           </el-button>
         </div>
+
+        <ReportDialog
+          v-model="showReportDialog"
+          target-type="comment"
+          :target-id="comment.id"
+        />
 
         <!-- Nested replies -->
         <div v-if="showReplies && replies.length > 0" class="replies-list">
@@ -327,6 +348,10 @@ function handleReplyUpdated(updated: CommentWithAuthor) {
   display: flex;
   gap: 4px;
   margin-top: 4px;
+}
+
+.report-action {
+  color: var(--text-secondary);
 }
 
 .comment-edit {

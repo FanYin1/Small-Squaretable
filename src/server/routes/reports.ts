@@ -10,16 +10,18 @@ import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth';
 import { moderationService } from '../services/moderation.service';
 import { auditService } from '../services/audit.service';
+import { VIOLATION_CATEGORIES, REPORT_TARGET_TYPES, REPORT_REASON_MAX_LENGTH } from '../../types/moderation';
 import type { ApiResponse } from '../../types/api';
 
 export const reportRoutes = new Hono();
 
+// 枚举取自 types/moderation.ts，与 pgEnum 和前端选项同源
 const submitReportSchema = z.object({
-  targetType: z.enum(['character', 'comment', 'user']),
+  targetType: z.enum(REPORT_TARGET_TYPES),
   targetId: z.string().uuid(),
   // 分类必填：此前只有自由文本 reason，审核后台拿不到可统计的违规口径
-  category: z.enum(['pornography', 'violence', 'harassment', 'infringement', 'other']),
-  reason: z.string().min(1).max(2000),
+  category: z.enum(VIOLATION_CATEGORIES),
+  reason: z.string().min(1).max(REPORT_REASON_MAX_LENGTH),
 });
 
 // POST / — Submit a report (requires auth)
