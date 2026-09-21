@@ -63,7 +63,7 @@ describe('Analytics Routes', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default: team plan (full access)
-    mockFindByTenantId.mockResolvedValue({ plan: 'team' });
+    mockFindByTenantId.mockResolvedValue({ plan: 'team', status: 'active', currentPeriodEnd: null });
     app = new Hono();
     app.use('*', async (c, next) => {
       c.set('user', { id: 'user-1', tenantId: 'tenant-1' });
@@ -288,7 +288,7 @@ describe('Analytics Routes', () => {
   describe('Plan-based access control', () => {
     describe('Pro plan', () => {
       beforeEach(() => {
-        mockFindByTenantId.mockResolvedValue({ plan: 'pro' });
+        mockFindByTenantId.mockResolvedValue({ plan: 'pro', status: 'active', currentPeriodEnd: null });
       });
 
       it('should allow GET /analytics/overview for pro plan', async () => {
@@ -329,7 +329,7 @@ describe('Analytics Routes', () => {
 
     describe('Team plan', () => {
       beforeEach(() => {
-        mockFindByTenantId.mockResolvedValue({ plan: 'team' });
+        mockFindByTenantId.mockResolvedValue({ plan: 'team', status: 'active', currentPeriodEnd: null });
       });
 
       it('should allow all endpoints for team plan', async () => {

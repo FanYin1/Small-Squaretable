@@ -119,6 +119,26 @@ export interface Subscription {
   cancelAtPeriodEnd?: boolean;
 }
 
+/**
+ * 服务端算出的生效权限。
+ *
+ * plan 是当前真正生效的套餐，purchasedPlan 是用户买的那个。
+ * 两者不一致（suspended）说明订阅还在但当前失效，UI 该提示
+ * 「更新付款方式」而不是「升级套餐」。
+ */
+export interface Entitlement {
+  plan: PlanType;
+  purchasedPlan: PlanType;
+  reason:
+    | 'no_subscription'
+    | 'active'
+    | 'trialing'
+    | 'past_due_grace'
+    | 'past_due_expired'
+    | 'canceled';
+  suspended: boolean;
+}
+
 export interface SubscriptionConfig {
   publishableKey: string;
   prices: {

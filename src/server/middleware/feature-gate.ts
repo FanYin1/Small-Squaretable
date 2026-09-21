@@ -8,7 +8,33 @@ import { createMiddleware } from 'hono/factory';
 import type { Context } from 'hono';
 import { featureService, type FeatureName } from '../services/feature.service';
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
+import { resolveEntitlement, isSuspended, type Entitlement } from '../services/entitlement';
 import type { ResourceType } from '../services/usage.service';
+
+/**
+ * 功能权限不足时的响应。
+ *
+ * 区分两种情况很重要：真正的免费用户要看到「升级」，
+ * 而付款失败被暂停的付费用户要看到「更新付款方式」——
+ * 对后者提示升级会让人以为自己没买过，直接导致流失和客诉。
+ */
+function featureDeniedResponse(c: Context, feature: FeatureName, entitlement: Entitlement) {
+  const suspended = isSuspended(entitlement);
+
+  return c.json(
+    {
+      error: suspended ? 'Subscription inactive' : 'Upgrade required',
+      message: suspended
+        ? 'Your subscription is not active. Please update your payment method to restore access.'
+        : `This feature requires a higher subscription plan`,
+      feature,
+      currentPlan: entitlement.plan,
+      purchasedPlan: entitlement.purchasedPlan,
+      reason: entitlement.reason,
+    },
+    403
+  );
+}
 
 /**
  * 要求特定功能权限的中间件
@@ -35,21 +61,13 @@ export function requireFeature(feature: FeatureName) {
       );
     }
 
-    // 获取租户订阅信息
+    // 权限按「实际生效的套餐」算，而不是买过什么：
+    // past_due / canceled 的订阅不该继续享有 pro 功能
     const subscription = await subscriptionRepository.findByTenantId(tenantId);
-    const plan = subscription?.plan || 'free';
+    const entitlement = resolveEntitlement(subscription);
 
-    // 检查功能权限
-    if (!featureService.hasFeature(plan, feature)) {
-      return c.json(
-        {
-          error: 'Upgrade required',
-          message: `This feature requires a higher subscription plan`,
-          feature,
-          currentPlan: plan,
-        },
-        403
-      );
+    if (!featureService.hasFeature(entitlement.plan, feature)) {
+      return featureDeniedResponse(c, feature, entitlement);
     }
 
     await next();
@@ -130,21 +148,12 @@ export function requireFeatureAndQuota(feature: FeatureName, resourceType: Resou
       );
     }
 
-    // 获取租户订阅信息
+    // 同上：按生效套餐判断，不按购买记录
     const subscription = await subscriptionRepository.findByTenantId(tenantId);
-    const plan = subscription?.plan || 'free';
+    const entitlement = resolveEntitlement(subscription);
 
-    // 检查功能权限
-    if (!featureService.hasFeature(plan, feature)) {
-      return c.json(
-        {
-          error: 'Upgrade required',
-          message: `This feature requires a higher subscription plan`,
-          feature,
-          currentPlan: plan,
-        },
-        403
-      );
+    if (!featureService.hasFeature(entitlement.plan, feature)) {
+      return featureDeniedResponse(c, feature, entitlement);
     }
 
     // 检查配额

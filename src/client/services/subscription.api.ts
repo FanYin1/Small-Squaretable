@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { Subscription, SubscriptionConfig } from '@client/types';
+import type { Subscription, SubscriptionConfig, Entitlement } from '@client/types';
 
 export interface CheckoutRequest {
   priceId: string;
@@ -12,8 +12,12 @@ export interface PortalRequest {
 }
 
 export const subscriptionApi = {
+  /**
+   * entitlement 是服务端算好的「当前真正生效的套餐」。
+   * 可选是为了兼容还没部署新后端的情况，前端要能退回只看 subscription。
+   */
   getStatus: () =>
-    api.get<{ subscription: Subscription }>('/subscriptions/status'),
+    api.get<{ subscription: Subscription; entitlement?: Entitlement }>('/subscriptions/status'),
 
   getConfig: () =>
     api.get<SubscriptionConfig>('/subscriptions/config'),

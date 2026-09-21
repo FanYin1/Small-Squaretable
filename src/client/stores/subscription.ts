@@ -1,15 +1,37 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { Subscription, SubscriptionConfig, PlanType } from '@client/types';
+import type { Subscription, SubscriptionConfig, PlanType, Entitlement } from '@client/types';
 import { subscriptionApi } from '@client/services/subscription.api';
+
+/** 没有订阅记录时的兜底状态，也用于后端还没返回 entitlement 的情况 */
+const ACTIVE_STATUSES = new Set(['active', 'trialing']);
 
 export const useSubscriptionStore = defineStore('subscription', () => {
   const subscription = ref<Subscription | null>(null);
+  const entitlement = ref<Entitlement | null>(null);
   const config = ref<SubscriptionConfig | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  const currentPlan = computed<PlanType>(() => subscription.value?.plan || 'free');
+  /**
+   * 当前生效的套餐。
+   *
+   * 优先用服务端算好的 entitlement——宽限期规则只在服务端，
+   * 前端自己算一遍迟早会不一致（界面显示 Pro、接口回 403）。
+   * 后端没返回时退回本地判断，但至少不能把 canceled/past_due 当成有效。
+   */
+  const currentPlan = computed<PlanType>(() => {
+    if (entitlement.value) {
+      return entitlement.value.plan;
+    }
+    const record = subscription.value;
+    if (!record) return 'free';
+    return ACTIVE_STATUSES.has(record.status) ? record.plan : 'free';
+  });
+
+  /** 买过套餐但当前失效，UI 应提示更新付款方式而不是升级 */
+  const isSuspended = computed(() => entitlement.value?.suspended ?? false);
+
   const isActive = computed(() => subscription.value?.status === 'active');
   const isPro = computed(() => currentPlan.value === 'pro' || currentPlan.value === 'team');
 
@@ -19,6 +41,7 @@ export const useSubscriptionStore = defineStore('subscription', () => {
     try {
       const response = await subscriptionApi.getStatus();
       subscription.value = response.subscription;
+      entitlement.value = response.entitlement ?? null;
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch subscription';
       throw e;
@@ -72,12 +95,14 @@ export const useSubscriptionStore = defineStore('subscription', () => {
 
   return {
     subscription,
+    entitlement,
     config,
     loading,
     error,
     currentPlan,
     isActive,
     isPro,
+    isSuspended,
     fetchStatus,
     fetchConfig,
     startCheckout,

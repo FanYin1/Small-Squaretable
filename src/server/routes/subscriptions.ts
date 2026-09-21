@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { subscriptionService } from '../services/subscription.service';
+import { resolveEntitlement, isSuspended } from '../services/entitlement';
 import { authMiddleware } from '../middleware/auth';
 import type { ApiResponse } from '../../types/api';
 import { eventBus } from '../services/event-bus.service';
@@ -22,12 +23,23 @@ subscriptionRoutes.get('/status', authMiddleware(), async (c) => {
   const user = c.get('user');
   const subscription = await subscriptionService.getSubscriptionStatus(user.tenantId);
 
+  // 前端按 entitlement.plan 渲染，而不是自己拿 plan/status 再算一遍：
+  // 宽限期规则只存在于服务端，两边各算一次迟早会不一致，
+  // 表现为前端显示 Pro 但接口返回 403。
+  const entitlement = resolveEntitlement(subscription);
+
   return c.json<ApiResponse>({
     success: true,
     data: {
       subscription: subscription ?? {
         plan: 'free',
         status: 'active',
+      },
+      entitlement: {
+        plan: entitlement.plan,
+        purchasedPlan: entitlement.purchasedPlan,
+        reason: entitlement.reason,
+        suspended: isSuspended(entitlement),
       },
     },
     meta: { timestamp: new Date().toISOString() },

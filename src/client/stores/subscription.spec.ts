@@ -336,6 +336,73 @@ describe('Subscription Store', () => {
         expect(store.isPro).toBe(false);
       });
     });
+
+    /**
+     * 生效权限由服务端算（宽限期规则只在服务端）。
+     * 前端自己算一遍迟早会不一致，表现为界面显示 Pro、接口却返回 403。
+     */
+    describe('entitlement', () => {
+      it('prefers the server-computed plan over the raw subscription plan', async () => {
+        vi.mocked(subscriptionApi.getStatus).mockResolvedValue({
+          subscription: { plan: 'pro', status: 'past_due' },
+          entitlement: {
+            plan: 'free',
+            purchasedPlan: 'pro',
+            reason: 'past_due_expired',
+            suspended: true,
+          },
+        } as any);
+
+        const store = useSubscriptionStore();
+        await store.fetchStatus();
+
+        expect(store.currentPlan).toBe('free');
+        expect(store.isPro).toBe(false);
+        expect(store.isSuspended).toBe(true);
+      });
+
+      it('keeps pro during the grace window the server granted', async () => {
+        vi.mocked(subscriptionApi.getStatus).mockResolvedValue({
+          subscription: { plan: 'pro', status: 'past_due' },
+          entitlement: {
+            plan: 'pro',
+            purchasedPlan: 'pro',
+            reason: 'past_due_grace',
+            suspended: false,
+          },
+        } as any);
+
+        const store = useSubscriptionStore();
+        await store.fetchStatus();
+
+        expect(store.currentPlan).toBe('pro');
+        expect(store.isSuspended).toBe(false);
+      });
+
+      it('does not treat a canceled subscription as pro when the server sends no entitlement', async () => {
+        // 老后端的兼容路径：没有 entitlement 也不能只看 plan
+        vi.mocked(subscriptionApi.getStatus).mockResolvedValue({
+          subscription: { plan: 'pro', status: 'canceled' },
+        } as any);
+
+        const store = useSubscriptionStore();
+        await store.fetchStatus();
+
+        expect(store.currentPlan).toBe('free');
+        expect(store.isPro).toBe(false);
+      });
+
+      it('honors a trial in the fallback path', async () => {
+        vi.mocked(subscriptionApi.getStatus).mockResolvedValue({
+          subscription: { plan: 'pro', status: 'trialing' },
+        } as any);
+
+        const store = useSubscriptionStore();
+        await store.fetchStatus();
+
+        expect(store.currentPlan).toBe('pro');
+      });
+    });
   });
 
   describe('Error Handling', () => {

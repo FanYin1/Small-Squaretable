@@ -6,6 +6,7 @@
 
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
 import { usageService, type ResourceType } from './usage.service';
+import { resolveEffectivePlan } from './entitlement';
 import type { PlanType } from './subscription.service';
 
 export type FeatureName =
@@ -126,9 +127,9 @@ export class FeatureService {
     limit: number;
     remaining: number;
   }> {
-    // 获取租户订阅信息
+    // 配额按生效套餐算：付款失败的用户不该继续用 pro 的额度
     const subscription = await subscriptionRepository.findByTenantId(tenantId);
-    const plan = subscription?.plan || 'free';
+    const plan = resolveEffectivePlan(subscription);
 
     // 获取套餐限额
     const limits = this.getPlanLimits(plan);
@@ -159,8 +160,7 @@ export class FeatureService {
    */
   async checkTenantFeature(tenantId: string, feature: FeatureName): Promise<boolean> {
     const subscription = await subscriptionRepository.findByTenantId(tenantId);
-    const plan = subscription?.plan || 'free';
-    return this.hasFeature(plan, feature);
+    return this.hasFeature(resolveEffectivePlan(subscription), feature);
   }
 }
 

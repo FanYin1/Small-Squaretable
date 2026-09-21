@@ -13,6 +13,7 @@ import { batchEventsSchema } from '../../types/analytics';
 import { getKafkaProducer, TOPICS } from '../../core/kafka';
 import { analyticsQueryService } from '../services/analytics-query.service';
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
+import { resolveEffectivePlan } from '../services/entitlement';
 
 /**
  * Pro-plan analytics access endpoints (overview + realtime only).
@@ -24,7 +25,8 @@ function requireAnalyticsAccess(endpoint: string) {
   return createMiddleware(async (c: Context, next) => {
     const tenantId = c.get('tenantId');
     const subscription = await subscriptionRepository.findByTenantId(tenantId);
-    const plan = subscription?.plan || 'free';
+    // 生效套餐，而非购买记录：见 services/entitlement
+    const plan = resolveEffectivePlan(subscription);
 
     if (plan === 'team') {
       return next();
