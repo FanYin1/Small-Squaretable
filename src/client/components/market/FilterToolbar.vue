@@ -7,14 +7,12 @@ const { t } = useI18n();
 interface Props {
   selectedCategory: string;
   selectedTags: string[];
-  showNsfw: boolean;
   sortBy: string;
 }
 
 interface Emits {
   (e: 'update:selectedCategory', value: string): void;
   (e: 'update:selectedTags', value: string[]): void;
-  (e: 'update:showNsfw', value: boolean): void;
   (e: 'update:sortBy', value: string): void;
   (e: 'change'): void;
 }
@@ -64,11 +62,6 @@ const handleTagsChange = (value: string[]) => {
   emit('change');
 };
 
-const handleNsfwChange = (value: boolean) => {
-  emit('update:showNsfw', value);
-  emit('change');
-};
-
 const handleSortChange = (value: string) => {
   emit('update:sortBy', value);
   emit('change');
@@ -115,15 +108,6 @@ const handleSortChange = (value: string) => {
           :value="tag"
         />
       </el-select>
-    </div>
-
-    <div class="filter-item">
-      <el-checkbox
-        :model-value="showNsfw"
-        @update:model-value="handleNsfwChange"
-      >
-        {{ $t('market.filters.showNsfw') }}
-      </el-checkbox>
     </div>
 
     <div class="filter-item">

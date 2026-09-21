@@ -179,7 +179,8 @@ export const characterApi = {
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.category) searchParams.set('category', params.category);
     if (params?.tags?.length) searchParams.set('tags', params.tags.join(','));
-    if (params?.isNsfw) searchParams.set('isNsfw', 'true');
+    // 不发送 isNsfw：平台不允许色情内容，服务端无条件排除，
+    // 这个参数已经无法影响结果，发出去只会让人以为它可切换
 
     const query = searchParams.toString();
     return api.get<SearchResult>(

@@ -26,6 +26,18 @@ export interface CursorPaginatedResult<T> {
   hasMore: boolean;
 }
 
+/**
+ * 公开发现入口统一使用的排除条件。
+ *
+ * 平台不允许色情内容，所以 isNsfw 是「违规待处置」标记而不是分级标记——
+ * 没有「让用户自己选择是否查看」这个选项。任何面向非作者的列表、搜索、
+ * 推荐都必须带上这个条件。
+ *
+ * 不适用于：作者查看自己的角色（findByTenantId）、按 id 直取
+ * （findById，详情页和审核后台都依赖它能取到被标记的角色）。
+ */
+const PUBLIC_VISIBLE = () => and(eq(characters.isPublic, true), eq(characters.isNsfw, false));
+
 export class CharacterRepository extends BaseRepository {
   async findById(id: string): Promise<Character | null> {
     const result = await this.db.select().from(characters).where(eq(characters.id, id));
@@ -64,7 +76,7 @@ export class CharacterRepository extends BaseRepository {
   }
 
   async findPublic(pagination?: PaginationParams): Promise<Character[]> {
-    let query: any = this.db.select().from(characters).where(eq(characters.isPublic, true)).orderBy(desc(characters.downloadCount));
+    let query: any = this.db.select().from(characters).where(PUBLIC_VISIBLE()).orderBy(desc(characters.downloadCount));
 
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;
@@ -82,7 +94,7 @@ export class CharacterRepository extends BaseRepository {
     const limit = params.limit ?? 20;
 
     // Build base conditions
-    const conditions = [eq(characters.isPublic, true)];
+    const conditions = [PUBLIC_VISIBLE()];
 
     // Apply cursor condition if provided
     if (params.cursor) {
@@ -187,7 +199,7 @@ export class CharacterRepository extends BaseRepository {
     const result = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(characters)
-      .where(eq(characters.isPublic, true));
+      .where(PUBLIC_VISIBLE());
     return result[0]?.count ?? 0;
   }
 
@@ -216,7 +228,7 @@ export class CharacterRepository extends BaseRepository {
       .from(characters)
       .where(
         and(
-          eq(characters.isPublic, true),
+          PUBLIC_VISIBLE(),
           sql`${characters.tags} && ARRAY[${sql.join(tags.map(t => sql`${t}`), sql`, `)}]::text[]`
         )
       )

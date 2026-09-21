@@ -24,7 +24,6 @@ describe('useCharacterSearch', () => {
     expect(result.searchQuery.value).toBe('');
     expect(result.selectedCategory.value).toBe('');
     expect(result.selectedTags.value).toEqual([]);
-    expect(result.showNsfw.value).toBe(false);
     expect(result.sortBy.value).toBe('popular');
     expect(result.characters.value).toEqual([]);
     expect(result.total.value).toBe(0);
@@ -55,7 +54,6 @@ describe('useCharacterSearch', () => {
       limit: 10,
       category: undefined,
       tags: undefined,
-      isNsfw: undefined,
     });
   });
 
@@ -125,10 +123,9 @@ describe('useCharacterSearch', () => {
       pagination: { total: 0 },
     });
 
-    const { fetchCharacters, selectedCategory, selectedTags, showNsfw } = useCharacterSearch();
+    const { fetchCharacters, selectedCategory, selectedTags } = useCharacterSearch();
     selectedCategory.value = 'anime';
     selectedTags.value = ['rpg', 'fantasy'];
-    showNsfw.value = true;
 
     await fetchCharacters();
 
@@ -136,9 +133,20 @@ describe('useCharacterSearch', () => {
       expect.objectContaining({
         category: 'anime',
         tags: ['rpg', 'fantasy'],
-        isNsfw: true,
       }),
     );
+  });
+
+  // 平台不允许色情内容，排除在服务端强制执行，客户端不再发送这个参数——
+  // 发了也会被忽略，留着只会让人以为它是可切换的偏好
+  it('never sends an isNsfw preference', async () => {
+    mockSearchCharacters.mockResolvedValue({ items: [], pagination: { total: 0 } });
+
+    const { fetchCharacters } = useCharacterSearch();
+    await fetchCharacters();
+
+    const params = mockSearchCharacters.mock.calls[0][0];
+    expect(params).not.toHaveProperty('isNsfw');
   });
 
   it('resetFilters resets all filter state', () => {
@@ -146,7 +154,6 @@ describe('useCharacterSearch', () => {
     result.searchQuery.value = 'test';
     result.selectedCategory.value = 'anime';
     result.selectedTags.value = ['rpg'];
-    result.showNsfw.value = true;
     result.currentPage.value = 5;
 
     result.resetFilters();
@@ -154,7 +161,6 @@ describe('useCharacterSearch', () => {
     expect(result.searchQuery.value).toBe('');
     expect(result.selectedCategory.value).toBe('');
     expect(result.selectedTags.value).toEqual([]);
-    expect(result.showNsfw.value).toBe(false);
     expect(result.currentPage.value).toBe(1);
     // sortBy should remain unchanged
     expect(result.sortBy.value).toBe('popular');

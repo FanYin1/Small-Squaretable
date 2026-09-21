@@ -34,10 +34,12 @@ export class SearchService {
       conditions.push(sql`${characters.searchVector} @@ ${tsQuery}`);
     }
 
+    // 是否只搜索调用方自己的角色。作者需要能找到自己被标记的角色才能修正，
+    // 所以只有这种情况跳过 NSFW 排除。
+    const isOwnScope = filter === 'my' && !!userId;
+
     // 过滤条件
-    if (filter === 'public') {
-      conditions.push(eq(characters.isPublic, true));
-    } else if (filter === 'my' && userId) {
+    if (filter === 'my' && userId) {
       conditions.push(eq(characters.creatorId, userId));
     } else if (filter === 'all' && userId) {
       const orCondition = or(
@@ -47,6 +49,10 @@ export class SearchService {
       if (orCondition) {
         conditions.push(orCondition);
       }
+    } else {
+      // filter === 'public' 以及未指定 filter 都走这里。
+      // 此前未指定时不加任何条件，等于搜索全库——包括其他租户的私有角色。
+      conditions.push(eq(characters.isPublic, true));
     }
 
     // 分类过滤
@@ -54,9 +60,16 @@ export class SearchService {
       conditions.push(eq(characters.category, category));
     }
 
-    // NSFW 过滤
-    if (isNsfw !== undefined) {
-      conditions.push(eq(characters.isNsfw, isNsfw));
+    // NSFW 排除：平台不允许色情内容，所以这是硬性条件而不是用户偏好。
+    //
+    // 原先是 `if (isNsfw !== undefined) push(eq(isNsfw, isNsfw))`，有两个问题：
+    // 调用方不传就完全不过滤（客户端传的正是 `showNsfw || undefined`，
+    // false || undefined === undefined，于是默认搜索返回 NSFW）；
+    // 传 true 时反而变成「只返回 NSFW」。
+    //
+    // isNsfw 入参因此不再被采纳——保留在签名里只为不破坏现有调用方。
+    if (!isOwnScope) {
+      conditions.push(eq(characters.isNsfw, false));
     }
 
     // 标签过滤 - 使用数组重叠操作符

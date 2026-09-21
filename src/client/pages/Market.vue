@@ -33,7 +33,6 @@ const {
   searchQuery,
   selectedCategory,
   selectedTags,
-  showNsfw,
   sortBy,
   characters,
   total,
@@ -149,7 +148,6 @@ function handleBrowseAll() {
       <FilterToolbar
         v-model:selected-category="selectedCategory"
         v-model:selected-tags="selectedTags"
-        v-model:show-nsfw="showNsfw"
         v-model:sort-by="sortBy"
         @change="handleFilterChange"
       />

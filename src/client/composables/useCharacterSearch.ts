@@ -7,7 +7,6 @@ export function useCharacterSearch() {
   const searchQuery = ref('');
   const selectedCategory = ref('');
   const selectedTags = ref<string[]>([]);
-  const showNsfw = ref(false);
   const sortBy = ref('popular');
 
   const characters = ref<Character[]>([]);
@@ -28,7 +27,6 @@ export function useCharacterSearch() {
         limit: pageSize.value,
         category: selectedCategory.value || undefined,
         tags: selectedTags.value.length ? selectedTags.value : undefined,
-        isNsfw: showNsfw.value || undefined,
       });
 
       characters.value = (response.items || []).map(mapSearchItemToCharacter);
@@ -42,7 +40,6 @@ export function useCharacterSearch() {
     searchQuery.value = '';
     selectedCategory.value = '';
     selectedTags.value = [];
-    showNsfw.value = false;
     currentPage.value = 1;
   };
 
@@ -54,7 +51,6 @@ export function useCharacterSearch() {
     searchQuery,
     selectedCategory,
     selectedTags,
-    showNsfw,
     sortBy,
     characters,
     total,
