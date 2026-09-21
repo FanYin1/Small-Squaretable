@@ -14,6 +14,7 @@ import { errorHandler } from './middleware/error-handler';
 import { requestIdMiddleware } from './middleware/request-id';
 import { requestTimingMiddleware } from './middleware/request-timing';
 import { tenantMiddleware } from './middleware/tenant';
+import { publicPaths } from './config/public-paths';
 import { securityHeaders, developmentSecurityHeaders } from './middleware/security';
 import { csrfProtection, getCsrfToken } from './middleware/csrf';
 import { authRateLimit, apiRateLimit, searchRateLimit, socialCommentRateLimit, reportRateLimit, exportRateLimit, analyticsIngestionRateLimit } from './middleware/rateLimit';
@@ -119,21 +120,7 @@ app.use('/api/v1/analytics/events', analyticsIngestionRateLimit);
 app.use('/api/v1/search/*', searchRateLimit);
 
 // Tenant middleware 只应用到需要租户隔离的 API 路由
-// 注意：/api/v1/characters/search 和 /api/v1/characters/marketplace 是公开端点，不需要租户 ID
-const publicPaths = [
-  '/health',
-  '/api/v1/auth',
-  '/api/v1/auth/oauth',
-  '/api/v1/characters/search',
-  '/api/v1/characters/marketplace',
-  '/api/v1/characters/:id',  // 公开访问角色详情
-  '/api/v1/plugins/marketplace',
-  '/api/v1/plugins/marketplace/:id',
-  '/api/v1/recommendations/trending',
-  '/api/v1/recommendations/similar',
-  '/api/v1/share',
-];
-
+// 公开路径清单见 ./config/public-paths（单独成文件以便测试覆盖）
 app.use('/api/v1/users/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/characters/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/chats/*', tenantMiddleware({ publicPaths }));
