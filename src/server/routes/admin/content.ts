@@ -23,10 +23,19 @@ export const adminContentRoutes = new Hono();
 // All content moderation routes require at least moderator role
 adminContentRoutes.use('*', authMiddleware(), requireRole('moderator'));
 
+const violationCategorySchema = z.enum([
+  'pornography', 'violence', 'harassment', 'infringement', 'other',
+]);
+
 const resolveReportSchema = z.object({
   status: z.enum(['resolved', 'dismissed']),
   action: z.string().optional(),
   reason: z.string().optional(),
+});
+
+const hideContentSchema = z.object({
+  category: violationCategorySchema.optional(),
+  reason: z.string().max(2000).optional(),
 });
 
 // GET /reports — List pending reports (paginated)
@@ -102,12 +111,18 @@ adminContentRoutes.post(
 );
 
 // POST /hide/:targetType/:targetId — Hide content
+// 此前这个动作只写审核日志、不改任何业务状态，返回 200 而内容照常可见。
 adminContentRoutes.post('/hide/:targetType/:targetId', async (c) => {
   const targetType = c.req.param('targetType');
   const targetId = c.req.param('targetId');
   const user = c.get('user');
 
-  await moderationService.takeAction(user.id, targetType, targetId, 'hide');
+  // 分类和理由可选：批量下架时未必逐条填写，但填了就会留给作者看
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = hideContentSchema.safeParse(body);
+  const { category, reason } = parsed.success ? parsed.data : {};
+
+  await moderationService.takeAction(user.id, targetType, targetId, 'hide', reason, category);
 
   return c.json<ApiResponse>({
     success: true,

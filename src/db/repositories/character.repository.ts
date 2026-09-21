@@ -2,6 +2,7 @@ import { eq, and, desc, asc, sql, gt, lt, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { characters, type Character, type NewCharacter } from '../schema/characters';
+import type { ModerationStatus, ViolationCategory } from '../schema/moderation-enums';
 import type { PaginationParams } from '../../types/api';
 
 export interface CharacterFilters {
@@ -33,10 +34,19 @@ export interface CursorPaginatedResult<T> {
  * 没有「让用户自己选择是否查看」这个选项。任何面向非作者的列表、搜索、
  * 推荐都必须带上这个条件。
  *
+ * 同时要求审核通过。此前管理员在后台点「隐藏」只写了一行审核日志、
+ * 不改任何业务状态，接口返回 200 而角色照常可见；moderationStatus
+ * 进到这里之后那个动作才真正生效。
+ *
  * 不适用于：作者查看自己的角色（findByTenantId）、按 id 直取
  * （findById，详情页和审核后台都依赖它能取到被标记的角色）。
  */
-const PUBLIC_VISIBLE = () => and(eq(characters.isPublic, true), eq(characters.isNsfw, false));
+const PUBLIC_VISIBLE = () =>
+  and(
+    eq(characters.isPublic, true),
+    eq(characters.isNsfw, false),
+    eq(characters.moderationStatus, 'approved'),
+  );
 
 export class CharacterRepository extends BaseRepository {
   async findById(id: string): Promise<Character | null> {
@@ -153,6 +163,37 @@ export class CharacterRepository extends BaseRepository {
       .update(characters)
       .set({ ...data, updatedAt: new Date() })
       .where(and(eq(characters.id, id), eq(characters.tenantId, tenantId)))
+      .returning();
+    return result[0] ?? null;
+  }
+
+  /**
+   * 审核处置：跨租户更新角色的审核状态。
+   *
+   * 不带 tenantId 约束是有意的——平台管理员要能处置任何租户的内容，
+   * 而普通 update() 的租户隔离正是为了防止越权。调用方必须是已经过
+   * requireRole('moderator'|'admin') 的审核路径。
+   */
+  async updateModerationStatus(
+    id: string,
+    data: {
+      moderationStatus: ModerationStatus;
+      violationCategory?: ViolationCategory | null;
+      moderationNote?: string | null;
+      moderatedBy: string;
+    },
+  ): Promise<Character | null> {
+    const result = await this.db
+      .update(characters)
+      .set({
+        moderationStatus: data.moderationStatus,
+        violationCategory: data.violationCategory ?? null,
+        moderationNote: data.moderationNote ?? null,
+        moderatedBy: data.moderatedBy,
+        moderatedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(characters.id, id))
       .returning();
     return result[0] ?? null;
   }

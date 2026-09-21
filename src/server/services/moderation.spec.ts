@@ -22,6 +22,20 @@ function createMockModerationRepo() {
   };
 }
 
+// 处置动作现在会真正改业务状态，所以服务需要这两个仓储。
+// 副作用本身在 moderation-effects.spec.ts 里断言，这里只是补齐依赖。
+function createMockCharacterRepo() {
+  return {
+    updateModerationStatus: vi.fn().mockResolvedValue(null),
+  };
+}
+
+function createMockUserRepo() {
+  return {
+    update: vi.fn().mockResolvedValue(null),
+  };
+}
+
 type MockReportRepo = ReturnType<typeof createMockReportRepo>;
 type MockModerationRepo = ReturnType<typeof createMockModerationRepo>;
 
@@ -33,7 +47,12 @@ describe('ModerationService', () => {
   beforeEach(() => {
     reportRepo = createMockReportRepo();
     moderationRepo = createMockModerationRepo();
-    service = new ModerationService(reportRepo as any, moderationRepo as any);
+    service = new ModerationService(
+      reportRepo as any,
+      moderationRepo as any,
+      createMockCharacterRepo() as any,
+      createMockUserRepo() as any,
+    );
   });
 
   // --- submitReport ---
@@ -55,9 +74,21 @@ describe('ModerationService', () => {
         reporterId: 'user-1',
         targetType: 'character',
         targetId: 'char-1',
+        // 不传分类时落 'other'——举报接口要求必填，这里是服务层的兜底
+        category: 'other',
         reason: 'Inappropriate content',
       });
       expect(result).toEqual(fakeReport);
+    });
+
+    it('should record the supplied violation category', async () => {
+      reportRepo.create.mockResolvedValue({ id: 'r-1' });
+
+      await service.submitReport('user-1', 'character', 'char-1', '色情内容', 'pornography');
+
+      expect(reportRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ category: 'pornography' }),
+      );
     });
 
     it('should trim the reason', async () => {

@@ -6,6 +6,7 @@
 
 export * from './tenants';
 export * from './users';
+export * from './moderation-enums';
 export * from './characters';
 export * from './chats';
 export * from './ratings';

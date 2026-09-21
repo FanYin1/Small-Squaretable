@@ -45,6 +45,8 @@ describe('Report Routes', () => {
     const validPayload = {
       targetType: 'character' as const,
       targetId: '550e8400-e29b-41d4-a716-446655440000',
+      // 分类必填：审核后台需要可统计的违规口径，不能只有自由文本
+      category: 'pornography' as const,
       reason: 'Inappropriate content',
     };
 
@@ -67,15 +69,41 @@ describe('Report Routes', () => {
         'character',
         '550e8400-e29b-41d4-a716-446655440000',
         'Inappropriate content',
+        'pornography',
       );
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
           tenantId: 'tenant-123',
           actorId: 'user-123',
           action: 'report_submit',
-          metadata: { targetType: 'character', targetId: '550e8400-e29b-41d4-a716-446655440000' },
+          metadata: {
+            targetType: 'character',
+            targetId: '550e8400-e29b-41d4-a716-446655440000',
+            category: 'pornography',
+          },
         }),
       );
+    });
+
+    it('should return 400 when the category is missing', async () => {
+      const { category: _, ...noCategory } = validPayload;
+      const res = await app.request('/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(noCategory),
+      });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should return 400 with an unknown category', async () => {
+      const res = await app.request('/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...validPayload, category: 'not-a-category' }),
+      });
+
+      expect(res.status).toBe(400);
     });
 
     it('should return 400 with invalid targetType', async () => {

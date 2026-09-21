@@ -17,6 +17,8 @@ export const reportRoutes = new Hono();
 const submitReportSchema = z.object({
   targetType: z.enum(['character', 'comment', 'user']),
   targetId: z.string().uuid(),
+  // 分类必填：此前只有自由文本 reason，审核后台拿不到可统计的违规口径
+  category: z.enum(['pornography', 'violence', 'harassment', 'infringement', 'other']),
   reason: z.string().min(1).max(2000),
 });
 
@@ -27,13 +29,14 @@ reportRoutes.post(
   zValidator('json', submitReportSchema),
   async (c) => {
     const user = c.get('user');
-    const { targetType, targetId, reason } = c.req.valid('json');
+    const { targetType, targetId, category, reason } = c.req.valid('json');
 
     const report = await moderationService.submitReport(
       user.id,
       targetType,
       targetId,
       reason,
+      category,
     );
 
     // Audit report submission
@@ -43,7 +46,7 @@ reportRoutes.post(
       actorId: user.id,
       actorIp,
       action: 'report_submit',
-      metadata: { targetType, targetId },
+      metadata: { targetType, targetId, category },
     });
 
     return c.json<ApiResponse>(

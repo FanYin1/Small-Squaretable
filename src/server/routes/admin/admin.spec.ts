@@ -413,7 +413,26 @@ describe('Admin Routes', () => {
         });
 
         expect(res.status).toBe(200);
-        expect(moderationService.takeAction).toHaveBeenCalledWith('admin-123', 'character', 'char-1', 'hide');
+        // 无 body 时分类和理由为 undefined——批量下架不强制逐条填写
+        expect(moderationService.takeAction).toHaveBeenCalledWith(
+          'admin-123', 'character', 'char-1', 'hide', undefined, undefined,
+        );
+      });
+
+      // 分类会落到 characters.violation_category，是审核统计的口径来源
+      it('forwards the violation category and reason when supplied', async () => {
+        vi.mocked(moderationService.takeAction).mockResolvedValue(undefined);
+
+        const res = await app.request('/api/v1/admin/content/hide/character/char-1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: 'violence', reason: '过度暴力描写' }),
+        });
+
+        expect(res.status).toBe(200);
+        expect(moderationService.takeAction).toHaveBeenCalledWith(
+          'admin-123', 'character', 'char-1', 'hide', '过度暴力描写', 'violence',
+        );
       });
     });
 

@@ -7,6 +7,7 @@
 import { pgTable, uuid, varchar, timestamp, jsonb, boolean, integer, decimal, text, customType, index } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 import { users } from './users';
+import { moderationStatusEnum, violationCategoryEnum } from './moderation-enums';
 
 // 定义 tsvector 自定义类型
 const tsvector = customType<{ data: string; driverData: string }>({
@@ -42,6 +43,17 @@ export const characters = pgTable('characters', {
   // 公开和分享
   isPublic: boolean('is_public').default(false).notNull(),
   isNsfw: boolean('is_nsfw').default(false).notNull(),
+
+  // 审核状态。默认 draft：新角色要走发布申请才进公开入口。
+  // 已存在的公开角色由迁移一次性标为 approved，不回溯审核，
+  // 否则现有数据会在部署瞬间全部下架。
+  moderationStatus: moderationStatusEnum('moderation_status').default('draft').notNull(),
+  // 被驳回/下架时的违规分类，供审核后台统计口径使用。
+  violationCategory: violationCategoryEnum('violation_category'),
+  // 给作者看的处置说明，作者需要知道改什么才能重新提交。
+  moderationNote: text('moderation_note'),
+  moderatedAt: timestamp('moderated_at', { withTimezone: true }),
+  moderatedBy: uuid('moderated_by').references(() => users.id, { onDelete: 'set null' }),
   shareToken: varchar('share_token', { length: 64 }),
   forkedFromId: uuid('forked_from_id'),
 
@@ -73,6 +85,10 @@ export const characters = pgTable('characters', {
   isPublicIdx: index('idx_characters_is_public').on(table.isPublic),
   isPublicCreatedAtIdx: index('idx_characters_is_public_created_at').on(table.isPublic, table.createdAt),
   isPublicDownloadsIdx: index('idx_characters_public_downloads').on(table.isPublic, table.downloadCount),
+  // 公开发现入口现在同时过滤 is_public / is_nsfw / moderation_status
+  moderationStatusIdx: index('idx_characters_moderation_status').on(table.moderationStatus),
+  publicVisibleIdx: index('idx_characters_public_visible')
+    .on(table.isPublic, table.isNsfw, table.moderationStatus),
 }));
 
 export type Character = typeof characters.$inferSelect;

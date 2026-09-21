@@ -4,7 +4,7 @@
  * 提供全文搜索功能，支持关键词搜索、过滤和排序
  */
 
-import { sql, and, or, eq, desc } from 'drizzle-orm';
+import { sql, and, or, eq, desc, type SQL } from 'drizzle-orm';
 import { db } from '@/db';
 import { characters } from '@/db/schema/characters';
 import type { SearchOptions, SearchResult, SearchResultItem } from '@/types/search';
@@ -38,12 +38,25 @@ export class SearchService {
     // 所以只有这种情况跳过 NSFW 排除。
     const isOwnScope = filter === 'my' && !!userId;
 
+    // 公开可见 = 已公开 且 审核通过。搜索层自己拼条件、不走仓储层的
+    // PUBLIC_VISIBLE，所以这里必须独立带上 moderationStatus，否则被下架的
+    // 角色在列表里消失了、搜名字还能搜出来。
+    // and() 的返回类型含 undefined（空参数时），这里参数固定为两个，
+    // 断言非空以免污染调用处的类型
+    const publiclyVisible = () =>
+      and(
+        eq(characters.isPublic, true),
+        eq(characters.moderationStatus, 'approved'),
+      ) as SQL<unknown>;
+
     // 过滤条件
     if (filter === 'my' && userId) {
       conditions.push(eq(characters.creatorId, userId));
     } else if (filter === 'all' && userId) {
+      // 自己的角色不受审核状态限制（作者要能找到被驳回的角色去修），
+      // 但公开的那一半必须是审核通过的。
       const orCondition = or(
-        eq(characters.isPublic, true),
+        publiclyVisible(),
         eq(characters.creatorId, userId)
       );
       if (orCondition) {
@@ -52,7 +65,7 @@ export class SearchService {
     } else {
       // filter === 'public' 以及未指定 filter 都走这里。
       // 此前未指定时不加任何条件，等于搜索全库——包括其他租户的私有角色。
-      conditions.push(eq(characters.isPublic, true));
+      conditions.push(publiclyVisible());
     }
 
     // 分类过滤
