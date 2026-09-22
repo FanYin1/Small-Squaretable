@@ -5,7 +5,7 @@
  */
 
 import { characterRepository } from '../../db/repositories/character.repository';
-import { NotFoundError, ForbiddenError } from '../../core/errors';
+import { NotFoundError, ForbiddenError, BadRequestError } from '../../core/errors';
 import type { CreateCharacterInput, UpdateCharacterInput } from '../../types/character';
 import type { PaginationParams, PaginatedResponse } from '../../types/api';
 import type { Character } from '../../db/schema/characters';
@@ -127,6 +127,21 @@ export class CharacterService {
 
     if (character.creatorId !== userId) {
       throw new ForbiddenError('Only creator can publish this character');
+    }
+
+    // NSFW 在边界上拦掉，而不是发布成功后静默过滤。
+    //
+    // PUBLIC_VISIBLE() 无条件排除 isNsfw=true，updateModerationStatus 又不碰
+    // 这个字段——标了 NSFW 的角色即使审核通过也永远不可见，且没有任何路径能
+    // 改变。此前作者能打开开关、点发布、拿到 200 和「待审核」徽标，内容却
+    // 永久隐形。这是和 pending 回归同一类缺陷：可达的路径产出不可见的结果。
+    //
+    // 平台不允许色情内容，isNsfw 是违规待处置标记而不是分级标记，所以正确的
+    // 行为是拒绝并解释，不是假装成功。
+    if (character.isNsfw) {
+      throw new BadRequestError(
+        'NSFW characters cannot be published: this platform does not allow explicit content. Turn off the NSFW flag and edit the character to comply before publishing.',
+      );
     }
 
     const updated = await this.characterRepo.update(characterId, tenantId, {

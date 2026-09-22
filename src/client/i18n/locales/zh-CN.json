@@ -841,7 +841,7 @@
     "tagsLabel": "标签",
     "tagsPlaceholder": "选择标签",
     "tagsRequired": "请至少选择一个标签",
-    "nsfwHint": "标记为 NSFW 的角色将被过滤显示",
+    "nsfwBlocked": "本平台不允许发布色情内容。标记为 NSFW 的角色无法发布到市场，请关闭该标记并调整设定后再提交。",
     "submit": "发布",
     "success": "角色已发布到市场",
     "error": "发布失败"
@@ -1419,6 +1419,7 @@
     "tags": "标签",
     "tagsPlaceholder": "添加标签",
     "nsfw": "NSFW",
+    "nsfwHint": "标记后该角色无法发布到市场，仅自己可见",
     "personalitySection": "性格设定",
     "personality": "性格",
     "scenario": "场景",

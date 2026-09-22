@@ -81,6 +81,14 @@ async function handlePublish() {
     return;
   }
 
+  // 服务端会直接拒绝 isNsfw=true 的发布（PUBLIC_VISIBLE() 无条件排除该标记，
+  // 标了就永远不可见）。在提交前拦住，而不是先 PATCH 把 category/tags 写进去
+  // 再撞 400——那样表单失败了、角色数据却已经被改过。
+  if (formData.value.isNsfw) {
+    ElMessage.warning(t('characterPublish.nsfwBlocked'));
+    return;
+  }
+
   publishing.value = true;
   try {
     // Update character with form data
@@ -197,7 +205,7 @@ function handleClose() {
       <el-form-item label="NSFW">
         <el-switch v-model="formData.isNsfw" />
         <span style="margin-left: 12px; font-size: 12px; color: var(--el-text-color-secondary)">
-          {{ $t('characterPublish.nsfwHint') }}
+          {{ $t('characterPublish.nsfwBlocked') }}
         </span>
       </el-form-item>
     </el-form>

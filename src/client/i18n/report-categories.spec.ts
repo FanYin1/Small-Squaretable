@@ -68,6 +68,22 @@ describe('report category translations', () => {
           }
         });
       });
+
+      // NSFW 标记会让发布被直接拒绝。这两处文案是作者唯一得到解释的地方，
+      // 漏翻译等于又回到「点了发布、拿到失败、不知道为什么」
+      describe('NSFW 文案', () => {
+        it('发布表单说明为什么发不出去', () => {
+          const publish = messages.characterPublish as Record<string, string> | undefined;
+          expect(publish?.nsfwBlocked, `missing ${name} characterPublish.nsfwBlocked`).toBeTruthy();
+          // 旧文案是「将被过滤显示」——照着做只会撞服务端 400
+          expect(publish?.nsfwBlocked).not.toMatch(/filtered|过滤/i);
+        });
+
+        it('编辑器里的开关说明后果', () => {
+          const editor = messages.characterEditor as Record<string, string> | undefined;
+          expect(editor?.nsfwHint, `missing ${name} characterEditor.nsfwHint`).toBeTruthy();
+        });
+      });
     });
   }
 });

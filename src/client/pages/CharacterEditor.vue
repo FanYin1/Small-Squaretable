@@ -361,8 +361,10 @@ async function handleSaveAsTemplate() {
           />
         </el-form-item>
 
+        <!-- 开关本身没问题，但后果必须说出来：标记后发布会被直接拒绝 -->
         <el-form-item :label="t('characterEditor.nsfw')">
           <el-switch v-model="form.isNsfw" />
+          <span class="field-hint">{{ t('characterEditor.nsfwHint') }}</span>
         </el-form-item>
 
         <!-- Personality -->
@@ -529,6 +531,12 @@ async function handleSaveAsTemplate() {
   border-radius: 12px;
   padding: 32px;
   border: 1px solid var(--border-default);
+}
+
+.field-hint {
+  margin-left: 12px;
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
 .editor-form :deep(.el-divider__text) {

@@ -841,7 +841,7 @@
     "tagsLabel": "Tags",
     "tagsPlaceholder": "Select tags",
     "tagsRequired": "Please select at least one tag",
-    "nsfwHint": "NSFW characters will be filtered from display",
+    "nsfwBlocked": "This platform does not allow explicit content. Characters flagged NSFW cannot be published to the marketplace. Turn the flag off and revise the character before submitting.",
     "submit": "Publish",
     "success": "Character published to market",
     "error": "Failed to publish"
@@ -1419,6 +1419,7 @@
     "tags": "Tags",
     "tagsPlaceholder": "Add tags",
     "nsfw": "NSFW",
+    "nsfwHint": "A flagged character cannot be published to the marketplace and stays private to you",
     "personalitySection": "Personality",
     "personality": "Personality",
     "scenario": "Scenario",
