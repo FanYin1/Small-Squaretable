@@ -4,10 +4,16 @@
  * Handles report submission, resolution, and moderation actions.
  */
 
-import type { ReportRepository } from '../../db/repositories/report.repository';
-import type { ModerationRepository } from '../../db/repositories/moderation.repository';
-import type { CharacterRepository } from '../../db/repositories/character.repository';
-import type { UserRepository } from '../../db/repositories/user.repository';
+import { reportRepository, type ReportRepository } from '../../db/repositories/report.repository';
+import {
+  moderationRepository,
+  type ModerationRepository,
+} from '../../db/repositories/moderation.repository';
+import {
+  characterRepository,
+  type CharacterRepository,
+} from '../../db/repositories/character.repository';
+import { userRepository, type UserRepository } from '../../db/repositories/user.repository';
 import type { Report } from '../../db/schema/reports';
 import type { Character } from '../../db/schema/characters';
 import type { ModerationStatus, ViolationCategory } from '../../db/schema/moderation-enums';
@@ -209,19 +215,22 @@ export class ModerationService {
   }
 }
 
-// Singleton — lazy-initialized to avoid circular imports
+/**
+ * 单例。
+ *
+ * 原来这里用 require() 延迟加载仓库，注释说是为了避开循环引用——但那四个
+ * 仓库并不 import 任何 service，循环引用不存在。而项目是 ESM，require 在
+ * 运行时直接抛 `require is not defined`，于是举报提交、处置动作、举报队列、
+ * 待审队列四个入口全部 500。
+ *
+ * 所有现有测试都是 new ModerationService(mocks)，从不经过这个工厂，所以
+ * 单元测试 100% 绿而功能在真实环境下从未工作过。见
+ * moderation-service-wiring.spec.ts。
+ */
 let _instance: ModerationService | null = null;
 
 export function getModerationService(): ModerationService {
   if (!_instance) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { reportRepository } = require('../../db/repositories/report.repository');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { moderationRepository } = require('../../db/repositories/moderation.repository');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { characterRepository } = require('../../db/repositories/character.repository');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { userRepository } = require('../../db/repositories/user.repository');
     _instance = new ModerationService(
       reportRepository,
       moderationRepository,
