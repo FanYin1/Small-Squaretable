@@ -10,6 +10,7 @@ import { HTTPException } from 'hono/http-exception';
 import { randomBytes, createHash, timingSafeEqual } from 'crypto';
 import { config } from '../../core/config';
 import { redis } from '../../core/redis';
+import { isCsrfExempt } from '../config/csrf-paths';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -137,6 +138,12 @@ export function csrfProtection() {
 
     // Only check state-changing methods
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      // 第三方服务器直连的端点结构上不可能带 token（见 config/csrf-paths.ts）。
+      // 挂载处按前缀通配覆盖子路径，所以豁免只能在这里做。
+      if (isCsrfExempt(c.req.path)) {
+        return next();
+      }
+
       // Skip CSRF for API key requests (stateless, no cookies/sessions)
       const xApiKey = c.req.header('X-API-Key');
       const authHeader = c.req.header('Authorization');

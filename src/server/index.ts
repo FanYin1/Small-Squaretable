@@ -15,6 +15,7 @@ import { requestIdMiddleware } from './middleware/request-id';
 import { requestTimingMiddleware } from './middleware/request-timing';
 import { tenantMiddleware } from './middleware/tenant';
 import { publicPaths } from './config/public-paths';
+import { csrfProtectedPrefixes } from './config/csrf-paths';
 import { securityHeaders, developmentSecurityHeaders } from './middleware/security';
 import { csrfProtection, getCsrfToken } from './middleware/csrf';
 import { authRateLimit, apiRateLimit, searchRateLimit, socialCommentRateLimit, reportRateLimit, exportRateLimit, analyticsIngestionRateLimit } from './middleware/rateLimit';
@@ -180,33 +181,15 @@ app.route('/api/v1/auth/oauth', oauthRoutes);
 app.route('/api/v1/auth/mfa', mfaRoutes);
 
 // Protected routes with CSRF
-app.use('/api/v1/users', csrfProtection());
-app.use('/api/v1/characters', csrfProtection());
-app.use('/api/v1/chats', csrfProtection());
-app.use('/api/v1/subscriptions', csrfProtection());
-app.use('/api/v1/usage', csrfProtection());
-app.use('/api/v1/llm', csrfProtection());
-app.use('/api/v1/worldbooks', csrfProtection());
-app.use('/api/v1/uploads', csrfProtection());
-app.use('/api/v1/webhooks', csrfProtection());
-app.use('/api/v1/notifications', csrfProtection());
-app.use('/api/v1/notification-preferences', csrfProtection());
-app.use('/api/v1/social', csrfProtection());
-app.use('/api/v1/developer', csrfProtection());
-app.use('/api/v1/plugins', csrfProtection());
-app.use('/api/v1/analytics', csrfProtection());
-app.use('/api/v1/reports', csrfProtection());
-app.use('/api/v1/admin', csrfProtection());
-app.use('/api/v1/account', csrfProtection());
-app.use('/api/v1/recommendations', csrfProtection());
-app.use('/api/v1/chat-templates', csrfProtection());
-app.use('/api/v1/character-relationships', csrfProtection());
-app.use('/api/v1/character-growth', csrfProtection());
-app.use('/api/v1/character-collaborators', csrfProtection());
-app.use('/api/v1/character-templates', csrfProtection());
-app.use('/api/v1/character-collections', csrfProtection());
-app.use('/api/v1/presets', csrfProtection());
-app.use('/api/v1/search', csrfProtection());
+//
+// 必须带 `/*`：这里原来是 27 行 `app.use('/api/v1/xxx', csrfProtection())`，
+// 而 Hono 的精确路径不匹配子路径——结果只有集合端点被保护，
+// `POST /api/v1/characters/:id/publish`、发消息、删除等全部子路径写操作
+// 都没有 CSRF 校验（实测带 Authorization 头即可通过）。
+// 清单和豁免见 config/csrf-paths.ts，覆盖语义由 csrf-paths.spec.ts 守。
+for (const prefix of csrfProtectedPrefixes) {
+  app.use(`${prefix}/*`, csrfProtection());
+}
 
 app.route('/api/v1/users', userRoutes);
 app.route('/api/v1/characters', characterRoutes);
