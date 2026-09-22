@@ -12,6 +12,9 @@ import { authMiddleware } from '../middleware/auth';
 import { logger } from '../services/logger.service';
 import { config } from '@/core/config';
 import type { ApiResponse } from '../../types/api';
+import { UPLOAD_FIELD } from '@/types/upload';
+import { featureService } from '../services/feature.service';
+import { meterUsage } from '../services/usage-meter';
 
 const uploadLogger = logger.child({ module: 'uploads' });
 
@@ -69,7 +72,7 @@ uploadRoutes.post('/audio', authMiddleware(), async (c) => {
     );
   }
 
-  const audioFile = formData.get('audio');
+  const audioFile = formData.get(UPLOAD_FIELD.audio);
   if (!audioFile || !(audioFile instanceof File)) {
     return c.json<ApiResponse>(
       {
@@ -163,7 +166,7 @@ uploadRoutes.post('/image', authMiddleware(), async (c) => {
     );
   }
 
-  const imageFile = formData.get('image');
+  const imageFile = formData.get(UPLOAD_FIELD.image);
   if (!imageFile || !(imageFile instanceof File)) {
     return c.json<ApiResponse>(
       {
@@ -205,6 +208,30 @@ uploadRoutes.post('/image', authMiddleware(), async (c) => {
     );
   }
 
+  // images 配额此前既不检查也不计量。PLAN_LIMITS 里 free 10 / pro 500 /
+  // team 5000 写得明明白白，usage 面板也展示这一项，但上传路径上一次
+  // checkQuota / meterUsage 都没有——面板永远是 0，上限永远不触发。
+  //
+  // 不用 requireQuota 中间件，是因为它返回的是裸 { error, message } 结构，
+  // 而这个路由通篇是 ApiResponse 信封，前端按 error.code 分支。在这里内联
+  // 检查能保持响应结构一致；顺序放在格式/大小校验之后，避免一个畸形请求
+  // 也要先打一次数据库。
+  const tenantId = c.get('tenantId');
+  const quota = await featureService.checkQuota(tenantId, 'images');
+  if (!quota.allowed) {
+    return c.json<ApiResponse>(
+      {
+        success: false,
+        error: {
+          code: 'QUOTA_EXCEEDED',
+          message: `Image quota exceeded (${quota.currentUsage}/${quota.limit}). Upgrade your plan to upload more.`,
+        },
+        meta: { timestamp: new Date().toISOString() },
+      },
+      403,
+    );
+  }
+
   const ext = IMAGE_MIME_TO_EXT[imageFile.type] || 'png';
   const filename = `${randomUUID()}.${ext}`;
   const relativeDir = path.join(user.tenantId, 'images');
@@ -229,6 +256,14 @@ uploadRoutes.post('/image', authMiddleware(), async (c) => {
 
   const url = `/uploads/${user.tenantId}/images/${filename}`;
   uploadLogger.info('Image uploaded', { tenantId: user.tenantId, filename, size: imageFile.size });
+
+  // 先落盘再记账：反过来的话写盘失败会留下幻影用量，等于为没存下来的图收费。
+  // meterUsage 失败只进日志，不反过来打断已经成功的上传（见 usage-meter.ts）。
+  await meterUsage(tenantId, 'images', 1, {
+    mime: imageFile.type,
+    size: imageFile.size,
+    filename,
+  });
 
   return c.json<ApiResponse<{ url: string }>>(
     {
