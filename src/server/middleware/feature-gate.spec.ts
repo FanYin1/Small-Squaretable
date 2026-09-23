@@ -99,6 +99,33 @@ describe('requireFeature', () => {
     });
   });
 
+  it('退款吊销后挡住 pro 功能，哪怕订阅还是 active', async () => {
+    vi.mocked(subscriptionRepository.findByTenantId).mockResolvedValue(
+      subscription({ status: 'active', revokedAt: new Date('2026-02-10T00:00:00Z'), revokedReason: 'refund' })
+    );
+
+    const res = await appWith(requireFeature('advanced_models')).request('/probe');
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({
+      currentPlan: 'free',
+      purchasedPlan: 'pro',
+      reason: 'revoked',
+    });
+  });
+
+  it('被吊销时不要提示「更新付款方式」——钱已经退回去了，让人再付一次是错的', async () => {
+    vi.mocked(subscriptionRepository.findByTenantId).mockResolvedValue(
+      subscription({ revokedAt: new Date('2026-02-10T00:00:00Z'), revokedReason: 'refund' })
+    );
+
+    const res = await appWith(requireFeature('advanced_models')).request('/probe');
+    const body = (await res.json()) as { error: string; message: string };
+
+    expect(body.error).toBe('Subscription revoked');
+    expect(body.message).not.toMatch(/payment method/i);
+  });
+
   it('still serves a past_due user inside the dunning grace window', async () => {
     vi.mocked(subscriptionRepository.findByTenantId).mockResolvedValue(
       subscription({ status: 'past_due', currentPeriodEnd: new Date(Date.now() - 60_000) })

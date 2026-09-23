@@ -23,6 +23,17 @@ export const subscriptions = pgTable('subscriptions', {
   currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
   currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
   cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
+
+  /**
+   * 退款 / 拒付导致的权限吊销。
+   *
+   * 不复用 status：status 由 Stripe 订阅状态驱动，退款后订阅本身往往
+   * 还是 active（退的是某一期账单，订阅没取消）。一旦后面来一个
+   * customer.subscription.updated，无条件写 status 就会把权限又还回去。
+   * 单独一个字段，只由退款/拒付事件写，订阅状态同步不碰它。
+   */
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  revokedReason: varchar('revoked_reason', { length: 32 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

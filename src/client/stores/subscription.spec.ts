@@ -402,6 +402,43 @@ describe('Subscription Store', () => {
 
         expect(store.currentPlan).toBe('pro');
       });
+
+      it('标出退款吊销——Stripe 侧订阅还是 active，光看 status 会显示「有效」', async () => {
+        vi.mocked(subscriptionApi.getStatus).mockResolvedValue({
+          subscription: { plan: 'pro', status: 'active' },
+          entitlement: {
+            plan: 'free',
+            purchasedPlan: 'pro',
+            reason: 'revoked',
+            suspended: true,
+          },
+        } as any);
+
+        const store = useSubscriptionStore();
+        await store.fetchStatus();
+
+        expect(store.isRevoked).toBe(true);
+        expect(store.currentPlan).toBe('free');
+        expect(store.isPro).toBe(false);
+      });
+
+      it('付款逾期不算吊销——两种情况的引导文案不一样', async () => {
+        vi.mocked(subscriptionApi.getStatus).mockResolvedValue({
+          subscription: { plan: 'pro', status: 'past_due' },
+          entitlement: {
+            plan: 'free',
+            purchasedPlan: 'pro',
+            reason: 'past_due_expired',
+            suspended: true,
+          },
+        } as any);
+
+        const store = useSubscriptionStore();
+        await store.fetchStatus();
+
+        expect(store.isRevoked).toBe(false);
+        expect(store.isSuspended).toBe(true);
+      });
     });
   });
 

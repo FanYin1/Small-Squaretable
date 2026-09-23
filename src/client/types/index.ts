@@ -145,7 +145,9 @@ export interface Entitlement {
     | 'trialing'
     | 'past_due_grace'
     | 'past_due_expired'
-    | 'canceled';
+    | 'canceled'
+    /** 退款或拒付导致的吊销。不要提示「更新付款方式」，钱已经退回去了 */
+    | 'revoked';
   suspended: boolean;
 }
 

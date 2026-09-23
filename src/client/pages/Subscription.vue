@@ -72,7 +72,14 @@ const plans = computed(() => [
   },
 ]);
 
+/**
+ * 吊销要盖住 subscription.status。
+ *
+ * 退款/拒付退的是账单，Stripe 侧的订阅本身往往还是 active，
+ * 只看 status 这里会显示「活跃」，而所有付费功能都已经返回 403。
+ */
 const statusText = computed(() => {
+  if (subscriptionStore.isRevoked) return t('subscription.statusRevoked');
   const status = subscriptionStore.subscription?.status;
   const map: Record<string, string> = {
     active: t('subscription.statusActive'),
@@ -84,6 +91,7 @@ const statusText = computed(() => {
 });
 
 const statusType = computed(() => {
+  if (subscriptionStore.isRevoked) return 'danger';
   const status = subscriptionStore.subscription?.status;
   const map: Record<string, string> = {
     active: 'success',
@@ -276,6 +284,12 @@ function formatNumber(num: number): string {
                     {{ t('subscription.expiryDate') }}
                   </span>
                   <span class="value">{{ expiryDate }}</span>
+                </div>
+
+                <div v-if="subscriptionStore.isRevoked" class="cancel-warning">
+                  <el-alert type="error" :closable="false" show-icon>
+                    {{ t('subscription.statusRevokedNotice') }}
+                  </el-alert>
                 </div>
 
                 <div v-if="subscriptionStore.subscription.cancelAtPeriodEnd" class="cancel-warning">

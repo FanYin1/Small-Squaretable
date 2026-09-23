@@ -32,6 +32,15 @@ export const useSubscriptionStore = defineStore('subscription', () => {
   /** 买过套餐但当前失效，UI 应提示更新付款方式而不是升级 */
   const isSuspended = computed(() => entitlement.value?.suspended ?? false);
 
+  /**
+   * 退款 / 拒付吊销。
+   *
+   * 必须和 isSuspended 分开：退款后 Stripe 侧的订阅往往还是 active，
+   * subscription.status 看不出任何异常，只有 entitlement.reason 知道。
+   * 而且这类用户不该被提示「更新付款方式」——钱已经退回去了。
+   */
+  const isRevoked = computed(() => entitlement.value?.reason === 'revoked');
+
   const isActive = computed(() => subscription.value?.status === 'active');
   const isPro = computed(() => currentPlan.value === 'pro' || currentPlan.value === 'team');
 
@@ -103,6 +112,7 @@ export const useSubscriptionStore = defineStore('subscription', () => {
     isActive,
     isPro,
     isSuspended,
+    isRevoked,
     fetchStatus,
     fetchConfig,
     startCheckout,

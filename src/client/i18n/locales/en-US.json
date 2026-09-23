@@ -525,6 +525,8 @@
     "statusActive": "Active",
     "statusCancelled": "Cancelled",
     "statusOverdue": "Overdue",
+    "statusRevoked": "Revoked",
+    "statusRevokedNotice": "Your subscription access was revoked following a refund or payment dispute. Contact support if this is unexpected.",
     "statusTrial": "Trial",
     "statusUnknown": "Unknown",
     "subscribeSuccess": "Subscription successful",

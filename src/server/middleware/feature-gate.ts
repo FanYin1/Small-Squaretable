@@ -14,19 +14,30 @@ import type { ResourceType } from '../services/usage.service';
 /**
  * 功能权限不足时的响应。
  *
- * 区分两种情况很重要：真正的免费用户要看到「升级」，
- * 而付款失败被暂停的付费用户要看到「更新付款方式」——
+ * 区分三种情况很重要：真正的免费用户要看到「升级」，
+ * 付款失败被暂停的付费用户要看到「更新付款方式」——
  * 对后者提示升级会让人以为自己没买过，直接导致流失和客诉。
+ * 而退款/拒付被吊销的用户既不该看到「升级」也不该看到「更新付款方式」：
+ * 钱已经退回去了，催他再付一次是错的，该引导他联系客服。
  */
 function featureDeniedResponse(c: Context, feature: FeatureName, entitlement: Entitlement) {
+  const revoked = entitlement.reason === 'revoked';
   const suspended = isSuspended(entitlement);
+
+  const error = revoked
+    ? 'Subscription revoked'
+    : suspended
+      ? 'Subscription inactive'
+      : 'Upgrade required';
 
   return c.json(
     {
-      error: suspended ? 'Subscription inactive' : 'Upgrade required',
-      message: suspended
-        ? 'Your subscription is not active. Please update your payment method to restore access.'
-        : `This feature requires a higher subscription plan`,
+      error,
+      message: revoked
+        ? 'Your subscription access was revoked following a refund or payment dispute. Contact support if this is unexpected.'
+        : suspended
+          ? 'Your subscription is not active. Please update your payment method to restore access.'
+          : `This feature requires a higher subscription plan`,
       feature,
       currentPlan: entitlement.plan,
       purchasedPlan: entitlement.purchasedPlan,

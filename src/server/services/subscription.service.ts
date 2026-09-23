@@ -4,6 +4,7 @@ import { stripeWebhookEventRepository } from '../../db/repositories/stripe-webho
 import { NotFoundError, ValidationError } from '../../core/errors';
 import { config } from '../../core/config';
 import { logger } from './logger.service';
+import { auditService } from './audit.service';
 import type { Subscription } from '../../db/schema/subscriptions';
 
 const stripe = new Stripe(config.stripeSecretKey, {
@@ -14,6 +15,9 @@ const subscriptionLogger = logger.child({ module: 'subscription' });
 
 export type PlanType = 'free' | 'pro' | 'team';
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing';
+
+/** 权限吊销原因，写进 subscriptions.revokedReason */
+export type RevokeReason = 'refund' | 'dispute';
 
 const PRICE_TO_PLAN: Record<string, PlanType> = {
   [config.stripeProMonthlyPrice]: 'pro',
@@ -156,6 +160,17 @@ export class SubscriptionService {
         // 否则用户补交了钱还是被降级对待。
         await this.handleInvoicePaid(event.data.object as Stripe.Invoice);
         break;
+      case 'charge.refunded':
+        // 钱退了，权限必须跟着走。订阅状态不会因为退款变化，所以只靠
+        // customer.subscription.* 这条线永远抓不到这种情况。
+        await this.handleChargeRefunded(event.data.object as Stripe.Charge);
+        break;
+      case 'charge.dispute.created':
+        await this.handleDisputeCreated(event.data.object as Stripe.Dispute);
+        break;
+      case 'charge.dispute.closed':
+        await this.handleDisputeClosed(event.data.object as Stripe.Dispute);
+        break;
       default:
         subscriptionLogger.debug('Ignoring unhandled Stripe event type', {
           eventId: event.id,
@@ -231,6 +246,166 @@ export class SubscriptionService {
     await subscriptionRepository.updateByStripeSubscriptionId(subscriptionId, {
       status: 'active',
     });
+  }
+
+  /**
+   * 全额退款 → 吊销权限。
+   *
+   * 只认全额：部分退款（按比例退一期里的几天、退了个附加费）不该直接断服务，
+   * 那属于账务调整而不是「这笔交易不算了」。
+   */
+  private async handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
+    const fullyRefunded = charge.refunded === true || charge.amount_refunded >= charge.amount;
+    if (!fullyRefunded) {
+      subscriptionLogger.info('Partial refund, keeping entitlement', {
+        chargeId: charge.id,
+        amount: charge.amount,
+        amountRefunded: charge.amount_refunded,
+      });
+      return;
+    }
+
+    await this.revokeByCustomer(this.extractCustomerId(charge), 'refund', {
+      chargeId: charge.id,
+      amountRefunded: charge.amount_refunded,
+      currency: charge.currency,
+    });
+  }
+
+  /**
+   * 拒付开出来就吊销，不等裁决。
+   *
+   * 裁决要几十天，这期间钱已经被银行扣回，用户却还在用服务。赢了再恢复
+   * （charge.dispute.closed / status=won）代价比反过来小得多。
+   */
+  private async handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
+    const customerId = await this.resolveDisputeCustomer(dispute);
+
+    // 不要叫 reason：审计里 reason 是吊销原因（refund/dispute），
+    // 用 dispute.reason（fraudulent 之类）去占这个键会把它覆盖掉，
+    // 财务对账时就分不出这笔是退款还是拒付了。
+    await this.revokeByCustomer(customerId, 'dispute', {
+      disputeId: dispute.id,
+      disputeReason: dispute.reason,
+      amount: dispute.amount,
+    });
+  }
+
+  /**
+   * 拒付裁决结束。只有我们赢了、且当初就是因为这场拒付吊销的，才恢复权限。
+   * 因退款吊销的不受影响 —— 退款和拒付是两件独立的事。
+   */
+  private async handleDisputeClosed(dispute: Stripe.Dispute): Promise<void> {
+    if (dispute.status !== 'won') {
+      subscriptionLogger.info('Dispute not won, entitlement stays revoked', {
+        disputeId: dispute.id,
+        status: dispute.status,
+      });
+      return;
+    }
+
+    const customerId = await this.resolveDisputeCustomer(dispute);
+    if (!customerId) return;
+
+    const subscription = await subscriptionRepository.findByStripeCustomerId(customerId);
+    if (!subscription?.revokedAt || subscription.revokedReason !== 'dispute') return;
+
+    await subscriptionRepository.update(subscription.id, {
+      revokedAt: null,
+      revokedReason: null,
+    });
+
+    auditService.log({
+      tenantId: subscription.tenantId,
+      actorId: 'system',
+      action: 'subscription_restore',
+      targetType: 'subscription',
+      targetId: subscription.id,
+      metadata: { disputeId: dispute.id, disputeStatus: dispute.status },
+    });
+
+    subscriptionLogger.info('Entitlement restored after winning dispute', {
+      tenantId: subscription.tenantId,
+      disputeId: dispute.id,
+    });
+  }
+
+  /**
+   * 落吊销标记。
+   *
+   * 幂等：已经吊销过就不再写，保留第一次的时间点 —— Stripe 会重投，
+   * 覆写会把「什么时候失去权限」这个事实改掉。
+   *
+   * 找不到订阅不算错误，直接返回：这可能是一次性付款或别的产品线的 charge，
+   * 抛错只会让 Stripe 无限重投一个永远不会成功的事件。
+   */
+  private async revokeByCustomer(
+    customerId: string | undefined,
+    reason: RevokeReason,
+    metadata: Record<string, unknown>
+  ): Promise<void> {
+    if (!customerId) {
+      subscriptionLogger.warn('Refund/dispute without customer, cannot revoke', { reason, ...metadata });
+      return;
+    }
+
+    const subscription = await subscriptionRepository.findByStripeCustomerId(customerId);
+    if (!subscription) {
+      subscriptionLogger.warn('No subscription for customer, nothing to revoke', {
+        customerId,
+        reason,
+      });
+      return;
+    }
+
+    if (subscription.revokedAt) {
+      subscriptionLogger.info('Entitlement already revoked, skipping', {
+        tenantId: subscription.tenantId,
+        revokedAt: subscription.revokedAt,
+        revokedReason: subscription.revokedReason,
+      });
+      return;
+    }
+
+    // 只写吊销字段：plan/status 由 Stripe 订阅状态驱动，退款时订阅往往还是
+    // active，在这里改会和下一次 customer.subscription.updated 打架。
+    await subscriptionRepository.update(subscription.id, {
+      revokedAt: new Date(),
+      revokedReason: reason,
+    });
+
+    auditService.log({
+      tenantId: subscription.tenantId,
+      actorId: 'system',
+      action: 'subscription_revoke',
+      targetType: 'subscription',
+      targetId: subscription.id,
+      // reason 放在展开之后：调用方传进来的字段不许覆盖吊销原因
+      metadata: { plan: subscription.plan, ...metadata, reason },
+    });
+
+    subscriptionLogger.warn('Entitlement revoked', {
+      tenantId: subscription.tenantId,
+      plan: subscription.plan,
+      reason,
+    });
+  }
+
+  /** dispute.charge 可能是 id 也可能已展开；是 id 时得回查一次才能拿到 customer */
+  private async resolveDisputeCustomer(dispute: Stripe.Dispute): Promise<string | undefined> {
+    if (typeof dispute.charge !== 'string') {
+      return this.extractCustomerId(dispute.charge);
+    }
+
+    const charge = await stripe.charges.retrieve(dispute.charge);
+    return this.extractCustomerId(charge);
+  }
+
+  /** charge.customer 可能是 id 字符串、展开后的对象，或 null */
+  private extractCustomerId(charge: Stripe.Charge | undefined): string | undefined {
+    const customer = charge?.customer;
+    if (!customer) return undefined;
+    return typeof customer === 'string' ? customer : customer.id;
   }
 
   /** invoice.subscription 在不同 API 版本里可能是 id 字符串或展开后的对象 */

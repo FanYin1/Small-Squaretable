@@ -25,6 +25,8 @@ export interface EntitlementSource {
   plan: PlanType;
   status: SubscriptionStatus;
   currentPeriodEnd: Date | null;
+  /** 退款/拒付吊销时间点，null 表示未吊销 */
+  revokedAt?: Date | null;
 }
 
 export type EntitlementReason =
@@ -33,7 +35,8 @@ export type EntitlementReason =
   | 'trialing'
   | 'past_due_grace'
   | 'past_due_expired'
-  | 'canceled';
+  | 'canceled'
+  | 'revoked';
 
 export interface Entitlement {
   /** 实际生效的套餐，权限和配额都按这个算 */
@@ -60,6 +63,12 @@ export function resolveEntitlement(
   }
 
   const purchasedPlan = subscription.plan;
+
+  // 吊销优先于一切状态判断。钱已经还给用户了，订阅在 Stripe 侧是不是
+  // 还 active、还在不在 past_due 宽限期内，都不该影响结论。
+  if (subscription.revokedAt != null) {
+    return { plan: FREE, purchasedPlan, reason: 'revoked' };
+  }
 
   switch (subscription.status) {
     case 'active':

@@ -525,6 +525,8 @@
     "statusActive": "活跃",
     "statusCancelled": "已取消",
     "statusOverdue": "逾期",
+    "statusRevoked": "已终止",
+    "statusRevokedNotice": "因退款或付款争议，订阅权限已终止。如有疑问请联系客服。",
     "statusTrial": "试用中",
     "statusUnknown": "未知",
     "subscribeSuccess": "订阅成功",
