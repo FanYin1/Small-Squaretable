@@ -4,12 +4,13 @@
  * 处理用户通知的数据访问
  */
 
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, ne, and, sql, desc } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { notifications, type Notification } from '../schema/social';
 import { users } from '../schema/users';
 import type { NotificationType, NotificationItem } from '@/types/social';
+import { isModuleEnabled } from '../../core/modules';
 
 export class NotificationRepository extends BaseRepository {
   /**
@@ -49,6 +50,10 @@ export class NotificationRepository extends BaseRepository {
     unreadOnly: boolean,
   ): Promise<NotificationItem[]> {
     const conditions = [eq(notifications.userId, userId)];
+    // P2-1：关注下线后，历史 follow 通知不再展示
+    if (!isModuleEnabled('social_follow')) {
+      conditions.push(ne(notifications.type, 'follow'));
+    }
     if (unreadOnly) {
       conditions.push(eq(notifications.isRead, false));
     }
@@ -94,7 +99,13 @@ export class NotificationRepository extends BaseRepository {
       .select({ count: sql<number>`count(*)::int` })
       .from(notifications)
       .where(
-        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, false),
+          ...(isModuleEnabled('social_follow')
+            ? []
+            : [ne(notifications.type, 'follow')]),
+        ),
       );
     return count;
   }

@@ -4,28 +4,39 @@ import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { User, Document, DataBoard, List, Delete, TrendCharts, Ticket } from '@element-plus/icons-vue';
 import { useUserStore } from '@client/stores/user';
+import { useModulesStore } from '@client/stores/modules';
+import type { ModuleName } from '@/types/modules';
 
 const { t } = useI18n();
 const route = useRoute();
 const userStore = useUserStore();
+const modulesStore = useModulesStore();
 
 const isAdmin = computed(() => userStore.user?.role === 'admin');
 
+interface MenuItem {
+  path: string;
+  icon: unknown;
+  label: string;
+  /** 所属功能模块（P2-1）；模块关闭时不显示。不带 module 的条目始终显示。 */
+  module?: ModuleName;
+}
+
 const menuItems = computed(() => {
-  const items = [
+  const items: MenuItem[] = [
     { path: '/admin/content', icon: Document, label: t('admin.nav.content') },
   ];
   if (isAdmin.value) {
     items.unshift({ path: '/admin/users', icon: User, label: t('admin.nav.users') });
     items.push(
-      { path: '/admin/system', icon: DataBoard, label: t('admin.nav.system') },
-      { path: '/admin/audit-logs', icon: List, label: t('admin.nav.auditLogs') },
-      { path: '/admin/gdpr', icon: Delete, label: t('admin.nav.gdpr') },
-      { path: '/admin/experiments', icon: TrendCharts, label: t('admin.nav.experiments') },
+      { path: '/admin/system', icon: DataBoard, label: t('admin.nav.system'), module: 'admin_advanced' },
+      { path: '/admin/audit-logs', icon: List, label: t('admin.nav.auditLogs'), module: 'admin_advanced' },
+      { path: '/admin/gdpr', icon: Delete, label: t('admin.nav.gdpr'), module: 'admin_advanced' },
+      { path: '/admin/experiments', icon: TrendCharts, label: t('admin.nav.experiments'), module: 'analytics' },
       { path: '/admin/invite-codes', icon: Ticket, label: t('admin.nav.inviteCodes') },
     );
   }
-  return items;
+  return items.filter((item) => modulesStore.isEnabled(item.module));
 });
 
 const activeMenu = computed(() => route.path);

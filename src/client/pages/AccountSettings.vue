@@ -5,11 +5,13 @@ import { Download, Delete, Setting, Reading } from '@element-plus/icons-vue';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import ChatFontSizeSetting from '@client/components/chat/ChatFontSizeSetting.vue';
 import { gdprApi } from '@client/services/gdpr.api';
+import { useModulesStore } from '@client/stores/modules';
 import { useToast } from '@client/composables/useToast';
 import type { DeletionStatus, ConsentPreferences } from '@client/services/gdpr.api';
 
 const { t } = useI18n();
 const toast = useToast();
+const modulesStore = useModulesStore();
 
 // ── Data Export ──
 const exporting = ref(false);
@@ -136,7 +138,10 @@ function formatDate(dateStr: string | null): string {
 
 onMounted(() => {
   fetchDeletionStatus();
-  fetchConsents();
+  // P2-1: 同意管理界面下线时不再请求（数据导出与账号删除保留）
+  if (modulesStore.isEnabled('gdpr_consent_ui')) {
+    fetchConsents();
+  }
 });
 </script>
 
@@ -252,7 +257,12 @@ onMounted(() => {
         </template>
       </el-dialog>
       <!-- Privacy Preferences Section -->
-      <el-card class="settings-card" shadow="never" v-loading="consentsLoading">
+      <el-card
+        v-if="modulesStore.isEnabled('gdpr_consent_ui')"
+        class="settings-card"
+        shadow="never"
+        v-loading="consentsLoading"
+      >
         <template #header>
           <div class="card-header">
             <el-icon :size="20"><Setting /></el-icon>

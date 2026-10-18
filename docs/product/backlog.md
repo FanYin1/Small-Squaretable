@@ -306,7 +306,7 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
 
 依据见 [`positioning.md`](./positioning.md) 的「明确不做的事」。**这一档的主要动作是关入口，不是删代码。**
 
-### [ ] P2-1 功能可见性开关：下线约 19,700 行对应的入口
+### [x] P2-1 功能可见性开关：下线约 19,700 行对应的入口
 
 不要删代码。在 `src/server/index.ts` 注册路由处加一份**模块开关配置**，配合前端路由守卫与侧栏入口，把下列模块关掉。
 
@@ -335,6 +335,15 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
 - **阻塞**：P2-2、P4-1
 - **注意**：**多租户不在此列，不要拆**（理由见 positioning.md）
 - **估时**：2–3 天
+- **结论（2026-10-18）**：
+  - 七个开关组 `analytics` / `social_follow` / `plugins` / `webhooks_developer` / `recommendations` / `gdpr_consent_ui` / `admin_advanced`，名字与默认值（全关）定义在 `src/types/modules.ts`，前后端共用。`MODULES_ENABLED` / `MODULES_DISABLED` 逗号分隔，后者优先；服务端读 `core/modules.ts` 的 `isModuleEnabled()`，前端经 `GET /api/v1/config/modules` 取同一份结果（`stores/modules.ts`），路由守卫与侧栏/菜单入口都读它
+  - 整前缀归属的模块列在 `server/config/module-prefixes.ts`，关闭时 `index.ts` 不挂路由，**同时跳过该前缀的租户 / CSRF 中间件**，否则 tenantMiddleware 会先返回 400 而不是 404。social 里关注与动态流拆到 `social-follow.ts` 单独挂载，收藏 / 评论不受影响；通知关掉 `follow` 类型
+  - analytics 关闭时 Kafka / ClickHouse 不初始化。**实测**：只有 Postgres + Redis 的开发环境下启动日志无 error、无重试，`/health/ready` ok，`/api/v1/analytics/overview` 404
+  - admin 后台收为：用户（删卡 / 封号）、邀请码、充值，外加**内容审核**页——发布需审核通过才可见，删掉审核页等于卡发不出去，所以保留。system / audit-logs / gdpr 的**后端路由仍挂着，只隐藏了界面**（`admin_advanced` 打开即恢复）
+  - MFA 原本就不在注册路径上，无需移出；设置页入口不变
+  - 顺带：vitals 上报不再要求 `X-Tenant-ID`
+  - **已知存量问题（未修）**：analytics 打开时 "Kafka bridge started" 打两次日志；`NotificationBell` 跳转的几个路由名不存在
+- **验收状态**：1–4 均满足。tsc 0 error，lint 0 error，vitest 284 文件 / 3025 通过 / 17 skip，build 通过
 
 ### [ ] P2-2 immersive 提为默认主题
 

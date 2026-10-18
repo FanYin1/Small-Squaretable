@@ -17,6 +17,9 @@ import { requestTimingMiddleware } from './middleware/request-timing';
 import { tenantMiddleware } from './middleware/tenant';
 import { publicPaths } from './config/public-paths';
 import { csrfProtectedPrefixes } from './config/csrf-paths';
+import { moduleOwnedPrefixes, isPrefixClosed } from './config/module-prefixes';
+import { isModuleEnabled, getModuleFlags } from '../core/modules';
+import { MODULE_NAMES } from '../types/modules';
 import { securityHeaders, developmentSecurityHeaders } from './middleware/security';
 import { csrfProtection, getCsrfToken } from './middleware/csrf';
 import { authRateLimit, apiRateLimit, searchRateLimit, socialCommentRateLimit, reportRateLimit, exportRateLimit, analyticsIngestionRateLimit } from './middleware/rateLimit';
@@ -34,6 +37,7 @@ import { webhookRoutes } from './routes/webhooks';
 import { notificationRoutes } from './routes/notifications';
 import { notificationPreferenceRoutes } from './routes/notification-preferences';
 import { socialRoutes } from './routes/social';
+import { socialFollowRoutes } from './routes/social-follow';
 import { activityRoutes } from './routes/activity';
 import { developerRoutes } from './routes/developer';
 import { pluginRoutes } from './routes/plugins';
@@ -121,7 +125,9 @@ app.use('/api/v1/*', apiRateLimit);
 app.use('/api/v1/social/comments', socialCommentRateLimit);
 app.use('/api/v1/reports', reportRateLimit);
 app.use('/api/v1/account/export', exportRateLimit);
-app.use('/api/v1/analytics/events', analyticsIngestionRateLimit);
+if (isModuleEnabled('analytics')) {
+  app.use('/api/v1/analytics/events', analyticsIngestionRateLimit);
+}
 app.use('/api/v1/search/*', searchRateLimit);
 
 // Tenant middleware 只应用到需要租户隔离的 API 路由
@@ -134,17 +140,12 @@ app.use('/api/v1/usage/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/llm/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/worldbooks/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/uploads/*', tenantMiddleware({ publicPaths }));
-app.use('/api/v1/webhooks/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/notifications/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/notification-preferences/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/social/*', tenantMiddleware({ publicPaths }));
-app.use('/api/v1/developer/*', tenantMiddleware({ publicPaths }));
-app.use('/api/v1/plugins/*', tenantMiddleware({ publicPaths }));
-app.use('/api/v1/analytics/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/reports/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/admin/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/account/*', tenantMiddleware({ publicPaths }));
-app.use('/api/v1/recommendations/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/chat-templates/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-relationships/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-growth/*', tenantMiddleware({ publicPaths }));
@@ -152,6 +153,13 @@ app.use('/api/v1/character-collaborators/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-templates/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/character-collections/*', tenantMiddleware({ publicPaths }));
 app.use('/api/v1/search/*', tenantMiddleware({ publicPaths }));
+
+// P2-1：归属功能模块的前缀只在模块开启时才挂租户中间件。
+// 关闭时不挂，请求才能走到真正的 404，而不是先被 tenantMiddleware 以 400 拦下。
+for (const prefix of Object.keys(moduleOwnedPrefixes)) {
+  if (isPrefixClosed(prefix, isModuleEnabled)) continue;
+  app.use(`${prefix}/*`, tenantMiddleware({ publicPaths }));
+}
 
 // 健康检查端点
 app.get('/health', async (c) => {
@@ -178,6 +186,16 @@ app.route('/api/v1/analytics/vitals', vitalsRoutes);
 // CSRF token endpoint (must be before auth routes)
 app.get('/api/v1/csrf-token', getCsrfToken);
 
+// 功能模块开关（公开，无需登录和租户头）。前端路由守卫与侧边栏读它，
+// 和后端挂载路由用的是同一份 core/modules 配置。
+app.get('/api/v1/config/modules', (c) => {
+  return c.json({
+    success: true,
+    data: getModuleFlags(),
+    meta: { timestamp: new Date().toISOString() },
+  });
+});
+
 // Apply CSRF protection to state-changing routes
 // Auth endpoints (login/register don't need CSRF as they're public)
 app.route('/api/v1/auth', authRoutes);
@@ -192,6 +210,8 @@ app.route('/api/v1/auth/mfa', mfaRoutes);
 // 都没有 CSRF 校验（实测带 Authorization 头即可通过）。
 // 清单和豁免见 config/csrf-paths.ts，覆盖语义由 csrf-paths.spec.ts 守。
 for (const prefix of csrfProtectedPrefixes) {
+  // P2-1：模块关闭时该前缀没有路由，不挂 CSRF，让请求直接落到 404
+  if (isPrefixClosed(prefix, isModuleEnabled)) continue;
   app.use(`${prefix}/*`, csrfProtection());
 }
 
@@ -203,18 +223,30 @@ app.route('/api/v1/usage', usageRoutes);
 app.route('/api/v1/llm', llmRoutes);
 app.route('/api/v1/worldbooks', worldbooksRouter);
 app.route('/api/v1/uploads', uploadRoutes);
-app.route('/api/v1/webhooks', webhookRoutes);
+if (isModuleEnabled('webhooks_developer')) {
+  app.route('/api/v1/webhooks', webhookRoutes);
+  app.route('/api/v1/developer', developerRoutes);
+}
 app.route('/api/v1/notifications', notificationRoutes);
 app.route('/api/v1/notification-preferences', notificationPreferenceRoutes);
 app.route('/api/v1/social', socialRoutes);
-app.route('/api/v1/social', activityRoutes);
-app.route('/api/v1/developer', developerRoutes);
-app.route('/api/v1/plugins', pluginRoutes);
-app.route('/api/v1/analytics', analyticsRoutes);
+if (isModuleEnabled('social_follow')) {
+  // 关注 / 动态流；收藏与评论（socialRoutes）始终可用
+  app.route('/api/v1/social', socialFollowRoutes);
+  app.route('/api/v1/social', activityRoutes);
+}
+if (isModuleEnabled('plugins')) {
+  app.route('/api/v1/plugins', pluginRoutes);
+}
+if (isModuleEnabled('analytics')) {
+  app.route('/api/v1/analytics', analyticsRoutes);
+}
 app.route('/api/v1/reports', reportRoutes);
 app.route('/api/v1/admin', adminRoutes);
 app.route('/api/v1/account', gdprRoutes);
-app.route('/api/v1/recommendations', recommendationRoutes);
+if (isModuleEnabled('recommendations')) {
+  app.route('/api/v1/recommendations', recommendationRoutes);
+}
 app.route('/api/v1/chat-templates', chatTemplatesRouter);
 app.route('/api/v1/character-relationships', characterRelationshipsRouter);
 app.route('/api/v1/character-growth', characterGrowthRouter);
@@ -249,13 +281,13 @@ app.get('/api/v1', (c) => {
       notifications: '/api/v1/notifications',
       notificationPreferences: '/api/v1/notification-preferences',
       social: '/api/v1/social',
-      developer: '/api/v1/developer',
-      plugins: '/api/v1/plugins',
-      analytics: '/api/v1/analytics',
+      ...(isModuleEnabled('webhooks_developer') ? { developer: '/api/v1/developer' } : {}),
+      ...(isModuleEnabled('plugins') ? { plugins: '/api/v1/plugins' } : {}),
+      ...(isModuleEnabled('analytics') ? { analytics: '/api/v1/analytics' } : {}),
       reports: '/api/v1/reports',
       admin: '/api/v1/admin',
       account: '/api/v1/account',
-      recommendations: '/api/v1/recommendations',
+      ...(isModuleEnabled('recommendations') ? { recommendations: '/api/v1/recommendations' } : {}),
       chatTemplates: '/api/v1/chat-templates',
       characterRelationships: '/api/v1/character-relationships',
       characterGrowth: '/api/v1/character-growth',
@@ -343,22 +375,36 @@ app.onError(errorHandler);
 if (process.env.NODE_ENV !== 'test') {
   const port = config.port;
 
+  // P2-1：可选模块。关闭的模块不启动任何后台任务（Kafka 不连接、不重试、不报错）。
+  const closedModules = MODULE_NAMES.filter((name) => !isModuleEnabled(name));
+  if (closedModules.length > 0) {
+    appLogger.info('Optional modules disabled', { modules: closedModules });
+  }
+
   // Start webhook delivery worker
-  const webhookWorker = new WebhookWorker(webhookRepository);
-  webhookWorker.start();
+  const webhookWorker = isModuleEnabled('webhooks_developer')
+    ? new WebhookWorker(webhookRepository)
+    : null;
+  webhookWorker?.start();
 
   // Start plugin event bridge
-  pluginBridge.start();
+  if (isModuleEnabled('plugins')) {
+    pluginBridge.start();
+  }
 
   // Register activity feed event listeners
-  activityService.registerListeners();
+  if (isModuleEnabled('social_follow')) {
+    activityService.registerListeners();
+  }
 
   // Start Kafka event bridge
-  kafkaBridge.start().then(() => {
-    appLogger.info('Kafka bridge started');
-  }).catch((err) => {
-    appLogger.error('Failed to start Kafka bridge', err);
-  });
+  if (isModuleEnabled('analytics')) {
+    kafkaBridge.start().then(() => {
+      appLogger.info('Kafka bridge started');
+    }).catch((err) => {
+      appLogger.error('Failed to start Kafka bridge', err);
+    });
+  }
 
   // Register and start scheduled jobs
   registerJobs(scheduler);
@@ -395,13 +441,15 @@ if (process.env.NODE_ENV !== 'test') {
     try {
       // 1. Stop accepting new work
       scheduler.stop();
-      webhookWorker.stop();
-      pluginBridge.stop();
+      webhookWorker?.stop();
+      if (isModuleEnabled('plugins')) pluginBridge.stop();
 
       // 2. Close external connections
-      await kafkaBridge.disconnect().catch((e: unknown) =>
-        appLogger.warn('Kafka disconnect error', { error: String(e) })
-      );
+      if (isModuleEnabled('analytics')) {
+        await kafkaBridge.disconnect().catch((e: unknown) =>
+          appLogger.warn('Kafka disconnect error', { error: String(e) })
+        );
+      }
       websocketHandler.close();
 
       // 3. Close data stores

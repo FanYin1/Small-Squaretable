@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import UserProfile from './UserProfile.vue';
+import { useModulesStore } from '@client/stores/modules';
 
 const mockGetFollowStatus = vi.fn();
 const mockApiGet = vi.fn();
@@ -94,9 +95,11 @@ const enUS = {
   },
 };
 
-function createWrapper() {
+function createWrapper(options: { socialFollow?: boolean } = {}) {
   const pinia = createPinia();
   setActivePinia(pinia);
+  // P2-1: 模块开关默认全关，这里按需打开关注模块
+  useModulesStore().flags.social_follow = options.socialFollow ?? true;
 
   const i18n = createI18n({
     legacy: false,
@@ -206,5 +209,35 @@ describe('UserProfile Page', () => {
     const cards = wrapper.findAll('.character-mini-card');
     expect(cards).toHaveLength(2);
     expect(wrapper.find('.character-name').text()).toBe('Test Character');
+  });
+
+  describe('social_follow module closed (P2-1)', () => {
+    beforeEach(() => {
+      mockApiGet.mockImplementation((url: string) => {
+        if (url.includes('/profile')) {
+          return Promise.resolve({ id: 'test-user-id', displayName: 'Test User', avatarUrl: null });
+        }
+        return Promise.resolve([]);
+      });
+    });
+
+    it('hides follow counts, follow button and follower/following tabs', async () => {
+      const wrapper = createWrapper({ socialFollow: false });
+      await flushPromises();
+
+      expect(wrapper.find('.profile-name').text()).toBe('Test User');
+      expect(wrapper.findAll('.stat-item')).toHaveLength(1);
+      expect(wrapper.find('.follow-btn').exists()).toBe(false);
+      expect(wrapper.find('[data-name="followers"]').exists()).toBe(false);
+      expect(wrapper.find('[data-name="following"]').exists()).toBe(false);
+      expect(wrapper.find('[data-name="favorites"]').exists()).toBe(true);
+    });
+
+    it('does not request follow status', async () => {
+      createWrapper({ socialFollow: false });
+      await flushPromises();
+
+      expect(mockGetFollowStatus).not.toHaveBeenCalled();
+    });
   });
 });

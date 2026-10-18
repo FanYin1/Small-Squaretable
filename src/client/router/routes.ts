@@ -293,6 +293,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'ActivityFeed',
     component: loadActivityFeed,
     meta: {
+      module: 'social_follow',
       requiresAuth: true,
       guestOnly: false,
     },
@@ -311,6 +312,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'DeveloperSettings',
     component: loadDeveloperSettings,
     meta: {
+      module: 'webhooks_developer',
       requiresAuth: true,
       guestOnly: false,
     },
@@ -329,6 +331,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'PluginMarketplace',
     component: loadPluginMarketplace,
     meta: {
+      module: 'plugins',
       requiresAuth: true,
       guestOnly: false,
     },
@@ -338,6 +341,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'Analytics',
     component: loadAnalytics,
     meta: {
+      module: 'analytics',
       requiresAuth: true,
       guestOnly: false,
     },
@@ -377,6 +381,7 @@ export const routes: RouteRecordRaw[] = [
         name: 'AdminSystem',
         component: loadAdminSystem,
         meta: {
+          module: 'admin_advanced',
           requiresAuth: true,
           requiresRole: 'admin',
         },
@@ -386,6 +391,7 @@ export const routes: RouteRecordRaw[] = [
         name: 'AdminAuditLogs',
         component: loadAdminAuditLogs,
         meta: {
+          module: 'admin_advanced',
           requiresAuth: true,
           requiresRole: 'admin',
         },
@@ -395,6 +401,7 @@ export const routes: RouteRecordRaw[] = [
         name: 'AdminExperiments',
         component: loadAdminExperiments,
         meta: {
+          module: 'analytics',
           requiresAuth: true,
           requiresRole: 'admin',
         },
@@ -404,6 +411,7 @@ export const routes: RouteRecordRaw[] = [
         name: 'AdminGdpr',
         component: loadAdminGdpr,
         meta: {
+          module: 'admin_advanced',
           requiresAuth: true,
           requiresRole: 'admin',
         },

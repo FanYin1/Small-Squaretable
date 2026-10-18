@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { ChatDotRound, Star, Picture, UserFilled } from '@element-plus/icons-vue';
 import { useUserStore } from '@client/stores/user';
 import { useSocialStore } from '@client/stores/social';
+import { useModulesStore } from '@client/stores/modules';
 import { socialApi } from '@client/services/social.api';
 import { api } from '@client/services/api';
 import { createLogger } from '@client/utils/logger';
@@ -21,6 +22,10 @@ const router = useRouter();
 const { t } = useI18n();
 const userStore = useUserStore();
 const socialStore = useSocialStore();
+const modulesStore = useModulesStore();
+
+// P2-1: 关注功能下线时，隐藏关注按钮、粉丝/关注数与对应标签页
+const followEnabled = computed(() => modulesStore.isEnabled('social_follow'));
 
 const userId = computed(() => route.params.userId as string);
 const isOwnProfile = computed(() => userStore.user?.id === userId.value);
@@ -72,8 +77,9 @@ async function fetchUserData() {
   loading.value = true;
   error.value = false;
   try {
-    const status = await socialApi.getFollowStatus(userId.value);
-    followInfo.value = status;
+    if (followEnabled.value) {
+      followInfo.value = await socialApi.getFollowStatus(userId.value);
+    }
 
     userInfo.value = { id: userId.value, displayName: null, avatarUrl: null };
 
@@ -237,16 +243,18 @@ watch(userId, () => {
             <p v-if="userInfo?.bio" class="profile-bio">{{ userInfo.bio }}</p>
             <span v-if="userInfo?.createdAt" class="profile-joined">{{ t('userProfile.joinedAt', { date: new Date(userInfo.createdAt).toLocaleDateString() }) }}</span>
             <div class="profile-stats">
-              <div class="stat-item">
-                <span class="stat-count">{{ followInfo?.followerCount ?? 0 }}</span>
-                <span class="stat-label">{{ t('social.followers') }}</span>
-              </div>
-              <div class="stat-divider" />
-              <div class="stat-item">
-                <span class="stat-count">{{ followInfo?.followingCount ?? 0 }}</span>
-                <span class="stat-label">{{ t('social.followings') }}</span>
-              </div>
-              <div class="stat-divider" />
+              <template v-if="followEnabled">
+                <div class="stat-item">
+                  <span class="stat-count">{{ followInfo?.followerCount ?? 0 }}</span>
+                  <span class="stat-label">{{ t('social.followers') }}</span>
+                </div>
+                <div class="stat-divider" />
+                <div class="stat-item">
+                  <span class="stat-count">{{ followInfo?.followingCount ?? 0 }}</span>
+                  <span class="stat-label">{{ t('social.followings') }}</span>
+                </div>
+                <div class="stat-divider" />
+              </template>
               <div class="stat-item">
                 <span class="stat-count">{{ characters.length }}</span>
                 <span class="stat-label">{{ t('social.characters') }}</span>
@@ -254,7 +262,7 @@ watch(userId, () => {
             </div>
           </div>
           <div v-if="!isOwnProfile" class="profile-actions">
-            <FollowButton :user-id="userId" />
+            <FollowButton v-if="followEnabled" :user-id="userId" />
           </div>
           <div v-else class="profile-actions">
             <router-link :to="{ name: 'Profile' }">
@@ -353,7 +361,7 @@ watch(userId, () => {
           </div>
         </el-tab-pane>
 
-        <el-tab-pane :label="t('social.followersTab')" name="followers">
+        <el-tab-pane v-if="followEnabled" :label="t('social.followersTab')" name="followers">
           <div v-if="followersLoading" v-loading="true" class="tab-loading" />
           <div v-else-if="followers.length === 0" class="empty-state">
             <el-icon :size="48" color="var(--text-tertiary)"><UserFilled /></el-icon>
@@ -378,7 +386,7 @@ watch(userId, () => {
           </div>
         </el-tab-pane>
 
-        <el-tab-pane :label="t('social.followingTab')" name="following">
+        <el-tab-pane v-if="followEnabled" :label="t('social.followingTab')" name="following">
           <div v-if="followingLoading" v-loading="true" class="tab-loading" />
           <div v-else-if="following.length === 0" class="empty-state">
             <el-icon :size="48" color="var(--text-tertiary)"><UserFilled /></el-icon>

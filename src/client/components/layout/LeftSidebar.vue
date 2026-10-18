@@ -19,6 +19,8 @@ import {
 } from '@element-plus/icons-vue';
 import { useTheme, useLocale } from '@client/composables';
 import { useUserStore } from '@client/stores';
+import { useModulesStore } from '@client/stores/modules';
+import type { ModuleName } from '@/types/modules';
 import { isTokenValid } from '@client/utils/auth';
 
 const props = defineProps<{
@@ -35,6 +37,7 @@ const route = useRoute();
 const { isDark, toggleTheme } = useTheme();
 const { currentLocale, toggleLocale } = useLocale();
 const userStore = useUserStore();
+const modulesStore = useModulesStore();
 
 const handleLogout = async () => {
   await userStore.logout();
@@ -49,6 +52,8 @@ interface NavItem {
   icon: Component;
   name: string;
   authRequired?: boolean;
+  /** 所属功能模块（P2-1）；模块关闭时不显示 */
+  module?: ModuleName;
 }
 
 const navItems: NavItem[] = [
@@ -59,13 +64,15 @@ const navItems: NavItem[] = [
   { key: 'personas', i18nKey: 'nav.personas', icon: Avatar, name: 'UserPersonas', authRequired: true },
   { key: 'worldbooks', i18nKey: 'nav.worldBooks', icon: Notebook, name: 'WorldBooks', authRequired: true },
   { key: 'subscription', i18nKey: 'nav.subscription', icon: TrendCharts, name: 'Subscription', authRequired: true },
-  { key: 'developer', i18nKey: 'nav.developer', icon: Key, name: 'DeveloperSettings', authRequired: true },
-  { key: 'plugins', i18nKey: 'nav.plugins', icon: Connection, name: 'PluginMarketplace', authRequired: true },
+  { key: 'developer', i18nKey: 'nav.developer', icon: Key, name: 'DeveloperSettings', authRequired: true, module: 'webhooks_developer' },
+  { key: 'plugins', i18nKey: 'nav.plugins', icon: Connection, name: 'PluginMarketplace', authRequired: true, module: 'plugins' },
   { key: 'settings', i18nKey: 'nav.settings', icon: Setting, name: 'Profile', authRequired: true },
 ];
 
 const isAuthenticated = computed(() => isTokenValid(localStorage.getItem('token')));
-const visibleNavItems = computed(() => navItems.filter(item => !item.authRequired || isAuthenticated.value));
+const visibleNavItems = computed(() => navItems.filter(
+  item => (!item.authRequired || isAuthenticated.value) && modulesStore.isEnabled(item.module),
+));
 
 const isActive = (name: string) => {
   if (name === 'Home') return route.name === 'Home' || route.name === 'Chat' || route.name === 'ChatSession';

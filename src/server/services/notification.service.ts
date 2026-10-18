@@ -14,6 +14,7 @@ import type { NotificationRepository } from '@db/repositories/notification.repos
 import type { NotificationType } from '@/types/social';
 import { WSMessageType } from '@/types/websocket';
 import { notificationEmailService } from './notification-email.service';
+import { isModuleEnabled } from '@/core/modules';
 
 /** All known notification types with their default preferences */
 const ALL_NOTIFICATION_TYPES: NotificationType[] = [
@@ -71,6 +72,11 @@ export class NotificationService {
    */
   async notify(options: NotifyOptions) {
     const { userId, type, actorId, targetType, targetId, message, groupKey, priority } = options;
+
+    // P2-1：关注功能下线后，follow 类型不再产生
+    if (type === 'follow' && !isModuleEnabled('social_follow')) {
+      return undefined;
+    }
 
     // 1. Check user preferences for this notification type (graceful fallback if DB unavailable)
     let inAppEnabled = true;
@@ -228,7 +234,11 @@ export class NotificationService {
 
     const prefMap = new Map(rows.map((r) => [r.notificationType, r]));
 
-    return ALL_NOTIFICATION_TYPES.map((type) => {
+    const visibleTypes = isModuleEnabled('social_follow')
+      ? ALL_NOTIFICATION_TYPES
+      : ALL_NOTIFICATION_TYPES.filter((t) => t !== 'follow');
+
+    return visibleTypes.map((type) => {
       const existing = prefMap.get(type);
       return {
         notificationType: type,

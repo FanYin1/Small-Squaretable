@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useToast } from '@client/composables/useToast';
 import { useCharacterSearch } from '@client/composables/useCharacterSearch';
 import { createLogger } from '@client/utils/logger';
+import { useModulesStore } from '@client/stores/modules';
 
 const logger = createLogger('Market');
 import { recommendationApi } from '@client/services/recommendation.api';
@@ -24,6 +25,7 @@ import '@client/styles/immersive.css';
 const toast = useToast();
 const router = useRouter();
 const { t } = useI18n();
+const modulesStore = useModulesStore();
 
 // Trending state
 const trendingLoading = ref(false);
@@ -46,7 +48,10 @@ const {
 
 onMounted(async () => {
   await loadCharacters();
-  fetchTrending();
+  // P2-1：推荐模块下线时不请求、不渲染热门轮播
+  if (modulesStore.isEnabled('recommendations')) {
+    fetchTrending();
+  }
 });
 
 async function fetchTrending() {
@@ -138,7 +143,7 @@ function handleBrowseAll() {
 
     <div class="market-content">
       <RecommendationCarousel
-        v-if="!searchQuery && (trendingLoading || trendingCharacters.length > 0)"
+        v-if="modulesStore.isEnabled('recommendations') && !searchQuery && (trendingLoading || trendingCharacters.length > 0)"
         :title="$t('market.trending')"
         :characters="trendingCharacters"
         :loading="trendingLoading"

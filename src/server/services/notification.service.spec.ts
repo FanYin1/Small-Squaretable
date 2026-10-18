@@ -37,8 +37,15 @@ const mocks = vi.hoisted(() => {
     mockWhere,
     mockFrom,
     mockSelect,
+    // P2-1：关注模块开关；默认开，保证原有 follow 用例照旧
+    moduleFlags: { social_follow: true },
   };
 });
+
+vi.mock('@/core/modules', () => ({
+  isModuleEnabled: (name: string) =>
+    (mocks.moduleFlags as Record<string, boolean>)[name] ?? false,
+}));
 
 vi.mock('@db/index', () => ({
   db: {
@@ -96,6 +103,7 @@ describe('NotificationService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.moduleFlags.social_follow = true;
     // Reset chainable mock returns
     mocks.mockOnConflictDoUpdate.mockReturnValue({ returning: mocks.mockReturning });
     mocks.mockValues.mockReturnValue({
@@ -293,6 +301,53 @@ describe('NotificationService', () => {
       const result = await service.deleteNotification('notif-999', 'user-1');
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('follow module closed (P2-1)', () => {
+    beforeEach(() => {
+      mocks.moduleFlags.social_follow = false;
+    });
+
+    it('does not create or broadcast follow notifications', async () => {
+      const result = await service.notify({
+        userId: 'user-1',
+        type: 'follow',
+        actorId: 'actor-1',
+        message: 'Someone followed you',
+      });
+
+      expect(result).toBeUndefined();
+      expect(repo.createNotification).not.toHaveBeenCalled();
+      expect(broadcastFn).not.toHaveBeenCalled();
+    });
+
+    it('still creates comment notifications', async () => {
+      mocks.mockLimit.mockResolvedValueOnce([]);
+      repo.createNotification.mockResolvedValueOnce({
+        id: 'notif-2',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+      repo.getUnreadCount.mockResolvedValue(1);
+
+      await service.notify({
+        userId: 'user-1',
+        type: 'comment',
+        actorId: 'actor-1',
+        message: 'Someone commented',
+      });
+
+      expect(repo.createNotification).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits follow from the preference list', async () => {
+      mocks.mockWhere.mockResolvedValueOnce([]);
+
+      const prefs = await service.getPreferences('user-1');
+
+      expect(prefs).toHaveLength(9);
+      expect(prefs.some((p) => p.notificationType === 'follow')).toBe(false);
+      expect(prefs.some((p) => p.notificationType === 'comment')).toBe(true);
     });
   });
 

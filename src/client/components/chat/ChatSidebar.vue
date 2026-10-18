@@ -167,9 +167,9 @@
             <el-dropdown-item command="SecuritySettings">{{ t('nav.security') }}</el-dropdown-item>
             <el-dropdown-item command="AccountSettings">{{ t('nav.account') }}</el-dropdown-item>
             <el-dropdown-item command="Subscription">{{ t('nav.subscription') }}</el-dropdown-item>
-            <el-dropdown-item command="PluginMarketplace">{{ t('nav.plugins') }}</el-dropdown-item>
-            <el-dropdown-item command="DeveloperSettings">{{ t('nav.developer') }}</el-dropdown-item>
-            <el-dropdown-item command="Analytics">{{ t('nav.analytics') }}</el-dropdown-item>
+            <el-dropdown-item v-if="modulesStore.isEnabled('plugins')" command="PluginMarketplace">{{ t('nav.plugins') }}</el-dropdown-item>
+            <el-dropdown-item v-if="modulesStore.isEnabled('webhooks_developer')" command="DeveloperSettings">{{ t('nav.developer') }}</el-dropdown-item>
+            <el-dropdown-item v-if="modulesStore.isEnabled('analytics')" command="Analytics">{{ t('nav.analytics') }}</el-dropdown-item>
             <el-dropdown-item v-if="isAdminOrMod" command="AdminUsers">{{ t('nav.admin') }}</el-dropdown-item>
             <el-dropdown-item divided command="logout">{{ t('nav.logout') }}</el-dropdown-item>
           </el-dropdown-menu>
@@ -193,6 +193,7 @@ const Delete = markRaw(_Delete);
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
+import { useModulesStore } from '@client/stores/modules';
 import { useBookmarkStore } from '@client/stores/bookmark';
 import type { BookmarkItem } from '@client/stores/bookmark';
 import { useDateTime } from '@client/composables';
@@ -213,6 +214,7 @@ const { t } = useI18n();
 const router = useRouter();
 const { formatRelativeTime } = useDateTime();
 const chatStore = useChatStore();
+const modulesStore = useModulesStore();
 const userStore = useUserStore();
 const bookmarkStore = useBookmarkStore();
 const searchQuery = ref('');
