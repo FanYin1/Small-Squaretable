@@ -10,6 +10,7 @@ import { useNotificationStore } from './notification';
 import { useDeviceSync } from '@client/composables/useDeviceSync';
 import { createLogger } from '@client/utils/logger';
 import i18n from '@client/i18n';
+import { isInsufficientCredits, showInsufficientCreditsAlert } from '@client/utils/credit-alert';
 
 const logger = createLogger('Chat');
 
@@ -222,7 +223,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 错误处理
     wsClient.on('error', (data: unknown) => {
-      const errorData = data as { code?: string; message: string };
+      const errorData = data as { code?: string; message: string; details?: unknown };
       logger.error('WebSocket error', undefined, { errorData });
       // 平台花费熔断（P0-7）：服务端消息是英文，这里换成本地化提示
       // 点数不足（P3-1）：同样换成本地化提示
@@ -230,6 +231,7 @@ export const useChatStore = defineStore('chat', () => {
         error.value = i18n.global.t('chat.platformSpendLimit');
       } else if (errorData.code === 'INSUFFICIENT_CREDITS') {
         error.value = i18n.global.t('credits.insufficient');
+        void showInsufficientCreditsAlert(errorData.details);
       } else {
         error.value = errorData.message;
       }
@@ -489,7 +491,11 @@ export const useChatStore = defineStore('chat', () => {
         // All respondents done
         sending.value = false;
       } catch (e) {
-        if (e instanceof ApiError) {
+        if (isInsufficientCredits(e)) {
+          // 点数不足（P3-1）：输入框处显示本地化文案，同时弹窗提醒充值
+          error.value = i18n.global.t('credits.insufficient');
+          void showInsufficientCreditsAlert(e.details);
+        } else if (e instanceof ApiError) {
           error.value = e.message;
         } else {
           error.value = e instanceof Error ? e.message : 'Failed to send message';

@@ -44,7 +44,7 @@ import {
   settleGeneration,
   releaseGeneration,
 } from '../services/credit-generation';
-import type { CreditHold } from '../services/credit-billing.service';
+import { InsufficientCreditsError, type CreditHold } from '../services/credit-billing.service';
 import {
   WSMessageType,
   type WSMessageUnion,
@@ -319,6 +319,9 @@ export class WebSocketHandler {
           // 原样透传，客户端才能区分「平台限流」和普通失败
           code: error instanceof AppError ? error.code : 'MESSAGE_ERROR',
           message: error instanceof Error ? error.message : 'Failed to process message',
+          // 点数不足（P3-1）带上点数明细，客户端报警弹窗据此显示「需要 X 点 / 可用 Y 点」。
+          // 其它 AppError 的 details 不下发
+          ...(error instanceof InsufficientCreditsError ? { details: error.details } : {}),
         },
       });
     }

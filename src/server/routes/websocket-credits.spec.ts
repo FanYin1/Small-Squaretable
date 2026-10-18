@@ -148,6 +148,7 @@ import {
   releaseGeneration,
 } from '../services/credit-generation';
 import { InsufficientCreditsError } from '../services/credit-billing.service';
+import { AppError } from '../../core/errors';
 
 const CLIENT_ID = 'client-1';
 const TENANT = 'tenant-1';
@@ -247,6 +248,33 @@ describe('WebSocket chat - prepaid credits', () => {
           data: expect.objectContaining({ code: 'INSUFFICIENT_CREDITS' }),
         })
       );
+    });
+
+    it('forwards the point details so the client alert can show required / available', async () => {
+      vi.mocked(assertCreditsAvailable).mockRejectedValue(
+        new InsufficientCreditsError({ requiredTokens: 6000, availableTokens: 100 })
+      );
+
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+
+      const sent = vi.mocked(websocketService.sendToClient).mock.calls[0][1] as { data: Record<string, unknown> };
+      expect(sent.data.details).toEqual(
+        expect.objectContaining({ requiredTokens: 6000, availableTokens: 100 })
+      );
+      expect(sent.data.details).toHaveProperty('requiredPoints');
+      expect(sent.data.details).toHaveProperty('availablePoints');
+    });
+
+    it('does not forward details of other app errors', async () => {
+      vi.mocked(assertCreditsAvailable).mockRejectedValue(
+        new AppError('Nope', 400, 'SOMETHING_ELSE', { internal: 'secret' })
+      );
+
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+
+      const sent = vi.mocked(websocketService.sendToClient).mock.calls[0][1] as { data: Record<string, unknown> };
+      expect(sent.data.code).toBe('SOMETHING_ELSE');
+      expect(sent.data).not.toHaveProperty('details');
     });
 
     it('checks the tenant of the connected client', async () => {

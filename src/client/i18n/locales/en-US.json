@@ -1510,7 +1510,7 @@
     "held": "Held for running generations",
     "rulesTitle": "Credit rules",
     "ruleNoExpiry": "Points do not expire.",
-    "ruleNoRefund": "Points that have been used are not refunded.",
+    "ruleNoRefund": "Topped-up points are non-refundable.",
     "ruleReversal": "If a top-up was a mistake, an operator can reverse it.",
     "recent": "Recent activity",
     "noRecords": "No activity yet",
@@ -1523,7 +1523,11 @@
       "reversal": "Reversal"
     },
     "loadFailed": "Could not load your credit balance",
-    "insufficient": "You are out of points. Ask an operator to top up before continuing."
+    "insufficient": "You are out of points. Ask an operator to top up before continuing.",
+    "insufficientTitle": "Not enough points",
+    "insufficientDetail": "This request needs about {required} points, and you have {available} available.",
+    "insufficientContact": "Ask an operator to top up before continuing.",
+    "viewBalance": "View balance"
   },
   "characterEditor": {
     "createTitle": "Create Character",

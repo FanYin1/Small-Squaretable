@@ -1510,7 +1510,7 @@
     "held": "生成中冻结",
     "rulesTitle": "点数规则",
     "ruleNoExpiry": "点数不会过期。",
-    "ruleNoRefund": "已消耗的点数不退还。",
+    "ruleNoRefund": "已充值的点数不支持退款。",
     "ruleReversal": "如果充值有误，由运营人员冲正。",
     "recent": "最近记录",
     "noRecords": "暂无记录",
@@ -1523,7 +1523,11 @@
       "reversal": "冲正"
     },
     "loadFailed": "加载点数余额失败",
-    "insufficient": "点数不足，请联系运营人员充值后再继续"
+    "insufficient": "点数不足，请联系运营人员充值后再继续",
+    "insufficientTitle": "点数不足",
+    "insufficientDetail": "本次生成约需要 {required} 点，当前可用 {available} 点。",
+    "insufficientContact": "请联系运营人员充值后再继续。",
+    "viewBalance": "查看余额"
   },
   "characterEditor": {
     "createTitle": "创建角色",

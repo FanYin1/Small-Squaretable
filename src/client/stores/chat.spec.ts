@@ -5,8 +5,28 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useChatStore } from './chat';
-import { chatApi, ApiError } from '@client/services';
+import { chatApi, llmApi, ApiError } from '@client/services';
+import { showInsufficientCreditsAlert } from '@client/utils/credit-alert';
 import type { Chat, Message } from '@client/types';
+
+// 捕获 store 注册到 WebSocketClient 的事件处理器，测试里手动触发
+const wsHandlers = vi.hoisted(() => new Map<string, (data: unknown) => void>());
+
+vi.mock('@client/services/websocket', () => ({
+  WebSocketClient: class {
+    on(event: string, handler: (data: unknown) => void) {
+      wsHandlers.set(event, handler);
+    }
+    connect() {}
+    disconnect() {}
+    joinChat() {}
+  },
+}));
+
+vi.mock('@client/utils/credit-alert', async () => {
+  const actual = await vi.importActual<Record<string, unknown>>('@client/utils/credit-alert');
+  return { ...actual, showInsufficientCreditsAlert: vi.fn() };
+});
 
 
 vi.mock('@client/services', () => ({
@@ -32,7 +52,8 @@ vi.mock('@client/services', () => ({
     constructor(
       public status: number,
       public code: string,
-      message: string
+      message: string,
+      public details?: unknown
     ) {
       super(message);
       this.name = 'ApiError';
@@ -163,6 +184,57 @@ describe('Chat Store', () => {
       await expect(store.sendMessage('Test')).rejects.toThrow();
 
       expect(store.error).toBe('Quota exceeded');
+    });
+  });
+
+  describe('点数不足报警 (INSUFFICIENT_CREDITS)', () => {
+    const details = { requiredPoints: 3, availablePoints: 1 };
+
+    it('WebSocket error 事件：设置错误文案、复位发送状态并弹出报警', () => {
+      wsHandlers.clear();
+      const store = useChatStore();
+      store.initWebSocket('token');
+      store.sending = true;
+      store.isStreaming = true;
+
+      wsHandlers.get('error')!({ code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits', details });
+
+      expect(store.error).toBe('You are out of points. Ask an operator to top up before continuing.');
+      expect(store.sending).toBe(false);
+      expect(store.isStreaming).toBe(false);
+      expect(showInsufficientCreditsAlert).toHaveBeenCalledTimes(1);
+      expect(showInsufficientCreditsAlert).toHaveBeenCalledWith(details);
+    });
+
+    it('WebSocket error 事件：其他错误码不弹报警', () => {
+      wsHandlers.clear();
+      const store = useChatStore();
+      store.initWebSocket('token');
+
+      wsHandlers.get('error')!({ code: 'MESSAGE_ERROR', message: 'boom' });
+
+      expect(store.error).toBe('boom');
+      expect(showInsufficientCreditsAlert).not.toHaveBeenCalled();
+    });
+
+    it('HTTP 流式请求 402：设置错误文案、复位状态并弹出报警', async () => {
+      vi.mocked(chatApi.sendMessage).mockResolvedValue({
+        message: { id: '3', chatId: 'chat1', role: 'user', content: 'hi', createdAt: '2024-01-01' },
+      });
+      vi.mocked(llmApi.streamChatCompletion).mockRejectedValueOnce(
+        new ApiError(402, 'INSUFFICIENT_CREDITS', 'Insufficient credits', details)
+      );
+
+      const store = useChatStore();
+      store.currentChatId = 'chat1';
+      store.chatCharacters = [{ id: 'c1', name: 'Alice' } as never];
+
+      await expect(store.sendMessage('hi')).rejects.toThrow('Insufficient credits');
+
+      expect(store.error).toBe('You are out of points. Ask an operator to top up before continuing.');
+      expect(store.sending).toBe(false);
+      expect(store.isStreaming).toBe(false);
+      expect(showInsufficientCreditsAlert).toHaveBeenCalledWith(details);
     });
   });
 

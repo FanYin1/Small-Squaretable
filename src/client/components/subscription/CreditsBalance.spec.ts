@@ -65,7 +65,7 @@ describe('CreditsBalance', () => {
 
     const text = wrapper.get('[data-testid="credits-rules"]').text();
     expect(text).toContain('点数不会过期');
-    expect(text).toContain('已消耗的点数不退还');
+    expect(text).toContain('已充值的点数不支持退款');
     expect(text).toContain('运营人员冲正');
   });
 
@@ -76,7 +76,7 @@ describe('CreditsBalance', () => {
 
     const text = wrapper.get('[data-testid="credits-rules"]').text();
     expect(text).toContain('Points do not expire.');
-    expect(text).toContain('not refunded');
+    expect(text).toContain('non-refundable');
     expect(text).toContain('operator can reverse');
   });
 
