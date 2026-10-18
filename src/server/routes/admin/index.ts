@@ -13,6 +13,7 @@ import { adminGdprRoutes } from './gdpr';
 import { adminExperimentRoutes } from './experiments';
 import { adminJobRoutes } from './jobs';
 import { adminInviteCodeRoutes } from './invite-codes';
+import { adminCreditRoutes } from './credits';
 import { isModuleEnabled } from '../../../core/modules';
 
 export const adminRoutes = new Hono();
@@ -28,3 +29,4 @@ if (isModuleEnabled('analytics')) {
 }
 adminRoutes.route('/jobs', adminJobRoutes);
 adminRoutes.route('/invite-codes', adminInviteCodeRoutes);
+adminRoutes.route('/credits', adminCreditRoutes);

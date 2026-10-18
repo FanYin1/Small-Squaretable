@@ -451,6 +451,21 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   5. 有一份按真实 token 分布算出的定价测算（基于 P0-1 修好后的数据）
 - **依赖**：P0-1
 - **估时**：1 周（第一阶段）
+- **进展（2026-10-18）**：第一阶段代码完成，`BILLING_MODE=credits` 才启用，默认仍为 `subscription`
+  - 账本：`credit_ledger`（topup / charge / reversal）追加式，触发器拒绝 UPDATE，余额 = 流水求和；冻结额度单独放 `credit_reservations`。迁移 `0038_credits.sql`，已在开发库执行
+  - 触发器放行唯一一种 UPDATE：删除运营者账号时 `operator_id` 的 `ON DELETE SET NULL` 级联（其他列不变）。否则任何做过充值的运营者账号都删不掉。已在开发库验证：改金额被拒，删运营者后流水保留、`operator_id` 置空
+  - 并发：按租户 `pg_advisory_xact_lock` 串行化「查可用余额 + 冻结」，冻结额度 = 输入估算 × 1.2 + `max_tokens`（默认 4096）。余额不足返回 402 `INSUFFICIENT_CREDITS`，不缩 context
+  - 结算：按实际 token 扣，超出冻结的部分由平台吸收（不扣成负数）；断流 / provider 报错按已产生部分结算。每 5 分钟清扫过期冻结（`CREDIT_RESERVATION_TTL_SECONDS`，默认 900），订阅模式下也跑
+  - 扣费流水带 `chat_id` / `message_id`，可追溯到消息。冲正已花掉的充值返回 409 `CREDITS_ALREADY_SPENT`
+  - 后台 `Credits.vue` 充值 / 冲正 / 查流水，每次写审计日志；用户侧 `CreditsBalance.vue` 显示余额与流水，规则文案（是否过期、能否退款）为**草稿**
+  - 定价测算脚本 `scripts/credit-pricing-estimate.ts`（只读）
+- **验收状态**：
+  1. 满足
+  2. 单元层面覆盖；真实 Postgres 并发脚本 `/tmp/credit-concurrency.ts` 只应对一次性库运行，尚未跑
+  3. 满足（含超时清扫）
+  4. 满足
+  5. **未满足**：开发库 90 天内没有任何 `llm_tokens` 记录，脚本报告「样本不足」。需要真实使用数据 + 上游单价后重跑
+- **待决定**：规则文案（过期 / 退款）；超额由平台吸收是否接受；HTTP 通道（`/api/v1/llm`）的 402 前端尚无专门提示，WebSocket 通道已有
 
 ### [ ] P3-2 让用户看见消耗
 

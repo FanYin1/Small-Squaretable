@@ -189,6 +189,63 @@ export interface GenerateInviteCodesInput {
   note?: string;
 }
 
+// ── Credits (P3-1) ──
+
+export interface CreditSummary {
+  tokensPerPoint: number;
+  balanceTokens: number;
+  heldTokens: number;
+  availableTokens: number;
+  balancePoints: number;
+  availablePoints: number;
+}
+
+export interface CreditLookupResult {
+  user: { id: string; email: string; tenantId: string };
+  summary: CreditSummary;
+}
+
+export interface CreditLedgerEntry {
+  id: string;
+  tenantId: string;
+  kind: 'topup' | 'charge' | 'reversal';
+  /** 整数 token，充值为正、冲正为负 */
+  amount: number;
+  reversesId: string | null;
+  operatorId: string | null;
+  note: string | null;
+  createdAt: string;
+  tenantEmail?: string | null;
+  operatorEmail?: string | null;
+}
+
+export interface CreditTopUpInput {
+  userId?: string;
+  email?: string;
+  points: number;
+  note?: string;
+  /** 幂等键：同一次提交重试必须复用同一个 */
+  idempotencyKey: string;
+}
+
+export interface CreditMutationResult {
+  entry: CreditLedgerEntry;
+  summary: CreditSummary;
+  replayed: boolean;
+}
+
+export interface CreditEntryListResponse {
+  items: CreditLedgerEntry[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 // ── API methods ──
 
 function buildQuery<T extends object>(params: T): string {
@@ -262,6 +319,20 @@ export const adminApi = {
 
   disableInviteCode: (id: string) =>
     api.post<InviteCode>(`/admin/invite-codes/${id}/disable`),
+
+  // ── Credits ──
+
+  lookupCreditAccount: (params: { userId?: string; email?: string }) =>
+    api.get<CreditLookupResult>('/admin/credits/lookup' + buildQuery(params)),
+
+  topUpCredits: (data: CreditTopUpInput) =>
+    api.post<CreditMutationResult>('/admin/credits/topups', data),
+
+  reverseCreditEntry: (id: string, data: { note?: string } = {}) =>
+    api.post<CreditMutationResult>(`/admin/credits/entries/${id}/reverse`, data),
+
+  getCreditEntries: (params: { page?: number; limit?: number } = {}) =>
+    api.get<CreditEntryListResponse>('/admin/credits/entries' + buildQuery(params)),
 
   // ── System ──
 

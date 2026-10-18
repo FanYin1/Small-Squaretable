@@ -8,6 +8,10 @@ import { subscriptionRepository } from '../../db/repositories/subscription.repos
 import { usageService, type ResourceType } from './usage.service';
 import { resolveEffectivePlan } from './entitlement';
 import type { PlanType } from './subscription.service';
+import { config } from '../../core/config';
+
+/** 预付点数模式下由点数接管、不再按套餐限额的资源 */
+const CREDITS_EXEMPT_RESOURCES: ResourceType[] = ['messages', 'llm_tokens'];
 
 export type FeatureName =
   | 'basic_chat'
@@ -144,6 +148,20 @@ export class FeatureService {
     limit: number;
     remaining: number;
   }> {
+    // 预付点数模式（P3-1）：生成由点数余额约束，messages / llm_tokens 两项套餐配额不再生效。
+    // 在这里放行，requireQuota 中间件和 WebSocket 里的 messages 检查都不用改。
+    // 用量仍然照常计量（usage-meter 不变），面板上的数字继续累计，只是没有上限。
+    // images / api_calls 与点数无关，仍按套餐。
+    if (config.billingMode === 'credits' && CREDITS_EXEMPT_RESOURCES.includes(resourceType)) {
+      const quotaInfo = await usageService.checkQuota(tenantId, resourceType);
+      return {
+        allowed: true,
+        currentUsage: quotaInfo.currentUsage,
+        limit: Number.MAX_SAFE_INTEGER,
+        remaining: Number.MAX_SAFE_INTEGER,
+      };
+    }
+
     // 配额按生效套餐算：付款失败的用户不该继续用 pro 的额度
     const subscription = await subscriptionRepository.findByTenantId(tenantId);
     const plan = resolveEffectivePlan(subscription);

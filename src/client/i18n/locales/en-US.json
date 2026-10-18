@@ -1297,7 +1297,8 @@
       "system": "System",
       "auditLogs": "Audit Logs",
       "gdpr": "GDPR Requests",
-      "inviteCodes": "Invite Codes"
+      "inviteCodes": "Invite Codes",
+      "credits": "Credits"
     },
     "users": {
       "title": "User Management",
@@ -1456,7 +1457,67 @@
       "disabledOk": "Invite code disabled",
       "disableFailed": "Failed to disable, please retry",
       "noCodes": "No invite codes"
+    },
+    "credits": {
+      "title": "Credits",
+      "lookup": "Find account",
+      "lookupPlaceholder": "User email or user ID",
+      "lookupAction": "Look up",
+      "lookupFailed": "Account not found",
+      "balance": "Balance (points)",
+      "held": "On hold (points)",
+      "available": "Available (points)",
+      "points": "Points",
+      "note": "Note",
+      "notePlaceholder": "e.g. bank transfer 2026-10-18",
+      "topUp": "Top up",
+      "confirmTopUp": "Top up {points} points for {email}?",
+      "topUpOk": "Topped up {points} points",
+      "topUpReplayed": "This top-up was already recorded; nothing was added twice",
+      "topUpFailed": "Top-up failed, please retry",
+      "entries": "Top-ups and reversals",
+      "time": "Time",
+      "kind": "Type",
+      "kinds": {
+        "topup": "Top-up",
+        "reversal": "Reversal",
+        "charge": "Charge"
+      },
+      "account": "Account",
+      "operator": "Operator",
+      "reverse": "Reverse",
+      "confirmReverse": "Reverse this {points}-point top-up for {email}? The points will be deducted from the balance.",
+      "reverseOk": "Reversed",
+      "reverseFailed": "Reversal failed, please retry",
+      "noEntries": "No entries yet",
+      "errors": {
+        "IDEMPOTENCY_CONFLICT": "This submission id was already used for a different top-up. Refresh the page and retry",
+        "CREDITS_ALREADY_SPENT": "Some of these points were already spent, so the top-up cannot be reversed",
+        "ALREADY_REVERSED": "This top-up has already been reversed",
+        "NOT_REVERSIBLE": "Only top-ups can be reversed"
+      }
     }
+  },
+  "credits": {
+    "title": "Credit balance",
+    "available": "Available points",
+    "held": "Held for running generations",
+    "rulesTitle": "Credit rules",
+    "ruleNoExpiry": "Points do not expire.",
+    "ruleNoRefund": "Points that have been used are not refunded.",
+    "ruleReversal": "If a top-up was a mistake, an operator can reverse it.",
+    "recent": "Recent activity",
+    "noRecords": "No activity yet",
+    "time": "Time",
+    "kind": "Type",
+    "points": "Points",
+    "kinds": {
+      "topup": "Top-up",
+      "charge": "Usage",
+      "reversal": "Reversal"
+    },
+    "loadFailed": "Could not load your credit balance",
+    "insufficient": "You are out of points. Ask an operator to top up before continuing."
   },
   "characterEditor": {
     "createTitle": "Create Character",

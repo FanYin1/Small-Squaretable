@@ -1297,7 +1297,8 @@
       "system": "系统概览",
       "auditLogs": "审计日志",
       "gdpr": "GDPR 请求",
-      "inviteCodes": "邀请码"
+      "inviteCodes": "邀请码",
+      "credits": "点数充值"
     },
     "users": {
       "title": "用户管理",
@@ -1456,7 +1457,67 @@
       "disabledOk": "邀请码已停用",
       "disableFailed": "停用失败，请重试",
       "noCodes": "暂无邀请码"
+    },
+    "credits": {
+      "title": "点数充值",
+      "lookup": "查找账号",
+      "lookupPlaceholder": "输入用户邮箱或用户 ID",
+      "lookupAction": "查询",
+      "lookupFailed": "未找到该账号",
+      "balance": "余额（点）",
+      "held": "冻结中（点）",
+      "available": "可用（点）",
+      "points": "点数",
+      "note": "备注",
+      "notePlaceholder": "例如：线下转账 2026-10-18",
+      "topUp": "充值",
+      "confirmTopUp": "确定给 {email} 充值 {points} 点吗？",
+      "topUpOk": "已充值 {points} 点",
+      "topUpReplayed": "这笔充值已入账过，未重复充值",
+      "topUpFailed": "充值失败，请重试",
+      "entries": "充值与冲正记录",
+      "time": "时间",
+      "kind": "类型",
+      "kinds": {
+        "topup": "充值",
+        "reversal": "冲正",
+        "charge": "消费"
+      },
+      "account": "账号",
+      "operator": "操作人",
+      "reverse": "冲正",
+      "confirmReverse": "确定冲正 {email} 的这笔 {points} 点充值吗？冲正后这笔点数会从余额中扣回。",
+      "reverseOk": "已冲正",
+      "reverseFailed": "冲正失败，请重试",
+      "noEntries": "暂无记录",
+      "errors": {
+        "IDEMPOTENCY_CONFLICT": "这个提交标识已用于另一笔不同的充值，请刷新页面后重试",
+        "CREDITS_ALREADY_SPENT": "这笔点数已被用掉一部分，无法冲正",
+        "ALREADY_REVERSED": "这笔充值已经冲正过了",
+        "NOT_REVERSIBLE": "只有充值记录可以冲正"
+      }
     }
+  },
+  "credits": {
+    "title": "点数余额",
+    "available": "可用点数",
+    "held": "生成中冻结",
+    "rulesTitle": "点数规则",
+    "ruleNoExpiry": "点数不会过期。",
+    "ruleNoRefund": "已消耗的点数不退还。",
+    "ruleReversal": "如果充值有误，由运营人员冲正。",
+    "recent": "最近记录",
+    "noRecords": "暂无记录",
+    "time": "时间",
+    "kind": "类型",
+    "points": "点数",
+    "kinds": {
+      "topup": "充值",
+      "charge": "消费",
+      "reversal": "冲正"
+    },
+    "loadFailed": "加载点数余额失败",
+    "insufficient": "点数不足，请联系运营人员充值后再继续"
   },
   "characterEditor": {
     "createTitle": "创建角色",

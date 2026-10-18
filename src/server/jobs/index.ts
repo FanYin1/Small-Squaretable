@@ -17,7 +17,9 @@ import { memoryService } from '../services/memory.service';
 import { memoryRepository } from '../../db/repositories/memory.repository';
 import { runNotificationDigest } from './notification-digest.job';
 import { runNotificationCleanup } from './notification-cleanup.job';
+import { creditBilling } from '../services/credit-billing.service';
 
+const FIVE_MINUTES = 5 * 60 * 1000;
 const ONE_HOUR = 60 * 60 * 1000;
 const SIX_HOURS = 6 * ONE_HOUR;
 const ONE_DAY = 24 * ONE_HOUR;
@@ -85,4 +87,9 @@ export function registerJobs(scheduler: SchedulerService): void {
   scheduler.register('notification-cleanup', async () => {
     await runNotificationCleanup();
   }, ONE_DAY);
+
+  // P3-1：清扫过期未结算的点数冻结。订阅模式下没有冻结，job 是空转的一条 UPDATE。
+  scheduler.register('credit-reservation-sweep', async () => {
+    await creditBilling.sweepExpired();
+  }, FIVE_MINUTES);
 }

@@ -14,6 +14,7 @@ const logger = appLogger.child({ module: 'llm-routes' });
 import { usageService } from '../services/usage.service';
 import { meterLlmTokens, readOpenAiUsage, type ProviderUsage } from '../services/usage-meter';
 import { countTokens } from '../utils/tokens';
+import { reserveForGeneration, settleGeneration, releaseGeneration } from '../services/credit-generation';
 import { authMiddleware } from '../middleware/auth';
 import { requireQuota } from '../middleware/feature-gate';
 import {
@@ -39,9 +40,31 @@ llmRoutes.post(
     const tenantId = c.get('tenantId');
     const request = c.req.valid('json');
 
+    const estimatedPromptTokens = request.messages.reduce(
+      (sum, m) => sum + countTokens(m.content) + 4,
+      0
+    );
+
     // 如果是流式请求
     if (request.stream) {
-      const response = await llmService.streamChatCompletion(request);
+      // 预付点数模式：先预扣，并把输出上限作为 max_tokens 交给 provider（订阅模式 hold 为 null，原样透传）
+      const hold = await reserveForGeneration({
+        tenantId,
+        estimatedPromptTokens,
+        requestedMaxTokens: request.max_tokens,
+        metadata: { transport: 'http', route: 'chat/completions', model: request.model, stream: true },
+      });
+
+      let response: Response;
+      try {
+        response = await llmService.streamChatCompletion(
+          hold ? { ...request, max_tokens: hold.maxOutputTokens } : request
+        );
+      } catch (error) {
+        // 连接 provider 就失败：一个 token 都没产生，释放预扣
+        await releaseGeneration(hold);
+        throw error;
+      }
 
       // 计费口径 = 输入 + 输出（P0-1）：provider 在流末尾返回的 usage 优先，
       // 没有时输入按请求消息估算、输出按累积文本估算（与 WebSocket 通道同一套估算器）
@@ -63,6 +86,7 @@ llmRoutes.post(
       // 返回流式响应
       return stream(c, async (stream) => {
         if (!response.body) {
+          await releaseGeneration(hold);
           throw new Error('No response body');
         }
 
@@ -91,22 +115,39 @@ llmRoutes.post(
           // 所以即使没有输出也要计。meterLlmTokens 不会抛出。
           await meterLlmTokens(
             tenantId,
-            {
-              providerUsage,
-              estimatedPromptTokens: request.messages.reduce(
-                (sum, m) => sum + countTokens(m.content) + 4,
-                0
-              ),
-              outputText,
-            },
+            { providerUsage, estimatedPromptTokens, outputText },
             { model: request.model, stream: true, transport: 'http' }
           );
+
+          // 中断或出错也走这里：按已经产生的输入 + 输出结算，不会留下悬空预扣
+          await settleGeneration(hold, { providerUsage, estimatedPromptTokens, outputText });
         }
       });
     }
 
     // 非流式请求
-    const response = await llmService.chatCompletion(request);
+    const hold = await reserveForGeneration({
+      tenantId,
+      estimatedPromptTokens,
+      requestedMaxTokens: request.max_tokens,
+      metadata: { transport: 'http', route: 'chat/completions', model: request.model, stream: false },
+    });
+
+    let response: ChatCompletionResponse;
+    try {
+      response = await llmService.chatCompletion(
+        hold ? { ...request, max_tokens: hold.maxOutputTokens } : request
+      );
+    } catch (error) {
+      await releaseGeneration(hold);
+      throw error;
+    }
+
+    await settleGeneration(hold, {
+      providerUsage: readOpenAiUsage(response.usage),
+      estimatedPromptTokens,
+      outputText: response.choices.map((choice) => choice.message?.content ?? '').join(''),
+    });
 
     // 记录 token 使用量
     const tokenUsage = llmService.calculateTokenUsage(request, response);
@@ -135,17 +176,39 @@ llmRoutes.post(
     const tenantId = c.get('tenantId');
     const request = c.req.valid('json');
 
-    const response = await llmService.completion(request);
+    const prompt = Array.isArray(request.prompt) ? request.prompt.join('') : request.prompt;
+    const estimatedPromptTokens = countTokens(prompt ?? '');
+
+    const hold = await reserveForGeneration({
+      tenantId,
+      estimatedPromptTokens,
+      requestedMaxTokens: request.max_tokens,
+      metadata: { transport: 'http', route: 'completions', model: request.model },
+    });
+
+    let response: CompletionResponse;
+    try {
+      response = await llmService.completion(hold ? { ...request, max_tokens: hold.maxOutputTokens } : request);
+    } catch (error) {
+      await releaseGeneration(hold);
+      throw error;
+    }
+
+    const outputText = response.choices.map((choice) => choice.text).join('');
+    await settleGeneration(hold, {
+      providerUsage: readOpenAiUsage(response.usage),
+      estimatedPromptTokens,
+      outputText,
+    });
 
     // 记录 token 使用量（输入 + 输出）。provider 没返回 usage 时也按估算计，
     // 不再静默跳过；平台花费已在 llm.service.completion 里记过，这里不重复
-    const prompt = Array.isArray(request.prompt) ? request.prompt.join('') : request.prompt;
     await meterLlmTokens(
       tenantId,
       {
         providerUsage: readOpenAiUsage(response.usage),
-        estimatedPromptTokens: countTokens(prompt ?? ''),
-        outputText: response.choices.map((choice) => choice.text).join(''),
+        estimatedPromptTokens,
+        outputText,
       },
       { model: request.model, transport: 'http' },
       { recordPlatformSpend: false }

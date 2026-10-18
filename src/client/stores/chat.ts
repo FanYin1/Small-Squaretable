@@ -225,9 +225,14 @@ export const useChatStore = defineStore('chat', () => {
       const errorData = data as { code?: string; message: string };
       logger.error('WebSocket error', undefined, { errorData });
       // 平台花费熔断（P0-7）：服务端消息是英文，这里换成本地化提示
-      error.value = errorData.code === 'PLATFORM_SPEND_LIMIT'
-        ? i18n.global.t('chat.platformSpendLimit')
-        : errorData.message;
+      // 点数不足（P3-1）：同样换成本地化提示
+      if (errorData.code === 'PLATFORM_SPEND_LIMIT') {
+        error.value = i18n.global.t('chat.platformSpendLimit');
+      } else if (errorData.code === 'INSUFFICIENT_CREDITS') {
+        error.value = i18n.global.t('credits.insufficient');
+      } else {
+        error.value = errorData.message;
+      }
       sending.value = false;
       isStreaming.value = false;
     });

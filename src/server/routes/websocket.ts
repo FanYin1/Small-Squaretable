@@ -39,6 +39,13 @@ import {
 } from '../services/usage-meter';
 import { countTokens } from '../utils/tokens';
 import {
+  assertCreditsAvailable,
+  reserveForGeneration,
+  settleGeneration,
+  releaseGeneration,
+} from '../services/credit-generation';
+import type { CreditHold } from '../services/credit-billing.service';
+import {
   WSMessageType,
   type WSMessageUnion,
   type WSUserMessage,
@@ -54,10 +61,48 @@ import {
 } from '../../types/websocket';
 import { nanoid } from 'nanoid';
 
+/** 提示词模板路径（text completion）的固定输出上限；点数预扣按同一个数算 */
+const TEMPLATE_COMPLETION_MAX_TOKENS = 2048;
+
 /** 一次流式生成的结果：完整文本 + provider 在流末尾返回的真实 usage（拿不到为 null） */
 interface StreamedLlmResult {
   content: string;
   usage: ProviderUsage | null;
+}
+
+/**
+ * 流式生成的实时进度。流中途抛错或被中断时，调用方靠它知道「provider 已经连上了吗、
+ * 已经产生了多少内容」，从而决定结算已产生的部分（started）还是直接释放预扣（未连上）。
+ */
+interface StreamProgress extends StreamedLlmResult {
+  started: boolean;
+}
+
+function newStreamProgress(): StreamProgress {
+  return { started: false, content: '', usage: null };
+}
+
+/**
+ * 生成失败时收尾预扣：provider 已连上就按已产生的内容结算（输入 token 已被计费），
+ * 没连上就整笔释放。点数模式之外 hold 为 null，什么都不做。永不抛出。
+ */
+async function closeFailedGeneration(
+  hold: CreditHold | null,
+  progress: StreamProgress,
+  estimatedPromptTokens: number,
+  chatId: string
+): Promise<void> {
+  if (!hold) return;
+  if (progress.started) {
+    await settleGeneration(hold, {
+      providerUsage: progress.usage,
+      estimatedPromptTokens,
+      outputText: progress.content,
+      chatId,
+    });
+    return;
+  }
+  await releaseGeneration(hold);
 }
 
 export class WebSocketHandler {
@@ -212,6 +257,10 @@ export class WebSocketHandler {
         });
         return;
       }
+
+      // 预付点数模式：余额为 0 时在保存用户消息之前就拒绝（订阅模式为空操作）。
+      // 真正的并发安全由每次生成前的 reserve 保证，这里只是避免明显的「消息已落库、生成被拒」
+      await assertCreditsAvailable(clientInfo.tenantId);
 
       // 保存用户消息到数据库
       const userMessage = await chatService.addMessage(chatId, {
@@ -407,6 +456,9 @@ export class WebSocketHandler {
       contextResult.totalTokens + estimateInjectedTokens(atDepthEntries);
     // 模板路径走 llmService.completion，平台花费已在 llm.service 里记过
     let platformSpendRecorded = false;
+    // 预付点数模式下的预扣；订阅模式恒为 null
+    let hold: CreditHold | null = null;
+    const progress = newStreamProgress();
     try {
       if (promptTemplate !== 'default') {
         // Use text completion with formatted prompt for non-default templates
@@ -425,6 +477,15 @@ export class WebSocketHandler {
         estimatedPromptTokens = countTokens(formattedPrompt);
         platformSpendRecorded = true;
 
+        // 模板路径的输出上限是固定的 2048，预扣按同一个数算
+        hold = await reserveForGeneration({
+          tenantId,
+          chatId,
+          estimatedPromptTokens,
+          requestedMaxTokens: TEMPLATE_COMPLETION_MAX_TOKENS,
+          metadata: { transport: 'websocket', model, template: promptTemplate },
+        });
+
         // Use text completion API
         generated = await this.streamTextCompletion(
           chatId,
@@ -434,6 +495,13 @@ export class WebSocketHandler {
           abortController.signal
         );
       } else {
+        hold = await reserveForGeneration({
+          tenantId,
+          chatId,
+          estimatedPromptTokens,
+          metadata: { transport: 'websocket', model },
+        });
+
         // Use standard chat completion for default template
         generated = await this.streamLlmResponse(
           chatId,
@@ -442,9 +510,14 @@ export class WebSocketHandler {
           undefined,
           undefined,
           model,
-          abortController.signal
+          abortController.signal,
+          { maxTokens: hold?.maxOutputTokens, progress }
         );
       }
+    } catch (error) {
+      // 连接前失败 -> 释放；流中途失败 -> 结算已产生的部分。不留悬空预扣
+      await closeFailedGeneration(hold, progress, estimatedPromptTokens, chatId);
+      throw error;
     } finally {
       this.activeGenerations.delete(chatId);
     }
@@ -460,19 +533,34 @@ export class WebSocketHandler {
       { recordPlatformSpend: !platformSpendRecorded }
     );
 
-    // Don't save empty message if aborted before any content was generated
-    if (!fullContent) return;
+    // 结算在保存助手消息之后做，这样流水能记下 messageId；
+    // 空内容（中断）/ 保存失败 / 后处理抛错时 finally 仍会结算（不带 messageId），不会留悬空预扣
+    let assistantMessage: Awaited<ReturnType<typeof chatService.addMessage>>;
+    let savedMessageId: number | null = null;
+    try {
+      // Don't save empty message if aborted before any content was generated
+      if (!fullContent) return;
 
-    // Apply regex_scripts post-processing on AI output (skip markdownOnly scripts — those run client-side)
-    if (character) {
-      const scripts = getRegexScripts(character.cardData as Record<string, unknown>);
-      fullContent = applyRegexScripts(fullContent, scripts, RegexPlacement.AI_OUTPUT, false);
+      // Apply regex_scripts post-processing on AI output (skip markdownOnly scripts — those run client-side)
+      if (character) {
+        const scripts = getRegexScripts(character.cardData as Record<string, unknown>);
+        fullContent = applyRegexScripts(fullContent, scripts, RegexPlacement.AI_OUTPUT, false);
+      }
+
+      assistantMessage = await chatService.addMessage(chatId, {
+        role: 'assistant',
+        content: fullContent,
+      });
+      savedMessageId = assistantMessage.id;
+    } finally {
+      await settleGeneration(hold, {
+        providerUsage: generated.usage,
+        estimatedPromptTokens,
+        outputText: generated.content,
+        chatId,
+        messageId: savedMessageId,
+      });
     }
-
-    const assistantMessage = await chatService.addMessage(chatId, {
-      role: 'assistant',
-      content: fullContent,
-    });
 
     // 助手消息同样计入 messages：HTTP 回退路径下用户消息和助手消息
     // 是两次独立请求、各记一条，这里少记的话同样的对话在两条通道上
@@ -609,11 +697,27 @@ export class WebSocketHandler {
       const abortController = new AbortController();
       this.activeGenerations.set(chatId, abortController);
 
+      const estimatedPromptTokens =
+        contextResult.totalTokens + estimateInjectedTokens(enhancedPrompt.atDepthEntries);
+
       let generated: StreamedLlmResult;
+      // 群聊每个发言角色是一次独立生成，各自预扣、各自结算
+      let hold: CreditHold | null = null;
+      const progress = newStreamProgress();
       try {
+        hold = await reserveForGeneration({
+          tenantId,
+          chatId,
+          estimatedPromptTokens,
+          metadata: { transport: 'websocket', model, characterId: character.id, group: true },
+        });
         generated = await this.streamLlmResponse(
-          chatId, tempMessageId, contextResult.messages, character.id, character.name, model, abortController.signal
+          chatId, tempMessageId, contextResult.messages, character.id, character.name, model, abortController.signal,
+          { maxTokens: hold?.maxOutputTokens, progress }
         );
+      } catch (error) {
+        await closeFailedGeneration(hold, progress, estimatedPromptTokens, chatId);
+        throw error;
       } finally {
         this.activeGenerations.delete(chatId);
       }
@@ -625,27 +729,40 @@ export class WebSocketHandler {
         tenantId,
         {
           providerUsage: generated.usage,
-          estimatedPromptTokens:
-            contextResult.totalTokens + estimateInjectedTokens(enhancedPrompt.atDepthEntries),
+          estimatedPromptTokens,
           outputText: fullContent,
         },
         { transport: 'websocket', chatId, model, characterId: character.id }
       );
 
-      // Don't save empty message if aborted before any content was generated
-      if (!fullContent) break;
+      // 结算在保存之后（流水要记 messageId）；空内容 / 保存失败时 finally 仍会结算（不带 messageId）
+      let savedMessage: Awaited<ReturnType<typeof messageRepository.create>>;
+      let savedMessageId: number | null = null;
+      try {
+        // Don't save empty message if aborted before any content was generated
+        if (!fullContent) break;
 
-      // Apply regex_scripts post-processing on AI output (skip markdownOnly — those run client-side)
-      const scripts = getRegexScripts(character.cardData as Record<string, unknown>);
-      fullContent = applyRegexScripts(fullContent, scripts, RegexPlacement.AI_OUTPUT, false);
+        // Apply regex_scripts post-processing on AI output (skip markdownOnly — those run client-side)
+        const scripts = getRegexScripts(character.cardData as Record<string, unknown>);
+        fullContent = applyRegexScripts(fullContent, scripts, RegexPlacement.AI_OUTPUT, false);
 
-      // Save message with characterId
-      const savedMessage = await messageRepository.create({
-        chatId,
-        role: 'assistant',
-        content: fullContent,
-        characterId: character.id,
-      });
+        // Save message with characterId
+        savedMessage = await messageRepository.create({
+          chatId,
+          role: 'assistant',
+          content: fullContent,
+          characterId: character.id,
+        });
+        savedMessageId = savedMessage.id;
+      } finally {
+        await settleGeneration(hold, {
+          providerUsage: generated.usage,
+          estimatedPromptTokens,
+          outputText: generated.content,
+          chatId,
+          messageId: savedMessageId,
+        });
+      }
 
       // 群聊每个发言角色各算一条消息：一轮群聊的真实成本就是 N 次生成，
       // 按轮计费会让 team 计划的大群聊几乎免费。
@@ -717,7 +834,13 @@ export class WebSocketHandler {
     characterId?: string,
     characterName?: string,
     model?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: {
+      /** 点数模式下预扣对应的输出上限；订阅模式不传，请求与之前完全一致 */
+      maxTokens?: number;
+      /** 实时进度，调用方在失败/中断时据此结算或释放预扣 */
+      progress?: StreamProgress;
+    }
   ): Promise<StreamedLlmResult> {
     const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
     const meta = getModelMeta(selectedModel);
@@ -729,17 +852,18 @@ export class WebSocketHandler {
       stream: true,
       presence_penalty: 0,
       frequency_penalty: 0,
+      ...(options?.maxTokens ? { max_tokens: options.maxTokens } : {}),
     }, signal);
 
-    let fullContent = '';
+    // progress 同时承载累积内容与 usage（用对象，避免闭包内赋值被 TS 控制流收窄成 null）
+    const streamState: StreamProgress = options?.progress ?? newStreamProgress();
+    streamState.started = true;
     let chunkIndex = 0;
-    // 用对象承载，避免闭包内赋值被 TS 控制流收窄成 null
-    const streamState: { usage: ProviderUsage | null } = { usage: null };
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
     const emitChunk = (content: string): void => {
-      fullContent += content;
+      streamState.content += content;
 
       websocketService.broadcastToChat(chatId, {
         type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
@@ -821,7 +945,7 @@ export class WebSocketHandler {
       }
     }
 
-    return { content: fullContent, usage: streamState.usage };
+    return { content: streamState.content, usage: streamState.usage };
   }
 
   /**
@@ -843,7 +967,7 @@ export class WebSocketHandler {
       prompt,
       model: selectedModel,
       temperature: meta.defaultTemperature,
-      max_tokens: 2048,
+      max_tokens: TEMPLATE_COMPLETION_MAX_TOKENS,
       n: 1,
       stream: false,
       presence_penalty: 0,

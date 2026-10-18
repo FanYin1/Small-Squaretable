@@ -99,6 +99,16 @@ const configSchema = z.object({
     .default('Asia/Shanghai')
     .refine(isValidTimeZone, { message: 'must be a valid IANA timezone' }),
 
+  // 计费模式（P3-1）。subscription = 现有 Stripe 套餐配额；
+  // credits = 预付点数：生成类请求改走点数账本，messages / llm_tokens 套餐配额不再拦截。
+  // 默认 subscription，不设置时现有行为完全不变。
+  billingMode: z.enum(['subscription', 'credits']).default('subscription'),
+  // 1 点 = 多少 token。账本以 token 为整数单位记账，点数只是展示换算，避免小数。
+  creditTokensPerPoint: z.coerce.number().int().positive().default(10000),
+  // 预扣冻结的存活时间（秒）。必须明显长于一次生成的最长耗时：
+  // 过期的冻结会被清扫任务释放，其间仍在进行的生成就不再占用额度。
+  creditReservationTtlSeconds: z.coerce.number().int().positive().default(900),
+
   // NSFW 平台开关（P2-6）。默认开：由运营者决定平台是否允许 NSFW 内容。
   // 开关只决定「能不能有」，每个用户是否看到由其自己的偏好决定（默认关）。
   // 不能用 z.coerce.boolean()：它把字符串 'false' 也转成 true。
@@ -197,6 +207,9 @@ export function loadConfig(): Config {
     memoryDecayHalfLifeDays: process.env.MEMORY_DECAY_HALF_LIFE_DAYS,
     platformDailyTokenLimit: process.env.PLATFORM_DAILY_TOKEN_LIMIT,
     spendBreakerTz: process.env.SPEND_BREAKER_TZ || undefined,
+    billingMode: process.env.BILLING_MODE || undefined,
+    creditTokensPerPoint: process.env.CREDIT_TOKENS_PER_POINT || undefined,
+    creditReservationTtlSeconds: process.env.CREDIT_RESERVATION_TTL_SECONDS || undefined,
     nsfwEnabled: process.env.NSFW_ENABLED,
   };
 

@@ -8,6 +8,7 @@ import { useUsageStore } from '@client/stores/usage';
 import { useToast } from '@client/composables/useToast';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import UsageDashboard from '@client/components/subscription/UsageDashboard.vue';
+import CreditsBalance from '@client/components/subscription/CreditsBalance.vue';
 
 const route = useRoute();
 const subscriptionStore = useSubscriptionStore();
@@ -340,6 +341,9 @@ function formatNumber(num: number): string {
             </div>
           </div>
         </section>
+
+        <!-- 点数余额：仅 BILLING_MODE=credits 时组件自己渲染 -->
+        <CreditsBalance />
 
         <!-- 订阅计划选择 -->
         <section class="plans-section">

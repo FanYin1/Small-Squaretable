@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { User, Document, DataBoard, List, Delete, TrendCharts, Ticket } from '@element-plus/icons-vue';
+import { User, Document, DataBoard, List, Delete, TrendCharts, Ticket, Coin } from '@element-plus/icons-vue';
 import { useUserStore } from '@client/stores/user';
 import { useModulesStore } from '@client/stores/modules';
 import type { ModuleName } from '@/types/modules';
@@ -34,6 +34,7 @@ const menuItems = computed(() => {
       { path: '/admin/gdpr', icon: Delete, label: t('admin.nav.gdpr'), module: 'admin_advanced' },
       { path: '/admin/experiments', icon: TrendCharts, label: t('admin.nav.experiments'), module: 'analytics' },
       { path: '/admin/invite-codes', icon: Ticket, label: t('admin.nav.inviteCodes') },
+      { path: '/admin/credits', icon: Coin, label: t('admin.nav.credits') },
     );
   }
   return items.filter((item) => modulesStore.isEnabled(item.module));

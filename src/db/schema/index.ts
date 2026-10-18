@@ -47,3 +47,4 @@ export * from './character-presets';
 export * from './chat-overrides';
 export * from './stripe-webhook-events';
 export * from './invite-codes';
+export * from './credits';

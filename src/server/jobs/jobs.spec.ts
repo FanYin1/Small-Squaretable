@@ -71,6 +71,13 @@ vi.mock('./notification-cleanup.job', () => ({
   runNotificationCleanup: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../services/credit-billing.service', () => ({
+  creditBilling: {
+    sweepExpired: vi.fn().mockResolvedValue(0),
+  },
+}));
+
+import { creditBilling } from '../services/credit-billing.service';
 import { gdprService } from '../services/gdpr.service';
 import { auditService } from '../services/audit.service';
 import { passwordResetRepository } from '../../db/repositories/password-reset.repository';
@@ -83,10 +90,10 @@ describe('registerJobs', () => {
     scheduler = new SchedulerService();
   });
 
-  it('should register all 9 jobs', () => {
+  it('should register all 10 jobs', () => {
     registerJobs(scheduler);
     const jobs = scheduler.listJobs();
-    expect(jobs).toHaveLength(9);
+    expect(jobs).toHaveLength(10);
     const names = jobs.map((j) => j.name);
     expect(names).toContain('gdpr-deletion');
     expect(names).toContain('audit-retention');
@@ -97,6 +104,15 @@ describe('registerJobs', () => {
     expect(names).toContain('notification-digest-daily');
     expect(names).toContain('notification-digest-weekly');
     expect(names).toContain('notification-cleanup');
+    expect(names).toContain('credit-reservation-sweep');
+  });
+
+  it('credit-reservation-sweep job calls sweepExpired every 5 minutes', async () => {
+    registerJobs(scheduler);
+    await scheduler.runNow('credit-reservation-sweep');
+    expect(creditBilling.sweepExpired).toHaveBeenCalledOnce();
+    const job = scheduler.listJobs().find((j) => j.name === 'credit-reservation-sweep');
+    expect(job?.intervalMs).toBe(5 * 60 * 1000);
   });
 
   it('gdpr-deletion job calls processExpiredDeletions', async () => {
