@@ -4,13 +4,14 @@
  *
  * - 平台开关关闭（nsfwEnabled=false）时整张卡片不渲染，用户看不到这个概念。
  * - 偏好默认关。未确认年龄的用户不能打开：开关禁用并说明原因。
- *   目前没有给存量用户补确认年龄的入口（年龄声明只在注册时收集），
- *   所以这里只能提示，不能引导到一个确认动作。
+ *   存量用户（注册时没有收集年龄声明）可点「确认已满 18 岁」，经简易弹窗确认后
+ *   调用 POST /users/me/age-confirmation 补录，接口返回最新状态，开关随即可用。
  * - 服务端是最终裁判：即使开关被绕过，打开时仍会返回 403
  *   （AGE_CONFIRMATION_REQUIRED / NSFW_DISABLED），这里把它翻成可读提示。
  */
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { ElMessageBox } from 'element-plus';
 import { View } from '@element-plus/icons-vue';
 import { userApi, type NsfwPreferenceState } from '@client/services/user.api';
 import { ApiError } from '@client/services/api';
@@ -52,6 +53,30 @@ async function onChange(value: boolean | string | number) {
     saving.value = false;
   }
 }
+
+async function onConfirmAge() {
+  if (!state.value || saving.value) return;
+  try {
+    await ElMessageBox.confirm(t('accountSettings.ageConfirmMessage'), t('accountSettings.ageConfirmTitle'), {
+      confirmButtonText: t('accountSettings.ageConfirmOk'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning',
+    });
+  } catch {
+    // 取消 / 关闭弹窗：什么都不做，也不提示
+    return;
+  }
+
+  saving.value = true;
+  try {
+    state.value = await userApi.confirmAge();
+    toast.success(t('accountSettings.ageConfirmDone'));
+  } catch {
+    toast.error(t('accountSettings.ageConfirmFailed'));
+  } finally {
+    saving.value = false;
+  }
+}
 </script>
 
 <template>
@@ -72,9 +97,21 @@ async function onChange(value: boolean | string | number) {
         @change="onChange"
       />
     </div>
-    <p v-if="!state.ageConfirmed" class="nsfw-hint" role="status">
-      {{ t('accountSettings.nsfwAgeRequired') }}
-    </p>
+    <div v-if="!state.ageConfirmed" class="nsfw-age">
+      <p class="nsfw-hint" role="status">
+        {{ t('accountSettings.nsfwAgeRequired') }}
+      </p>
+      <el-button
+        class="nsfw-age-button"
+        type="primary"
+        plain
+        size="small"
+        :loading="saving"
+        @click="onConfirmAge"
+      >
+        {{ t('accountSettings.ageConfirmButton') }}
+      </el-button>
+    </div>
   </el-card>
 </template>
 
@@ -117,8 +154,18 @@ async function onChange(value: boolean | string | number) {
   gap: 12px;
 }
 
+.nsfw-age {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
 .nsfw-hint {
-  margin: 12px 0 0;
+  margin: 0;
+  flex: 1 1 240px;
   font-size: 13px;
   color: var(--el-text-color-secondary);
 }

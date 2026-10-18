@@ -6,9 +6,11 @@
  * 写：打开偏好要求平台开关开启且用户已确认年龄（users.age_confirmed_at 非空）。
  */
 
+import crypto from 'crypto';
 import { userRepository } from '../../db/repositories/user.repository';
 import { canViewNsfw, isNsfwAllowed } from '../../db/repositories/nsfw-visibility';
 import { AppError, NotFoundError } from '../../core/errors';
+import { auditService } from './audit.service';
 
 /** 未确认年龄的用户尝试打开偏好。前端据此引导确认年龄，不要把它当成普通 403。 */
 export const AGE_CONFIRMATION_REQUIRED = 'AGE_CONFIRMATION_REQUIRED';
@@ -24,8 +26,57 @@ export interface NsfwPreferenceState {
   ageConfirmed: boolean;
 }
 
+/** 与 auth.service / audit_logs 保持一致：截断的 SHA-256，够用于比对，又不是明文 IP。 */
+function hashIp(ip: string): string {
+  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
+}
+
 export class NsfwPreferenceService {
   constructor(private userRepo = userRepository) {}
+
+  /**
+   * 存量用户在设置页补确认年满 18 岁（注册时已确认的用户没有这个入口）。
+   *
+   * - 幂等：已确认的用户直接返回当前状态，不覆盖原有时间 / IP，也不重复写审计
+   * - 与平台开关无关：年龄声明本身不依赖 NSFW 是否对外开放
+   * - actorIp 来自请求头而不是请求体，客户端不能自己填
+   */
+  async confirmAge(userId: string, actorIp?: string): Promise<NsfwPreferenceState> {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new NotFoundError('User');
+    }
+
+    if (user.ageConfirmedAt) {
+      return {
+        nsfwEnabled: isNsfwAllowed(),
+        showNsfw: user.showNsfw === true,
+        ageConfirmed: true,
+      };
+    }
+
+    const updated = await this.userRepo.update(userId, {
+      ageConfirmedAt: new Date(),
+      ageConfirmedIp: actorIp ? hashIp(actorIp) : null,
+    });
+    if (!updated) {
+      throw new NotFoundError('User');
+    }
+
+    auditService.log({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      actorIp,
+      action: 'age_confirm',
+      metadata: { source: 'settings' },
+    });
+
+    return {
+      nsfwEnabled: isNsfwAllowed(),
+      showNsfw: updated.showNsfw === true,
+      ageConfirmed: !!updated.ageConfirmedAt,
+    };
+  }
 
   async getPreference(userId: string): Promise<NsfwPreferenceState> {
     const user = await this.userRepo.findById(userId);

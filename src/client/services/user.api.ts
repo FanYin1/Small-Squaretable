@@ -63,4 +63,9 @@ export const userApi = {
    */
   updatePreferences: (data: { showNsfw: boolean }) =>
     api.patch<NsfwPreferenceState>('/users/me/preferences', data),
+
+  /**
+   * 补确认年满 18 岁（存量用户注册时没有收集）。幂等，返回与 getPreferences 同形的最新状态。
+   */
+  confirmAge: () => api.post<NsfwPreferenceState>('/users/me/age-confirmation'),
 };

@@ -79,6 +79,20 @@ userRoutes.patch(
   }
 );
 
+// 补确认年满 18 岁（存量用户注册时没有收集）。幂等：已确认则原样返回，不覆盖证据。
+// 返回值与 GET /me/preferences 同形；IP 取自请求头，与注册路由一致
+userRoutes.post('/me/age-confirmation', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  const actorIp =
+    c.req.header('x-forwarded-for')?.split(',')[0] || c.req.header('x-real-ip') || undefined;
+  const data = await nsfwPreferenceService.confirmAge(user.id, actorIp);
+
+  return c.json<ApiResponse>(
+    { success: true, data, meta: { timestamp: new Date().toISOString() } },
+    200
+  );
+});
+
 // 修改密码
 userRoutes.patch(
   '/me/password',

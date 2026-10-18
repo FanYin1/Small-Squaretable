@@ -8,13 +8,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { config } from '../../core/config';
 import { AppError, NotFoundError } from '../../core/errors';
+import { auditService } from './audit.service';
 import {
   NsfwPreferenceService,
   AGE_CONFIRMATION_REQUIRED,
   NSFW_DISABLED,
 } from './nsfw-preference.service';
 
-type UserRow = { id: string; showNsfw: boolean; ageConfirmedAt: Date | null };
+vi.mock('./audit.service', () => ({ auditService: { log: vi.fn() } }));
+
+type UserRow = {
+  id: string;
+  tenantId?: string;
+  showNsfw: boolean;
+  ageConfirmedAt: Date | null;
+  ageConfirmedIp?: string | null;
+};
 
 function createRepo(user: UserRow | null) {
   return {
@@ -30,8 +39,13 @@ function makeService(repo: ReturnType<typeof createRepo>) {
   return new NsfwPreferenceService(repo as never);
 }
 
-const confirmed: UserRow = { id: 'u1', showNsfw: false, ageConfirmedAt: new Date('2026-01-01') };
-const unconfirmed: UserRow = { id: 'u2', showNsfw: false, ageConfirmedAt: null };
+const confirmed: UserRow = {
+  id: 'u1',
+  tenantId: 't1',
+  showNsfw: false,
+  ageConfirmedAt: new Date('2026-01-01'),
+};
+const unconfirmed: UserRow = { id: 'u2', tenantId: 't2', showNsfw: false, ageConfirmedAt: null };
 
 describe('NsfwPreferenceService', () => {
   const original = config.nsfwEnabled;
@@ -91,6 +105,90 @@ describe('NsfwPreferenceService', () => {
       await expect(makeService(createRepo(null)).setShowNsfw('ghost', true)).rejects.toBeInstanceOf(
         NotFoundError,
       );
+    });
+  });
+
+  describe('confirmAge', () => {
+    it('未确认：写入时间与哈希 IP，并写 age_confirm 审计', async () => {
+      const repo = createRepo(unconfirmed);
+      const before = Date.now();
+
+      const result = await makeService(repo).confirmAge('u2', '203.0.113.7');
+
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      const [id, patch] = repo.update.mock.calls[0];
+      expect(id).toBe('u2');
+      expect(patch.ageConfirmedAt).toBeInstanceOf(Date);
+      expect(patch.ageConfirmedAt.getTime()).toBeGreaterThanOrEqual(before);
+      // 存的是截断的 SHA-256，不是明文 IP
+      expect(patch.ageConfirmedIp).toMatch(/^[0-9a-f]{16}$/);
+      expect(patch.ageConfirmedIp).not.toContain('203.0.113.7');
+
+      expect(auditService.log).toHaveBeenCalledTimes(1);
+      expect(auditService.log).toHaveBeenCalledWith({
+        tenantId: 't2',
+        actorId: 'u2',
+        actorIp: '203.0.113.7',
+        action: 'age_confirm',
+        metadata: { source: 'settings' },
+      });
+      expect(result).toEqual({ nsfwEnabled: true, showNsfw: false, ageConfirmed: true });
+    });
+
+    it('没有 IP 时 ageConfirmedIp 记 null，仍然确认成功', async () => {
+      const repo = createRepo(unconfirmed);
+
+      const result = await makeService(repo).confirmAge('u2');
+
+      expect(repo.update.mock.calls[0][1].ageConfirmedIp).toBeNull();
+      expect(result.ageConfirmed).toBe(true);
+    });
+
+    it('已确认：幂等，不覆盖原有时间 / IP，不写库，不重复写审计', async () => {
+      const repo = createRepo({ ...confirmed, ageConfirmedIp: 'abcdef0123456789' });
+
+      const result = await makeService(repo).confirmAge('u1', '198.51.100.9');
+
+      expect(repo.update).not.toHaveBeenCalled();
+      expect(auditService.log).not.toHaveBeenCalled();
+      expect(result).toEqual({ nsfwEnabled: true, showNsfw: false, ageConfirmed: true });
+    });
+
+    it('平台开关关闭时也允许确认（年龄声明与开关无关）', async () => {
+      config.nsfwEnabled = false;
+      const repo = createRepo(unconfirmed);
+
+      const result = await makeService(repo).confirmAge('u2', '203.0.113.7');
+
+      expect(repo.update).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ nsfwEnabled: false, showNsfw: false, ageConfirmed: true });
+    });
+
+    it('确认后可以打开偏好', async () => {
+      // 用一个有状态的仓储把「先确认、再打开」串起来
+      let row: UserRow = { ...unconfirmed };
+      const repo = {
+        findById: vi.fn().mockImplementation(async () => row),
+        update: vi.fn().mockImplementation(async (_id: string, data: Partial<UserRow>) => {
+          row = { ...row, ...data };
+          return row;
+        }),
+      };
+      const service = makeService(repo as never);
+
+      await expect(service.setShowNsfw('u2', true)).rejects.toMatchObject({ code: AGE_CONFIRMATION_REQUIRED });
+      await service.confirmAge('u2', '203.0.113.7');
+      await expect(service.setShowNsfw('u2', true)).resolves.toMatchObject({
+        showNsfw: true,
+        ageConfirmed: true,
+      });
+    });
+
+    it('用户不存在 -> NotFoundError，且不写审计', async () => {
+      await expect(makeService(createRepo(null)).confirmAge('ghost', '1.1.1.1')).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      expect(auditService.log).not.toHaveBeenCalled();
     });
   });
 
