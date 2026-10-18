@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@client/stores/user';
 import { useToast } from '@client/composables/useToast';
 import type { FormInstance, FormRules } from 'element-plus';
 import { View, Hide } from '@element-plus/icons-vue';
+import { ApiError } from '@client/services/api';
 
 const router = useRouter();
+const route = useRoute();
 const { t } = useI18n();
 const userStore = useUserStore();
 const toast = useToast();
@@ -19,6 +21,7 @@ const formData = reactive({
   email: '',
   password: '',
   confirmPassword: '',
+  inviteCode: '',
   agreeToTerms: false,
   // 与条款勾选分开：条款同意和年龄声明是两件事，合成一个勾选框
   // 就无法证明用户单独确认过年龄。
@@ -92,6 +95,14 @@ const validateConfirmPassword = (_rule: any, value: any, callback: any) => {
   }
 };
 
+const validateInviteCode = (_rule: any, value: any, callback: any) => {
+  if (!value || !String(value).trim()) {
+    callback(new Error(t('auth.inviteCodeRequired')));
+  } else {
+    callback();
+  }
+};
+
 const validateTerms = (_rule: any, value: any, callback: any) => {
   if (!value) {
     callback(new Error(t('auth.agreeTermsRequired')));
@@ -124,6 +135,9 @@ const rules = reactive<FormRules>({
   confirmPassword: [
     { required: true, validator: validateConfirmPassword, trigger: 'blur' },
   ],
+  inviteCode: [
+    { required: true, validator: validateInviteCode, trigger: 'blur' },
+  ],
   agreeToTerms: [
     { required: true, validator: validateTerms, trigger: 'change' },
   ],
@@ -147,6 +161,7 @@ const handleRegister = async () => {
       formData.password,
       formData.name,
       formData.ageConfirmed,
+      formData.inviteCode.trim(),
     );
 
     toast.success(t('auth.registerSuccess'));
@@ -155,12 +170,36 @@ const handleRegister = async () => {
     router.push({ name: 'Chat' });
   } catch (error: unknown) {
     toast.error(t('auth.registerFailed'), {
-      message: error instanceof Error ? error.message : t('auth.checkInputRetry')
+      message: inviteCodeMessage(error instanceof ApiError ? error.code : undefined)
+        ?? (error instanceof Error ? error.message : t('auth.checkInputRetry')),
     });
   } finally {
     loading.value = false;
   }
 };
+
+// 邀请码相关错误码 → 可读文案。服务端把「不存在 / 过期 / 用尽 / 禁用」合并成同一个
+// INVALID，前端也就只有这两条。
+const INVITE_ERROR_KEYS: Record<string, string> = {
+  INVITE_CODE_REQUIRED: 'auth.inviteCodeRequired',
+  INVITE_CODE_INVALID: 'auth.inviteCodeInvalid',
+  invite_code_required: 'auth.inviteCodeRequired',
+  invite_code_invalid: 'auth.inviteCodeInvalid',
+};
+
+function inviteCodeMessage(code: string | undefined): string | undefined {
+  const key = code ? INVITE_ERROR_KEYS[code] : undefined;
+  return key ? t(key) : undefined;
+}
+
+// OAuth 首次登录被邀请码挡住时，服务端回跳 /auth/register?error=invite_code_*
+onMounted(() => {
+  const queryError = route.query.error;
+  const message = typeof queryError === 'string' ? inviteCodeMessage(queryError) : undefined;
+  if (message) {
+    toast.error(t('auth.registerFailed'), { message });
+  }
+});
 
 // Navigate to login
 const goToLogin = () => {
@@ -180,7 +219,13 @@ const loginWithOAuth = (provider: string) => {
     toast.error(t('auth.ageConfirmRequired'));
     return;
   }
-  window.location.href = `/api/v1/auth/oauth/${provider}?ageConfirmed=1`;
+  const inviteCode = formData.inviteCode.trim();
+  if (!inviteCode) {
+    toast.error(t('auth.inviteCodeRequired'));
+    return;
+  }
+  window.location.href =
+    `/api/v1/auth/oauth/${provider}?ageConfirmed=1&inviteCode=${encodeURIComponent(inviteCode)}`;
 };
 </script>
 
@@ -283,6 +328,17 @@ const loginWithOAuth = (provider: string) => {
               </el-icon>
             </template>
           </el-input>
+        </el-form-item>
+
+        <!-- Invite Code Field -->
+        <el-form-item :label="t('auth.inviteCode')" prop="inviteCode">
+          <el-input
+            v-model="formData.inviteCode"
+            :placeholder="t('auth.enterInviteCode')"
+            :disabled="loading"
+            maxlength="64"
+            clearable
+          />
         </el-form-item>
 
         <!-- Terms and Conditions -->

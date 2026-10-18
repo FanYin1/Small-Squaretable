@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm';
-import { BaseRepository } from './base.repository';
+import { BaseRepository, type DbExecutor } from './base.repository';
 import { db } from '../index';
 import { tenants, type Tenant, type NewTenant } from '../schema';
 
 export class TenantRepository extends BaseRepository {
-  async create(data: NewTenant): Promise<Tenant> {
-    const [tenant] = await this.db.insert(tenants).values(data).returning();
+  async create(data: NewTenant, executor: DbExecutor = this.db): Promise<Tenant> {
+    const [tenant] = await executor.insert(tenants).values(data).returning();
     return tenant;
   }
 

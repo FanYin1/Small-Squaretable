@@ -323,6 +323,10 @@
     "agreeTermsRequired": "请阅读并同意服务条款",
     "ageConfirm": "我确认已满 18 周岁",
     "ageConfirmRequired": "请确认您已满 18 周岁",
+    "inviteCode": "邀请码",
+    "enterInviteCode": "请输入邀请码",
+    "inviteCodeRequired": "请输入邀请码",
+    "inviteCodeInvalid": "邀请码无效、已过期或已被用完",
     "termsOfService": "服务条款",
     "and": "和",
     "privacyPolicy": "隐私政策",
@@ -1284,7 +1288,8 @@
       "content": "内容审核",
       "system": "系统概览",
       "auditLogs": "审计日志",
-      "gdpr": "GDPR 请求"
+      "gdpr": "GDPR 请求",
+      "inviteCodes": "邀请码"
     },
     "users": {
       "title": "用户管理",
@@ -1413,6 +1418,36 @@
       "confirmProcess": "确定要立即处理此删除请求吗？",
       "processed": "请求处理成功",
       "noRequests": "暂无 GDPR 请求"
+    },
+    "inviteCodes": {
+      "title": "邀请码管理",
+      "generate": "生成邀请码",
+      "count": "数量",
+      "maxUses": "可用次数",
+      "expiresAt": "过期时间",
+      "neverExpires": "永不过期",
+      "note": "备注",
+      "justGenerated": "本次生成的邀请码",
+      "copyAll": "全部复制",
+      "copied": "已复制到剪贴板",
+      "copyFailed": "复制失败，请手动选择复制",
+      "generated": "已生成 {count} 个邀请码",
+      "generateFailed": "生成邀请码失败",
+      "code": "邀请码",
+      "usage": "已用 / 上限",
+      "status": "状态",
+      "statusLabel": {
+        "active": "可用",
+        "disabled": "已停用",
+        "exhausted": "已用尽",
+        "expired": "已过期"
+      },
+      "createdAt": "创建时间",
+      "disable": "停用",
+      "confirmDisable": "确定停用邀请码 {code} 吗？停用后无法再用于注册。",
+      "disabledOk": "邀请码已停用",
+      "disableFailed": "停用失败，请重试",
+      "noCodes": "暂无邀请码"
     }
   },
   "characterEditor": {

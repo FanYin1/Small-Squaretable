@@ -1,6 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AuthService } from './auth.service';
 import { UnauthorizedError, ValidationError } from '../../core/errors';
+import { InviteCodeError } from './invite-code.service';
+
+const TX = { marker: 'tx' };
+const { mockConsume, mockRecordUse, mockWithTransaction } = vi.hoisted(() => ({
+  mockConsume: vi.fn(),
+  mockRecordUse: vi.fn(),
+  mockWithTransaction: vi.fn(),
+}));
+
+// 只 mock 到 repository 这一层：invite-code.service 的真实逻辑要参与，
+// 这样测到的是「auth.service 是否真的把建号放进了邀请码事务」。
+vi.mock('../../db/repositories/invite-code.repository', () => ({
+  inviteCodeRepository: {
+    withTransaction: mockWithTransaction,
+    consume: mockConsume,
+    recordUse: mockRecordUse,
+  },
+}));
 
 vi.mock('bcrypt', () => ({
   default: {
@@ -73,6 +91,9 @@ describe('AuthService', () => {
   beforeEach(() => {
     service = new AuthService();
     vi.clearAllMocks();
+    mockWithTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => fn(TX));
+    mockConsume.mockResolvedValue({ id: 'code-1' });
+    mockRecordUse.mockResolvedValue(undefined);
   });
 
   describe('register', () => {
@@ -97,6 +118,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'password123',
         ageConfirmed: true,
+        inviteCode: 'ABCD-2345-WXYZ',
       });
 
       expect(result.user.email).toBe('test@example.com');
@@ -115,6 +137,7 @@ describe('AuthService', () => {
           email: 'existing@example.com',
           password: 'password123',
           ageConfirmed: true,
+          inviteCode: 'ABCD-2345-WXYZ',
         })
       ).rejects.toThrow('Email already registered');
     });
@@ -133,7 +156,7 @@ describe('AuthService', () => {
 
     it('没勾成年声明就不能注册 —— 前端勾选不算证据，服务端必须自己拦', async () => {
       await expect(
-        service.register({ email: 'test@example.com', password: 'password123' })
+        service.register({ email: 'test@example.com', password: 'password123', inviteCode: 'ABCD-2345-WXYZ' } as never)
       ).rejects.toThrow(ValidationError);
     });
 
@@ -154,10 +177,12 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'password123',
         ageConfirmed: true,
+        inviteCode: 'ABCD-2345-WXYZ',
       });
 
       expect(userRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({ ageConfirmedAt: expect.any(Date) })
+        expect.objectContaining({ ageConfirmedAt: expect.any(Date) }),
+        expect.anything()
       );
     });
 
@@ -168,6 +193,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'password123',
         ageConfirmed: true,
+        inviteCode: 'ABCD-2345-WXYZ',
         actorIp: '203.0.113.7',
       });
 
@@ -184,6 +210,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'password123',
         ageConfirmed: true,
+        inviteCode: 'ABCD-2345-WXYZ',
       });
 
       const call = vi.mocked(userRepository.create).mock.calls[0][0] as Record<string, unknown>;
@@ -197,6 +224,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         password: 'password123',
         ageConfirmed: true,
+        inviteCode: 'ABCD-2345-WXYZ',
         actorIp: '203.0.113.7',
       });
 
@@ -204,6 +232,108 @@ describe('AuthService', () => {
         expect.objectContaining({
           action: 'age_confirm',
           actorId: '123',
+        })
+      );
+    });
+  });
+
+  describe('邀请码', () => {
+    const base = {
+      email: 'test@example.com',
+      password: 'password123',
+      ageConfirmed: true as const,
+    };
+
+    beforeEach(async () => {
+      const { userRepository } = await import('../../db/repositories/user.repository');
+      const { tenantRepository } = await import('../../db/repositories/tenant.repository');
+      vi.mocked(userRepository.findByEmail).mockResolvedValue(null);
+      vi.mocked(userRepository.create).mockResolvedValue({
+        id: '123',
+        email: 'test@example.com',
+        tenantId: '456',
+      } as any);
+      vi.mocked(tenantRepository.create).mockResolvedValue({ id: '456', name: 'Test', plan: 'free' } as any);
+    });
+
+    async function expectNothingCreated() {
+      const { userRepository } = await import('../../db/repositories/user.repository');
+      const { tenantRepository } = await import('../../db/repositories/tenant.repository');
+      expect(userRepository.create).not.toHaveBeenCalled();
+      expect(tenantRepository.create).not.toHaveBeenCalled();
+      expect(mockRecordUse).not.toHaveBeenCalled();
+    }
+
+    it.each([undefined, '', '   '])('缺码（%j）→ 400 INVITE_CODE_REQUIRED，不建租户不建用户', async (inviteCode) => {
+      const err = await service.register({ ...base, inviteCode } as never).catch((e) => e);
+
+      expect(err).toBeInstanceOf(InviteCodeError);
+      expect(err.statusCode).toBe(400);
+      expect(err.code).toBe('INVITE_CODE_REQUIRED');
+      expect(mockWithTransaction).not.toHaveBeenCalled();
+      await expectNothingCreated();
+    });
+
+    it('错码 / 过期 / 用尽 / 禁用（consume 无返回行）→ 400 INVITE_CODE_INVALID，不建租户不建用户', async () => {
+      mockConsume.mockResolvedValue(null);
+
+      const err = await service
+        .register({ ...base, inviteCode: 'WXYZ-2345-ABCD' })
+        .catch((e) => e);
+
+      expect(err).toBeInstanceOf(InviteCodeError);
+      expect(err.statusCode).toBe(400);
+      expect(err.code).toBe('INVITE_CODE_INVALID');
+      await expectNothingCreated();
+    });
+
+    it('有效码：租户、用户、使用记录都在消费邀请码的同一个事务里', async () => {
+      const { userRepository } = await import('../../db/repositories/user.repository');
+      const { tenantRepository } = await import('../../db/repositories/tenant.repository');
+
+      const result = await service.register({ ...base, inviteCode: ' abcd-2345-wxyz ' });
+
+      expect(result.user.email).toBe('test@example.com');
+      expect(mockConsume).toHaveBeenCalledWith('ABCD-2345-WXYZ', TX);
+      expect(tenantRepository.create).toHaveBeenCalledWith(expect.anything(), TX);
+      expect(userRepository.create).toHaveBeenCalledWith(expect.anything(), TX);
+      expect(mockRecordUse).toHaveBeenCalledWith({ codeId: 'code-1', userId: '123' }, TX);
+    });
+
+    it('邮箱已注册 → 不消耗邀请码', async () => {
+      const { userRepository } = await import('../../db/repositories/user.repository');
+      vi.mocked(userRepository.findByEmail).mockResolvedValue({ id: '9' } as any);
+
+      await expect(
+        service.register({ ...base, inviteCode: 'ABCD-2345-WXYZ' })
+      ).rejects.toThrow('Email already registered');
+
+      expect(mockConsume).not.toHaveBeenCalled();
+    });
+
+    it('建用户失败 → 错误向外抛（事务回滚），不记录使用', async () => {
+      const { userRepository } = await import('../../db/repositories/user.repository');
+      vi.mocked(userRepository.create).mockRejectedValue(new Error('insert failed'));
+
+      await expect(
+        service.register({ ...base, inviteCode: 'ABCD-2345-WXYZ' })
+      ).rejects.toThrow('insert failed');
+
+      expect(mockRecordUse).not.toHaveBeenCalled();
+    });
+
+    it('使用邀请码写审计：谁、哪个码、来源', async () => {
+      const { auditService } = await import('./audit.service');
+
+      await service.register({ ...base, inviteCode: 'abcd-2345-wxyz', actorIp: '203.0.113.7' });
+
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'invite_code_use',
+          actorId: '123',
+          targetType: 'invite_code',
+          targetId: 'code-1',
+          metadata: expect.objectContaining({ code: 'ABCD-2345-WXYZ', source: 'register' }),
         })
       );
     });

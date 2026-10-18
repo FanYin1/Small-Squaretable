@@ -49,6 +49,7 @@ describe('Auth Routes', () => {
           email: 'test@example.com',
           password: 'password123',
           ageConfirmed: true,
+          inviteCode: 'ABCD-2345-WXYZ',
         }),
       });
 
@@ -66,6 +67,29 @@ describe('Auth Routes', () => {
       });
 
       expect(res.status).toBe(400);
+    });
+
+    it.each([
+      ['缺少', {}],
+      ['空串', { inviteCode: '' }],
+      ['纯空白', { inviteCode: '   ' }],
+      ['超长', { inviteCode: 'A'.repeat(65) }],
+    ])('邀请码%s直接 400，服务层都不该被调用', async (_label, extra) => {
+      const { authService } = await import('../services/auth.service');
+
+      const res = await app.request('/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'test@example.com',
+          password: 'password123',
+          ageConfirmed: true,
+          ...extra,
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      expect(authService.register).not.toHaveBeenCalled();
     });
 
     it('缺少成年声明直接 400，服务层都不该被调用', async () => {
@@ -112,6 +136,7 @@ describe('Auth Routes', () => {
           email: 'test@example.com',
           password: 'password123',
           ageConfirmed: true,
+          inviteCode: 'ABCD-2345-WXYZ',
           actorIp: '1.2.3.4',
         }),
       });

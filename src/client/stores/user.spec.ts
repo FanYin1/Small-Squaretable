@@ -107,6 +107,21 @@ describe('User Store', () => {
       );
     });
 
+    it('邀请码要透传到接口 —— 漏了这个字段后端会直接 400', async () => {
+      vi.mocked(authApi.register).mockResolvedValue({
+        user: { id: '1', email: 'new@example.com', name: 'New User', tenantId: 'tenant-1', createdAt: '2024-01-01' },
+        token: 'new-token',
+        refreshToken: 'new-refresh-token',
+      } as never);
+
+      const store = useUserStore();
+      await store.register('new@example.com', 'password', 'New User', true, 'ABCD-1234-EFGH');
+
+      expect(authApi.register).toHaveBeenCalledWith(
+        expect.objectContaining({ inviteCode: 'ABCD-1234-EFGH' })
+      );
+    });
+
     it('should handle registration error', async () => {
       const error = new ApiError(400, 'EMAIL_EXISTS', 'Email already exists');
       vi.mocked(authApi.register).mockRejectedValue(error);

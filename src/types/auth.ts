@@ -15,6 +15,12 @@ export const registerSchema = z.object({
   ageConfirmed: z.literal(true, {
     errorMap: () => ({ message: 'You must confirm you are at least 18 years old' }),
   }),
+  /** 邀请码（注册采用邀请码制）。大小写不敏感，归一化在 service 层做。 */
+  inviteCode: z
+    .string({ required_error: 'Invite code is required' })
+    .trim()
+    .min(1, 'Invite code is required')
+    .max(64, 'Invite code is too long'),
 });
 
 export const loginSchema = z.object({

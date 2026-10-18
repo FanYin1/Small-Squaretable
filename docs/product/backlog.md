@@ -44,7 +44,7 @@ M2 和 M3 可以并行。M1 之前不要放人：邀请码（P0-6）和花费熔
 
 ## P0 — 真 bug 与阻塞项
 
-### [ ] P0-0 收尾年龄声明改动
+### [x] P0-0 收尾年龄声明改动
 
 未提交的工作：17 个文件 / +453 行 / 新迁移 `src/db/migrations/0036_age_confirmation.sql`。
 
@@ -54,9 +54,9 @@ M2 和 M3 可以并行。M1 之前不要放人：邀请码（P0-6）和花费熔
 
 - **验收**：测试补齐后作为一个提交落地，工作区干净。
 - **估时**：10 分钟
-- **进度（2026-10-18）**：测试已补（`auth-email-verify.spec.ts` 的 payload 加 `ageConfirmed: true`），年龄声明本身未改动。**尚未提交**，提交后打勾
+- **结论（2026-10-18）**：测试已补（`auth-email-verify.spec.ts` 的 payload 加 `ageConfirmed: true`），年龄声明本身未改动。在分支 `m1-wave1` 作为独立提交 `a6f75df` 落地，单独检出该提交跑认证相关 9 个测试文件 122 项全过
 
-### [ ] P0-1 修计费口径：主聊天通道未计入输入 token
+### [x] P0-1 修计费口径：主聊天通道未计入输入 token
 
 两条传输通道口径不一致：
 
@@ -77,6 +77,12 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   3. 既有配额数字按新口径重算后写回 `feature.service.ts`（旧数字在新口径下会立刻被击穿）。这是 P3-1 上线前的过渡措施，P3-1 之后配额让位于点数
 - **阻塞**：P3-1 预付点数。在此之前所有定价测算都是假的
 - **估时**：半天
+- **结论（2026-10-18）**：
+  - 所有生成路径（WS 单聊/群聊/模板、HTTP 流式与 `/completions`）统一经 `usage-meter.ts` 的 `meterLlmTokens` 计量：provider 返回的 `usage` 优先（流式请求带 `stream_options.include_usage`，Ollama 原生接口读 `prompt_eval_count`/`eval_count`），否则输入取 context-manager 的 `totalTokens` + atDepth 注入、输出按累积文本估算，估算器统一为 `utils/tokens`。严格 provider 拒绝 `stream_options` 时可设 `LLM_STREAM_INCLUDE_USAGE=false` 回退估算
+  - 顺带修掉：context-manager 的 `totalTokens` 漏算 atDepth 注入；HTTP 流式 SSE 行跨分片时被丢弃
+  - 行为变化：被中断或空回复的生成也计输入；`/completions` 无 usage 时按估算计，不再跳过
+  - 配额按「每次生成 ≈ 3,000 上下文 + 400 回复」、messages 每轮计 2 条重算：free 50K → 170K、pro 1M → 17M、team 10M → 170M，推导写在 `feature.service.ts` 注释里，前端 `useFeatureGate.ts`、`Subscription.vue` 和 i18n 文案已同步。**这是假设值**，pro 用满 17M 在贵模型上可能超过 ¥29 月费，上线后须按实测 usage 校准，P3-1 之后让位于点数
+  - 验收 1 的「一致」指口径一致；两条通道在没有 provider usage 时都落到同一个估算器上
 
 ### [x] P0-2 修 23 个类型错误（两批根因）
 
@@ -140,7 +146,7 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
 - **估时**：半小时
 - **结论（2026-10-18）**：0 error / 167 warning（warning 未动）。`@ts-ignore` 实际不再需要，直接删除而非改成 `@ts-expect-error`。注意 lint 不覆盖 `.vue`，见 P4-5
 
-### [ ] P0-6 邀请码注册
+### [x] P0-6 邀请码注册
 
 定位的承重墙（理由见 [`positioning.md`](./positioning.md#目标用户)）。现状是开放注册，代码里没有邀请码，也没有关闭注册的开关。
 
@@ -161,8 +167,22 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   4. 存量用户不受影响
 - **阻塞**：P2-6
 - **估时**：1 天
+- **进展（2026-10-18）**：完成，已在开发库验证
+  - 新表 `invite_codes` + `invite_code_uses`（迁移 `0037_invite_codes.sql`）。使用记录单独建表而不只靠审计：审计是 fire-and-forget 且有保留期清理，追溯关系要和建号同事务落库。审计日志另写一份（`invite_code_use` / `_create` / `_disable`）
+  - 消费是一条条件 `UPDATE ... WHERE used_count < max_uses AND 未过期 AND 未禁用 RETURNING id`，与建租户、建用户、OAuth 绑定、写使用记录同在 `inviteCodeService.createAccountWithInvite` 的事务里；四个 repository 的 `create` 加了可选 executor 参数。CHECK `used_count <= max_uses` 作第二道防线
+  - 邮箱查重先于扣码（重复邮箱不烧码）；错误码只有 `INVITE_CODE_REQUIRED` / `INVITE_CODE_INVALID`，不区分过期/用尽，避免帮人猜码
+  - OAuth：邀请码随 state 存 Redis（同 `ageConfirmed`），首次登录缺码或码无效时重定向 `/auth/register?error=invite_code_*`。发起时不预校验，错码要等第三方往返后才提示
+  - 后台：`/api/v1/admin/invite-codes` 批量生成 / 列表 / 禁用，前端 `InviteCodes.vue`
+  - **真实库验证**（开发库执行 0036、0037 后）：
+    - 单次码 10 并发注册恰好 1 个成功，3 次码 10 并发恰好 3 个成功，`used_count` 与使用记录一致；失败的都是 `INVITE_CODE_INVALID`
+    - 建号中途抛错时扣码与租户行一起回滚；停用码、过期码被拒；CHECK 约束拒绝越界写入；小写输入可用
+    - 浏览器：错码注册提示"邀请码无效、已过期或已被用完"且不建号，正确码注册 201 后进 `/chat`；后台列表与生成正常，`createdBy` 已记录；审计日志 `invite_code_use` / `invite_code_create` 均落库
+    - E2E `auth.spec.ts` + `auth-interactions.spec.ts` 31/31 通过（注册用例走 mock API，`E2E_INVITE_CODE` 任意非空值即可；连真实后端跑时需在测试库预置一个多次可用的码）
+  - **顺带修复**：全站 toast 被静默丢弃。`App.vue` 中 `ToastContainer` 与 `<router-view>` 是兄弟节点，页面 `inject('toast')` 拿不到，落到只打 warning 的空实现，错码注册因此毫无反馈。队列改为 `useToast` 模块内共享，`ToastContainer` 只负责渲染
+  - **顺带修复**：E2E 页面对象只勾了第一个复选框，P0-0 加的满 18 岁声明没勾，注册用例必然被前端校验拦下
+  - **已知存量问题（未修）**：直接刷新 `/admin/*` 会被弹回"权限不足"。路由守卫读 `userStore.user?.role`，而 user 不持久化、`/auth/me` 尚未返回
 
-### [ ] P0-7 平台花费熔断
+### [x] P0-7 平台花费熔断
 
 从现在到 P3-1 上线，平台成本只靠套餐配额兜底，而配额量的口径到 P0-1 修好之前都是错的。需要一道与计费逻辑无关的独立保险。
 
@@ -172,6 +192,12 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   2. 已在流式输出中的回复不被中途切断
   3. 计数按自然日重置；Redis 不可用时**失败关闭**（拒绝生成）而非放行
 - **估时**：半天
+- **结论（2026-10-18）**：
+  - 闸门在 `llm.service.ts` 的 `chatCompletion` / `streamChatCompletion` / `completion` 开头（`spend-breaker.service.ts`），超限抛 503 `PLATFORM_SPEND_LIMIT`；WS 的 catch 透传 AppError 的 code，前端 `stores/chat.ts` 映射为 `chat.platformSpendLimit` 本地化提示，HTTP 走 errorHandler 返回 JSON
+  - Redis key `spend-breaker:tokens:YYYY-MM-DD`，按 `SPEND_BREAKER_TZ`（默认 Asia/Shanghai）划日，INCRBY + 72h 过期。累加用与 P0-1 同一个数字：非流式在 llm.service 内记，流式由 `meterLlmTokens` 记，已记过的路径传 `recordPlatformSpend: false` 防重
+  - `PLATFORM_DAILY_TOKEN_LIMIT` 未设置：非 production 禁用并启动 warn；production 由 `core/config.ts` 校验拒绝启动
+  - 首次超限每天通知一次（Redis `SET NX`）：error 日志 + Sentry `captureMessage`。项目没有给管理员发邮件的现成能力，未做邮件
+  - 局限：先查后记，超额上限约为检查通过时仍在途的生成量；摘要、记忆整合等内部 LLM 调用计入熔断但不计入用户配额
 
 ---
 

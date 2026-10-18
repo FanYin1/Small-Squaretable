@@ -12,6 +12,7 @@ import { adminAuditRoutes } from './audit';
 import { adminGdprRoutes } from './gdpr';
 import { adminExperimentRoutes } from './experiments';
 import { adminJobRoutes } from './jobs';
+import { adminInviteCodeRoutes } from './invite-codes';
 
 export const adminRoutes = new Hono();
 
@@ -22,3 +23,4 @@ adminRoutes.route('/audit-logs', adminAuditRoutes);
 adminRoutes.route('/gdpr', adminGdprRoutes);
 adminRoutes.route('/experiments', adminExperimentRoutes);
 adminRoutes.route('/jobs', adminJobRoutes);
+adminRoutes.route('/invite-codes', adminInviteCodeRoutes);

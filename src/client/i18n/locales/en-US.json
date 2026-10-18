@@ -323,6 +323,10 @@
     "agreeTermsRequired": "Please read and agree to the terms of service",
     "ageConfirm": "I confirm that I am at least 18 years old",
     "ageConfirmRequired": "Please confirm that you are at least 18 years old",
+    "inviteCode": "Invite code",
+    "enterInviteCode": "Enter your invite code",
+    "inviteCodeRequired": "Enter your invite code",
+    "inviteCodeInvalid": "The invite code is invalid, expired or fully used",
     "termsOfService": "Terms of Service",
     "and": "and",
     "privacyPolicy": "Privacy Policy",
@@ -1284,7 +1288,8 @@
       "content": "Content Moderation",
       "system": "System",
       "auditLogs": "Audit Logs",
-      "gdpr": "GDPR Requests"
+      "gdpr": "GDPR Requests",
+      "inviteCodes": "Invite Codes"
     },
     "users": {
       "title": "User Management",
@@ -1413,6 +1418,36 @@
       "confirmProcess": "Are you sure you want to process this deletion request immediately?",
       "processed": "Request processed successfully",
       "noRequests": "No GDPR requests"
+    },
+    "inviteCodes": {
+      "title": "Invite Codes",
+      "generate": "Generate",
+      "count": "Count",
+      "maxUses": "Max Uses",
+      "expiresAt": "Expires At",
+      "neverExpires": "Never expires",
+      "note": "Note",
+      "justGenerated": "Newly generated codes",
+      "copyAll": "Copy all",
+      "copied": "Copied to clipboard",
+      "copyFailed": "Copy failed, please copy manually",
+      "generated": "Generated {count} invite code(s)",
+      "generateFailed": "Failed to generate invite codes",
+      "code": "Code",
+      "usage": "Used / Max",
+      "status": "Status",
+      "statusLabel": {
+        "active": "Active",
+        "disabled": "Disabled",
+        "exhausted": "Used up",
+        "expired": "Expired"
+      },
+      "createdAt": "Created At",
+      "disable": "Disable",
+      "confirmDisable": "Disable invite code {code}? It can no longer be used to register.",
+      "disabledOk": "Invite code disabled",
+      "disableFailed": "Failed to disable, please retry",
+      "noCodes": "No invite codes"
     }
   },
   "characterEditor": {

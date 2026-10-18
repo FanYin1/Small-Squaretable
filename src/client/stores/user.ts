@@ -87,11 +87,12 @@ export const useUserStore = defineStore('user', () => {
     password: string,
     name: string,
     ageConfirmed: boolean,
+    inviteCode: string,
   ): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
-      const response = await authApi.register({ email, password, name, ageConfirmed });
+      const response = await authApi.register({ email, password, name, ageConfirmed, inviteCode });
 
       // 保存用户信息和令牌
       user.value = response.user;

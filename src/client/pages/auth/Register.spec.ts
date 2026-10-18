@@ -11,6 +11,7 @@ import { createRouter, createMemoryHistory } from 'vue-router';
 import Register from './Register.vue';
 import { useUserStore } from '@client/stores/user';
 import i18n from '../../i18n';
+import { ApiError } from '@client/services/api';
 
 // Set locale to zh-CN for tests
 i18n.global.locale.value = 'zh-CN';
@@ -118,6 +119,12 @@ describe('Register Page', () => {
       expect(wrapper.find('input[placeholder="请输入您的邮箱"]').exists()).toBe(true);
       expect(wrapper.find('input[placeholder*="请输入密码"]').exists()).toBe(true);
       expect(wrapper.find('input[placeholder="请再次输入密码"]').exists()).toBe(true);
+    });
+
+    it('邀请码输入框存在（注册采用邀请码制）', () => {
+      const wrapper = createWrapper();
+
+      expect(wrapper.find('input[placeholder="请输入邀请码"]').exists()).toBe(true);
     });
 
     it('should render terms checkbox', () => {
@@ -256,6 +263,7 @@ describe('Register Page', () => {
       await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('test@example.com');
       await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
       await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
+      await wrapper.find('input[placeholder="请输入邀请码"]').setValue('abcd-1234-efgh');
       const boxes = wrapper.findAll('input[type="checkbox"]');
       await boxes[0].setValue(true);
       await boxes[1].setValue(true);
@@ -270,7 +278,8 @@ describe('Register Page', () => {
         'test@example.com',
         'Password123',
         'Test User',
-        true
+        true,
+        'abcd-1234-efgh'
       );
 
       // Should show success message
@@ -287,6 +296,7 @@ describe('Register Page', () => {
       await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('existing@example.com');
       await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
       await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
+      await wrapper.find('input[placeholder="请输入邀请码"]').setValue('abcd-1234-efgh');
       const boxes = wrapper.findAll('input[type="checkbox"]');
       await boxes[0].setValue(true);
       await boxes[1].setValue(true);
@@ -300,6 +310,49 @@ describe('Register Page', () => {
       expect(mockToast.error).toHaveBeenCalledWith('注册失败', { message: 'Email already exists' });
     });
 
+    it.each([
+      ['INVITE_CODE_REQUIRED', '请输入邀请码'],
+      ['INVITE_CODE_INVALID', '邀请码无效、已过期或已被用完'],
+    ])('服务端返回 %s → 提示可读文案而不是原始英文', async (code, message) => {
+      mockUserStore.register.mockRejectedValue(new ApiError(400, code, 'raw english message'));
+      const wrapper = createWrapper();
+
+      await wrapper.find('input[placeholder="请输入您的姓名"]').setValue('Test User');
+      await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('test@example.com');
+      await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
+      await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
+      await wrapper.find('input[placeholder="请输入邀请码"]').setValue('bad-code');
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      await boxes[0].setValue(true);
+      await boxes[1].setValue(true);
+
+      await wrapper.find('form').trigger('submit');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(mockToast.error).toHaveBeenCalledWith('注册失败', { message });
+    });
+
+    it.each([
+      ['invite_code_required', '请输入邀请码'],
+      ['invite_code_invalid', '邀请码无效、已过期或已被用完'],
+    ])('OAuth 回调带 ?error=%s 回到注册页 → 进页面就提示', async (errorParam, message) => {
+      await router.push({ name: 'Register', query: { error: errorParam } });
+      await router.isReady();
+
+      createWrapper();
+
+      expect(mockToast.error).toHaveBeenCalledWith('注册失败', { message });
+    });
+
+    it('无关的 ?error 参数不弹提示', async () => {
+      await router.push({ name: 'Register', query: { error: 'something_else' } });
+      await router.isReady();
+
+      createWrapper();
+
+      expect(mockToast.error).not.toHaveBeenCalled();
+    });
+
     it('should disable form during registration', async () => {
       mockUserStore.register.mockImplementation(() => new Promise(() => {}));
       const wrapper = createWrapper();
@@ -309,6 +362,7 @@ describe('Register Page', () => {
       await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('test@example.com');
       await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
       await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
+      await wrapper.find('input[placeholder="请输入邀请码"]').setValue('abcd-1234-efgh');
       const boxes = wrapper.findAll('input[type="checkbox"]');
       await boxes[0].setValue(true);
       await boxes[1].setValue(true);
@@ -348,6 +402,7 @@ describe('Register Page', () => {
       await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('test@example.com');
       await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
       await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
+      await wrapper.find('input[placeholder="请输入邀请码"]').setValue('abcd-1234-efgh');
 
       // Submit form
       const form = wrapper.find('form');
@@ -373,7 +428,21 @@ describe('Register Page', () => {
         expect(mockToast.error).toHaveBeenCalledWith('请确认您已满 18 周岁');
       });
 
-      it('勾了之后把声明带到授权入口，服务端据此决定能不能建新号', async () => {
+      it('勾了之后把声明和邀请码带到授权入口，服务端据此决定能不能建新号', async () => {
+        const wrapper = createWrapper();
+
+        const boxes = wrapper.findAll('input[type="checkbox"]');
+        await boxes[1].setValue(true);
+        await wrapper.find('input[placeholder="请输入邀请码"]').setValue('  abcd-1234-efgh ');
+
+        await wrapper.findAll('button.social-btn')[0].trigger('click');
+
+        expect(window.location.href).toBe(
+          '/api/v1/auth/oauth/google?ageConfirmed=1&inviteCode=abcd-1234-efgh'
+        );
+      });
+
+      it('勾了成年声明但没填邀请码 → 不跳转并提示，避免白走一趟授权', async () => {
         const wrapper = createWrapper();
 
         const boxes = wrapper.findAll('input[type="checkbox"]');
@@ -381,7 +450,8 @@ describe('Register Page', () => {
 
         await wrapper.findAll('button.social-btn')[0].trigger('click');
 
-        expect(window.location.href).toBe('/api/v1/auth/oauth/google?ageConfirmed=1');
+        expect(window.location.href).toBe('');
+        expect(mockToast.error).toHaveBeenCalledWith('请输入邀请码');
       });
     });
   });
@@ -409,6 +479,7 @@ describe('Register Page', () => {
       await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('test@example.com');
       await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
       await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
+      await wrapper.find('input[placeholder="请输入邀请码"]').setValue('abcd-1234-efgh');
       const boxes = wrapper.findAll('input[type="checkbox"]');
       await boxes[0].setValue(true);
       await boxes[1].setValue(true);

@@ -157,6 +157,38 @@ export interface AuditLogListResponse {
   limit: number;
 }
 
+export interface InviteCode {
+  id: string;
+  code: string;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string | null;
+  createdBy: string | null;
+  note: string | null;
+  disabled: boolean;
+  createdAt: string;
+}
+
+export interface InviteCodeListResponse {
+  items: InviteCode[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export interface GenerateInviteCodesInput {
+  count: number;
+  maxUses: number;
+  /** ISO 时间串；缺省 = 不过期 */
+  expiresAt?: string;
+  note?: string;
+}
+
 // ── API methods ──
 
 function buildQuery<T extends object>(params: T): string {
@@ -219,6 +251,17 @@ export const adminApi = {
   /** 下架已上线的内容：作者点发布也回不来，属于处置而非审核结论 */
   hideCharacter: (id: string, data: RejectCharacterInput = {}) =>
     api.post<void>(`/admin/content/hide/character/${id}`, data),
+
+  // ── Invite Codes ──
+
+  getInviteCodes: (params: { page?: number; limit?: number } = {}) =>
+    api.get<InviteCodeListResponse>('/admin/invite-codes' + buildQuery(params)),
+
+  generateInviteCodes: (data: GenerateInviteCodesInput) =>
+    api.post<InviteCode[]>('/admin/invite-codes', data),
+
+  disableInviteCode: (id: string) =>
+    api.post<InviteCode>(`/admin/invite-codes/${id}/disable`),
 
   // ── System ──
 

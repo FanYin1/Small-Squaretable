@@ -14,6 +14,7 @@ import { tenantRepository } from '../../db/repositories/tenant.repository';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../core/jwt';
 import { redis } from '../../core/redis';
 import { BadRequestError } from '../../core/errors';
+import { inviteCodeService, InviteCodeError, normalizeInviteCode } from './invite-code.service';
 import type { AuthUser, AuthTokens } from '../../types/auth';
 
 // --- Provider registry ---
@@ -54,6 +55,15 @@ export interface OAuthProfile {
 export interface AgeConsent {
   ageConfirmed?: boolean;
   actorIp?: string;
+}
+
+/**
+ * 新建 OAuth 账号时的注册上下文：年龄声明 + 邀请码。
+ * 邀请码和年龄声明一样来自我们自己的授权入口（经 Redis state 带回），
+ * 不来自第三方 profile。
+ */
+export interface OAuthSignupContext extends AgeConsent {
+  inviteCode?: string;
 }
 
 // --- Constants ---
@@ -131,11 +141,11 @@ export const oauthService = {
    * 2. Else if a user with the same email exists → link the account + login.
    * 3. Else create a new user (emailVerified=true) + tenant + link account.
    *
-   * 分支 3 是注册，要和邮箱注册一样过年龄门；分支 1、2 是登录，不重复要求。
+   * 分支 3 是注册，要和邮箱注册一样过年龄门和邀请码门；分支 1、2 是登录，不重复要求。
    */
   async authenticateWithOAuth(
     profile: OAuthProfile,
-    consent: AgeConsent = {},
+    consent: OAuthSignupContext = {},
   ): Promise<{ user: AuthUser; tokens: AuthTokens; isNewUser: boolean }> {
     // 1. Existing OAuth link?
     const existing = await oauthRepository.findByProviderAccount(
@@ -175,27 +185,51 @@ export const oauthService = {
       throw new BadRequestError('age_confirmation_required');
     }
 
-    const tenant = await tenantRepository.create({
-      name: profile.displayName ?? profile.email.split('@')[0],
-      plan: 'free',
-    });
+    // 邀请码门：缺码在开事务之前就拒绝。
+    if (!normalizeInviteCode(consent.inviteCode)) {
+      throw new InviteCodeError('INVITE_CODE_REQUIRED');
+    }
 
-    const newUser = await userRepository.create({
-      email: profile.email,
-      tenantId: tenant.id,
-      displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
-      emailVerified: true, // OAuth emails are pre-verified
-      ageConfirmedAt: new Date(),
-      ageConfirmedIp: consent.actorIp ? hashIp(consent.actorIp) : null,
-    } as any);
+    // 消费邀请码、建租户、建用户、绑定 OAuth、记录使用 在同一个事务里，
+    // 任何一步失败整体回滚，邀请码不会被白白扣掉。
+    const newUser = await inviteCodeService.createAccountWithInvite(
+      consent.inviteCode,
+      { source: 'oauth', provider: profile.provider, actorIp: consent.actorIp },
+      async (tx) => {
+        const tenant = await tenantRepository.create(
+          {
+            name: profile.displayName ?? profile.email.split('@')[0],
+            plan: 'free',
+          },
+          tx,
+        );
 
-    await oauthRepository.create({
-      userId: newUser.id,
-      provider: profile.provider,
-      providerAccountId: profile.providerAccountId,
-      email: profile.email,
-    });
+        const created = await userRepository.create(
+          {
+            email: profile.email,
+            tenantId: tenant.id,
+            displayName: profile.displayName,
+            avatarUrl: profile.avatarUrl,
+            emailVerified: true, // OAuth emails are pre-verified
+            ageConfirmedAt: new Date(),
+            ageConfirmedIp: consent.actorIp ? hashIp(consent.actorIp) : null,
+          } as any,
+          tx,
+        );
+
+        await oauthRepository.create(
+          {
+            userId: created.id,
+            provider: profile.provider,
+            providerAccountId: profile.providerAccountId,
+            email: profile.email,
+          },
+          tx,
+        );
+
+        return created;
+      },
+    );
 
     const tokens = await generateTokenPair(newUser.id, newUser.tenantId, newUser.email, newUser.role ?? 'user');
     return { user: toAuthUser(newUser), tokens, isNewUser: true };

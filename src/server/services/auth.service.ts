@@ -15,6 +15,7 @@ import { UnauthorizedError, ValidationError, BadRequestError } from '../../core/
 import { sendEmail } from '../../core/email';
 import { config } from '../../core/config';
 import { auditService } from './audit.service';
+import { inviteCodeService, InviteCodeError, normalizeInviteCode } from './invite-code.service';
 import type { RegisterInput, LoginInput, AuthTokens, AuthUser } from '../../types/auth';
 import type { User } from '../../db/schema/users';
 
@@ -45,6 +46,12 @@ export class AuthService {
       throw new ValidationError('You must confirm you are at least 18 years old');
     }
 
+    // 缺码先于任何查库和 bcrypt：不该为一个注定被拒的请求付出哈希成本。
+    if (!normalizeInviteCode(input.inviteCode)) {
+      throw new InviteCodeError('INVITE_CODE_REQUIRED');
+    }
+
+    // 邮箱查重放在消费邀请码之前：重复邮箱不该烧掉一个码。
     const existingUser = await userRepository.findByEmail(input.email);
     if (existingUser) {
       throw new ValidationError('Email already registered');
@@ -52,21 +59,36 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
-    // Create tenant first
-    const tenant = await tenantRepository.create({
-      name: input.displayName ?? input.email.split('@')[0],
-      plan: 'free',
-    });
+    // 消费邀请码 + 建租户 + 建用户 + 记录使用 在同一个事务里：
+    // 任何一步失败都整体回滚，不会出现「码被扣了但没建出号」或「号建了没扣码」。
+    const { tenant, user } = await inviteCodeService.createAccountWithInvite(
+      input.inviteCode,
+      { source: 'register', actorIp: input.actorIp },
+      async (tx) => {
+        const createdTenant = await tenantRepository.create(
+          {
+            name: input.displayName ?? input.email.split('@')[0],
+            plan: 'free',
+          },
+          tx
+        );
 
-    const user = await userRepository.create({
-      email: input.email,
-      passwordHash,
-      tenantId: tenant.id,
-      displayName: input.displayName ?? null,
-      // 时间点 + 哈希 IP 才是这份声明的证据，单个 boolean 事后无法举证。
-      ageConfirmedAt: new Date(),
-      ageConfirmedIp: input.actorIp ? hashIp(input.actorIp) : null,
-    });
+        const createdUser = await userRepository.create(
+          {
+            email: input.email,
+            passwordHash,
+            tenantId: createdTenant.id,
+            displayName: input.displayName ?? null,
+            // 时间点 + 哈希 IP 才是这份声明的证据，单个 boolean 事后无法举证。
+            ageConfirmedAt: new Date(),
+            ageConfirmedIp: input.actorIp ? hashIp(input.actorIp) : null,
+          },
+          tx
+        );
+
+        return { id: createdUser.id, tenantId: createdTenant.id, tenant: createdTenant, user: createdUser };
+      }
+    );
 
     // 用户表里的字段会随账号删除一起消失，审计里再留一份独立记录。
     auditService.log({

@@ -208,6 +208,7 @@ describe('Auth Email Verification Routes', () => {
           email: 'new@example.com',
           password: 'password123',
           ageConfirmed: true,
+          inviteCode: 'ABCD-2345-WXYZ',
         }),
       });
 
@@ -216,6 +217,7 @@ describe('Auth Email Verification Routes', () => {
         email: 'new@example.com',
         password: 'password123',
         ageConfirmed: true,
+        inviteCode: 'ABCD-2345-WXYZ',
         actorIp: undefined,
       });
     });

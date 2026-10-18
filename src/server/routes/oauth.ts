@@ -20,6 +20,14 @@ const OAUTH_STATE_PREFIX = 'oauth_state:';
 const OAUTH_STATE_TTL = 300; // 5 minutes
 const OAUTH_CODE_PREFIX = 'oauth_code:';
 const OAUTH_CODE_TTL = 30; // 30 seconds
+const MAX_INVITE_CODE_LENGTH = 64;
+
+// 邀请码校验失败时回到注册页，让用户能直接改码重试；
+// 其余错误仍走 oauth-callback 页。
+const INVITE_CODE_ERROR_PARAMS: Record<string, string> = {
+  INVITE_CODE_REQUIRED: 'invite_code_required',
+  INVITE_CODE_INVALID: 'invite_code_invalid',
+};
 
 export const oauthRoutes = new Hono();
 
@@ -42,10 +50,18 @@ oauthRoutes.get('/:provider', async (c) => {
    */
   const ageConfirmed = c.req.query('ageConfirmed') === '1';
 
+  /**
+   * 邀请码同理随 state 存 Redis。只存不校验：校验和消费必须发生在建号的
+   * 那个事务里（authenticateWithOAuth），这里预校验一次既多余又有竞态。
+   * 合法码不超过 64 位；更长的直接丢弃，不让它占 Redis。
+   */
+  const rawInviteCode = c.req.query('inviteCode')?.trim();
+  const inviteCode = rawInviteCode && rawInviteCode.length <= MAX_INVITE_CODE_LENGTH ? rawInviteCode : undefined;
+
   // Store state → codeVerifier mapping in Redis
   await redis.set(
     `${OAUTH_STATE_PREFIX}${state}`,
-    JSON.stringify({ codeVerifier, provider, ageConfirmed }),
+    JSON.stringify({ codeVerifier, provider, ageConfirmed, inviteCode }),
     { EX: OAUTH_STATE_TTL },
   );
 
@@ -74,7 +90,7 @@ oauthRoutes.get('/:provider/callback', async (c) => {
   // Clean up state
   await redis.del(`${OAUTH_STATE_PREFIX}${state}`);
 
-  const { codeVerifier, provider: storedProvider, ageConfirmed } = JSON.parse(stateData);
+  const { codeVerifier, provider: storedProvider, ageConfirmed, inviteCode } = JSON.parse(stateData);
   if (storedProvider !== provider) {
     return c.redirect(`${config.appUrl}/auth/oauth-callback?error=provider_mismatch`);
   }
@@ -85,6 +101,7 @@ oauthRoutes.get('/:provider/callback', async (c) => {
     const profile = await oauthService.handleCallback(provider, code, codeVerifier);
     const result = await oauthService.authenticateWithOAuth(profile, {
       ageConfirmed: ageConfirmed === true,
+      inviteCode: typeof inviteCode === 'string' ? inviteCode : undefined,
       actorIp: actorIp === 'unknown' ? undefined : actorIp,
     });
 
@@ -122,6 +139,10 @@ oauthRoutes.get('/:provider/callback', async (c) => {
 
     return c.redirect(`${config.appUrl}/auth/oauth-callback?code=${authCode}`);
   } catch (err: any) {
+    const inviteParam = INVITE_CODE_ERROR_PARAMS[err?.code];
+    if (inviteParam) {
+      return c.redirect(`${config.appUrl}/auth/register?error=${inviteParam}`);
+    }
     const message = encodeURIComponent(err.message || 'oauth_failed');
     return c.redirect(`${config.appUrl}/auth/oauth-callback?error=${message}`);
   }
