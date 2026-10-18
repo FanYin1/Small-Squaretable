@@ -13,6 +13,142 @@ import type {
 } from '../../types/llm';
 import { AppError } from '../../core/errors';
 import { spendBreaker } from './spend-breaker.service';
+import { logger } from './logger.service';
+import { getPromptLayout } from './prompt-layout';
+
+const llmLogger = logger.child({ module: 'llm' });
+
+/**
+ * provider 返回的前缀缓存命中情况（P3-3 计量）。
+ * 解析不出来的字段一律是 null，而不是 0：0 表示「provider 说没命中」，null 表示「不知道」，
+ * 对比实验里这两者必须能区分。
+ */
+export interface CacheUsage {
+  /** 本次请求的输入 token 总数（含缓存命中部分） */
+  promptTokens: number | null;
+  /** 命中前缀缓存的输入 token 数 */
+  cachedTokens: number | null;
+  /** 本次写入缓存的 token 数（仅 Anthropic 一类按写入计费的 provider 会给） */
+  cacheCreationTokens: number | null;
+}
+
+/** 调用方可选传入的上下文，仅用于日志归因，不影响请求本身 */
+export interface LlmCallOptions {
+  chatId?: string;
+}
+
+function num(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function firstNum(...values: unknown[]): number | null {
+  for (const v of values) {
+    const n = num(v);
+    if (n !== null) return n;
+  }
+  return null;
+}
+
+/**
+ * 从 provider 的 usage 对象解析缓存命中数。已知字段：
+ * - OpenAI 兼容（OpenAI、智谱 GLM、通义兼容模式等）：usage.prompt_tokens_details.cached_tokens
+ * - Anthropic：usage.cache_read_input_tokens / cache_creation_input_tokens
+ *   （原生格式里 input_tokens 不含缓存部分，所以总输入 = input + read + creation）
+ * - DeepSeek：usage.prompt_cache_hit_tokens（miss 数在 prompt_cache_miss_tokens）
+ * - Moonshot 等：usage.cached_tokens
+ * 都没有时 cachedTokens 为 null。Ollama 原生接口没有缓存字段，只取 prompt_eval_count。
+ */
+export function readCacheUsage(usage: unknown): CacheUsage {
+  if (typeof usage !== 'object' || usage === null) {
+    return { promptTokens: null, cachedTokens: null, cacheCreationTokens: null };
+  }
+  const u = usage as Record<string, unknown>;
+  const details =
+    typeof u.prompt_tokens_details === 'object' && u.prompt_tokens_details !== null
+      ? (u.prompt_tokens_details as Record<string, unknown>)
+      : {};
+
+  const cachedTokens = firstNum(
+    details.cached_tokens,
+    u.cache_read_input_tokens,
+    u.prompt_cache_hit_tokens,
+    u.cached_tokens
+  );
+  const cacheCreationTokens = firstNum(u.cache_creation_input_tokens);
+
+  let promptTokens = firstNum(u.prompt_tokens, u.prompt_eval_count);
+  if (promptTokens === null && num(u.input_tokens) !== null) {
+    promptTokens = (u.input_tokens as number) + (cachedTokens ?? 0) + (cacheCreationTokens ?? 0);
+  }
+
+  return { promptTokens, cachedTokens, cacheCreationTokens };
+}
+
+/**
+ * 记录一次调用的缓存命中。有 chatId 的聊天调用记 info（对比实验按它过滤），
+ * 其余内部调用（记忆提取、摘要等）记 debug，避免污染命中率统计。
+ */
+function logCacheUsage(usage: unknown, model: string, stream: boolean, options?: LlmCallOptions): void {
+  const cache = readCacheUsage(usage);
+  const hitRatio =
+    cache.promptTokens && cache.cachedTokens !== null ? Number((cache.cachedTokens / cache.promptTokens).toFixed(4)) : null;
+  const fields = {
+    layout: getPromptLayout(),
+    model,
+    chatId: options?.chatId ?? null,
+    stream,
+    promptTokens: cache.promptTokens,
+    cachedTokens: cache.cachedTokens,
+    cacheCreationTokens: cache.cacheCreationTokens,
+    cacheHitRatio: hitRatio,
+  };
+  if (options?.chatId) {
+    llmLogger.info('LLM prompt cache usage', fields);
+  } else {
+    llmLogger.debug('LLM prompt cache usage', fields);
+  }
+}
+
+/**
+ * 旁路观察 SSE / NDJSON 流里的 usage，原样转发字节，不改变调用方看到的内容。
+ * OpenAI 兼容流的 usage 在倒数第二个 data 行；Ollama 原生流的统计字段在 done 行。
+ * 流被调用方中途取消时不会走到 flush，也就不记录（usage 本来就没发完）。
+ */
+function observeStreamUsage(body: ReadableStream<Uint8Array>, onUsage: (usage: unknown) => void): ReadableStream<Uint8Array> {
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let lastUsage: unknown = null;
+
+  const scanLine = (raw: string): void => {
+    const line = raw.trim();
+    const payload = line.startsWith('data:') ? line.slice(5).trim() : line;
+    if (!payload.startsWith('{')) return;
+    try {
+      const obj = JSON.parse(payload) as Record<string, unknown>;
+      if (obj.usage) lastUsage = obj.usage;
+      else if (obj.done === true && typeof obj.prompt_eval_count === 'number') lastUsage = obj;
+    } catch {
+      // 不完整或非 JSON 的行与计量无关，忽略
+    }
+  };
+
+  return body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        controller.enqueue(chunk);
+        buffer += decoder.decode(chunk, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        lines.forEach(scanLine);
+      },
+      flush() {
+        buffer += decoder.decode();
+        if (buffer) scanLine(buffer);
+        if (lastUsage) onUsage(lastUsage);
+      },
+    })
+  );
+}
 
 export class LLMService {
   private readonly maxRetries = 3;
@@ -49,7 +185,7 @@ export class LLMService {
   /**
    * 聊天补全
    */
-  async chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
+  async chatCompletion(request: ChatCompletionRequest, options?: LlmCallOptions): Promise<ChatCompletionResponse> {
     await spendBreaker.assertAllowed();
 
     const model = request.model || getDefaultModel();
@@ -89,13 +225,27 @@ export class LLMService {
     });
 
     await this.recordPlatformSpend(() => this.calculateTokenUsage(request, result));
+    this.safeLogCacheUsage(result?.usage, model, false, options);
     return result;
+  }
+
+  /** 缓存日志只是观测，任何解析问题都不能影响回复 */
+  private safeLogCacheUsage(usage: unknown, model: string, stream: boolean, options?: LlmCallOptions): void {
+    try {
+      logCacheUsage(usage, model, stream, options);
+    } catch {
+      // ignore
+    }
   }
 
   /**
    * 流式聊天补全
    */
-  async streamChatCompletion(request: ChatCompletionRequest, signal?: AbortSignal): Promise<Response> {
+  async streamChatCompletion(
+    request: ChatCompletionRequest,
+    signal?: AbortSignal,
+    options?: LlmCallOptions
+  ): Promise<Response> {
     // 只在发起前检查；已经开始流式输出的回复不会被中途切断
     await spendBreaker.assertAllowed();
 
@@ -161,7 +311,17 @@ export class LLMService {
       );
     }
 
-    return response;
+    if (!response.body || typeof response.body.pipeThrough !== 'function') {
+      return response;
+    }
+    const observed = observeStreamUsage(response.body, (usage) =>
+      this.safeLogCacheUsage(usage, model, true, options)
+    );
+    return new Response(observed, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
   }
 
   /**

@@ -370,6 +370,24 @@ describe('WebSocket chat — quota metering and enforcement', () => {
       expect((metadata as { promptTokens: number }).promptTokens).toBeGreaterThan(1000);
     });
 
+    // P3-3：cache_friendly 布局的变动块在截断之后才注入，预算要预先扣掉
+    it('reserves the dynamic-block tokens in the context budget', async () => {
+      vi.mocked(chatRepository.findById).mockResolvedValue({
+        id: CHAT, userId: USER, characterId: 'char-1', personaId: null, metadata: {},
+      } as never);
+      const { characterRepository } = await import('../../db/repositories/character.repository');
+      vi.mocked(characterRepository.findById).mockResolvedValue({ id: 'char-1', name: 'Alice', cardData: {} } as never);
+      vi.mocked(chatService.buildEnhancedSystemPrompt).mockResolvedValue({
+        systemPrompt: 'sys',
+        atDepthEntries: [{ depth: 1, role: 'system', content: 'memories...' }],
+        reservedTokens: 321,
+      } as never);
+
+      await runReply('Hi');
+
+      expect(contextManager.buildContext).toHaveBeenCalledWith('sys', expect.any(Array), 'glm-4.5-air', 321);
+    });
+
     it('prefers the provider usage over the estimate', async () => {
       await runReply('Hi', { promptTokens: 4321, completionTokens: 12 });
 

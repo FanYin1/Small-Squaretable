@@ -369,6 +369,8 @@ export class WebSocketHandler {
 
     let systemPrompt = '';
     let atDepthEntries: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }> = [];
+    // cache_friendly 布局下变动块在截断之后才注入，预算要预先扣掉它（P3-3）
+    let reservedTokens = 0;
     if (character) {
       const enhancedPrompt = await chatService.buildEnhancedSystemPrompt({
         character,
@@ -380,6 +382,7 @@ export class WebSocketHandler {
       });
       systemPrompt = enhancedPrompt.systemPrompt;
       atDepthEntries = enhancedPrompt.atDepthEntries;
+      reservedTokens = enhancedPrompt.reservedTokens ?? 0;
 
       await chatService.updateEmotionFromMessage(
         character.id, userId, chatId, content, userMessageId
@@ -420,7 +423,7 @@ export class WebSocketHandler {
     }
 
     // Use context manager to fit within token budget
-    const contextResult = contextManager.buildContext(systemPrompt, chatMessages, model);
+    const contextResult = contextManager.buildContext(systemPrompt, chatMessages, model, reservedTokens);
 
     // Debug: Log what's actually being sent to LLM
     if (chatMessages.length <= 3) {
@@ -688,7 +691,9 @@ export class WebSocketHandler {
       });
 
       // Use the in-memory message array (no re-fetch)
-      const contextResult = contextManager.buildContext(enhancedPrompt.systemPrompt, chatMessages, model);
+      const contextResult = contextManager.buildContext(
+        enhancedPrompt.systemPrompt, chatMessages, model, enhancedPrompt.reservedTokens ?? 0
+      );
       // Inject depth entries for this character
       contextResult.messages = contextManager.injectAtDepth(contextResult.messages, enhancedPrompt.atDepthEntries);
 
@@ -853,7 +858,7 @@ export class WebSocketHandler {
       presence_penalty: 0,
       frequency_penalty: 0,
       ...(options?.maxTokens ? { max_tokens: options.maxTokens } : {}),
-    }, signal);
+    }, signal, { chatId });
 
     // progress 同时承载累积内容与 usage（用对象，避免闭包内赋值被 TS 控制流收窄成 null）
     const streamState: StreamProgress = options?.progress ?? newStreamProgress();

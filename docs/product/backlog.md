@@ -495,6 +495,17 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   4. 世界书各注入位置（ST 的 7 种位置）的语义不变——变的只是变动内容相对历史的位置
 - **依赖**：P0-1（没有准确的输入 token 数，无法衡量收益）
 - **估时**：2 天 + 盲评时间
+- **进展（2026-10-18）**：代码完成，`PROMPT_LAYOUT=cache_friendly` 才启用，**默认仍为 `legacy`**，等盲评
+  - 拼装抽到 `prompt-assembly.ts`（线上与对比脚本共用），布局选择在 `prompt-layout.ts`。cache_friendly 下角色卡 / 示例 / 常驻世界书在前，记忆、情绪、关键词触发的世界书合成一个动态块，以 depth 1 注入历史末尾；世界书检索结果拆为 `stable` / `volatile`
+  - 动态块的 token 数作为第 4 个参数 `reservedTokens` 传给 `contextManager.buildContext`，预留在上下文预算里，避免截断时把它挤掉（WebSocket 单角色与群聊两条路径都接了）
+  - 计量：`readCacheUsage` 读取 provider 返回的 cached tokens，日志 "LLM prompt cache usage"，带 `chatId`
+  - Anthropic 走的是 OpenAI 兼容层，没有加 `cache_control`，该 provider 上不会有收益
+  - 离线对比 `scripts/prompt-layout-compare.ts`（合成 fixture，24 轮）：可缓存输入 legacy 0% → cache_friendly 67.2%，输入成本指数 1.000 → 0.664（缓存价按 0.5 倍估）。合成数据只说明机制
+- **验收状态**：
+  1. 计量已有；改前改后的线上对比**未跑**
+  2. **未满足**：没有 50 轮以上真实对话的实测数字。可用 `--from-chat <chatId>` 对真实对话离线估算
+  3. **未满足**：盲评未做。`--generate <dir>` 可产出成对请求体
+  4. 满足（7 种位置语义不变，有测试）
 
 ---
 

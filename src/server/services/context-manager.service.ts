@@ -11,6 +11,7 @@ import { getModelMeta } from '../config/llm.config';
 import { createLogger } from './logger.service';
 import { summarizationService } from './summarization.service';
 import type { Message } from '../../db/schema/chats';
+import { injectAtDepth as injectAtDepthPure, type AtDepthEntry } from './prompt-assembly';
 
 const logger = createLogger({ service: 'context-manager' });
 
@@ -47,19 +48,24 @@ export class ContextManager {
    * @param systemPrompt - The system prompt text
    * @param messages - All chat messages in chronological order
    * @param model - Model name to look up context window size
+   * @param reservedTokens - Tokens to set aside for content injected AFTER truncation (e.g. the
+   *   cache_friendly dynamic block via injectAtDepth). Only shrinks the budget for history; the
+   *   injected content itself is never truncated, so the oldest history is what gets cut.
    * @returns ContextBuildResult with trimmed messages and metadata
    */
   buildContext(
     systemPrompt: string,
     messages: LLMMessage[],
-    model: string
+    model: string,
+    reservedTokens: number = 0
   ): ContextBuildResult {
     const meta = getModelMeta(model);
     const BUFFER_TOKENS = 100; // safety buffer
 
     const systemTokens = countTokens(systemPrompt) + 4; // +4 for message overhead
     const maxResponseTokens = meta.maxOutputTokens;
-    const availableBudget = meta.contextWindow - systemTokens - maxResponseTokens - BUFFER_TOKENS;
+    const availableBudget =
+      meta.contextWindow - systemTokens - maxResponseTokens - BUFFER_TOKENS - reservedTokens;
 
     if (availableBudget <= 0) {
       logger.warn('System prompt exceeds context budget', {
@@ -219,25 +225,8 @@ export class ContextManager {
    * (after the system prompt). Entries are sorted by depth descending
    * so deeper entries don't shift shallower ones.
    */
-  injectAtDepth(
-    messages: LLMMessage[],
-    entries: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }>,
-  ): LLMMessage[] {
-    if (!entries || entries.length === 0) return messages;
-
-    const result = [...messages];
-    // Sort by depth descending so insertions don't shift indices
-    const sorted = [...entries].sort((a, b) => b.depth - a.depth);
-
-    for (const entry of sorted) {
-      // Find the insertion point: depth N = N messages from the end
-      // The first element is the system prompt, so conversation starts at index 1
-      const conversationEnd = result.length;
-      const insertIdx = Math.max(1, conversationEnd - entry.depth);
-      result.splice(insertIdx, 0, { role: entry.role, content: entry.content });
-    }
-
-    return result;
+  injectAtDepth(messages: LLMMessage[], entries: AtDepthEntry[]): LLMMessage[] {
+    return injectAtDepthPure(messages, entries);
   }
 
   /**
@@ -248,16 +237,18 @@ export class ContextManager {
     systemPrompt: string,
     messages: LLMMessage[],
     model: string,
-    enableSummarization: boolean = true
+    enableSummarization: boolean = true,
+    reservedTokens: number = 0
   ): Promise<ContextBuildResult> {
     const meta = getModelMeta(model);
     const BUFFER_TOKENS = 100;
     const systemTokens = countTokens(systemPrompt) + 4;
     const maxResponseTokens = meta.maxOutputTokens;
-    const availableBudget = meta.contextWindow - systemTokens - maxResponseTokens - BUFFER_TOKENS;
+    const availableBudget =
+      meta.contextWindow - systemTokens - maxResponseTokens - BUFFER_TOKENS - reservedTokens;
 
     // First try without summarization
-    const initialResult = this.buildContext(systemPrompt, messages, model);
+    const initialResult = this.buildContext(systemPrompt, messages, model, reservedTokens);
 
     // If not truncated or summarization disabled, return as-is
     if (!initialResult.truncated || !enableSummarization) {
@@ -302,7 +293,7 @@ export class ContextManager {
       ];
 
       // Build context with summarized messages
-      const result = this.buildContext(systemPrompt, messagesWithSummary, model);
+      const result = this.buildContext(systemPrompt, messagesWithSummary, model, reservedTokens);
 
       logger.info('Context built with summarization', {
         originalMessages: messages.length,

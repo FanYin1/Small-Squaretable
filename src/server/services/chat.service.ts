@@ -26,6 +26,61 @@ import { worldInfoEngine, type WorldInfoResult } from './worldinfo-engine.servic
 import { estimateTokens } from '../utils/tokens';
 import type { Character } from '../../db/schema/characters';
 import { applyMacros, createMacroContextWithVars, persistVarWrites, type MacroContext } from './macro.service';
+import { getPromptLayout, type PromptLayout } from './prompt-layout';
+import {
+  assemblePrompt,
+  buildCardAtDepthEntries,
+  buildCardParts,
+  buildDefaultPromptParts,
+  buildEmotionParts,
+  buildMemoryParts,
+  buildPromptSections,
+  formatExampleMessages,
+  type AtDepthEntry,
+} from './prompt-assembly';
+
+/*
+ * Prompt 布局（P3-3，环境变量 PROMPT_LAYOUT=legacy|cache_friendly，默认 legacy）
+ *
+ * 前缀缓存要求相邻两轮请求的开头逐字节相同。legacy 把每轮都变的内容（检索到的记忆、情绪、
+ * 关键词触发的世界书）拼进 system prompt，也就是放在历史之前，整段历史于是每轮都失效。
+ * cache_friendly 把这些内容抽出来，作为一条 system 消息插在历史末尾（depth 1，复用 atDepthEntries），
+ * 其余稳定内容保持在历史之前。
+ *
+ * 「稳定」= 世界书 constant 且 probability >= 100 的条目，以及角色卡 / 示例对话 / persona / 行为指引。
+ * 「变动」= 记忆、情绪、关键词触发或概率抽样的世界书条目。
+ *
+ * 各内容的落点（括号内是 legacy 下 system prompt 里的先后顺序；变动块内保持同样的相对顺序）：
+ *
+ * | 内容                           | legacy                    | cache_friendly                            |
+ * |--------------------------------|---------------------------|-------------------------------------------|
+ * | before 常驻                    | system prompt 最前        | system prompt 最前                        |
+ * | before 触发                    | system prompt 最前        | 变动块 第 1 位                            |
+ * | 角色卡 / 示例对话              | system prompt             | system prompt（不变）                     |
+ * | EMTop、EMBottom 常驻           | 示例对话之后              | 示例对话之后                              |
+ * | EMTop、EMBottom 触发           | 示例对话之后              | 变动块，依次在 before 触发之后            |
+ * | persona + ANTop 常驻           | 行为指引之前              | 行为指引之前（persona 视为稳定）          |
+ * | ANTop 触发                     | 行为指引之前              | 变动块，在 EMBottom 触发之后              |
+ * | 行为指引                       | system prompt             | system prompt（不变）                     |
+ * | 记忆                           | 行为指引之后、情绪之前    | 变动块，在 ANTop 触发之后                 |
+ * | 情绪                           | 记忆之后                  | 变动块，在记忆之后                        |
+ * | ANBottom 常驻                  | 情绪之后                  | 行为指引之后（稳定段末尾）                |
+ * | ANBottom 触发                  | 情绪之后                  | 变动块，在情绪之后                        |
+ * | after 常驻                     | system prompt 最后        | ANBottom 常驻之后（稳定段末尾）           |
+ * | after 触发                     | system prompt 最后        | 变动块 最后                               |
+ * | atDepth（世界书）              | 按自身 depth              | 按自身 depth（不变）                      |
+ * | Author's Note                  | depth 0                   | depth 0（不变）                           |
+ * | post_history / depth_prompt    | 按自身 depth              | 按自身 depth（不变）                      |
+ * | 变动块                         | -                         | depth 1，一条 system 消息，在世界书 atDepth 之后、Author's Note 之前 |
+ *
+ * 变动块相对 Author's Note 的顺序：同样插入后，变动块（depth 1）在 Author's Note（depth 0）之前，
+ * 即 [历史..., 变动块, 最后一条用户消息, Author's Note]。Author's Note 是作者给的最高优先级指令，
+ * 应当离生成点最近；变动块是「事实资料」，放在它之前。
+ *
+ * 截断：变动块经 atDepthEntries 在 buildContext 截断之后才注入，因此永远不会被截断，被截的始终是
+ * 最老的历史。为了不超出上下文窗口，result.reservedTokens 给出变动块的 token 估算，
+ * 调用方传给 contextManager.buildContext 的第 4 个参数，从预算中预先扣除。
+ */
 
 /**
  * chat_overrides.overrides 是 jsonb（unknown）。提示词拼装只消费字符串字段，
@@ -54,7 +109,12 @@ export interface EnhancedPromptParams {
 
 export interface EnhancedPromptResult {
   systemPrompt: string;
-  atDepthEntries: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }>;
+  atDepthEntries: AtDepthEntry[];
+  /**
+   * cache_friendly 下变动块的 token 估算（它不在 systemPrompt 里，buildContext 看不到它）。
+   * legacy 或没有变动内容时不出现。
+   */
+  reservedTokens?: number;
 }
 
 export class ChatService {
@@ -253,7 +313,7 @@ export class ChatService {
     const { character, characterId, userId, chatId, userMessage } = params;
     chatLogger.debug('Building enhanced prompt', { chatId, characterId });
     const promptStartTime = Date.now();
-    const parts: string[] = [];
+    const layout = getPromptLayout();
 
     // Fetch persona if personaId is provided
     let userName = params.userName || 'User';
@@ -299,17 +359,7 @@ export class ChatService {
     }
 
     // Build default system prompt parts (used as {{original}} replacement)
-    const defaultPromptParts: string[] = [];
-    defaultPromptParts.push(`You are ${character.name}.`);
-    if (character.description) {
-      defaultPromptParts.push(character.description);
-    }
-    if (cardData.personality) {
-      defaultPromptParts.push(`Personality: ${cardData.personality}`);
-    }
-    if (cardData.scenario) {
-      defaultPromptParts.push(`Scenario: ${cardData.scenario}`);
-    }
+    const defaultPromptParts = buildDefaultPromptParts(character.name, character.description, cardData);
 
     // Apply {{char}} and {{user}} macro substitution (with pre-loaded variables)
     const macroCtx = await createMacroContextWithVars(
@@ -328,24 +378,16 @@ export class ChatService {
       userId,
     );
 
-    if (cardData.system_prompt) {
-      const systemPrompt = cardData.system_prompt;
-      // Support {{original}} placeholder - replaces with the default system prompt
-      // (handled by applyMacros via macroCtx.original)
-      if (!/\{\{original\}\}/i.test(systemPrompt)) {
-        // No {{original}}, prepend default parts then append system_prompt
-        parts.push(...defaultPromptParts.map(p => applyMacros(p, macroCtx)));
-      }
-      parts.push(applyMacros(systemPrompt, macroCtx));
-    } else {
-      parts.push(...defaultPromptParts.map(p => applyMacros(p, macroCtx)));
-    }
+    // Support {{original}} placeholder - replaces with the default system prompt
+    // (handled by applyMacros via macroCtx.original); without it, default parts come first
+    const cardParts = buildCardParts(defaultPromptParts, cardData.system_prompt, (p) => applyMacros(p, macroCtx));
 
     // Example dialogue
+    const exampleParts: string[] = [];
     if (cardData.mes_example) {
       const exampleBlock = this.parseExampleMessages(cardData.mes_example, character.name, userName, macroCtx);
       if (exampleBlock) {
-        parts.push(exampleBlock);
+        exampleParts.push(exampleBlock);
       }
     }
 
@@ -380,9 +422,13 @@ export class ChatService {
     }
 
     // Inject persona description as world info (at AN position, depth 0)
+    // legacy: 并入合并后的 ANTop（与改动前逐字一致）；cache_friendly: persona 跨轮不变，单独作为稳定段
+    let personaStableBlock = '';
     if (personaDescription) {
       const personaWorldInfo = `[User Persona: ${userName}]\n${personaDescription}`;
-      if (!worldInfo) {
+      if (layout === 'cache_friendly') {
+        personaStableBlock = personaWorldInfo;
+      } else if (!worldInfo) {
         worldInfo = {
           before: '',
           EMTop: '',
@@ -401,33 +447,6 @@ export class ChatService {
         descriptionLength: personaDescription.length
       });
     }
-
-    // Inject world info: before position
-    if (worldInfo?.before) {
-      parts.unshift(worldInfo.before);
-    }
-
-    // Inject world info: EMTop position
-    if (worldInfo?.EMTop) {
-      parts.push(worldInfo.EMTop);
-    }
-
-    // Inject world info: EMBottom position
-    if (worldInfo?.EMBottom) {
-      parts.push(worldInfo.EMBottom);
-    }
-
-    // Inject world info: ANTop position
-    if (worldInfo?.ANTop) {
-      parts.push(worldInfo.ANTop);
-    }
-
-    // Behavior guidelines
-    parts.push('\n## 行为指引');
-    parts.push('- 根据记忆中的信息个性化回复');
-    parts.push('- 保持情感状态的一致性，情感变化应自然过渡');
-    parts.push('- 可以主动提及相关记忆，但不要生硬');
-    parts.push('Stay in character at all times.');
 
     // Retrieve relevant memories with timing (session-isolated)
     const retrievalStartTime = Date.now();
@@ -466,109 +485,43 @@ export class ChatService {
       retrievalLatency
     );
 
-    if (memories.length > 0) {
-      parts.push('\n## 关于用户的记忆');
-      const memoryByType: Record<string, string[]> = {
-        fact: [],
-        preference: [],
-        relationship: [],
-        event: [],
-      };
-
-      for (const mem of memories) {
-        memoryByType[mem.type]?.push(mem.content);
-      }
-
-      if (memoryByType.fact.length > 0) {
-        parts.push(`【事实】${memoryByType.fact.join('；')}`);
-      }
-      if (memoryByType.preference.length > 0) {
-        parts.push(`【偏好】${memoryByType.preference.join('；')}`);
-      }
-      if (memoryByType.relationship.length > 0) {
-        parts.push(`【关系】${memoryByType.relationship.join('；')}`);
-      }
-      if (memoryByType.event.length > 0) {
-        parts.push(`【事件】${memoryByType.event.join('；')}`);
-      }
-    }
-
+    const memoryParts = buildMemoryParts(memories);
 
     // Get current emotion
     const emotion = await emotionService.getCurrentEmotion(characterId, userId, chatId);
-    if (emotion) {
-      parts.push(`\n## 当前情感状态`);
-      parts.push(
-        `当前情感: ${emotion.label}, Valence: ${emotion.valence.toFixed(2)}, Arousal: ${emotion.arousal.toFixed(2)}`
-      );
+    const emotionParts = buildEmotionParts(emotion);
 
-      // Emotion-specific behavior guidelines
-      const emotionGuidelines: Record<string, string> = {
-        angry: '回复更简短直接，可能提及不满的原因，语气较冲',
-        sad: '语气低沉，可能回忆过去的事情，表达需要安慰',
-        happy: '语气轻快积极，乐于分享和交流，可能开玩笑',
-        excited: '语气热情高涨，说话可能更快更多，充满活力',
-        loving: '语气温柔亲密，表达关心和爱意，用词更柔和',
-        calm: '语气平和稳定，回复从容不迫，思路清晰',
-        curious: '多提问，表现出对话题的兴趣，积极探索',
-        surprised: '表达惊讶，可能追问细节，语气中带有意外感',
-        confused: '表达困惑，可能请求澄清，语气不确定',
-        bored: '回复较简短，缺乏热情，可能试图转换话题',
-        fearful: '语气紧张不安，可能表达担忧，寻求安全感',
-        disgusted: '表达反感，可能回避某些话题，语气中带有排斥',
-      };
+    // 各段顺序与落点见文件顶部的位置表；顺序定义在 prompt-assembly（离线对比脚本共用）
+    const sections = buildPromptSections({
+      layout,
+      worldInfo,
+      personaStableBlock,
+      cardParts,
+      exampleParts,
+      memoryParts,
+      emotionParts,
+    });
 
-      const guideline = emotionGuidelines[emotion.label];
-      if (guideline) {
-        parts.push(`情感表现指引: ${guideline}`);
-      }
-    }
+    // atDepth 条目：世界书 atDepth 在前；Author's Note / post_history_instructions / depth_prompt 在后
+    const atDepthLeading: AtDepthEntry[] = [...(worldInfo?.atDepth ?? [])];
+    const atDepthTrailing = buildCardAtDepthEntries(
+      {
+        character_author_note: cardData.character_author_note,
+        post_history_instructions: cardData.post_history_instructions,
+        // depth_prompt 取自角色卡原始数据，不受 chat 级覆盖影响（与改动前一致）
+        extensions: (character.cardData as any)?.extensions,
+      },
+      (text) => applyMacros(text, macroCtx)
+    );
 
-
-    // Inject world info: ANBottom position
-    if (worldInfo?.ANBottom) {
-      parts.push(worldInfo.ANBottom);
-    }
-
-    // Inject world info: after position
-    if (worldInfo?.after) {
-      parts.push(worldInfo.after);
-    }
-
-    // Collect atDepth entries (world info + post_history_instructions + character_author_note)
-    const roleMap = { 0: 'system', 1: 'user', 2: 'assistant' } as const;
-    const atDepthEntries: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }> = [
-      ...(worldInfo?.atDepth ?? []),
-    ];
-
-    // Character Author's Note: inject at depth 0 (highest priority, before last user message)
-    if (cardData.character_author_note) {
-      const authorNote = applyMacros(cardData.character_author_note, macroCtx);
-      atDepthEntries.push({ depth: 0, content: authorNote, role: 'system' });
-      chatLogger.debug('Added character author note at depth 0', {
-        characterId,
-        noteLength: authorNote.length
-      });
-    }
-
-    // post_history_instructions: inject at depth in chat history (like SillyTavern's jailbreak/PHI)
-    if (cardData.post_history_instructions) {
-      const phi = applyMacros(cardData.post_history_instructions, macroCtx);
-      // Default depth 1 = just before the last message. Can be overridden via extensions.depth_prompt
-      const phiDepth = (character.cardData as any)?.extensions?.depth_prompt?.depth ?? 1;
-      atDepthEntries.push({ depth: phiDepth, content: phi, role: 'system' });
-    }
-
-    // depth_prompt: separate prompt content from extensions.depth_prompt
-    const depthPromptExt = (character.cardData as any)?.extensions?.depth_prompt;
-    if (depthPromptExt?.prompt) {
-      const dpContent = applyMacros(depthPromptExt.prompt, macroCtx);
-      const dpDepth = depthPromptExt.depth ?? 4;
-      const dpRole = roleMap[depthPromptExt.role as 0 | 1 | 2] ?? 'system';
-      atDepthEntries.push({ depth: dpDepth, content: dpContent, role: dpRole });
-    }
-
-    const fullPrompt = parts.join('\n');
+    const { systemPrompt: fullPrompt, atDepthEntries, dynamicBlock } = assemblePrompt({
+      layout,
+      sections,
+      atDepthLeading,
+      atDepthTrailing,
+    });
+    // 变动块不在 systemPrompt 里，指标里要把它算进去，保持与 legacy 可比
+    const promptForMetrics = dynamicBlock ? `${fullPrompt}\n${dynamicBlock}` : fullPrompt;
     const promptBuildLatency = Date.now() - promptStartTime;
 
     // Record prompt build latency
@@ -577,7 +530,7 @@ export class ChatService {
     // Emit WebSocket event for prompt build
     websocketService.emitPromptBuild(
       chatId,
-      estimateTokens(fullPrompt),
+      estimateTokens(promptForMetrics),
       memories.length,
       !!emotion,
       promptBuildLatency
@@ -589,6 +542,8 @@ export class ChatService {
     return {
       systemPrompt: fullPrompt,
       atDepthEntries,
+      // 只在 cache_friendly 且确有变动内容时出现；legacy 的返回值与改动前完全一致
+      ...(dynamicBlock ? { reservedTokens: estimateTokens(dynamicBlock) } : {}),
     };
   }
 
@@ -652,51 +607,12 @@ export class ChatService {
    * - Input without <START> tags is treated as a single example block
    */
   private parseExampleMessages(mesExample: string, charName: string, userName = 'User', macroCtx?: MacroContext): string {
-    if (!mesExample || !mesExample.trim()) {
-      return '';
-    }
-
-    // Split by <START> tags (case-insensitive, with optional surrounding whitespace)
-    const blocks = mesExample.split(/<START>/i)
-      .map(block => block.trim())
-      .filter(block => block.length > 0);
-
-    if (blocks.length === 0) {
-      return '';
-    }
-
-    const formattedBlocks: string[] = [];
-
-    for (let i = 0; i < blocks.length; i++) {
-      const block = blocks[i];
-      const lines = block.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-
-      if (lines.length === 0) {
-        continue;
-      }
-
-      const formattedLines: string[] = [];
-
-      for (const line of lines) {
-        // Apply full macro replacement if context available, otherwise just char/user
-        const processed = macroCtx
-          ? applyMacros(line, macroCtx)
-          : line.replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, userName);
-
-        formattedLines.push(processed);
-      }
-
-      if (formattedLines.length > 0) {
-        const conversationNumber = formattedBlocks.length + 1;
-        formattedBlocks.push(`[Example conversation ${conversationNumber}]\n${formattedLines.join('\n')}`);
-      }
-    }
-
-    if (formattedBlocks.length === 0) {
-      return '';
-    }
-
-    return `\n## Example Dialogue\n\n${formattedBlocks.join('\n\n')}`;
+    return formatExampleMessages(mesExample, (line) =>
+      // Apply full macro replacement if context available, otherwise just char/user
+      macroCtx
+        ? applyMacros(line, macroCtx)
+        : line.replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, userName)
+    );
   }
 
   /**
