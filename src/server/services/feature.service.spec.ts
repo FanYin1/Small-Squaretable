@@ -75,7 +75,7 @@ describe('FeatureService', () => {
     it('should return correct limits for free plan', () => {
       const limits = featureService.getPlanLimits('free');
       expect(limits.messages).toBe(100);
-      expect(limits.llm_tokens).toBe(50000);
+      expect(limits.llm_tokens).toBe(170000);
       expect(limits.images).toBe(10);
       expect(limits.api_calls).toBe(0);
     });
@@ -83,7 +83,7 @@ describe('FeatureService', () => {
     it('should return correct limits for pro plan', () => {
       const limits = featureService.getPlanLimits('pro');
       expect(limits.messages).toBe(10000);
-      expect(limits.llm_tokens).toBe(1000000);
+      expect(limits.llm_tokens).toBe(17000000);
       expect(limits.images).toBe(500);
       expect(limits.api_calls).toBe(1000);
     });
@@ -91,7 +91,7 @@ describe('FeatureService', () => {
     it('should return correct limits for team plan', () => {
       const limits = featureService.getPlanLimits('team');
       expect(limits.messages).toBe(100000);
-      expect(limits.llm_tokens).toBe(10000000);
+      expect(limits.llm_tokens).toBe(170000000);
       expect(limits.images).toBe(5000);
       expect(limits.api_calls).toBe(10000);
     });

@@ -52,7 +52,10 @@ vi.mock('../services/chat.service', () => ({
 
 vi.mock('../services/context-manager.service', () => ({
   contextManager: {
-    buildContext: vi.fn().mockReturnValue({ messages: [{ role: 'user', content: 'Hello' }] }),
+    buildContext: vi.fn().mockReturnValue({
+      messages: [{ role: 'user', content: 'Hello' }],
+      totalTokens: 1000,
+    }),
     injectAtDepth: vi.fn((messages: unknown) => messages),
   },
 }));
@@ -92,6 +95,11 @@ vi.mock('../services/llm.service', () => ({
   },
 }));
 
+const { mockSpendRecord } = vi.hoisted(() => ({ mockSpendRecord: vi.fn() }));
+vi.mock('../services/spend-breaker.service', () => ({
+  spendBreaker: { record: mockSpendRecord, assertAllowed: vi.fn() },
+}));
+
 vi.mock('../config/llm.config', () => ({
   getDefaultModel: vi.fn().mockReturnValue('glm-4.5-air'),
   getModelMeta: vi.fn().mockReturnValue({ defaultTemperature: 0.7 }),
@@ -124,6 +132,8 @@ import { chatService } from '../services/chat.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { groupChatService } from '../services/group-chat.service';
 import { messageRepository } from '../../db/repositories/message.repository';
+import { contextManager } from '../services/context-manager.service';
+import { AppError } from '../../core/errors';
 
 const CLIENT_ID = 'client-1';
 const TENANT = 'tenant-1';
@@ -273,7 +283,10 @@ describe('WebSocket chat — quota metering and enforcement', () => {
       vi.mocked(chatService.addMessage).mockResolvedValue({ id: 2 } as never);
     });
 
-    async function runReply(content = 'Generated reply') {
+    async function runReply(
+      content = 'Generated reply',
+      usage: { promptTokens?: number; completionTokens?: number; totalTokens?: number } | null = null
+    ) {
       const h = handler as never as {
         handleSingleCharacterResponse: (
           chatId: string,
@@ -282,10 +295,10 @@ describe('WebSocket chat — quota metering and enforcement', () => {
           userMessageId: number,
           tenantId?: string
         ) => Promise<void>;
-        streamLlmResponse: () => Promise<string>;
+        streamLlmResponse: () => Promise<unknown>;
       };
       vi.spyOn(h, 'handleSingleCharacterResponse').mockRestore();
-      vi.spyOn(h, 'streamLlmResponse').mockResolvedValue(content);
+      vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content, usage });
       await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT);
     }
 
@@ -312,11 +325,73 @@ describe('WebSocket chat — quota metering and enforcement', () => {
       expect(metadata).toEqual(expect.objectContaining({ transport: 'websocket' }));
     });
 
-    it('does not meter anything when generation produced no content', async () => {
+    // P0-1：计费口径 = 输入 + 输出。此前这里只算输出
+    it('counts the prompt (context) tokens as well as the output', async () => {
+      await runReply('Hi');
+
+      const [, , amount, metadata] = tokensMetered()[0];
+      expect(amount).toBeGreaterThanOrEqual(1000);
+      expect(metadata).toEqual(expect.objectContaining({ promptTokens: 1000, tokenSource: 'estimate' }));
+    });
+
+    it('meters a larger context as more tokens than a smaller one for the same reply', async () => {
+      vi.mocked(contextManager.buildContext).mockReturnValueOnce({
+        messages: [{ role: 'user', content: 'Hello' }],
+        totalTokens: 500,
+      } as never);
+      await runReply('same reply');
+      const small = tokensMetered()[0][2];
+
+      vi.mocked(usageService.trackUsage).mockClear();
+      vi.mocked(contextManager.buildContext).mockReturnValueOnce({
+        messages: [{ role: 'user', content: 'Hello' }],
+        totalTokens: 20000,
+      } as never);
+      await runReply('same reply');
+      const large = tokensMetered()[0][2];
+
+      expect(large).toBeGreaterThan(small);
+    });
+
+    it('adds the depth-injected entries that the context total does not include', async () => {
+      vi.mocked(chatRepository.findById).mockResolvedValue({
+        id: CHAT, userId: USER, characterId: 'char-1', personaId: null, metadata: {},
+      } as never);
+      const { characterRepository } = await import('../../db/repositories/character.repository');
+      vi.mocked(characterRepository.findById).mockResolvedValue({ id: 'char-1', name: 'Alice', cardData: {} } as never);
+      vi.mocked(chatService.buildEnhancedSystemPrompt).mockResolvedValue({
+        systemPrompt: 'sys',
+        atDepthEntries: [{ depth: 0, role: 'system', content: 'Stay in character at all times.' }],
+      } as never);
+
+      await runReply('Hi');
+
+      const [, , , metadata] = tokensMetered()[0];
+      expect((metadata as { promptTokens: number }).promptTokens).toBeGreaterThan(1000);
+    });
+
+    it('prefers the provider usage over the estimate', async () => {
+      await runReply('Hi', { promptTokens: 4321, completionTokens: 12 });
+
+      const [, , amount, metadata] = tokensMetered()[0];
+      expect(amount).toBe(4333);
+      expect(metadata).toEqual(expect.objectContaining({ tokenSource: 'provider' }));
+    });
+
+    it('feeds the same number to the platform spend breaker', async () => {
+      await runReply('Hi', { promptTokens: 4321, completionTokens: 12 });
+
+      expect(mockSpendRecord).toHaveBeenCalledWith(4333);
+    });
+
+    // 输入 token 在请求发出时就已经被 provider 计费，中断也不例外
+    it('still meters the prompt when generation produced no content, but saves no message', async () => {
       await runReply('');
 
-      expect(usageService.trackUsage).not.toHaveBeenCalled();
+      expect(messagesMetered()).toHaveLength(0);
       expect(chatService.addMessage).not.toHaveBeenCalled();
+      expect(tokensMetered()).toHaveLength(1);
+      expect(tokensMetered()[0][2]).toBe(1000);
     });
   });
 
@@ -351,13 +426,19 @@ describe('WebSocket chat — quota metering and enforcement', () => {
           mentioned?: string[],
           tenantId?: string
         ) => Promise<void>;
-        streamLlmResponse: () => Promise<string>;
+        streamLlmResponse: () => Promise<unknown>;
       };
-      vi.spyOn(h, 'streamLlmResponse').mockResolvedValue('reply');
+      vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content: 'reply', usage: null });
 
       await h.handleGroupChatResponse(CHAT, 'Hello', USER, ['char-1', 'char-1'], TENANT);
 
       expect(messagesMetered()).toHaveLength(2);
+      // 群聊每个角色的生成都是一次独立的 LLM 调用，各自按输入 + 输出计量
+      expect(tokensMetered()).toHaveLength(2);
+      for (const call of tokensMetered()) {
+        expect(call[2]).toBeGreaterThanOrEqual(1000);
+        expect(call[3]).toEqual(expect.objectContaining({ characterId: 'char-1' }));
+      }
     });
 
     it('rejects with Chat not found when the chat no longer exists', async () => {
@@ -367,9 +448,9 @@ describe('WebSocket chat — quota metering and enforcement', () => {
 
       const h = handler as never as {
         handleGroupChatResponse: (chatId: string, content: string, userId: string, mentioned?: string[], tenantId?: string) => Promise<void>;
-        streamLlmResponse: () => Promise<string>;
+        streamLlmResponse: () => Promise<unknown>;
       };
-      const stream = vi.spyOn(h, 'streamLlmResponse').mockResolvedValue('reply');
+      const stream = vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content: 'reply', usage: null });
 
       await expect(
         h.handleGroupChatResponse(CHAT, 'Hello', USER, ['char-1'], TENANT)
@@ -377,6 +458,31 @@ describe('WebSocket chat — quota metering and enforcement', () => {
 
       expect(stream).not.toHaveBeenCalled();
       expect(messagesMetered()).toHaveLength(0);
+    });
+
+    // P0-7：熔断触发时客户端应看到可读的原因和错误码，而不是笼统的 MESSAGE_ERROR
+    it('forwards the platform spend limit code and message to the client', async () => {
+      const single = vi.spyOn(
+        handler as never as { handleSingleCharacterResponse: () => Promise<void> },
+        'handleSingleCharacterResponse'
+      );
+      single.mockRejectedValue(
+        new AppError('The platform has reached its daily usage limit. Please try again tomorrow.', 503, 'PLATFORM_SPEND_LIMIT')
+      );
+
+      await (handler as never as { handleUserMessage: (c: string, m: WSUserMessage) => Promise<void> })
+        .handleUserMessage(CLIENT_ID, userMessage());
+
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(
+        CLIENT_ID,
+        expect.objectContaining({
+          type: WSMessageType.ERROR,
+          data: {
+            code: 'PLATFORM_SPEND_LIMIT',
+            message: 'The platform has reached its daily usage limit. Please try again tomorrow.',
+          },
+        })
+      );
     });
 
     it('sends an ERROR message to the client when the group chat is missing', async () => {

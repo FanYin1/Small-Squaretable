@@ -84,7 +84,7 @@ describe('useFeatureGate', () => {
       const { getCurrentLimits } = useFeatureGate();
       const limits = getCurrentLimits();
       expect(limits.messages).toBe(100);
-      expect(limits.llm_tokens).toBe(50000);
+      expect(limits.llm_tokens).toBe(170000);
       expect(limits.images).toBe(10);
       expect(limits.api_calls).toBe(0);
     });
@@ -94,7 +94,7 @@ describe('useFeatureGate', () => {
       const { getCurrentLimits } = useFeatureGate();
       const limits = getCurrentLimits();
       expect(limits.messages).toBe(10000);
-      expect(limits.llm_tokens).toBe(1000000);
+      expect(limits.llm_tokens).toBe(17000000);
       expect(limits.images).toBe(500);
       expect(limits.api_calls).toBe(1000);
     });

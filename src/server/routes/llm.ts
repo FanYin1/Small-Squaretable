@@ -12,6 +12,8 @@ import { logger as appLogger } from '../services/logger.service';
 
 const logger = appLogger.child({ module: 'llm-routes' });
 import { usageService } from '../services/usage.service';
+import { meterLlmTokens, readOpenAiUsage, type ProviderUsage } from '../services/usage-meter';
+import { countTokens } from '../utils/tokens';
 import { authMiddleware } from '../middleware/auth';
 import { requireQuota } from '../middleware/feature-gate';
 import {
@@ -41,8 +43,22 @@ llmRoutes.post(
     if (request.stream) {
       const response = await llmService.streamChatCompletion(request);
 
-      // 跟踪 token 使用量
-      let totalTokens = 0;
+      // 计费口径 = 输入 + 输出（P0-1）：provider 在流末尾返回的 usage 优先，
+      // 没有时输入按请求消息估算、输出按累积文本估算（与 WebSocket 通道同一套估算器）
+      let outputText = '';
+      let providerUsage: ProviderUsage | null = null;
+      let pending = '';
+      const handleLine = (line: string) => {
+        if (!line.startsWith('data: ') || line.includes('[DONE]')) return;
+        try {
+          const data = JSON.parse(line.slice(6));
+          const delta = data.choices?.[0]?.delta?.content;
+          if (delta) outputText += delta;
+          providerUsage = readOpenAiUsage(data.usage) ?? providerUsage;
+        } catch (err) {
+          logger.debug('SSE chunk parse error (non-fatal)', { error: String(err) });
+        }
+      };
 
       // 返回流式响应
       return stream(c, async (stream) => {
@@ -61,32 +77,30 @@ llmRoutes.post(
             const chunk = decoder.decode(value, { stream: true });
             await stream.write(chunk);
 
-            // 尝试解析 token 使用量
-            const lines = chunk.split('\n');
-            for (const line of lines) {
-              if (line.startsWith('data: ') && !line.includes('[DONE]')) {
-                try {
-                  const data = JSON.parse(line.slice(6));
-                  // 估算 token（流式响应通常不包含 usage）
-                  if (data.choices?.[0]?.delta?.content) {
-                    totalTokens += llmService.countTokens(data.choices[0].delta.content);
-                  }
-                } catch (err) {
-                  logger.debug('SSE chunk parse error (non-fatal)', { error: String(err) });
-                }
-              }
-            }
+            // 一行 SSE 可能被拆在两个网络分片里，按换行缓冲后再解析
+            pending += chunk;
+            const lines = pending.split('\n');
+            pending = lines.pop() ?? '';
+            lines.forEach(handleLine);
           }
+          handleLine(pending);
         } finally {
           reader.releaseLock();
 
-          // 流结束后记录使用量
-          if (totalTokens > 0 && tenantId) {
-            await usageService.trackUsage(tenantId, 'llm_tokens', totalTokens, {
-              model: request.model,
-              stream: true,
-            });
-          }
+          // 流结束（含客户端中断）后记录用量；输入 token 此时已被 provider 计费，
+          // 所以即使没有输出也要计。meterLlmTokens 不会抛出。
+          await meterLlmTokens(
+            tenantId,
+            {
+              providerUsage,
+              estimatedPromptTokens: request.messages.reduce(
+                (sum, m) => sum + countTokens(m.content) + 4,
+                0
+              ),
+              outputText,
+            },
+            { model: request.model, stream: true, transport: 'http' }
+          );
         }
       });
     }
@@ -123,14 +137,19 @@ llmRoutes.post(
 
     const response = await llmService.completion(request);
 
-    // 记录 token 使用量
-    if (tenantId && response.usage) {
-      await usageService.trackUsage(tenantId, 'llm_tokens', response.usage.total_tokens, {
-        model: request.model,
-        promptTokens: response.usage.prompt_tokens,
-        completionTokens: response.usage.completion_tokens,
-      });
-    }
+    // 记录 token 使用量（输入 + 输出）。provider 没返回 usage 时也按估算计，
+    // 不再静默跳过；平台花费已在 llm.service.completion 里记过，这里不重复
+    const prompt = Array.isArray(request.prompt) ? request.prompt.join('') : request.prompt;
+    await meterLlmTokens(
+      tenantId,
+      {
+        providerUsage: readOpenAiUsage(response.usage),
+        estimatedPromptTokens: countTokens(prompt ?? ''),
+        outputText: response.choices.map((choice) => choice.text).join(''),
+      },
+      { model: request.model, transport: 'http' },
+      { recordPlatformSpend: false }
+    );
 
     return c.json<CompletionResponse>(response, 200);
   }

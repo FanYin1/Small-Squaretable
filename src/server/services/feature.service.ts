@@ -54,24 +54,41 @@ const PLAN_FEATURES: Record<PlanType, FeatureName[]> = {
   ],
 };
 
+/**
+ * llm_tokens 的口径是「输入 + 输出」（P0-1）：每次生成计 上下文 token + 回复 token。
+ *
+ * 推导（没有真实流量数据，以下是假设值，上线后应按实测的 usage 元数据校准）：
+ *   典型上下文 ≈ 3,000 tokens（system 提示 + 角色卡 + 被 context-manager 裁剪后的历史）
+ *   典型回复   ≈   400 tokens
+ *   每次生成   ≈ 3,400 tokens
+ *   messages 配额同时计用户消息和助手消息（每轮 2 条），所以生成次数 = messages / 2
+ *
+ *   free: 100 条     -> 50 次     x 3,400 =     170,000   （旧口径 50,000）
+ *   pro:  10,000 条  -> 5,000 次  x 3,400 =  17,000,000   （旧口径 1,000,000）
+ *   team: 100,000 条 -> 50,000 次 x 3,400 = 170,000,000   （旧口径 10,000,000）
+ *
+ * 旧数字只量输出（约 400 tokens/条），在新口径下一个 free 用户 15 次生成就会用完。
+ * 数字刻意和 messages 配额保持同一个「松紧」，让两个配额大致同时触顶，
+ * 而不是 token 配额悄悄变成唯一的约束。
+ */
 const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   free: {
     messages: 100,
-    llm_tokens: 50000,
+    llm_tokens: 170000,
     images: 10,
     api_calls: 0,
     plugin_installs: 0,
   },
   pro: {
     messages: 10000,
-    llm_tokens: 1000000,
+    llm_tokens: 17000000,
     images: 500,
     api_calls: 1000,
     plugin_installs: 5,
   },
   team: {
     messages: 100000,
-    llm_tokens: 10000000,
+    llm_tokens: 170000000,
     images: 5000,
     api_calls: 10000,
     plugin_installs: 20,

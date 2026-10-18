@@ -86,9 +86,44 @@ const configSchema = z.object({
 
   // CORS
   corsOrigins: z.string().default('http://localhost:5173'),
+
+  // Platform spend breaker (P0-7)
+  // 全平台每日 token 上限；空串视为未配置。production 必须配置（见下方 superRefine）
+  platformDailyTokenLimit: z.preprocess(
+    (value) => (value === '' || value === null ? undefined : value),
+    z.coerce.number().int().positive().optional()
+  ),
+  // 「自然日」所用的 IANA 时区
+  spendBreakerTz: z
+    .string()
+    .default('Asia/Shanghai')
+    .refine(isValidTimeZone, { message: 'must be a valid IANA timezone' }),
 });
 
 export type Config = z.infer<typeof configSchema>;
+
+function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 跨字段校验：production 未设置 PLATFORM_DAILY_TOKEN_LIMIT 时启动失败。
+ * 没有这道闸，推理账单在生产环境没有任何上限。
+ */
+const checkedConfigSchema = configSchema.superRefine((cfg, ctx) => {
+  if (cfg.nodeEnv === 'production' && cfg.platformDailyTokenLimit === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['platformDailyTokenLimit'],
+      message: 'PLATFORM_DAILY_TOKEN_LIMIT is required in production',
+    });
+  }
+});
 
 /**
  * 加载并验证配置
@@ -143,10 +178,12 @@ export function loadConfig(): Config {
     memoryImportanceWeight: process.env.MEMORY_IMPORTANCE_WEIGHT,
     memoryRecencyWeight: process.env.MEMORY_RECENCY_WEIGHT,
     memoryDecayHalfLifeDays: process.env.MEMORY_DECAY_HALF_LIFE_DAYS,
+    platformDailyTokenLimit: process.env.PLATFORM_DAILY_TOKEN_LIMIT,
+    spendBreakerTz: process.env.SPEND_BREAKER_TZ || undefined,
   };
 
   try {
-    return configSchema.parse(rawConfig);
+    return checkedConfigSchema.parse(rawConfig);
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('Configuration validation failed:');

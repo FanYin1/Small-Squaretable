@@ -9,6 +9,7 @@ import { useCharacterIntelligenceStore } from './characterIntelligence';
 import { useNotificationStore } from './notification';
 import { useDeviceSync } from '@client/composables/useDeviceSync';
 import { createLogger } from '@client/utils/logger';
+import i18n from '@client/i18n';
 
 const logger = createLogger('Chat');
 
@@ -221,9 +222,12 @@ export const useChatStore = defineStore('chat', () => {
 
     // 错误处理
     wsClient.on('error', (data: unknown) => {
-      const errorData = data as { message: string };
+      const errorData = data as { code?: string; message: string };
       logger.error('WebSocket error', undefined, { errorData });
-      error.value = errorData.message;
+      // 平台花费熔断（P0-7）：服务端消息是英文，这里换成本地化提示
+      error.value = errorData.code === 'PLATFORM_SPEND_LIMIT'
+        ? i18n.global.t('chat.platformSpendLimit')
+        : errorData.message;
       sending.value = false;
       isStreaming.value = false;
     });

@@ -12,10 +12,25 @@ import type {
   CompletionResponse,
 } from '../../types/llm';
 import { AppError } from '../../core/errors';
+import { spendBreaker } from './spend-breaker.service';
 
 export class LLMService {
   private readonly maxRetries = 3;
   private readonly retryDelay = 1000; // ms
+
+  /**
+   * 平台花费累加（P0-7）。所有非流式生成在这里记账；
+   * 流式生成的实际用量在调用方才知道，由调用方通过 meterLlmTokens 记账。
+   * record 本身不抛，这里再兜一层，保证记账问题绝不影响已生成的回复。
+   */
+  private async recordPlatformSpend(computeTokens: () => number): Promise<void> {
+    try {
+      await spendBreaker.record(computeTokens());
+    } catch {
+      // 用量估算失败（provider 返回了非标准结构）或记账失败：
+      // 后者已由 spendBreaker 记录日志，两者都不应影响回复
+    }
+  }
 
   /**
    * 取得 provider 的 baseUrl；未配置时显式报错，而不是拼出 "undefined/chat/completions"
@@ -35,6 +50,8 @@ export class LLMService {
    * 聊天补全
    */
   async chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
+    await spendBreaker.assertAllowed();
+
     const model = request.model || getDefaultModel();
     if (!model) {
       throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
@@ -52,7 +69,7 @@ export class LLMService {
     };
 
     // 执行请求，带重试机制
-    return this.executeWithRetry(async () => {
+    const result = await this.executeWithRetry<ChatCompletionResponse>(async () => {
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -70,12 +87,18 @@ export class LLMService {
 
       return response.json();
     });
+
+    await this.recordPlatformSpend(() => this.calculateTokenUsage(request, result));
+    return result;
   }
 
   /**
    * 流式聊天补全
    */
   async streamChatCompletion(request: ChatCompletionRequest, signal?: AbortSignal): Promise<Response> {
+    // 只在发起前检查；已经开始流式输出的回复不会被中途切断
+    await spendBreaker.assertAllowed();
+
     const model = request.model || getDefaultModel();
     if (!model) {
       throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
@@ -90,6 +113,16 @@ export class LLMService {
     const baseUrl = this.requireBaseUrl(providerConfig);
     let url = `${baseUrl}/chat/completions`;
     let modifiedRequest: any = { ...request, stream: true };
+
+    // 让 OpenAI 兼容的 provider 在流末尾附带真实 usage（P0-1 计费首选）。
+    // 个别严格校验参数的 provider 会拒绝 stream_options，可用
+    // LLM_STREAM_INCLUDE_USAGE=false 关闭，此时调用方回退到估算。
+    if (process.env.LLM_STREAM_INCLUDE_USAGE !== 'false') {
+      modifiedRequest.stream_options = {
+        ...((request as { stream_options?: Record<string, unknown> }).stream_options ?? {}),
+        include_usage: true,
+      };
+    }
 
     if (model.includes('qwen3.5') && baseUrl.includes('11434')) {
       // Use Ollama native API for Qwen3.5 to disable thinking
@@ -135,6 +168,8 @@ export class LLMService {
    * 文本补全
    */
   async completion(request: CompletionRequest): Promise<CompletionResponse> {
+    await spendBreaker.assertAllowed();
+
     const model = request.model || getDefaultModel();
     if (!model) {
       throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
@@ -151,7 +186,7 @@ export class LLMService {
       Authorization: `Bearer ${providerConfig.apiKey}`,
     };
 
-    return this.executeWithRetry(async () => {
+    const result = await this.executeWithRetry<CompletionResponse>(async () => {
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -169,6 +204,15 @@ export class LLMService {
 
       return response.json();
     });
+
+    await this.recordPlatformSpend(() => {
+      if (result.usage) return result.usage.total_tokens;
+      const prompt = Array.isArray(request.prompt) ? request.prompt.join('') : request.prompt;
+      return (
+        this.countTokens(prompt ?? '') + result.choices.reduce((sum, c) => sum + this.countTokens(c.text), 0)
+      );
+    });
+    return result;
   }
 
   /**

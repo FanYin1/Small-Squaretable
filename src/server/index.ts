@@ -10,6 +10,7 @@ import { config } from '@/core/config';
 import { closeRedis } from '../core/redis';
 import { logger as appLogger, getLogConfig } from './services/logger.service';
 import { initializeSentry, closeSentry } from './services/sentry.service';
+import { spendBreaker } from './services/spend-breaker.service';
 import { errorHandler } from './middleware/error-handler';
 import { requestIdMiddleware } from './middleware/request-id';
 import { requestTimingMiddleware } from './middleware/request-timing';
@@ -83,6 +84,9 @@ const app = new Hono<{ Variables: Variables }>();
 // Initialize Sentry for error tracking
 appLogger.info('Initializing Sentry', { environment: config.nodeEnv });
 initializeSentry();
+
+// P0-7: warn once at startup when the platform spend breaker is disabled
+spendBreaker.logStartupStatus();
 
 // Log configuration
 const logConfig = getLogConfig();

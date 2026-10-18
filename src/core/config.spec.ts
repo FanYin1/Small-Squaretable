@@ -48,6 +48,78 @@ describe('Config Module', () => {
     expect(config.host).toBe('0.0.0.0');
   });
 
+  describe('Platform spend breaker configuration', () => {
+    beforeEach(() => {
+      process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
+      process.env.REDIS_URL = 'redis://localhost:6379';
+      process.env.JWT_SECRET = 'test-secret-key-at-least-32-chars-long';
+      delete process.env.PLATFORM_DAILY_TOKEN_LIMIT;
+      delete process.env.SPEND_BREAKER_TZ;
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('leaves the limit undefined and defaults the timezone outside production', async () => {
+      process.env.NODE_ENV = 'development';
+
+      const { loadConfig } = await import('@/core/config');
+      const config = loadConfig();
+
+      expect(config.platformDailyTokenLimit).toBeUndefined();
+      expect(config.spendBreakerTz).toBe('Asia/Shanghai');
+    });
+
+    it('treats an empty PLATFORM_DAILY_TOKEN_LIMIT as unset', async () => {
+      process.env.NODE_ENV = 'development';
+      process.env.PLATFORM_DAILY_TOKEN_LIMIT = '';
+
+      const { loadConfig } = await import('@/core/config');
+      expect(loadConfig().platformDailyTokenLimit).toBeUndefined();
+    });
+
+    it('parses the limit and timezone when provided', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.PLATFORM_DAILY_TOKEN_LIMIT = '5000000';
+      process.env.SPEND_BREAKER_TZ = 'UTC';
+
+      const { loadConfig } = await import('@/core/config');
+      const config = loadConfig();
+
+      expect(config.platformDailyTokenLimit).toBe(5000000);
+      expect(config.spendBreakerTz).toBe('UTC');
+    });
+
+    it('fails startup in production when the limit is not set', async () => {
+      process.env.NODE_ENV = 'production';
+
+      await expect(import('@/core/config')).rejects.toThrow('Invalid configuration');
+    });
+
+    it('fails startup in production when the limit is empty', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.PLATFORM_DAILY_TOKEN_LIMIT = '';
+
+      await expect(import('@/core/config')).rejects.toThrow('Invalid configuration');
+    });
+
+    it('rejects a non-positive limit', async () => {
+      process.env.NODE_ENV = 'development';
+      process.env.PLATFORM_DAILY_TOKEN_LIMIT = '0';
+
+      await expect(import('@/core/config')).rejects.toThrow('Invalid configuration');
+    });
+
+    it('rejects an unknown timezone', async () => {
+      process.env.NODE_ENV = 'development';
+      process.env.SPEND_BREAKER_TZ = 'Not/AZone';
+
+      await expect(import('@/core/config')).rejects.toThrow('Invalid configuration');
+    });
+  });
+
   describe('Stripe configuration fields', () => {
     it('should include Stripe configuration fields', () => {
       const stripeFields = [

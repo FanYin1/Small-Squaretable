@@ -47,23 +47,23 @@ const PLAN_FEATURES: Record<PlanType, FeatureName[]> = {
   ],
 };
 
-// 与后端保持一致的限额定义
+// 与后端保持一致的限额定义（llm_tokens 为输入+输出口径，推导见 server/services/feature.service.ts）
 const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   free: {
     messages: 100,
-    llm_tokens: 50000,
+    llm_tokens: 170000,
     images: 10,
     api_calls: 0,
   },
   pro: {
     messages: 10000,
-    llm_tokens: 1000000,
+    llm_tokens: 17000000,
     images: 500,
     api_calls: 1000,
   },
   team: {
     messages: 100000,
-    llm_tokens: 10000000,
+    llm_tokens: 170000000,
     images: 5000,
     api_calls: 10000,
   },

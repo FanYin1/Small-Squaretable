@@ -198,7 +198,7 @@ const comparisonData = computed(() => {
   const per = t('subscription.perMonth');
   return [
     { feature: t('subscription.compMessages'), free: `100${per}`, pro: `10,000${per}`, team: `100,000${per}` },
-    { feature: t('subscription.compTokens'), free: '50K', pro: '1M', team: '10M' },
+    { feature: t('subscription.compTokens'), free: '170K', pro: '17M', team: '170M' },
     { feature: t('subscription.compImages'), free: `10${per}`, pro: `500${per}`, team: `5,000${per}` },
     { feature: t('subscription.compModels'), free: t('subscription.compBasic'), pro: t('subscription.compAll'), team: t('subscription.compAll') },
     { feature: t('subscription.compSharing'), free: '—', pro: '✓', team: '✓' },

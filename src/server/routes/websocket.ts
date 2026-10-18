@@ -18,7 +18,7 @@ import { llmService } from '../services/llm.service';
 import { getDefaultModel, getModelMeta } from '../config/llm.config';
 import { chatService, getChatModel } from '../services/chat.service';
 import { contextManager, type LLMMessage } from '../services/context-manager.service';
-import { NotFoundError } from '../../core/errors';
+import { AppError, NotFoundError } from '../../core/errors';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
@@ -29,7 +29,15 @@ import { formatMessagesWithTemplate } from '../config/prompt-templates';
 import { extractVariableInserts, extractVariableEdits, extractVariableDeletes } from '../utils/variable-insert';
 import { chatVariableStore } from '../services/chat-variable.service';
 import { featureService } from '../services/feature.service';
-import { meterUsage } from '../services/usage-meter';
+import {
+  meterUsage,
+  meterLlmTokens,
+  readOpenAiUsage,
+  readOllamaUsage,
+  estimateInjectedTokens,
+  type ProviderUsage,
+} from '../services/usage-meter';
+import { countTokens } from '../utils/tokens';
 import {
   WSMessageType,
   type WSMessageUnion,
@@ -45,6 +53,12 @@ import {
   type WSChatReadMessage,
 } from '../../types/websocket';
 import { nanoid } from 'nanoid';
+
+/** 一次流式生成的结果：完整文本 + provider 在流末尾返回的真实 usage（拿不到为 null） */
+interface StreamedLlmResult {
+  content: string;
+  usage: ProviderUsage | null;
+}
 
 export class WebSocketHandler {
   private wss: WebSocketServer | null = null;
@@ -252,7 +266,9 @@ export class WebSocketHandler {
         type: WSMessageType.ERROR,
         timestamp: new Date().toISOString(),
         data: {
-          code: 'MESSAGE_ERROR',
+          // AppError（例如 P0-7 的 PLATFORM_SPEND_LIMIT）带着面向用户的可读信息和稳定错误码，
+          // 原样透传，客户端才能区分「平台限流」和普通失败
+          code: error instanceof AppError ? error.code : 'MESSAGE_ERROR',
           message: error instanceof Error ? error.message : 'Failed to process message',
         },
       });
@@ -385,7 +401,12 @@ export class WebSocketHandler {
     const abortController = new AbortController();
     this.activeGenerations.set(chatId, abortController);
 
-    let fullContent: string;
+    let generated: StreamedLlmResult;
+    // 输入 token 估算：context-manager 的 totalTokens 不含之后注入的 atDepth 条目，这里补上
+    let estimatedPromptTokens =
+      contextResult.totalTokens + estimateInjectedTokens(atDepthEntries);
+    // 模板路径走 llmService.completion，平台花费已在 llm.service 里记过
+    let platformSpendRecorded = false;
     try {
       if (promptTemplate !== 'default') {
         // Use text completion with formatted prompt for non-default templates
@@ -400,8 +421,12 @@ export class WebSocketHandler {
         // Format messages using the template
         const formattedPrompt = formatMessagesWithTemplate(allMessages, promptTemplate);
 
+        // 模板路径实际发给 provider 的是格式化后的整段 prompt，按它估算输入
+        estimatedPromptTokens = countTokens(formattedPrompt);
+        platformSpendRecorded = true;
+
         // Use text completion API
-        fullContent = await this.streamTextCompletion(
+        generated = await this.streamTextCompletion(
           chatId,
           assistantMessageId,
           formattedPrompt,
@@ -410,7 +435,7 @@ export class WebSocketHandler {
         );
       } else {
         // Use standard chat completion for default template
-        fullContent = await this.streamLlmResponse(
+        generated = await this.streamLlmResponse(
           chatId,
           assistantMessageId,
           contextResult.messages,
@@ -423,6 +448,17 @@ export class WebSocketHandler {
     } finally {
       this.activeGenerations.delete(chatId);
     }
+    let fullContent = generated.content;
+
+    // llm_tokens 计「输入 + 输出」（P0-1）：provider 的真实 usage 优先，拿不到才估算。
+    // 放在空内容判断之前：被中断的请求，provider 也已经为输入收了费。
+    // 历史上这里只算输出，长上下文的真实成本几乎没被计到。
+    await meterLlmTokens(
+      tenantId,
+      { providerUsage: generated.usage, estimatedPromptTokens, outputText: fullContent },
+      { transport: 'websocket', chatId, model },
+      { recordPlatformSpend: !platformSpendRecorded }
+    );
 
     // Don't save empty message if aborted before any content was generated
     if (!fullContent) return;
@@ -445,14 +481,6 @@ export class WebSocketHandler {
       transport: 'websocket',
       chatId,
       role: 'assistant',
-    });
-
-    // llm_tokens 只在 llm.ts 的 HTTP 路由里记过，WebSocket 的流式生成
-    // 走的是本文件的 streamLlmResponse，历史上一个 token 都没记。
-    await meterUsage(tenantId, 'llm_tokens', llmService.countTokens(fullContent), {
-      transport: 'websocket',
-      chatId,
-      model,
     });
 
     // Extract ERA VariableInsert blocks and persist to chat variables
@@ -581,14 +609,28 @@ export class WebSocketHandler {
       const abortController = new AbortController();
       this.activeGenerations.set(chatId, abortController);
 
-      let fullContent: string;
+      let generated: StreamedLlmResult;
       try {
-        fullContent = await this.streamLlmResponse(
+        generated = await this.streamLlmResponse(
           chatId, tempMessageId, contextResult.messages, character.id, character.name, model, abortController.signal
         );
       } finally {
         this.activeGenerations.delete(chatId);
       }
+      let fullContent = generated.content;
+
+      // 群聊每个发言角色是一次独立的 LLM 调用，各自按「输入 + 输出」计量。
+      // 在空内容判断之前计：被中断的请求，provider 也已经为输入收了费。
+      await meterLlmTokens(
+        tenantId,
+        {
+          providerUsage: generated.usage,
+          estimatedPromptTokens:
+            contextResult.totalTokens + estimateInjectedTokens(enhancedPrompt.atDepthEntries),
+          outputText: fullContent,
+        },
+        { transport: 'websocket', chatId, model, characterId: character.id }
+      );
 
       // Don't save empty message if aborted before any content was generated
       if (!fullContent) break;
@@ -611,12 +653,6 @@ export class WebSocketHandler {
         transport: 'websocket',
         chatId,
         role: 'assistant',
-        characterId: character.id,
-      });
-      await meterUsage(tenantId, 'llm_tokens', llmService.countTokens(fullContent), {
-        transport: 'websocket',
-        chatId,
-        model,
         characterId: character.id,
       });
 
@@ -682,7 +718,7 @@ export class WebSocketHandler {
     characterName?: string,
     model?: string,
     signal?: AbortSignal
-  ): Promise<string> {
+  ): Promise<StreamedLlmResult> {
     const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
     const meta = getModelMeta(selectedModel);
     const response = await llmService.streamChatCompletion({
@@ -697,10 +733,64 @@ export class WebSocketHandler {
 
     let fullContent = '';
     let chunkIndex = 0;
+    // 用对象承载，避免闭包内赋值被 TS 控制流收窄成 null
+    const streamState: { usage: ProviderUsage | null } = { usage: null };
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
+    const emitChunk = (content: string): void => {
+      fullContent += content;
+
+      websocketService.broadcastToChat(chatId, {
+        type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
+        timestamp: new Date().toISOString(),
+        data: {
+          chatId,
+          messageId,
+          chunk: content,
+          index: chunkIndex++,
+          ...(characterId && { characterId }),
+          ...(characterName && { characterName }),
+        },
+      });
+    };
+
+    const handleLine = (line: string): void => {
+      // Handle OpenAI-style SSE format (data: {...})
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6);
+        if (data === '[DONE]') return;
+
+        try {
+          const parsed = JSON.parse(data);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) emitChunk(content);
+
+          // include_usage 的最后一个 chunk：choices 为空，带真实 usage
+          streamState.usage = readOpenAiUsage(parsed.usage) ?? streamState.usage;
+        } catch (e) {
+          wsLogger.error('Error parsing SSE data', e as Error);
+        }
+        return;
+      }
+
+      // Handle Ollama native format (plain JSON per line)
+      try {
+        const parsed = JSON.parse(line);
+        // Ollama native API format: message.content
+        const content = parsed.message?.content;
+        if (content) emitChunk(content);
+
+        // Ollama 的最后一行（done: true）带 prompt_eval_count / eval_count
+        streamState.usage = readOllamaUsage(parsed) ?? streamState.usage;
+      } catch (e) {
+        // Not JSON, skip this line
+      }
+    };
+
     if (reader) {
+      // SSE 行可能被网络分包切开；usage 在流的最后，丢了就只能退回估算，所以按行缓冲
+      let pending = '';
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -709,67 +799,16 @@ export class WebSocketHandler {
           // Check if aborted between chunks
           if (signal?.aborted) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter((line) => line.trim() !== '');
+          pending += decoder.decode(value, { stream: true });
+          const lines = pending.split('\n');
+          pending = lines.pop() ?? '';
 
           for (const line of lines) {
-            // Handle OpenAI-style SSE format (data: {...})
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
-
-              try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices?.[0]?.delta?.content;
-
-                if (content) {
-                  fullContent += content;
-
-                  websocketService.broadcastToChat(chatId, {
-                    type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
-                    timestamp: new Date().toISOString(),
-                    data: {
-                      chatId,
-                      messageId,
-                      chunk: content,
-                      index: chunkIndex++,
-                      ...(characterId && { characterId }),
-                      ...(characterName && { characterName }),
-                    },
-                  });
-                }
-              } catch (e) {
-                wsLogger.error('Error parsing SSE data', e as Error);
-              }
-            } else {
-              // Handle Ollama native format (plain JSON per line)
-              try {
-                const parsed = JSON.parse(line);
-                // Ollama native API format: message.content
-                const content = parsed.message?.content;
-
-                if (content) {
-                  fullContent += content;
-
-                  websocketService.broadcastToChat(chatId, {
-                    type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
-                    timestamp: new Date().toISOString(),
-                    data: {
-                      chatId,
-                      messageId,
-                      chunk: content,
-                      index: chunkIndex++,
-                      ...(characterId && { characterId }),
-                      ...(characterName && { characterName }),
-                    },
-                  });
-                }
-              } catch (e) {
-                // Not JSON, skip this line
-              }
-            }
+            if (line.trim() !== '') handleLine(line);
           }
         }
+
+        if (!signal?.aborted && pending.trim() !== '') handleLine(pending);
       } catch (e) {
         // AbortError is expected when generation is cancelled
         if ((e as Error).name !== 'AbortError') {
@@ -782,7 +821,7 @@ export class WebSocketHandler {
       }
     }
 
-    return fullContent;
+    return { content: fullContent, usage: streamState.usage };
   }
 
   /**
@@ -794,7 +833,7 @@ export class WebSocketHandler {
     prompt: string,
     model?: string,
     signal?: AbortSignal
-  ): Promise<string> {
+  ): Promise<StreamedLlmResult> {
     const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
     const meta = getModelMeta(selectedModel);
 
@@ -825,7 +864,7 @@ export class WebSocketHandler {
       },
     });
 
-    return fullContent;
+    return { content: fullContent, usage: readOpenAiUsage(response.usage) };
   }
 
   /**
