@@ -15,7 +15,7 @@ import CharacterPublishForm from './CharacterPublishForm.vue';
 import i18n from '../../i18n';
 
 const { mockApi, messageWarning, messageError } = vi.hoisted(() => ({
-  mockApi: { patch: vi.fn(), post: vi.fn() },
+  mockApi: { get: vi.fn(), patch: vi.fn(), post: vi.fn() },
   messageWarning: vi.fn(),
   messageError: vi.fn(),
 }));
@@ -68,6 +68,8 @@ function mountForm(overrides: Record<string, unknown> = {}) {
 describe('CharacterPublishForm NSFW 边界', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // 读不到平台开关 -> 按「不允许」处理（既有用例的前提）
+    mockApi.get.mockRejectedValue(new Error('preferences unavailable'));
     mockApi.patch.mockResolvedValue({});
     mockApi.post.mockResolvedValue({});
   });
@@ -122,5 +124,52 @@ describe('CharacterPublishForm NSFW 边界', () => {
     await flushPromises();
 
     expect(messageError).toHaveBeenCalledWith(expect.stringContaining('NSFW'));
+  });
+});
+
+describe('CharacterPublishForm NSFW 平台开关（P2-6）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockApi.patch.mockResolvedValue({});
+    mockApi.post.mockResolvedValue({});
+  });
+
+  it('平台开启 NSFW：带 NSFW 标记的卡可以发布，标记照常提交', async () => {
+    mockApi.get.mockResolvedValue({ nsfwEnabled: true, showNsfw: false, ageConfirmed: true });
+    const wrapper = mountForm({ isNsfw: true });
+    await flushPromises();
+
+    await wrapper.vm.handlePublish();
+    await flushPromises();
+
+    expect(mockApi.patch).toHaveBeenCalledWith(
+      '/characters/char-1',
+      expect.objectContaining({ isNsfw: true }),
+    );
+    expect(mockApi.post).toHaveBeenCalledWith('/characters/char-1/publish');
+    expect(messageWarning).not.toHaveBeenCalled();
+  });
+
+  it('平台开启 NSFW：提示文案换成「可以发布但只对打开偏好的用户展示」', async () => {
+    mockApi.get.mockResolvedValue({ nsfwEnabled: true, showNsfw: false, ageConfirmed: true });
+    const wrapper = mountForm({ isNsfw: true });
+    await flushPromises();
+
+    const allowed = i18n.global.t('characterPublish.nsfwAllowed') as string;
+    expect(allowed).not.toBe('characterPublish.nsfwAllowed');
+    expect(wrapper.text()).toContain(allowed);
+  });
+
+  it('平台关闭 NSFW：仍在本地拦住，不写任何字段', async () => {
+    mockApi.get.mockResolvedValue({ nsfwEnabled: false, showNsfw: false, ageConfirmed: true });
+    const wrapper = mountForm({ isNsfw: true });
+    await flushPromises();
+
+    await wrapper.vm.handlePublish();
+    await flushPromises();
+
+    expect(mockApi.patch).not.toHaveBeenCalled();
+    expect(mockApi.post).not.toHaveBeenCalled();
+    expect(messageWarning).toHaveBeenCalled();
   });
 });

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { useFeatureGate } from '@client/composables/useFeatureGate';
 import { api } from '@client/services/api';
+import { userApi } from '@client/services/user.api';
 import type { Character } from '@client/types';
 
 const props = defineProps<{
@@ -32,6 +33,19 @@ const formData = ref({
 });
 
 const publishing = ref(false);
+
+// 平台是否允许发布 NSFW 卡（NSFW_ENABLED）。读不到时按「不允许」处理：
+// 宁可在本地多拦一次，也不要让作者撞到服务端的 400
+const platformAllowsNsfw = ref(false);
+
+onMounted(async () => {
+  try {
+    const prefs = await userApi.getPreferences();
+    platformAllowsNsfw.value = prefs.nsfwEnabled === true;
+  } catch {
+    platformAllowsNsfw.value = false;
+  }
+});
 
 // Predefined tags
 const availableTags = [
@@ -81,10 +95,11 @@ async function handlePublish() {
     return;
   }
 
-  // 服务端会直接拒绝 isNsfw=true 的发布（PUBLIC_VISIBLE() 无条件排除该标记，
-  // 标了就永远不可见）。在提交前拦住，而不是先 PATCH 把 category/tags 写进去
-  // 再撞 400——那样表单失败了、角色数据却已经被改过。
-  if (formData.value.isNsfw) {
+  // 平台关闭 NSFW 时，服务端会直接拒绝 isNsfw=true 的发布。在提交前拦住，
+  // 而不是先 PATCH 把 category/tags 写进去再撞 400——那样表单失败了、
+  // 角色数据却已经被改过。平台开启时允许发布：卡带 NSFW 标记，
+  // 只对打开了偏好的用户可见
+  if (formData.value.isNsfw && !platformAllowsNsfw.value) {
     ElMessage.warning(t('characterPublish.nsfwBlocked'));
     return;
   }
@@ -205,7 +220,7 @@ function handleClose() {
       <el-form-item label="NSFW">
         <el-switch v-model="formData.isNsfw" />
         <span style="margin-left: 12px; font-size: 12px; color: var(--el-text-color-secondary)">
-          {{ $t('characterPublish.nsfwBlocked') }}
+          {{ platformAllowsNsfw ? $t('characterPublish.nsfwAllowed') : $t('characterPublish.nsfwBlocked') }}
         </span>
       </el-form-item>
     </el-form>

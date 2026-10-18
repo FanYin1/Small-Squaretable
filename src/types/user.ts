@@ -15,5 +15,9 @@ export const updatePasswordSchema = z.object({
   newPassword: z.string().min(8),
 });
 
-export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export const updatePreferencesSchema = z.object({
+  showNsfw: z.boolean(),
+});
+
+export type UpdateUserInput =z.infer<typeof updateUserSchema>;
 export type UpdatePasswordInput = z.infer<typeof updatePasswordSchema>;

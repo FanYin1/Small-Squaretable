@@ -190,8 +190,8 @@ export const characterApi = {
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.category) searchParams.set('category', params.category);
     if (params?.tags?.length) searchParams.set('tags', params.tags.join(','));
-    // 不发送 isNsfw：平台不允许色情内容，服务端无条件排除，
-    // 这个参数已经无法影响结果，发出去只会让人以为它可切换
+    // 不发送 isNsfw：NSFW 可见性由服务端按「平台开关 + 用户偏好（设置页）」判断，
+    // 客户端传参不会影响结果，发出去只会让人以为它可切换
 
     const query = searchParams.toString();
     return api.get<SearchResult>(

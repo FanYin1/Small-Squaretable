@@ -5,7 +5,9 @@ import { db } from '@db/index';
 import { characterCollections, characterCollectionItems } from '@db/schema/character-collections';
 import { characters } from '@db/schema/characters';
 import { eq, and, sql } from 'drizzle-orm';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { resolveShowNsfw } from '../services/nsfw-preference.service';
+import { nsfwVisibilityConditionForViewer } from '../../db/repositories/nsfw-visibility';
 import type { ApiResponse } from '@/types/api';
 
 export const characterCollectionRoutes = new Hono();
@@ -183,7 +185,11 @@ characterCollectionRoutes.get('/:id/characters', authMiddleware(), async (c) => 
     })
     .from(characterCollectionItems)
     .innerJoin(characters, eq(characterCollectionItems.characterId, characters.id))
-    .where(eq(characterCollectionItems.collectionId, collectionId))
+    .where(and(
+      eq(characterCollectionItems.collectionId, collectionId),
+      // 合集里可能收着别人的 NSFW 卡：观看者没有权限时不列出，自己的卡除外
+      nsfwVisibilityConditionForViewer(await resolveShowNsfw(user.id), user.id),
+    ))
     .orderBy(characterCollectionItems.sortOrder);
 
   return c.json<ApiResponse>({ success: true, data: items, meta: { timestamp: new Date().toISOString() } });
@@ -210,8 +216,9 @@ characterCollectionRoutes.get('/public/:userId', async (c) => {
 });
 
 // GET /public/:userId/:id/characters — view public collection characters
-characterCollectionRoutes.get('/public/:userId/:id/characters', async (c) => {
+characterCollectionRoutes.get('/public/:userId/:id/characters', optionalAuthMiddleware(), async (c) => {
   const userId = c.req.param('userId');
+  const viewer = c.get('user') as { id: string } | undefined;
   const collectionId = c.req.param('id');
 
   const [collection] = await db.select({ id: characterCollections.id })
@@ -237,7 +244,10 @@ characterCollectionRoutes.get('/public/:userId/:id/characters', async (c) => {
     })
     .from(characterCollectionItems)
     .innerJoin(characters, eq(characterCollectionItems.characterId, characters.id))
-    .where(eq(characterCollectionItems.collectionId, collectionId))
+    .where(and(
+      eq(characterCollectionItems.collectionId, collectionId),
+      nsfwVisibilityConditionForViewer(await resolveShowNsfw(viewer?.id), viewer?.id),
+    ))
     .orderBy(characterCollectionItems.sortOrder);
 
   return c.json<ApiResponse>({ success: true, data: items, meta: { timestamp: new Date().toISOString() } });

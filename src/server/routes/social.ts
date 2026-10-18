@@ -8,7 +8,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import {
   favoriteCharacterSchema,
   createCommentSchema,
@@ -24,6 +24,8 @@ import { db } from '../../db';
 import { users } from '../../db/schema/users';
 import { characters } from '../../db/schema/characters';
 import { eq, and, desc } from 'drizzle-orm';
+import { resolveShowNsfw } from '../services/nsfw-preference.service';
+import { nsfwVisibilityConditionForViewer } from '../../db/repositories/nsfw-visibility';
 
 
 export const socialRoutes = new Hono();
@@ -308,12 +310,15 @@ socialRoutes.get('/users/:userId/profile', async (c) => {
 });
 
 // GET /users/:userId/characters - Get user's public characters
-socialRoutes.get('/users/:userId/characters', async (c) => {
+socialRoutes.get('/users/:userId/characters', optionalAuthMiddleware(), async (c) => {
   const userId = c.req.param('userId');
+  const viewerId = (c.get('user') as { id: string } | undefined)?.id;
   try {
+    // NSFW 可见性走统一判断（P2-6）：偏好关的观看者看不到，作者本人看自己的主页不受限
+    const nsfwCondition = nsfwVisibilityConditionForViewer(await resolveShowNsfw(viewerId), viewerId);
     const userChars = await db.select()
       .from(characters)
-      .where(and(eq(characters.creatorId, userId), eq(characters.isPublic, true)))
+      .where(and(eq(characters.creatorId, userId), eq(characters.isPublic, true), nsfwCondition))
       .orderBy(desc(characters.createdAt))
       .limit(20);
     return c.json<ApiResponse>({

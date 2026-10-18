@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { Download, Delete, Setting, Reading } from '@element-plus/icons-vue';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import ChatFontSizeSetting from '@client/components/chat/ChatFontSizeSetting.vue';
+import NsfwPreferenceCard from '@client/components/settings/NsfwPreferenceCard.vue';
 import { gdprApi } from '@client/services/gdpr.api';
 import { useModulesStore } from '@client/stores/modules';
 import { useToast } from '@client/composables/useToast';
@@ -162,6 +163,7 @@ onMounted(() => {
         <p class="card-description">{{ t('accountSettings.readingDescription') }}</p>
         <ChatFontSizeSetting />
       </el-card>
+      <NsfwPreferenceCard />
       <!-- Data Export Section -->
       <el-card class="settings-card" shadow="never">
         <template #header>

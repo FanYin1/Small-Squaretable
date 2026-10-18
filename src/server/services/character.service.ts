@@ -4,7 +4,8 @@
  * 处理角色的 CRUD 操作、发布/下架和 Fork 功能
  */
 
-import { characterRepository } from '../../db/repositories/character.repository';
+import { characterRepository, type DiscoveryViewer } from '../../db/repositories/character.repository';
+import { canViewCharacterNsfw, isNsfwAllowed } from '../../db/repositories/nsfw-visibility';
 import { NotFoundError, ForbiddenError, BadRequestError } from '../../core/errors';
 import type { CreateCharacterInput, UpdateCharacterInput } from '../../types/character';
 import type { PaginationParams, PaginatedResponse } from '../../types/api';
@@ -129,16 +130,16 @@ export class CharacterService {
       throw new ForbiddenError('Only creator can publish this character');
     }
 
-    // NSFW 在边界上拦掉，而不是发布成功后静默过滤。
+    // 平台关闭 NSFW 时在边界上拦掉，而不是发布成功后静默过滤。
     //
-    // PUBLIC_VISIBLE() 无条件排除 isNsfw=true，updateModerationStatus 又不碰
-    // 这个字段——标了 NSFW 的角色即使审核通过也永远不可见，且没有任何路径能
-    // 改变。此前作者能打开开关、点发布、拿到 200 和「待审核」徽标，内容却
-    // 永久隐形。这是和 pending 回归同一类缺陷：可达的路径产出不可见的结果。
+    // 平台开关关闭时，公开发现入口无条件排除 isNsfw=true，
+    // updateModerationStatus 又不碰这个字段——标了 NSFW 的角色即使审核通过也
+    // 永远不可见，且没有任何路径能改变。此前作者能打开开关、点发布、拿到 200 和
+    // 「待审核」徽标，内容却永久隐形。拒绝并解释，不是假装成功。
     //
-    // 平台不允许色情内容，isNsfw 是违规待处置标记而不是分级标记，所以正确的
-    // 行为是拒绝并解释，不是假装成功。
-    if (character.isNsfw) {
+    // 平台开关打开（NSFW_ENABLED，默认）时放行，审核流程照常：
+    // 发布后进入 pending，通过后只对打开了偏好的用户可见（见 nsfw-visibility.ts）。
+    if (character.isNsfw && !isNsfwAllowed()) {
       throw new BadRequestError(
         'NSFW characters cannot be published: this platform does not allow explicit content. Turn off the NSFW flag and edit the character to comply before publishing.',
       );
@@ -178,9 +179,19 @@ export class CharacterService {
     return updated;
   }
 
-  async fork(sourceId: string, userId: string, tenantId: string): Promise<Character> {
+  async fork(
+    sourceId: string,
+    userId: string,
+    tenantId: string,
+    viewer: { showNsfw?: boolean } = {},
+  ): Promise<Character> {
     const source = await this.characterRepo.findById(sourceId);
     if (!source || !source.isPublic) {
+      throw new NotFoundError('Public character');
+    }
+    // NSFW 卡对没有权限看到它的人等同于不存在（与私有卡一致）。
+    // 没有这一行，知道 id 的人可以绕过发现入口的过滤把卡复制走
+    if (!canViewCharacterNsfw(source, { id: userId, prefersNsfw: viewer.showNsfw })) {
       throw new NotFoundError('Public character');
     }
 
@@ -201,10 +212,11 @@ export class CharacterService {
   }
 
   async getPublicCharacters(
-    pagination?: PaginationParams
+    pagination?: PaginationParams,
+    viewer?: DiscoveryViewer,
   ): Promise<PaginatedResponse<Character>> {
-    const characters = await this.characterRepo.findPublic(pagination);
-    const total = await this.characterRepo.countPublic();
+    const characters = await this.characterRepo.findPublic(pagination, viewer);
+    const total = await this.characterRepo.countPublic(viewer);
 
     const page = pagination?.page ?? 1;
     const limit = pagination?.limit ?? 20;

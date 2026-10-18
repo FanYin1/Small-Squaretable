@@ -34,6 +34,27 @@ import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.
 import { favoriteRepository } from '../../db/repositories/favorite.repository';
 import { eventBus } from '../services/event-bus.service';
 import { notificationService } from '../services/notification.service';
+import { resolveShowNsfw } from '../services/nsfw-preference.service';
+import { canViewCharacterNsfw } from '../../db/repositories/nsfw-visibility';
+import { NotFoundError } from '../../core/errors';
+
+/**
+ * 按 id 直取一张卡时的 NSFW 闸（详情、Fork、导出）。
+ *
+ * 观看者没有权限看到 NSFW 时，抛与「角色不存在」完全一致的 404——
+ * 与私有卡的处理方式相同，不泄露「这个 id 存在但被隐藏」。
+ * 作者本人始终通过。非 NSFW 的卡不查库、不受影响。
+ */
+async function assertNsfwVisible(
+  character: { isNsfw?: boolean | null; creatorId?: string | null },
+  viewerId: string | null | undefined,
+): Promise<void> {
+  if (!character.isNsfw) return;
+  const prefersNsfw = await resolveShowNsfw(viewerId);
+  if (!canViewCharacterNsfw(character, { id: viewerId, prefersNsfw })) {
+    throw new NotFoundError('Character');
+  }
+}
 
 /**
  * Create a world book from a SillyTavern character_book embedded in card data.
@@ -259,9 +280,11 @@ characterRoutes.get(
     const pagination = c.req.valid('query');
     const page = pagination?.page ?? 1;
     const limit = pagination?.limit ?? 20;
+    // 可见性由服务端按登录用户的偏好决定；未登录视为偏好关
+    const showNsfw = await resolveShowNsfw(c.get('user')?.id);
 
-    // Try to get from cache first
-    const cached = await cacheService.getCachedMarketplace<PaginatedResponse<Character>>(page, limit);
+    // Try to get from cache first（偏好不同结果不同，缓存键带上 showNsfw）
+    const cached = await cacheService.getCachedMarketplace<PaginatedResponse<Character>>(page, limit, showNsfw);
     if (cached) {
       c.header('X-Cache', 'HIT');
       return c.json<ApiResponse<PaginatedResponse<Character>>>(
@@ -274,10 +297,10 @@ characterRoutes.get(
       );
     }
 
-    const result = await characterService.getPublicCharacters(pagination);
+    const result = await characterService.getPublicCharacters(pagination, { showNsfw });
 
     // Cache the result
-    await cacheService.setCachedMarketplace(page, limit, result);
+    await cacheService.setCachedMarketplace(page, limit, result, showNsfw);
 
     c.header('X-Cache', 'MISS');
     return c.json<ApiResponse<PaginatedResponse<Character>>>(
@@ -300,6 +323,8 @@ characterRoutes.get(
     try {
       const query = c.req.valid('query');
       const user = c.get('user');
+      // 客户端传来的 isNsfw 不参与判断，可见性只看服务端读出的偏好
+      const showNsfw = await resolveShowNsfw(user?.id);
 
       // 解析标签（逗号分隔）
       const tags = query.tags ? query.tags.split(',').map((t) => t.trim()) : undefined;
@@ -311,7 +336,8 @@ characterRoutes.get(
         query.category,
         tags,
         query.page,
-        query.limit
+        query.limit,
+        showNsfw
       );
       if (cached) {
         c.header('X-Cache', 'HIT');
@@ -333,6 +359,7 @@ characterRoutes.get(
         category: query.category,
         tags,
         isNsfw: query.isNsfw,
+        showNsfw,
         userId: user?.id,
         page: query.page,
         limit: query.limit,
@@ -346,7 +373,8 @@ characterRoutes.get(
         tags,
         query.page,
         query.limit,
-        result
+        result,
+        showNsfw
       );
 
       c.header('X-Cache', 'MISS');
@@ -537,12 +565,15 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
   try {
     // Fetch all requested characters
     const results: Array<{ name: string; data: Buffer }> = [];
+    const prefersNsfw = await resolveShowNsfw(user.id);
 
     for (const charId of characterIds) {
       try {
         const character = await characterService.getById(charId);
         // Only export own characters or public ones
         if (!character.isPublic && character.creatorId !== user.id) continue;
+        // NSFW 可见性与详情页一致（P2-6），作者本人不受限
+        if (!canViewCharacterNsfw(character, { id: user.id, prefersNsfw })) continue;
 
         const safeName = character.name.replace(/[^a-zA-Z0-9_-]/g, '_');
         const rawCardData = (character.cardData as Record<string, unknown>) || {};
@@ -726,6 +757,8 @@ characterRoutes.get('/:id', authMiddleware(), async (c) => {
         404
       );
     }
+    // 缓存里是角色本身、与观看者无关，所以 NSFW 判断必须在缓存命中之后做
+    await assertNsfwVisible(cached, user.id);
     c.header('X-Cache', 'HIT');
     return c.json<ApiResponse>(
       {
@@ -751,7 +784,9 @@ characterRoutes.get('/:id', authMiddleware(), async (c) => {
     );
   }
 
-  // Cache the result
+  await assertNsfwVisible(character, user.id);
+
+  // Cache the result（缓存的是角色本身，不含观看者判断）
   await cacheService.setCachedCharacter(characterId, character);
 
   c.header('X-Cache', 'MISS');
@@ -946,7 +981,8 @@ characterRoutes.post(
 characterRoutes.post('/:id/fork', authMiddleware(), async (c) => {
   const user = c.get('user');
   const characterId = c.req.param('id');
-  const character = await characterService.fork(characterId, user.id, user.tenantId);
+  const showNsfw = await resolveShowNsfw(user.id);
+  const character = await characterService.fork(characterId, user.id, user.tenantId, { showNsfw });
 
   // Invalidate marketplace cache as it affects download count
   await cacheService.invalidateMarketplace();
@@ -1425,6 +1461,7 @@ characterRoutes.post('/:id/versions/:version/restore', authMiddleware(), async (
 characterRoutes.get('/:id/export/json', authMiddleware(), async (c) => {
   const characterId = c.req.param('id');
   const character = await characterService.getById(characterId);
+  await assertNsfwVisible(character, c.get('user')?.id);
 
   const rawCardData = (character.cardData as Record<string, unknown>) || {};
 
@@ -1470,6 +1507,7 @@ characterRoutes.get('/:id/export/png', optionalAuthMiddleware(), async (c) => {
     if (!character.isPublic && (!user || character.creatorId !== user.id)) {
       return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Access denied' } }, 403);
     }
+    await assertNsfwVisible(character, user?.id);
 
     const { embedJsonInPng, avatarToBuffer } = await import('../utils/png-embed');
 

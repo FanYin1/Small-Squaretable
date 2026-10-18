@@ -42,6 +42,13 @@ export const users = pgTable('users', {
    */
   ageConfirmedAt: timestamp('age_confirmed_at', { withTimezone: true }),
   ageConfirmedIp: varchar('age_confirmed_ip', { length: 64 }),
+
+  /**
+   * 「显示 NSFW 内容」偏好（P2-6）。新用户与存量用户一律默认关，用户自己打开。
+   * 打开的前提是 age_confirmed_at 非空，由 nsfw-preference.service 在服务端校验。
+   * 是否真能看到还取决于平台开关 NSFW_ENABLED，见 nsfw-visibility.ts。
+   */
+  showNsfw: boolean('show_nsfw').default(false).notNull(),
 }, (table) => ({
   tenantIdIdx: index('idx_users_tenant_id').on(table.tenantId),
 }));

@@ -398,7 +398,7 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
 - **验收**：可安装；离线时给出明确的离线态而非白屏；Service Worker 不缓存 API 响应（流式聊天会被缓存层破坏）
 - **估时**：1 天
 
-### [ ] P2-6 NSFW 改为平台开关，默认开
+### [x] P2-6 NSFW 改为平台开关，默认开
 
 决定见 [`positioning.md`](./positioning.md)。现状是硬编码拦截：发现入口一律过滤（提交 `7719ac0`），发布时直接拒绝（提交 `7feca98`）。拦截逻辑分布在 4 个文件：`src/server/routes/characters.ts`、`src/server/services/character.service.ts`、`src/server/services/search.service.ts`、`src/server/routes/character-collections.ts`。
 
@@ -412,6 +412,17 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   3. 未打开偏好的用户在任何发现入口（市场、搜索、合集）都看不到 NSFW 卡
 - **依赖**：P0-6 邀请码、P0-0 年龄声明。**两者都上线之前开关不得打开**
 - **估时**：1 天
+- **结论（2026-10-18）**：两项依赖均已完成，开关默认开（`NSFW_ENABLED=true`）
+  - 判断集中在 `db/repositories/nsfw-visibility.ts`（`canViewNsfw` / `nsfwVisibilityCondition` / `canViewCharacterNsfw`），用户偏好由 `nsfw-preference.service.ts` 的 `resolveShowNsfw(userId)` **从数据库读**，客户端 query 里的 `showNsfw` / `isNsfw` 一律不作数。看得见 = 平台开关开 + 偏好开 + 已确认年龄；作者看自己的卡不受限
+  - 新列 `users.show_nsfw`（迁移 `0039_nsfw_preference.sql`，默认 false）；设置页开关，未确认年龄时打开返回 `AGE_CONFIRMATION_REQUIRED`，平台关闭时返回 `NSFW_DISABLED`
+  - 覆盖面：市场、搜索、详情、Fork、单卡导出、批量导出、合集、`/suggestions`、用户主页角色列表。市场 / 搜索缓存键按可见性分变体；详情缓存存的是卡本身，命中后仍逐次判断
+  - 隐藏的卡返回 404，与「不存在 / 别人的私有卡」同形，不泄露存在性
+  - 发布：开关开时 NSFW 卡可发布，卡片 NSFW 标记仍必填
+- **验收状态**：1–3 满足。关于 1 的一处偏差：合集与 `/suggestions` 过去**不过滤** NSFW（漏网），现在开关关闭时也会隐藏——这是修漏，不是行为倒退
+- **未做 / 待决定**：
+  - 存量用户（P0-0 之前注册、`age_confirmed_at` 为空）没有补确认年龄的入口，打不开偏好。需要一个「确认已满 18 岁」接口 + 设置页按钮
+  - 用户主页的 `characterCount` 和合集的 `itemCount` 仍计入 NSFW 卡，数字比可见列表多，只泄露数量
+  - 单卡 JSON 导出原本就不检查权限（存量问题，NSFW 判断已补，公开性判断未补）
 
 ---
 

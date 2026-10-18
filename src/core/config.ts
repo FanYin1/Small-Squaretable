@@ -98,9 +98,26 @@ const configSchema = z.object({
     .string()
     .default('Asia/Shanghai')
     .refine(isValidTimeZone, { message: 'must be a valid IANA timezone' }),
+
+  // NSFW 平台开关（P2-6）。默认开：由运营者决定平台是否允许 NSFW 内容。
+  // 开关只决定「能不能有」，每个用户是否看到由其自己的偏好决定（默认关）。
+  // 不能用 z.coerce.boolean()：它把字符串 'false' 也转成 true。
+  nsfwEnabled: z.preprocess(parseBooleanEnv, z.boolean().default(true)),
 });
 
 export type Config = z.infer<typeof configSchema>;
+
+/**
+ * 解析布尔环境变量：未设置/空串返回 undefined（交给 schema 默认值），
+ * 'false' / '0' / 'no' / 'off'（不区分大小写）为 false，其余为 true。
+ */
+function parseBooleanEnv(value: unknown): unknown {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') return value;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === '') return undefined;
+  return !['false', '0', 'no', 'off'].includes(normalized);
+}
 
 function isValidTimeZone(tz: string): boolean {
   try {
@@ -180,6 +197,7 @@ export function loadConfig(): Config {
     memoryDecayHalfLifeDays: process.env.MEMORY_DECAY_HALF_LIFE_DAYS,
     platformDailyTokenLimit: process.env.PLATFORM_DAILY_TOKEN_LIMIT,
     spendBreakerTz: process.env.SPEND_BREAKER_TZ || undefined,
+    nsfwEnabled: process.env.NSFW_ENABLED,
   };
 
   try {

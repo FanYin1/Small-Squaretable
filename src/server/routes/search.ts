@@ -8,11 +8,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import { sql } from 'drizzle-orm';
+import { and, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { characters } from '@/db/schema/characters';
 import { authMiddleware } from '../middleware/auth';
 import { searchService } from '../services/search.service';
+import { resolveShowNsfw } from '../services/nsfw-preference.service';
+import { nsfwVisibilityConditionForViewer } from '@/db/repositories/nsfw-visibility';
 import { messageRepository } from '@/db/repositories/message.repository';
 import { worldBookEntryRepository } from '@/db/repositories/worldbook-entry.repository';
 import { cacheService } from '../services/cache.service';
@@ -115,9 +117,11 @@ searchRoutes.get(
 
     try {
       const searchStart = Date.now();
+      // 服务端读出的 NSFW 可见性；同一用户改了偏好后缓存键随之变化，不会读到旧结果
+      const showNsfw = await resolveShowNsfw(user.id);
 
       // Check cache
-      const cacheKey = `search:global:${user.id}:${hashParams(q, type, String(page), String(limit), category || '', tags || '', dateFrom || '', dateTo || '')}`;
+      const cacheKey = `search:global:${user.id}:${hashParams(q, type, String(page), String(limit), category || '', tags || '', dateFrom || '', dateTo || '', showNsfw ? 'nsfw' : '')}`;
       const cached = await cacheService.get<Record<string, unknown>>(cacheKey);
       if (cached) {
         const searchDuration = Date.now() - searchStart;
@@ -145,6 +149,7 @@ searchRoutes.get(
               query: q,
               sort: 'relevance',
               filter: 'all',
+              showNsfw,
               userId: user.id,
               page,
               limit,
@@ -244,7 +249,11 @@ searchRoutes.get(
         })
         .from(characters)
         .where(
-          sql`(${characters.isPublic} = true OR ${characters.creatorId} = ${user.id}) AND similarity(${characters.name}, ${q}) > 0.1`,
+          and(
+            sql`(${characters.isPublic} = true OR ${characters.creatorId} = ${user.id}) AND similarity(${characters.name}, ${q}) > 0.1`,
+            // 联想词也是发现入口：观看者没有权限看的 NSFW 卡不能通过名字泄露出来
+            nsfwVisibilityConditionForViewer(await resolveShowNsfw(user.id), user.id),
+          ),
         )
         .orderBy(sql`similarity(${characters.name}, ${q}) DESC`)
         .limit(5);
