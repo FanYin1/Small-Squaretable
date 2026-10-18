@@ -1,0 +1,52 @@
+// 断点单一来源。
+//
+// 全站只有三个断点：480 / 768 / 1024（见 docs/design/visual-language.md「断点」）。
+// 媒体查询里不能用 CSS 变量，所以数值只在这里定义一次；
+// variables.css 的 --breakpoint-* 是给 JS 读取用的镜像，必须与这里保持一致
+// （src/client/styles/breakpoints.spec.ts 会校验）。
+//
+// 写法：桌面优先，边界统一为「断点 - 1px」。
+//   below(md)  -> (max-width: 767px)    即视口 < 768
+//   from(md)   -> (min-width: 768px)    即视口 >= 768，与 below(md) 互补
+//   between(md, lg) -> (min-width: 768px) and (max-width: 1023px)
+// 这样同一个视口宽度恰好只落在一侧，不会再出现 767/768 并存时
+// 恰好 768px 宽两组规则一组生效一组不生效的情况。
+//
+// 该文件通过 vite.config.ts 的 css.preprocessorOptions.scss.additionalData
+// 自动注入到每个 lang="scss" 的样式块，无需手动 @use。
+
+@use 'sass:map';
+
+$breakpoints: (
+  sm: 480px,
+  md: 768px,
+  lg: 1024px,
+) !default;
+
+@function bp($name) {
+  @if not map.has-key($breakpoints, $name) {
+    @error 'Unknown breakpoint `#{$name}`. Available: #{map.keys($breakpoints)}';
+  }
+  @return map.get($breakpoints, $name);
+}
+
+// 视口宽度 < 断点
+@mixin below($name) {
+  @media (max-width: #{bp($name) - 1px}) {
+    @content;
+  }
+}
+
+// 视口宽度 >= 断点
+@mixin from($name) {
+  @media (min-width: #{bp($name)}) {
+    @content;
+  }
+}
+
+// 断点 $lo <= 视口宽度 < 断点 $hi
+@mixin between($lo, $hi) {
+  @media (min-width: #{bp($lo)}) and (max-width: #{bp($hi) - 1px}) {
+    @content;
+  }
+}

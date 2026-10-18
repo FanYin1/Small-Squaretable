@@ -75,7 +75,7 @@ const handleClose = (id: string) => {
   </Teleport>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .toast-container {
   position: fixed;
   top: 24px;
@@ -127,7 +127,7 @@ const handleClose = (id: string) => {
 }
 
 /* Mobile responsive */
-@media (max-width: 767px) {
+@include below(md) {
   .toast-container {
     top: 16px;
     left: 16px;

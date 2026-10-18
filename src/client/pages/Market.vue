@@ -187,7 +187,7 @@ function handleBrowseAll() {
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 /*
  * 样板面：沉浸叙事。所有视觉取值走 --im-* 令牌（见 styles/immersive.css），
  * 不读全局 --accent/--bg-*，因此该页的改动无法回流影响其它页面。
@@ -251,14 +251,14 @@ function handleBrowseAll() {
   border-radius: 8px;
 }
 
-@media (max-width: 1023px) {
+@include below(lg) {
   .character-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 16px;
   }
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .market-content {
     gap: 20px;
   }

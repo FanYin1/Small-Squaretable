@@ -238,7 +238,7 @@ onMounted(() => {
     </el-dialog>
   </DashboardLayout>
 </template>
-<style scoped>
+<style scoped lang="scss">
 .plugin-marketplace {
   max-width: 1200px;
   margin: 0 auto;
@@ -420,7 +420,7 @@ onMounted(() => {
 }
 
 /* Mobile */
-@media (max-width: 767px) {
+@include below(md) {
   .plugin-grid {
     grid-template-columns: 1fr;
   }

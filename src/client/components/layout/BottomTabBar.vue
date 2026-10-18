@@ -44,7 +44,7 @@ function navigate(tab: typeof tabs[0]) {
   </nav>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .bottom-tab-bar {
   display: flex;
   align-items: center;
@@ -86,7 +86,7 @@ function navigate(tab: typeof tabs[0]) {
   line-height: 1;
 }
 
-@media (min-width: 768px) {
+@include from(md) {
   .bottom-tab-bar {
     display: none;
   }

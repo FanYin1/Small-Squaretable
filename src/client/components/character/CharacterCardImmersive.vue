@@ -125,7 +125,7 @@ function startChat(e: Event) {
   </article>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .im-card {
   position: relative;
   display: block;
@@ -391,7 +391,7 @@ function startChat(e: Event) {
   }
 }
 
-@media (max-width: 480px) {
+@include below(sm) {
   .im-card__name {
     font-size: 18px;
   }

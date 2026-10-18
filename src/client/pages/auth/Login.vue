@@ -239,7 +239,7 @@ const loginWithOAuth = (provider: string) => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .login-page {
   min-height: 100vh;
   display: flex;
@@ -381,7 +381,7 @@ const loginWithOAuth = (provider: string) => {
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@include below(md) {
   .login-page {
     padding: 16px;
   }
@@ -407,7 +407,7 @@ const loginWithOAuth = (provider: string) => {
   }
 }
 
-@media (max-width: 480px) {
+@include below(sm) {
   .login-page {
     padding: 12px;
   }

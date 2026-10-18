@@ -221,7 +221,7 @@ function loadMore() {
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .notifications-page {
   max-width: 800px;
   margin: 0 auto;
@@ -409,7 +409,7 @@ function loadMore() {
   }
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .notifications-header {
     flex-direction: column;
     align-items: stretch;

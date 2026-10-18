@@ -147,7 +147,7 @@ const handleNavigate = (name: string) => {
   </aside>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .left-sidebar {
   position: fixed;
   left: 0;
@@ -303,7 +303,7 @@ const handleNavigate = (name: string) => {
   display: none;
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .sidebar-backdrop {
     display: block;
     position: fixed;

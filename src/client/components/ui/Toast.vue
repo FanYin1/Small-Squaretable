@@ -139,7 +139,7 @@ onUnmounted(() => {
   </Transition>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .toast {
   width: 360px;
   min-height: 48px;
@@ -261,7 +261,7 @@ onUnmounted(() => {
 }
 
 /* Mobile responsive */
-@media (max-width: 767px) {
+@include below(md) {
   .toast {
     width: calc(100% - 32px);
     max-width: 360px;

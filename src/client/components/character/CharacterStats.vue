@@ -44,7 +44,7 @@ const stats = computed(() => [
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .character-stats {
   margin-top: 16px;
 }
@@ -62,7 +62,7 @@ const stats = computed(() => [
   gap: 12px;
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }

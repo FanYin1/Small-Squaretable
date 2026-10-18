@@ -234,7 +234,7 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .welcome-page {
   display: flex;
   flex-direction: column;
@@ -457,7 +457,7 @@ onMounted(async () => {
   margin-top: 4px;
 }
 
-@media (max-width: 480px) {
+@include below(sm) {
   .character-grid {
     grid-template-columns: repeat(2, 1fr);
   }

@@ -519,7 +519,7 @@ async function handleSaveAsTemplate() {
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .editor-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -595,7 +595,7 @@ async function handleSaveAsTemplate() {
   user-select: none;
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .editor-container {
     padding: 16px;
   }

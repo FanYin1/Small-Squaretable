@@ -90,7 +90,7 @@ function handleClick() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .activity-item {
   display: flex;
   align-items: center;
@@ -154,7 +154,7 @@ function handleClick() {
   color: var(--text-secondary);
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .activity-item {
     padding: 12px;
   }

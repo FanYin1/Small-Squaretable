@@ -147,7 +147,7 @@ async function handleCommand(command: string, col: CharacterCollection) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .collection-sidebar {
   width: 220px;
   min-width: 220px;
@@ -241,7 +241,7 @@ async function handleCommand(command: string, col: CharacterCollection) {
   opacity: 1;
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .collection-sidebar {
     width: 100%;
     min-width: unset;

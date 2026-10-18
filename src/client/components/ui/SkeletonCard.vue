@@ -40,26 +40,21 @@ withDefaults(defineProps<Props>(), {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .skeleton-grid {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
   gap: 24px;
 }
 
-@media (min-width: 768px) {
+@include from(md) {
   .skeleton-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (min-width: 1024px) {
-  .skeleton-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
+/* 原先 1024 起 3 列、1280 起 4 列；1280 并入 lg 档，桌面直接 4 列（与 MyCharacters 网格一致） */
+@include from(lg) {
   .skeleton-grid {
     grid-template-columns: repeat(4, 1fr);
   }

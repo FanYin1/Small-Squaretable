@@ -574,7 +574,7 @@ async function handleImportFile(event: Event) {
     </div>
   </DashboardLayout>
 </template>
-<style scoped>
+<style scoped lang="scss">
 .header-title {
   display: flex;
   align-items: center;
@@ -732,7 +732,7 @@ async function handleImportFile(event: Event) {
   line-height: 1.4;
 }
 
-@media (max-width: 640px) {
+@include below(md) {
   .search-input {
     max-width: 100%;
   }

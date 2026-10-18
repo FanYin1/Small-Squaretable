@@ -301,7 +301,7 @@ onMounted(() => {
     </el-dialog>
   </DashboardLayout>
 </template>
-<style scoped>
+<style scoped lang="scss">
 .developer-settings {
   max-width: 960px;
   margin: 0 auto;
@@ -450,7 +450,7 @@ onMounted(() => {
 }
 
 /* Mobile */
-@media (max-width: 767px) {
+@include below(md) {
   .key-card {
     padding: 16px;
   }

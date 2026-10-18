@@ -390,7 +390,7 @@ const handleSendRecording = async () => {
 };
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .message-input {
   max-width: 720px;
   margin: 0 auto;
@@ -653,7 +653,7 @@ const handleSendRecording = async () => {
   margin-top: 8px;
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .message-input {
     padding: 8px 12px;
     padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
@@ -661,6 +661,10 @@ const handleSendRecording = async () => {
   .input-wrapper {
     padding: 6px 8px;
     border-radius: 20px;
+  }
+  /* iOS Safari 对 <16px 的输入框聚焦时会自动放大页面，导致整页横向偏移 */
+  .input-textarea :deep(.el-textarea__inner) {
+    font-size: 16px;
   }
 }
 </style>

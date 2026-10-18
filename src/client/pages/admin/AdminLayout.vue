@@ -58,7 +58,7 @@ const activeMenu = computed(() => route.path);
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .admin-layout {
   display: flex;
   min-height: 100vh;
@@ -98,7 +98,7 @@ const activeMenu = computed(() => route.path);
   overflow-y: auto;
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .admin-layout {
     flex-direction: column;
   }

@@ -282,7 +282,7 @@ onMounted(() => {
   </ChatLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .search-page {
   display: flex;
   flex-direction: column;
@@ -503,7 +503,7 @@ onMounted(() => {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@include below(md) {
   .search-page {
     padding: 16px;
   }

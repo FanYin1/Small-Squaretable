@@ -81,7 +81,7 @@ const goToLogin = () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .verify-page {
   min-height: 100vh;
   display: flex;
@@ -140,12 +140,12 @@ const goToLogin = () => {
   border: none;
   color: white;
 }
-@media (max-width: 768px) {
+@include below(md) {
   .verify-page { padding: 16px; }
   .verify-container { max-width: 100%; }
   .title { font-size: 24px; }
 }
-@media (max-width: 480px) {
+@include below(sm) {
   .verify-page { padding: 12px; }
   .title { font-size: 22px; }
 }

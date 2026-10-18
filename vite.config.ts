@@ -30,6 +30,17 @@ export default defineConfig(async () => {
 
   return {
     plugins: [vue(), ...optionalPlugins],
+    css: {
+      preprocessorOptions: {
+        scss: {
+          // 断点 mixin（below/from/between）自动注入每个 lang="scss" 样式块，
+          // 数值的单一来源见 src/client/styles/_breakpoints.scss
+          additionalData: `@use "${path
+            .resolve(__dirname, 'src/client/styles/breakpoints')
+            .replace(/\\/g, '/')}" as *;\n`,
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

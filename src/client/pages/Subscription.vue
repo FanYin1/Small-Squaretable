@@ -439,7 +439,7 @@ function formatNumber(num: number): string {
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 /* 内容包装器 */
 .content-wrapper {
   flex: 1;
@@ -827,7 +827,7 @@ function formatNumber(num: number): string {
 }
 
 /* 平板端适配 */
-@media (max-width: 1023px) {
+@include below(lg) {
   .status-cards {
     grid-template-columns: 1fr;
   }
@@ -838,7 +838,7 @@ function formatNumber(num: number): string {
 }
 
 /* 移动端适配 */
-@media (max-width: 767px) {
+@include below(md) {
   .section-header h2 {
     font-size: 18px;
   }

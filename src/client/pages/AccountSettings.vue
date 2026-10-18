@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Download, Delete, Setting } from '@element-plus/icons-vue';
+import { Download, Delete, Setting, Reading } from '@element-plus/icons-vue';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
+import ChatFontSizeSetting from '@client/components/chat/ChatFontSizeSetting.vue';
 import { gdprApi } from '@client/services/gdpr.api';
 import { useToast } from '@client/composables/useToast';
 import type { DeletionStatus, ConsentPreferences } from '@client/services/gdpr.api';
@@ -145,6 +146,17 @@ onMounted(() => {
     <template #subtitle>{{ t('accountSettings.subtitle') }}</template>
 
     <div class="account-settings">
+      <!-- Chat Reading Section -->
+      <el-card class="settings-card" shadow="never">
+        <template #header>
+          <div class="card-header">
+            <el-icon :size="20"><Reading /></el-icon>
+            <span>{{ t('accountSettings.readingTitle') }}</span>
+          </div>
+        </template>
+        <p class="card-description">{{ t('accountSettings.readingDescription') }}</p>
+        <ChatFontSizeSetting />
+      </el-card>
       <!-- Data Export Section -->
       <el-card class="settings-card" shadow="never">
         <template #header>
@@ -288,7 +300,7 @@ onMounted(() => {
     </div>
   </DashboardLayout>
 </template>
-<style scoped>
+<style scoped lang="scss">
 .account-settings {
   max-width: 800px;
   margin: 0 auto;
@@ -383,7 +395,7 @@ onMounted(() => {
   color: var(--text-secondary);
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .account-settings {
     padding: 16px;
     gap: 16px;

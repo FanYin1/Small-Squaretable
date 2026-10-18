@@ -289,8 +289,13 @@ hr {
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 
-@media (max-width: 768px) {
+/* 纯 CSS 文件用不了 Sass mixin：此处等价于 @include below(md)（767 = md 768 - 1）。
+   数值由 styles/breakpoints.spec.ts 校验，改断点时需同步。 */
+@media (max-width: 767px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
+
+  /* Element Plus 的 el-dialog 没有 max-width，写死 width="480px" 的对话框在 390px 屏上会溢出 */
+  .el-dialog { max-width: calc(100vw - 32px); }
 }
 
 /* ========== Spacing Utilities ========== */

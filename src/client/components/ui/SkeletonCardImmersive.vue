@@ -23,7 +23,7 @@ withDefaults(
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .im-skel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
@@ -84,14 +84,14 @@ withDefaults(
   width: 50%;
 }
 
-@media (max-width: 1023px) {
+@include below(lg) {
   .im-skel-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 16px;
   }
 }
 
-@media (max-width: 560px) {
+@include below(sm) {
   .im-skel-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;

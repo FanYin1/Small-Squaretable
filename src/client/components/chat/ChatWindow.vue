@@ -45,7 +45,7 @@
           v-if="chatStore.availableModels.length > 0 && currentChat"
           :model-value="chatStore.currentModel"
           size="small"
-          style="width: 160px"
+          class="model-select"
           @change="handleModelChange"
         >
           <el-option
@@ -1418,7 +1418,7 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .chat-window {
   display: flex;
   flex-direction: column;
@@ -1440,11 +1440,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  /* 外层布局（ChatLayout）在移动端悬浮汉堡按钮时通过该变量让出位置，桌面端未定义即为 0 */
+  padding-inline-start: var(--chat-header-inset-start, 0px);
 }
 
 .chat-details {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .chat-title {
@@ -1452,6 +1456,9 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-subtitle {
@@ -1467,6 +1474,10 @@ onUnmounted(() => {
 
 .tools-btn {
   font-size: 16px;
+}
+
+.model-select {
+  width: 160px;
 }
 
 .chat-search-bar {
@@ -1919,22 +1930,45 @@ onUnmounted(() => {
   font-size: 14px;
 }
 
-@media (max-width: 768px) {
+@include below(md) {
+  /* 第一行：标题（给汉堡按钮让位）；第二行：操作区右对齐、放不下就换行，不撑出横向滚动 */
   .chat-header {
+    flex-wrap: wrap;
     padding: 8px 12px;
-    gap: 8px;
+    gap: 4px 8px;
+  }
+  .chat-info {
+    flex: 1 1 0;
   }
   .chat-header .chat-title {
     font-size: 14px;
   }
   .chat-actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 4px;
   }
-  .chat-actions .el-select {
+  .model-select {
     width: 120px;
+  }
+  .chat-search-bar {
+    padding: 8px 12px;
   }
   .chat-messages {
     padding: 12px;
+    /* 兜底：任何未收敛的宽内容都不应让整个对话页出现横向滚动 */
+    overflow-x: hidden;
+  }
+  .message-bubble.message-assistant {
+    padding: 0 8px;
+  }
+  .greeting-container {
+    padding: 0;
+  }
+  .greeting-container .message-bubble,
+  .greeting-preview {
+    max-width: 100%;
   }
   .intelligence-drawer :deep(.el-drawer) {
     width: 100% !important;

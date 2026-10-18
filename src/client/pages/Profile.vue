@@ -136,7 +136,7 @@ async function handleSave() {
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .profile-edit-page {
   max-width: 600px;
   margin: 0 auto;
@@ -180,7 +180,7 @@ async function handleSave() {
   border-top: 1px solid var(--border-default);
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .profile-edit-page {
     padding: 16px;
   }

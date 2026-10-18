@@ -14,7 +14,12 @@
           </el-button>
         </el-tooltip>
         <el-tooltip :content="t('chat.sidebar.collapse')" placement="bottom">
-          <button class="collapse-btn" @click="emit('toggle-collapse')">
+          <button
+            type="button"
+            class="collapse-btn"
+            :aria-label="t('chat.sidebar.collapse')"
+            @click="emit('toggle-collapse')"
+          >
             <el-icon><Fold /></el-icon>
           </button>
         </el-tooltip>
@@ -352,7 +357,7 @@ const navigateToBookmark = (bookmark: BookmarkItem) => {
 };
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .chat-sidebar {
   display: flex;
   flex-direction: column;
@@ -648,7 +653,7 @@ const navigateToBookmark = (bookmark: BookmarkItem) => {
 }
 
 /* Mobile breakpoint */
-@media (max-width: 480px) {
+@include below(sm) {
   .sidebar-header {
     padding: 12px;
   }

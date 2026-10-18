@@ -144,7 +144,7 @@ const handleActionSecondary = () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -209,7 +209,7 @@ const handleActionSecondary = () => {
 }
 
 /* 移动端适配 */
-@media (max-width: 767px) {
+@include below(md) {
   .empty-state {
     padding: 60px 20px;
   }

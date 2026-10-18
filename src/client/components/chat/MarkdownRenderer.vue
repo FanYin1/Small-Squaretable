@@ -404,6 +404,33 @@ const displaySegments = computed<ContentSegment[]>(() => {
   margin: 12px 0;
 }
 
+/*
+ * 聊天叙事正文排版（P1-2）。
+ * 放在 .markdown-content 本身而不是外层气泡上，因为它同时被三处使用：
+ * MessageBubble 里的历史消息、ChatWindow 里的流式消息和开场白。
+ * 外层容器各不相同，排版跟着组件走，流式结束换成正式气泡时才不会字体字号一跳。
+ *
+ * 令牌见 variables.css；不要改成全局 --font-size-body。
+ */
+.markdown-content {
+  font-family: var(--font-reading);
+  font-size: var(--chat-font-size);
+  line-height: var(--chat-line-height);
+  /* em 相对上一行设的 --chat-font-size，所以行宽随字号档位同比缩放 */
+  max-width: var(--chat-measure);
+}
+
+/*
+ * *动作* → <em>。
+ * 中文字体没有斜体字形，浏览器默认会把字形硬掰歪来伪造倾斜；
+ * font-synthesis: none 关掉伪造：中文保持直立，西文仍用 Newsreader 自带的真斜体。
+ * 动作与对话的区分交给次要文字色（对比度见 variables.css --chat-action-color）。
+ */
+.markdown-content em {
+  font-synthesis: none;
+  color: var(--chat-action-color);
+}
+
 /* Markdown content typography */
 .markdown-content p {
   margin: 0 0 8px 0;

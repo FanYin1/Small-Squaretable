@@ -350,7 +350,7 @@ const loginWithOAuth = (provider: string) => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .register-page {
   display: flex;
   align-items: center;
@@ -507,7 +507,7 @@ const loginWithOAuth = (provider: string) => {
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@include below(md) {
   .register-page {
     padding: 16px;
   }
@@ -529,7 +529,7 @@ const loginWithOAuth = (provider: string) => {
   }
 }
 
-@media (max-width: 480px) {
+@include below(sm) {
   .register-page {
     padding: 12px;
   }
@@ -640,13 +640,13 @@ const loginWithOAuth = (provider: string) => {
   padding: 0 24px 32px;
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   :deep(.el-form) {
     padding: 0 20px 28px;
   }
 }
 
-@media (max-width: 480px) {
+@include below(sm) {
   :deep(.el-form) {
     padding: 0 16px 24px;
   }

@@ -77,7 +77,7 @@ const messagesTrend = computed(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .executive-overview {
   display: flex;
   flex-direction: column;
@@ -104,7 +104,7 @@ const messagesTrend = computed(() => {
   min-width: 0;
 }
 
-@media (max-width: 1024px) {
+@include below(lg) {
   .charts-row {
     grid-template-columns: 1fr;
   }

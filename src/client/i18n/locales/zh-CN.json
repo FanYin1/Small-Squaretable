@@ -152,7 +152,9 @@
     "nextGreeting": "下一条开局",
     "sidebar": {
       "collapse": "收起侧边栏",
-      "expand": "展开侧边栏"
+      "expand": "展开侧边栏",
+      "openDrawer": "打开对话列表",
+      "drawerLabel": "对话列表"
     },
     "bookmark": "收藏",
     "bookmarked": "已收藏",
@@ -1213,6 +1215,14 @@
     "marketingDesc": "接收产品更新和促销邮件",
     "cookiesConsent": "可选 Cookie",
     "cookiesDesc": "允许非必要 Cookie 用于个性化体验",
+    "readingTitle": "聊天阅读",
+    "readingDescription": "选择聊天消息的文字大小。只影响对话正文，不影响按钮和其他页面，设置保存在本设备上。",
+    "readingSizeLabel": "聊天文字大小",
+    "readingSizeSmall": "小",
+    "readingSizeMedium": "标准",
+    "readingSizeLarge": "大",
+    "readingPreviewDialogue": "你来得比我想的要早。",
+    "readingPreviewAction": "她合上书，抬眼看向门口。",
     "consentsSaved": "隐私偏好已更新",
     "consentsFailed": "更新偏好失败"
   },

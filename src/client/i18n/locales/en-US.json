@@ -152,7 +152,9 @@
     "nextGreeting": "Next greeting",
     "sidebar": {
       "collapse": "Collapse sidebar",
-      "expand": "Expand sidebar"
+      "expand": "Expand sidebar",
+      "openDrawer": "Open chat list",
+      "drawerLabel": "Chat list"
     },
     "bookmark": "Bookmark",
     "bookmarked": "Bookmarked",
@@ -1213,6 +1215,14 @@
     "marketingDesc": "Receive product updates and promotional emails",
     "cookiesConsent": "Optional Cookies",
     "cookiesDesc": "Allow non-essential cookies for personalization",
+    "readingTitle": "Chat Reading",
+    "readingDescription": "Choose the text size for chat messages. This only affects the conversation text, not buttons or other pages, and is saved on this device.",
+    "readingSizeLabel": "Chat text size",
+    "readingSizeSmall": "Small",
+    "readingSizeMedium": "Standard",
+    "readingSizeLarge": "Large",
+    "readingPreviewDialogue": "You're earlier than I expected.",
+    "readingPreviewAction": "She closes the book and glances toward the door.",
     "consentsSaved": "Privacy preferences updated",
     "consentsFailed": "Failed to update preferences"
   },

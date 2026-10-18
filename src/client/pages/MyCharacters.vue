@@ -633,7 +633,7 @@ function handleStartChat(character: Character) {
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .my-characters-layout {
   display: flex;
   gap: 0;
@@ -842,7 +842,7 @@ function handleStartChat(character: Character) {
 }
 
 /* 平板端适配 (3列) */
-@media (max-width: 1279px) and (min-width: 768px) {
+@include between(md, lg) {
   .characters-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
@@ -850,7 +850,7 @@ function handleStartChat(character: Character) {
 }
 
 /* 移动端适配 (1列) */
-@media (max-width: 767px) {
+@include below(md) {
   .my-characters-layout {
     flex-direction: column;
   }
@@ -891,14 +891,14 @@ function handleStartChat(character: Character) {
 }
 
 /* 小屏手机适配 (1列) */
-@media (max-width: 479px) {
+@include below(sm) {
   .characters-grid {
     grid-template-columns: 1fr;
   }
 }
 
 /* 小平板端适配 */
-@media (max-width: 1023px) and (min-width: 768px) {
+@include between(md, lg) {
   .tabs-section {
     padding: 12px 16px;
   }

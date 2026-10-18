@@ -148,6 +148,9 @@ import { ArrowLeft, ArrowRight, ChatLineSquare } from '@element-plus/icons-vue';
 import MarkdownRenderer from './MarkdownRenderer.vue';
 import AudioPlayer from './AudioPlayer.vue';
 import MessageImage from './MessageImage.vue';
+// 仅为副作用而导入：模块加载时会把字号偏好写到 <html data-chat-font-size>，
+// 聊天页刷新后无需等设置页挂载就能应用偏好。
+import '@client/composables/useChatFontSize';
 import type { Message } from '@client/types';
 import type { RegexScript } from '@client/utils/regex-scripts';
 
@@ -288,7 +291,7 @@ const setImportance = (importance: number) => {
 };
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .message {
   padding: 6px 0;
   animation: fadeIn 0.25s ease-out;
@@ -401,9 +404,18 @@ const setImportance = (importance: number) => {
   align-items: flex-end;
 }
 
+/*
+ * 用户消息是纯文本，不经过 MarkdownRenderer，所以聊天正文排版要在这里单独挂一份，
+ * 否则同一段对话里两个角色的字体字号不一致。
+ * 气泡本身（.bubble）保持界面密度 14px——附件、编辑框、回复引用是界面文字，不是叙事正文。
+ */
 .message-user .user-text {
   white-space: pre-wrap;
   color: inherit;
+  font-family: var(--font-reading);
+  font-size: var(--chat-font-size);
+  line-height: var(--chat-line-height);
+  max-width: var(--chat-measure);
 }
 
 .message-body {
@@ -648,7 +660,7 @@ const setImportance = (importance: number) => {
   }
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .message-row {
     max-width: 90%;
     padding: 0 12px;

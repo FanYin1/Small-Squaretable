@@ -235,7 +235,7 @@ async function handleAddToCollection(collectionId: string) {
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .character-detail-page {
   max-width: 800px;
   margin: 0 auto;
@@ -366,7 +366,7 @@ async function handleAddToCollection(collectionId: string) {
   color: var(--accent-text);
 }
 
-@media (max-width: 640px) {
+@include below(md) {
   .stats-grid {
     grid-template-columns: 1fr;
   }

@@ -144,8 +144,29 @@
   --color-info-text: #736D67;
 
   /* ========== Typography ========== */
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Newsreader', 'Georgia', serif;
+  /*
+   * 字体栈。规则：西文字体在前，中文字体在后——浏览器逐字符回落，
+   * 西文字符命中前面的西文字体，中文字符（西文字体里没有）才会走到中文字体，
+   * 所以中西文混排时各用各的，不会因为中文字体排在前面而把西文也"吃"掉。
+   *
+   * 中文字体按平台列出（本项目没有自托管中文 webfont，见 backlog P1-1 第二步）：
+   *   macOS/iOS   PingFang SC（黑体）、Songti SC（宋体）
+   *   旧版 macOS  Hiragino Sans GB
+   *   Windows     Microsoft YaHei（雅黑）
+   *   Android/Linux  Noto Sans/Serif CJK SC、Source Han Serif SC
+   *
+   * 衬线栈的关键：通用族 `serif` 在 Windows 上是宋体（SimSun），而 Windows 没有
+   * 任何预装的衬线中文字体可用。所以在 `serif` 之前插入无衬线中文——Windows 上
+   * 衬线栈里的中文落到雅黑，而不是宋体。macOS/Android 有真正的衬线中文，
+   * 排在前面，命中即止。
+   */
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+  --font-display: 'Newsreader', 'Georgia',
+    'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', serif;
+  /* 聊天叙事正文。目前与 --font-display 同栈，单列一个令牌是为了让两者可以独立演进 */
+  --font-reading: var(--font-display);
   --font-size-h1: 32px;
   --font-size-h2: 28px;
   --font-size-h3: 24px;
@@ -181,9 +202,45 @@
   --chat-divider: #E8E5E0;
   --chat-assistant-msg-bg: #FFFFFF;
 
+  /*
+   * 聊天正文排版（P1-2）。独立于全站 --font-size-body（14px，波及 44 个页面的
+   * 表单与表格），只被 MarkdownRenderer / MessageBubble 的叙事文本引用。
+   *
+   * 字号分三档，由 <html data-chat-font-size="small|medium|large"> 切换（见本段下方
+   * 的覆盖规则与 composables/useChatFontSize.ts）。medium 是默认值。
+   */
+  --chat-font-size: 17px;
+  --chat-line-height: 1.75;
+
+  /*
+   * 行宽上限，单位 em，相对 .markdown-content 自己的字号（所以随字号档位同比缩放）。
+   * 取 36em：
+   *   中文  一个汉字/全角标点 = 1em，36em = 36 字，落在目标 35–40 字内。
+   *   西文  Newsreader 是偏窄的文本字体，含空格平均每字符约 0.43–0.48em（估计值，
+   *         未实测字体 metrics），36em 约合 75–84 字符，贴着目标上沿 60–75 甚至略超。
+   * 两个目标区间换算成 em 并不重叠（中文 35–40em，西文约 26–33em），一个值不可能
+   * 同时满足。本产品以中文内容为主，所以按中文定值，西文偏宽一点可以接受。
+   * 想严格压西文就把它降到 33em 左右，代价是中文只剩 33 字。
+   */
+  --chat-measure: 36em;
+
+  /*
+   * 动作描述（*动作* → <em>）的文字色，取三级文字色。对气泡底色的对比度（实测）：
+   *   浅色 #726D67  on 气泡 #FFFFFF = 5.12 / 页面底 #FAF9F6 = 4.87 / 次级面 #F5F3EF = 4.62
+   *   深色 #A39D98  on 气泡 #2D2B2A = 5.26 / 页面底 #1A1918 = 6.55 / 次级面 #363432 = 4.62
+   * 六个组合都 ≥ 4.5:1。
+   *
+   * 为什么不取 --text-secondary：它与正文色太近（对正文色仅 1.83:1 浅 / 1.41:1 深），
+   * 中文动作描述又没有斜体可依靠，区分会淡到看不出来。三级色对正文色是 2.75:1 / 2.13:1。
+   */
+  --chat-action-color: var(--text-tertiary);
+
   /* ========== Breakpoints ========== */
-  --breakpoint-mobile: 640px;
-  --breakpoint-tablet: 1024px;
+  /* 仅供 JS 读取（getComputedStyle）。@media 里不能用 CSS 变量，
+     媒体查询的数值来源是 styles/_breakpoints.scss，两处必须一致。 */
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
 
   /* ========== Legacy Aliases (backward compat) ========== */
   --color-primary: var(--accent);
@@ -271,7 +328,7 @@
   --el-border-color-extra-light: #FAF9F6;
   --el-fill-color-blank: #FFFFFF;
   --el-fill-color-light: #F5F3EF;
-  --el-font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --el-font-family: var(--font-body);
   --el-font-size-base: 14px;
   --el-border-radius-base: 8px;
   --el-color-success: #059669;
@@ -279,6 +336,14 @@
   --el-color-danger: #DC2626;
   --el-color-info: #6B6560;
 }
+
+/*
+ * 聊天字号三档。写在 :root 之后、用 :root[attr] 提高一级特异性，
+ * 不依赖书写顺序也能盖过 :root 里的默认值。
+ */
+:root[data-chat-font-size="small"] { --chat-font-size: 15px; }
+:root[data-chat-font-size="medium"] { --chat-font-size: 17px; }
+:root[data-chat-font-size="large"] { --chat-font-size: 19px; }
 
 /* ========== Dark Theme ========== */
 .dark,
@@ -359,6 +424,8 @@
   --chat-user-msg-bg: #363432;
   --chat-divider: #3D3A38;
   --chat-assistant-msg-bg: #2D2B2A;
+  /* 深色重新声明一次：别名在声明它的元素上就地解析，避免主题挂在非根节点时取到浅色值 */
+  --chat-action-color: var(--text-tertiary);
 
   /* Legacy dark aliases */
   --bg-color: var(--bg-surface);

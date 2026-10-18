@@ -163,7 +163,7 @@ const handleRegister = () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .home-page-marketing {
   min-height: 100vh;
   background: var(--bg-base);
@@ -598,7 +598,7 @@ const handleRegister = () => {
 }
 
 /* Responsive Design: Tablet */
-@media (max-width: 1024px) {
+@include below(lg) {
   .main-layout {
     grid-template-columns: 45% 55%;
     gap: 24px;
@@ -614,7 +614,7 @@ const handleRegister = () => {
 }
 
 /* Responsive Design: Mobile (<768px) - Single column stack */
-@media (max-width: 768px) {
+@include below(md) {
   .home-page-marketing {
     padding: 20px 16px;
   }
@@ -686,7 +686,7 @@ const handleRegister = () => {
 }
 
 /* Small mobile devices */
-@media (max-width: 480px) {
+@include below(sm) {
   .hero-title {
     font-size: 28px;
   }

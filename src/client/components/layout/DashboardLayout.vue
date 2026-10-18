@@ -64,7 +64,7 @@ const closeMobileSidebar = () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
@@ -144,7 +144,7 @@ const closeMobileSidebar = () => {
   padding: 24px 32px;
 }
 
-@media (max-width: 1024px) {
+@include below(lg) {
   .top-bar {
     grid-template-columns: 1fr auto;
     gap: 8px;
@@ -159,7 +159,7 @@ const closeMobileSidebar = () => {
   }
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .dashboard-main {
     margin-left: 0;
   }
@@ -193,7 +193,7 @@ const closeMobileSidebar = () => {
   color: var(--accent-text);
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .mobile-menu-btn {
     display: flex;
   }

@@ -129,7 +129,7 @@ const handleSortChange = (value: string) => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 /* 取值改走令牌：原先硬编码 white / #E5E7EB / #4B5563 在深色表面上会整块发白。
    该组件只被 Market 使用，改动范围可控。 */
 .filter-toolbar {
@@ -166,7 +166,7 @@ const handleSortChange = (value: string) => {
 }
 
 /* 移动端适配 */
-@media (max-width: 767px) {
+@include below(md) {
   .filter-toolbar {
     flex-direction: column;
     align-items: stretch;

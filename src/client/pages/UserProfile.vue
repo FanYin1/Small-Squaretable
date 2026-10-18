@@ -421,7 +421,7 @@ watch(userId, () => {
     </div>
   </DashboardLayout>
 </template>
-<style scoped>
+<style scoped lang="scss">
 .loading-container {
   display: flex;
   align-items: center;
@@ -714,7 +714,7 @@ watch(userId, () => {
 }
 
 /* Tablet */
-@media (max-width: 1023px) {
+@include below(lg) {
   .profile-header {
     padding: 24px;
   }
@@ -729,7 +729,7 @@ watch(userId, () => {
 }
 
 /* Mobile */
-@media (max-width: 767px) {
+@include below(md) {
   .profile-header {
     padding: 20px;
   }

@@ -67,7 +67,7 @@ const handleNewChat = () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 /*
  * 取值全部改走令牌。原先硬编码 white / #3B82F6（蓝）/ #10B981（绿），
  * 既在深色表面上整块发白，也和琥珀品牌色冲突——搜索按钮是蓝的、
@@ -172,7 +172,7 @@ const handleNewChat = () => {
 }
 
 /* 移动端适配 */
-@media (max-width: 767px) {
+@include below(md) {
   .search-combo {
     flex-direction: column;
     border-radius: 12px;
