@@ -1,4 +1,4 @@
-import { inject } from 'vue';
+import { inject, ref } from 'vue';
 
 export interface ToastOptions {
   message?: string;
@@ -15,7 +15,7 @@ interface ToastContext {
   removeToast: (id: string) => void;
 }
 
-interface ToastItem {
+export interface ToastItem {
   id: string;
   type: 'success' | 'error' | 'warning' | 'info';
   title: string;
@@ -28,18 +28,32 @@ interface ToastItem {
   };
 }
 
-// Create a default no-op context for components used outside the app root
-const defaultToastContext: ToastContext = {
-  addToast: () => {
-    console.warn('ToastContainer not found. Make sure ToastContainer is included in App.vue');
+const MAX_TOASTS = 5;
+
+/**
+ * 全局共享的 toast 队列，ToastContainer 负责渲染。
+ *
+ * 不能只靠 ToastContainer 的 provide：App.vue 里它和 <router-view> 是兄弟节点，
+ * 页面组件不是它的后代，inject 永远拿不到，之前所有 toast 都被静默丢弃了。
+ */
+const toasts = ref<ToastItem[]>([]);
+
+const sharedContext: ToastContext = {
+  addToast: (toast) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    // 超过上限丢掉最旧的
+    toasts.value = [...toasts.value, { ...toast, id }].slice(-MAX_TOASTS);
   },
-  removeToast: () => {
-    // No-op
+  removeToast: (id) => {
+    toasts.value = toasts.value.filter((t) => t.id !== id);
   },
 };
 
+export const toastStore = { toasts, ...sharedContext };
+
 export function useToast() {
-  const toastContext = inject<ToastContext>('toast', defaultToastContext);
+  // 测试或局部场景仍可 provide('toast', ...) 覆盖
+  const toastContext = inject<ToastContext>('toast', sharedContext);
 
   const addToast = toastContext.addToast;
 

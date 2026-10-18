@@ -1,53 +1,9 @@
 <script setup lang="ts">
-import { ref, provide } from 'vue';
 import Toast from './Toast.vue';
+import { toastStore } from '@client/composables/useToast';
 
-interface ToastItem {
-  id: string;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message?: string;
-  duration?: number;
-  closable?: boolean;
-  action?: {
-    text: string;
-    onClick: () => void;
-  };
-}
-
-interface ToastContext {
-  addToast: (toast: Omit<ToastItem, 'id'>) => void;
-  removeToast: (id: string) => void;
-}
-
-// Toast state
-const toasts = ref<ToastItem[]>([]);
-
-const MAX_TOASTS = 5;
-
-const addToast = (toast: Omit<ToastItem, 'id'>) => {
-  const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-  // Remove oldest toast if we've reached the limit
-  if (toasts.value.length >= MAX_TOASTS) {
-    toasts.value.shift();
-  }
-
-  toasts.value.push({ ...toast, id } as ToastItem);
-};
-
-const removeToast = (id: string) => {
-  const index = toasts.value.findIndex((t) => t.id === id);
-  if (index !== -1) {
-    toasts.value.splice(index, 1);
-  }
-};
-
-// Provide toast context to child components
-provide<ToastContext>('toast', {
-  addToast,
-  removeToast,
-});
+// 队列在 useToast 模块里共享，这里只负责渲染
+const { toasts, removeToast } = toastStore;
 
 const handleClose = (id: string) => {
   removeToast(id);

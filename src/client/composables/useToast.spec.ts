@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { defineComponent, provide, h } from 'vue';
+import { defineComponent, provide, h, nextTick } from 'vue';
 import { mount } from '@vue/test-utils';
-import { useToast } from './useToast';
+import { useToast, toastStore } from './useToast';
+import ToastContainer from '../components/ui/ToastContainer.vue';
 
 // Helper to run composable with provide/inject context
 function withToastProvider(mockAddToast: ReturnType<typeof vi.fn>) {
@@ -82,8 +83,10 @@ describe('useToast', () => {
     });
   });
 
-  it('falls back to default context when no provider exists', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  // App.vue 里 ToastContainer 与 <router-view> 是兄弟节点，页面组件不是它的后代，
+  // 拿不到它 provide 的上下文。没有 provider 时必须落到共享队列，而不是静默丢弃。
+  it('without a provider, toasts go to the shared queue that ToastContainer renders', () => {
+    toastStore.toasts.value = [];
     let result: ReturnType<typeof useToast>;
     const Comp = defineComponent({
       setup() {
@@ -92,9 +95,47 @@ describe('useToast', () => {
       },
     });
     mount(Comp);
-    // Should not throw, just warn
-    expect(() => result!.success('test')).not.toThrow();
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('ToastContainer not found'));
-    warnSpy.mockRestore();
+
+    result!.error('Register failed', { message: 'Invite code invalid' });
+
+    expect(toastStore.toasts.value).toHaveLength(1);
+    expect(toastStore.toasts.value[0]).toMatchObject({
+      type: 'error',
+      title: 'Register failed',
+      message: 'Invite code invalid',
+    });
+  });
+
+  it('shared queue keeps at most 5 toasts and removeToast drops by id', () => {
+    toastStore.toasts.value = [];
+    for (let i = 0; i < 7; i++) toastStore.addToast({ type: 'info', title: `t${i}` });
+
+    expect(toastStore.toasts.value.map((t) => t.title)).toEqual(['t2', 't3', 't4', 't5', 't6']);
+
+    toastStore.removeToast(toastStore.toasts.value[0].id);
+    expect(toastStore.toasts.value.map((t) => t.title)).toEqual(['t3', 't4', 't5', 't6']);
+  });
+});
+
+describe('ToastContainer', () => {
+  it('renders toasts raised by a component outside its subtree', async () => {
+    toastStore.toasts.value = [];
+    const Page = defineComponent({
+      setup() {
+        const toast = useToast();
+        return () => h('button', { onClick: () => toast.error('Register failed') });
+      },
+    });
+    // 与 App.vue 相同的结构：页面和 ToastContainer 是兄弟
+    const Root = defineComponent({ setup: () => () => h('div', [h(Page), h(ToastContainer)]) });
+    const wrapper = mount(Root, { attachTo: document.body, global: { stubs: { teleport: true } } });
+
+    await wrapper.find('button').trigger('click');
+    // Toast 在 onMounted 的 requestAnimationFrame 里才置 isVisible，等一帧再等一次渲染
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await nextTick();
+
+    expect(wrapper.find('.toast-title').text()).toBe('Register failed');
+    wrapper.unmount();
   });
 });
