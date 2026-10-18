@@ -40,6 +40,8 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
+  /** 满 18 岁声明，必填：服务端 registerSchema 要求它必须为 true。 */
+  ageConfirmed: boolean;
 }
 
 export interface RegisterResponse {

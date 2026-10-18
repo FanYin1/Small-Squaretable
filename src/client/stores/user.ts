@@ -82,11 +82,16 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function register(email: string, password: string, name: string): Promise<void> {
+  async function register(
+    email: string,
+    password: string,
+    name: string,
+    ageConfirmed: boolean,
+  ): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
-      const response = await authApi.register({ email, password, name });
+      const response = await authApi.register({ email, password, name, ageConfirmed });
 
       // 保存用户信息和令牌
       user.value = response.user;

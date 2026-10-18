@@ -131,6 +131,14 @@ describe('Register Page', () => {
       expect(checkboxText).toContain('隐私政策');
     });
 
+    it('成年声明是独立的勾选框，不能和条款同意合成一个', () => {
+      const wrapper = createWrapper();
+
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      expect(boxes.length).toBe(2);
+      expect(wrapper.text()).toContain('我确认已满 18 周岁');
+    });
+
     it('should render register button', () => {
       const wrapper = createWrapper();
 
@@ -248,7 +256,9 @@ describe('Register Page', () => {
       await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('test@example.com');
       await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
       await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
-      await wrapper.find('input[type="checkbox"]').setValue(true);
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      await boxes[0].setValue(true);
+      await boxes[1].setValue(true);
 
       // Submit form
       const form = wrapper.find('form');
@@ -259,7 +269,8 @@ describe('Register Page', () => {
       expect(mockUserStore.register).toHaveBeenCalledWith(
         'test@example.com',
         'Password123',
-        'Test User'
+        'Test User',
+        true
       );
 
       // Should show success message
@@ -276,7 +287,9 @@ describe('Register Page', () => {
       await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('existing@example.com');
       await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
       await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
-      await wrapper.find('input[type="checkbox"]').setValue(true);
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      await boxes[0].setValue(true);
+      await boxes[1].setValue(true);
 
       // Submit form
       const form = wrapper.find('form');
@@ -296,7 +309,9 @@ describe('Register Page', () => {
       await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('test@example.com');
       await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
       await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
-      await wrapper.find('input[type="checkbox"]').setValue(true);
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      await boxes[0].setValue(true);
+      await boxes[1].setValue(true);
 
       // Submit form
       const form = wrapper.find('form');
@@ -342,6 +357,33 @@ describe('Register Page', () => {
       // Should not call register (form validation should prevent submission)
       expect(mockUserStore.register).not.toHaveBeenCalled();
     });
+
+    describe('第三方登录也要过年龄门', () => {
+      beforeEach(() => {
+        delete (window as any).location;
+        (window as any).location = { href: '' };
+      });
+
+      it('没勾成年声明就不跳转 —— 否则点 Google 按钮直接绕过年龄门', async () => {
+        const wrapper = createWrapper();
+
+        await wrapper.findAll('button.social-btn')[0].trigger('click');
+
+        expect(window.location.href).toBe('');
+        expect(mockToast.error).toHaveBeenCalledWith('请确认您已满 18 周岁');
+      });
+
+      it('勾了之后把声明带到授权入口，服务端据此决定能不能建新号', async () => {
+        const wrapper = createWrapper();
+
+        const boxes = wrapper.findAll('input[type="checkbox"]');
+        await boxes[1].setValue(true);
+
+        await wrapper.findAll('button.social-btn')[0].trigger('click');
+
+        expect(window.location.href).toBe('/api/v1/auth/oauth/google?ageConfirmed=1');
+      });
+    });
   });
 
   describe('Navigation', () => {
@@ -367,7 +409,9 @@ describe('Register Page', () => {
       await wrapper.find('input[placeholder="请输入您的邮箱"]').setValue('test@example.com');
       await wrapper.find('input[placeholder*="请输入密码"]').setValue('Password123');
       await wrapper.find('input[placeholder="请再次输入密码"]').setValue('Password123');
-      await wrapper.find('input[type="checkbox"]').setValue(true);
+      const boxes = wrapper.findAll('input[type="checkbox"]');
+      await boxes[0].setValue(true);
+      await boxes[1].setValue(true);
 
       const form = wrapper.find('form');
       await form.trigger('submit');

@@ -45,7 +45,11 @@ describe('Auth Routes', () => {
       const res = await app.request('/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'test@example.com', password: 'password123' }),
+        body: JSON.stringify({
+          email: 'test@example.com',
+          password: 'password123',
+          ageConfirmed: true,
+        }),
       });
 
       expect(res.status).toBe(201);
@@ -62,6 +66,59 @@ describe('Auth Routes', () => {
       });
 
       expect(res.status).toBe(400);
+    });
+
+    it('缺少成年声明直接 400，服务层都不该被调用', async () => {
+      const { authService } = await import('../services/auth.service');
+
+      const res = await app.request('/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'test@example.com', password: 'password123' }),
+      });
+
+      expect(res.status).toBe(400);
+      expect(authService.register).not.toHaveBeenCalled();
+    });
+
+    it('声明为 false 同样 400 —— 不能只检查字段存不存在', async () => {
+      const res = await app.request('/api/v1/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'test@example.com',
+          password: 'password123',
+          ageConfirmed: false,
+        }),
+      });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('IP 从请求头取，客户端自己填的 IP 不作数', async () => {
+      const { authService } = await import('../services/auth.service');
+      vi.mocked(authService.register).mockResolvedValue({
+        user: { id: '123', email: 'test@example.com', tenantId: '456', displayName: null, avatarUrl: null },
+        tokens: { accessToken: 'access', refreshToken: 'refresh', expiresIn: 900 },
+      });
+
+      await app.request('/api/v1/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-forwarded-for': '203.0.113.7, 10.0.0.1',
+        },
+        body: JSON.stringify({
+          email: 'test@example.com',
+          password: 'password123',
+          ageConfirmed: true,
+          actorIp: '1.2.3.4',
+        }),
+      });
+
+      expect(authService.register).toHaveBeenCalledWith(
+        expect.objectContaining({ actorIp: '203.0.113.7' })
+      );
     });
   });
 

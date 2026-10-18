@@ -6,6 +6,7 @@
  */
 
 import { Google, GitHub, generateState, generateCodeVerifier, OAuth2Tokens } from 'arctic';
+import crypto from 'crypto';
 import { config } from '../../core/config';
 import { oauthRepository } from '../../db/repositories/oauth.repository';
 import { userRepository } from '../../db/repositories/user.repository';
@@ -46,10 +47,24 @@ export interface OAuthProfile {
   avatarUrl: string | null;
 }
 
+/**
+ * 满 18 岁声明的上下文。
+ * 与 OAuthProfile 分开：profile 来自第三方，这份声明来自我们自己的授权页。
+ */
+export interface AgeConsent {
+  ageConfirmed?: boolean;
+  actorIp?: string;
+}
+
 // --- Constants ---
 
 const REFRESH_TOKEN_PREFIX = 'refresh_token:';
 const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60; // 7 days
+
+/** 与 audit_logs / authService 保持一致的截断 SHA-256。 */
+function hashIp(ip: string): string {
+  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
+}
 
 // --- Service ---
 
@@ -115,9 +130,12 @@ export const oauthService = {
    * 1. If an oauth_account already exists for this provider+id → login that user.
    * 2. Else if a user with the same email exists → link the account + login.
    * 3. Else create a new user (emailVerified=true) + tenant + link account.
+   *
+   * 分支 3 是注册，要和邮箱注册一样过年龄门；分支 1、2 是登录，不重复要求。
    */
   async authenticateWithOAuth(
     profile: OAuthProfile,
+    consent: AgeConsent = {},
   ): Promise<{ user: AuthUser; tokens: AuthTokens; isNewUser: boolean }> {
     // 1. Existing OAuth link?
     const existing = await oauthRepository.findByProviderAccount(
@@ -152,7 +170,11 @@ export const oauthService = {
       return { user: toAuthUser(existingUser), tokens, isNewUser: false };
     }
 
-    // 3. Brand-new user
+    // 3. Brand-new user —— 建号之前先过年龄门，不能先建再补。
+    if (consent.ageConfirmed !== true) {
+      throw new BadRequestError('age_confirmation_required');
+    }
+
     const tenant = await tenantRepository.create({
       name: profile.displayName ?? profile.email.split('@')[0],
       plan: 'free',
@@ -164,6 +186,8 @@ export const oauthService = {
       displayName: profile.displayName,
       avatarUrl: profile.avatarUrl,
       emailVerified: true, // OAuth emails are pre-verified
+      ageConfirmedAt: new Date(),
+      ageConfirmedIp: consent.actorIp ? hashIp(consent.actorIp) : null,
     } as any);
 
     await oauthRepository.create({

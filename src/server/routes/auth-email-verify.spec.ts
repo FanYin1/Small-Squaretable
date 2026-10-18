@@ -204,13 +204,19 @@ describe('Auth Email Verification Routes', () => {
       const res = await app.request('/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'new@example.com', password: 'password123' }),
+        body: JSON.stringify({
+          email: 'new@example.com',
+          password: 'password123',
+          ageConfirmed: true,
+        }),
       });
 
       expect(res.status).toBe(201);
       expect(authService.register).toHaveBeenCalledWith({
         email: 'new@example.com',
         password: 'password123',
+        ageConfirmed: true,
+        actorIp: undefined,
       });
     });
   });

@@ -318,6 +318,8 @@
     "passwordMismatch": "两次输入的密码不一致",
     "agreeToTerms": "我已阅读并同意",
     "agreeTermsRequired": "请阅读并同意服务条款",
+    "ageConfirm": "我确认已满 18 周岁",
+    "ageConfirmRequired": "请确认您已满 18 周岁",
     "termsOfService": "服务条款",
     "and": "和",
     "privacyPolicy": "隐私政策",

@@ -69,7 +69,29 @@ describe('OAuth Routes', () => {
       );
       expect(redis.set).toHaveBeenCalledWith(
         'oauth_state:abc123',
-        JSON.stringify({ codeVerifier: 'verifier123', provider: 'google' }),
+        JSON.stringify({ codeVerifier: 'verifier123', provider: 'google', ageConfirmed: false }),
+        { EX: 300 },
+      );
+    });
+
+    it('成年声明随 state 存进 Redis，不留在回调 URL 上让用户能自己改', async () => {
+      const { oauthService } = await import('../services/oauth.service');
+      const { redis } = await import('../../core/redis');
+      vi.mocked(oauthService.getAuthorizationUrl).mockReturnValue({
+        url: 'https://accounts.google.com/o/oauth2/v2/auth?state=abc123',
+        state: 'abc123',
+        codeVerifier: 'verifier123',
+      });
+      vi.mocked(redis.set).mockResolvedValue('OK');
+
+      await app.request('/api/v1/auth/oauth/google?ageConfirmed=1', {
+        method: 'GET',
+        redirect: 'manual',
+      });
+
+      expect(redis.set).toHaveBeenCalledWith(
+        'oauth_state:abc123',
+        JSON.stringify({ codeVerifier: 'verifier123', provider: 'google', ageConfirmed: true }),
         { EX: 300 },
       );
     });

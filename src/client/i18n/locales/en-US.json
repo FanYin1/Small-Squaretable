@@ -318,6 +318,8 @@
     "passwordMismatch": "Passwords do not match",
     "agreeToTerms": "I have read and agree to the",
     "agreeTermsRequired": "Please read and agree to the terms of service",
+    "ageConfirm": "I confirm that I am at least 18 years old",
+    "ageConfirmRequired": "Please confirm that you are at least 18 years old",
     "termsOfService": "Terms of Service",
     "and": "and",
     "privacyPolicy": "Privacy Policy",

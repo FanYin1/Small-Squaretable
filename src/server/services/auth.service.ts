@@ -26,8 +26,25 @@ export type LoginResult =
   | { requiresMfa: false; user: AuthUser; tokens: AuthTokens }
   | { requiresMfa: true; mfaToken: string };
 
+/**
+ * 注册时额外带上的请求上下文。
+ * actorIp 不在 registerSchema 里——它来自请求头，不是客户端提交的字段，
+ * 让客户端能自己填 IP 等于让证据可伪造。
+ */
+export type RegisterContext = RegisterInput & { actorIp?: string };
+
+/** 与 audit_logs 保持一致：截断的 SHA-256，够用于比对，又不是明文 IP。 */
+function hashIp(ip: string): string {
+  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
+}
+
 export class AuthService {
-  async register(input: RegisterInput): Promise<{ user: AuthUser; tokens: AuthTokens }> {
+  async register(input: RegisterContext): Promise<{ user: AuthUser; tokens: AuthTokens }> {
+    // 服务端复核一遍：前端勾选只是 UI，绕过前端直接打接口的情况必须挡住。
+    if (input.ageConfirmed !== true) {
+      throw new ValidationError('You must confirm you are at least 18 years old');
+    }
+
     const existingUser = await userRepository.findByEmail(input.email);
     if (existingUser) {
       throw new ValidationError('Email already registered');
@@ -46,6 +63,18 @@ export class AuthService {
       passwordHash,
       tenantId: tenant.id,
       displayName: input.displayName ?? null,
+      // 时间点 + 哈希 IP 才是这份声明的证据，单个 boolean 事后无法举证。
+      ageConfirmedAt: new Date(),
+      ageConfirmedIp: input.actorIp ? hashIp(input.actorIp) : null,
+    });
+
+    // 用户表里的字段会随账号删除一起消失，审计里再留一份独立记录。
+    auditService.log({
+      tenantId: tenant.id,
+      actorId: user.id,
+      actorIp: input.actorIp,
+      action: 'age_confirm',
+      metadata: { source: 'register' },
     });
 
     // Generate email verification token

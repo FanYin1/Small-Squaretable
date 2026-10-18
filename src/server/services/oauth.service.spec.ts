@@ -391,7 +391,7 @@ describe('oauthService', () => {
       mockUserCreate.mockResolvedValue(makeUser({ id: 'new-u', tenantId: 'new-t' }));
 
       const profile = makeProfile();
-      const result = await oauthService.authenticateWithOAuth(profile);
+      const result = await oauthService.authenticateWithOAuth(profile, { ageConfirmed: true });
 
       expect(result.isNewUser).toBe(true);
       expect(result.user.id).toBe('new-u');
@@ -418,9 +418,57 @@ describe('oauthService', () => {
       mockUserCreate.mockResolvedValue(makeUser({ id: 'new-u', tenantId: 'new-t', displayName: null }));
 
       const profile = makeProfile({ displayName: null });
-      await oauthService.authenticateWithOAuth(profile);
+      await oauthService.authenticateWithOAuth(profile, { ageConfirmed: true });
 
       expect(mockTenantCreate).toHaveBeenCalledWith({ name: 'user', plan: 'free' });
+    });
+
+    describe('满 18 岁声明', () => {
+      beforeEach(() => {
+        mockFindByProviderAccount.mockResolvedValue(null);
+        mockUserFindByEmail.mockResolvedValue(null);
+        mockTenantCreate.mockResolvedValue({ id: 'new-t', name: 'Test User', plan: 'free' });
+        mockUserCreate.mockResolvedValue(makeUser({ id: 'new-u', tenantId: 'new-t' }));
+      });
+
+      it('OAuth 新用户没声明成年就不建号 —— 否则第三方登录就是绕过年龄门的后门', async () => {
+        await expect(
+          oauthService.authenticateWithOAuth(makeProfile()),
+        ).rejects.toThrow('age_confirmation_required');
+
+        expect(mockUserCreate).not.toHaveBeenCalled();
+        expect(mockTenantCreate).not.toHaveBeenCalled();
+      });
+
+      it('OAuth 新用户声明后落库同样带时间点和哈希 IP', async () => {
+        await oauthService.authenticateWithOAuth(makeProfile(), {
+          ageConfirmed: true,
+          actorIp: '203.0.113.7',
+        });
+
+        const arg = mockUserCreate.mock.calls[0][0] as Record<string, unknown>;
+        expect(arg.ageConfirmedAt).toBeInstanceOf(Date);
+        expect(arg.ageConfirmedIp).toMatch(/^[0-9a-f]{16}$/);
+        expect(arg.ageConfirmedIp).not.toBe('203.0.113.7');
+      });
+
+      it('老用户登录不需要重新声明 —— 年龄门只拦新建账号', async () => {
+        mockFindByProviderAccount.mockResolvedValue({ userId: 'u1' });
+        mockUserFindById.mockResolvedValue(makeUser());
+
+        const result = await oauthService.authenticateWithOAuth(makeProfile());
+
+        expect(result.isNewUser).toBe(false);
+      });
+
+      it('邮箱已存在走绑定分支时也不需要声明', async () => {
+        mockUserFindByEmail.mockResolvedValue(makeUser({ id: 'u-old' }));
+
+        const result = await oauthService.authenticateWithOAuth(makeProfile());
+
+        expect(result.isNewUser).toBe(false);
+        expect(mockUserCreate).not.toHaveBeenCalled();
+      });
     });
 
     it('should store refresh token in Redis with correct key and TTL', async () => {

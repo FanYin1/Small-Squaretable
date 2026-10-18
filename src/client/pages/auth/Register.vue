@@ -20,6 +20,9 @@ const formData = reactive({
   password: '',
   confirmPassword: '',
   agreeToTerms: false,
+  // 与条款勾选分开：条款同意和年龄声明是两件事，合成一个勾选框
+  // 就无法证明用户单独确认过年龄。
+  ageConfirmed: false,
 });
 
 // UI state
@@ -97,6 +100,14 @@ const validateTerms = (_rule: any, value: any, callback: any) => {
   }
 };
 
+const validateAgeConfirmed = (_rule: any, value: any, callback: any) => {
+  if (!value) {
+    callback(new Error(t('auth.ageConfirmRequired')));
+  } else {
+    callback();
+  }
+};
+
 // Form validation rules
 const rules = reactive<FormRules>({
   name: [
@@ -116,6 +127,9 @@ const rules = reactive<FormRules>({
   agreeToTerms: [
     { required: true, validator: validateTerms, trigger: 'change' },
   ],
+  ageConfirmed: [
+    { required: true, validator: validateAgeConfirmed, trigger: 'change' },
+  ],
 });
 
 // Handle registration
@@ -128,7 +142,12 @@ const handleRegister = async () => {
 
     loading.value = true;
 
-    await userStore.register(formData.email, formData.password, formData.name);
+    await userStore.register(
+      formData.email,
+      formData.password,
+      formData.name,
+      formData.ageConfirmed,
+    );
 
     toast.success(t('auth.registerSuccess'));
 
@@ -148,9 +167,20 @@ const goToLogin = () => {
   router.push({ name: 'Login' });
 };
 
-// OAuth login - full page redirect to server
+/**
+ * OAuth login - full page redirect to server.
+ *
+ * 注册页的第三方登录同样会建新账号，所以先要有成年声明再跳走——
+ * 否则用户点 Google 按钮就绕过了整个年龄门。
+ * 服务端只认 Redis 里随 state 存下的标记，这里的查询参数只是把
+ * 用户的勾选传给授权入口。
+ */
 const loginWithOAuth = (provider: string) => {
-  window.location.href = `/api/v1/auth/oauth/${provider}`;
+  if (!formData.ageConfirmed) {
+    toast.error(t('auth.ageConfirmRequired'));
+    return;
+  }
+  window.location.href = `/api/v1/auth/oauth/${provider}?ageConfirmed=1`;
 };
 </script>
 
@@ -262,6 +292,13 @@ const loginWithOAuth = (provider: string) => {
             <router-link :to="{ name: 'Terms' }" class="terms-link">{{ t('auth.termsOfService') }}</router-link>
             {{ t('auth.and') }}
             <router-link :to="{ name: 'Privacy' }" class="terms-link">{{ t('auth.privacyPolicy') }}</router-link>
+          </el-checkbox>
+        </el-form-item>
+
+        <!-- Age confirmation -->
+        <el-form-item prop="ageConfirmed">
+          <el-checkbox v-model="formData.ageConfirmed" :disabled="loading">
+            {{ t('auth.ageConfirm') }}
           </el-checkbox>
         </el-form-item>
 
