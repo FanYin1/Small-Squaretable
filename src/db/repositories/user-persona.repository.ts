@@ -4,7 +4,7 @@
  * 数据访问层：用户 Persona CRUD 操作
  */
 
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '..';
 import { userPersonas, type UserPersona, type NewUserPersona } from '../schema/user-personas';
 
@@ -104,7 +104,7 @@ export class UserPersonaRepository {
    */
   async countByUserId(userId: string): Promise<number> {
     const result = await db
-      .select({ count: db.$count() })
+      .select({ count: sql<number>`count(*)::int` })
       .from(userPersonas)
       .where(eq(userPersonas.userId, userId));
     return result[0]?.count || 0;

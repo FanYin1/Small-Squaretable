@@ -65,6 +65,29 @@ vi.mock('../../db/repositories/subscription.repository', () => ({
 vi.mock('../services/usage.service', () => ({
   usageService: {
     checkQuota: vi.fn(),
+    // meterUsage（services/usage-meter.ts）发消息后会调用
+    trackUsage: vi.fn().mockResolvedValue({}),
+  },
+}));
+
+// 创建聊天后路由会 fire-and-forget 地累加角色成长值
+vi.mock('../../db/repositories/character-growth.repository', () => ({
+  characterGrowthRepository: {
+    getOrCreate: vi.fn().mockResolvedValue({ id: 'growth-1' }),
+    incrementChats: vi.fn().mockResolvedValue(undefined),
+    incrementMessages: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+// 创建聊天时路由会直接查 characters 表补充角色名称/头像；
+// 没有这个 mock 就会去连真实 PostgreSQL（ECONNREFUSED -> 500）
+vi.mock('../../db', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn().mockResolvedValue([{ name: 'Test Character', avatarUrl: null }]),
+      })),
+    })),
   },
 }));
 

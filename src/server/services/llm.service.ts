@@ -18,6 +18,20 @@ export class LLMService {
   private readonly retryDelay = 1000; // ms
 
   /**
+   * 取得 provider 的 baseUrl；未配置时显式报错，而不是拼出 "undefined/chat/completions"
+   */
+  private requireBaseUrl(providerConfig: { provider: string; baseUrl?: string }): string {
+    if (!providerConfig.baseUrl) {
+      throw new AppError(
+        `LLM provider ${providerConfig.provider} has no baseUrl configured`,
+        500,
+        'LLM_NOT_CONFIGURED'
+      );
+    }
+    return providerConfig.baseUrl;
+  }
+
+  /**
    * 聊天补全
    */
   async chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
@@ -31,7 +45,7 @@ export class LLMService {
       throw new AppError(`Model ${model} not found`, 404, 'MODEL_NOT_FOUND');
     }
 
-    const url = `${providerConfig.baseUrl}/chat/completions`;
+    const url = `${this.requireBaseUrl(providerConfig)}/chat/completions`;
     const headers = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${providerConfig.apiKey}`,
@@ -73,12 +87,13 @@ export class LLMService {
     }
 
     // Special handling for Qwen3.5 models - use Ollama native API with think: false
-    let url = `${providerConfig.baseUrl}/chat/completions`;
+    const baseUrl = this.requireBaseUrl(providerConfig);
+    let url = `${baseUrl}/chat/completions`;
     let modifiedRequest: any = { ...request, stream: true };
 
-    if (model.includes('qwen3.5') && providerConfig.baseUrl.includes('11434')) {
+    if (model.includes('qwen3.5') && baseUrl.includes('11434')) {
       // Use Ollama native API for Qwen3.5 to disable thinking
-      url = providerConfig.baseUrl.replace('/v1', '') + '/api/chat';
+      url = baseUrl.replace('/v1', '') + '/api/chat';
       modifiedRequest = {
         model,
         messages: request.messages,
@@ -130,7 +145,7 @@ export class LLMService {
       throw new AppError(`Model ${model} not found`, 404, 'MODEL_NOT_FOUND');
     }
 
-    const url = `${providerConfig.baseUrl}/completions`;
+    const url = `${this.requireBaseUrl(providerConfig)}/completions`;
     const headers = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${providerConfig.apiKey}`,

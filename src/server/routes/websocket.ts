@@ -17,7 +17,8 @@ import { websocketService } from '../services/websocket.service';
 import { llmService } from '../services/llm.service';
 import { getDefaultModel, getModelMeta } from '../config/llm.config';
 import { chatService, getChatModel } from '../services/chat.service';
-import { contextManager } from '../services/context-manager.service';
+import { contextManager, type LLMMessage } from '../services/context-manager.service';
+import { NotFoundError } from '../../core/errors';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
@@ -278,7 +279,7 @@ export class WebSocketHandler {
     const chatMetadata = (chat.metadata as Record<string, unknown>) || {};
     const activeBranchLeaf = chatMetadata.activeBranchLeafId as number | undefined;
 
-    let chatMessages;
+    let chatMessages: LLMMessage[];
     if (activeBranchLeaf) {
       chatMessages = (await messageRepository.findBranch(chatId, activeBranchLeaf)).map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
@@ -516,7 +517,11 @@ export class WebSocketHandler {
   ): Promise<void> {
     // Load chat to determine model
     const chat = await chatRepository.findById(chatId);
-    const model = (chat ? getChatModel(chat) : null) || getDefaultModel() || 'glm-4.5-air';
+    if (!chat) {
+      // 由 handleUserMessage 的 catch 转成 WS ERROR 消息发给客户端
+      throw new NotFoundError('Chat');
+    }
+    const model = getChatModel(chat) || getDefaultModel() || 'glm-4.5-air';
 
     // Determine who responded last to feed round-robin
     const recentMessages = await chatService.getMessages(chatId);
@@ -541,7 +546,7 @@ export class WebSocketHandler {
     }
 
     // Fetch messages once before the loop; append each new reply in-memory
-    let chatMessages = recentMessages.map(m => ({
+    let chatMessages: LLMMessage[] = recentMessages.map(m => ({
       role: m.role as 'user' | 'assistant' | 'system',
       content: m.content,
       pinned: m.pinned,

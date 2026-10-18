@@ -359,5 +359,42 @@ describe('WebSocket chat — quota metering and enforcement', () => {
 
       expect(messagesMetered()).toHaveLength(2);
     });
+
+    it('rejects with Chat not found when the chat no longer exists', async () => {
+      vi.mocked(chatRepository.findById).mockResolvedValue(null as never);
+      vi.mocked(chatService.getMessages).mockResolvedValue([]);
+      vi.mocked(groupChatService.getStrategy).mockResolvedValue('round_robin' as never);
+
+      const h = handler as never as {
+        handleGroupChatResponse: (chatId: string, content: string, userId: string, mentioned?: string[], tenantId?: string) => Promise<void>;
+        streamLlmResponse: () => Promise<string>;
+      };
+      const stream = vi.spyOn(h, 'streamLlmResponse').mockResolvedValue('reply');
+
+      await expect(
+        h.handleGroupChatResponse(CHAT, 'Hello', USER, ['char-1'], TENANT)
+      ).rejects.toThrow('Chat not found');
+
+      expect(stream).not.toHaveBeenCalled();
+      expect(messagesMetered()).toHaveLength(0);
+    });
+
+    it('sends an ERROR message to the client when the group chat is missing', async () => {
+      vi.mocked(groupChatService.isGroupChat).mockResolvedValue(true);
+      vi.mocked(chatRepository.findById).mockResolvedValue(null as never);
+      vi.mocked(chatService.getMessages).mockResolvedValue([]);
+      vi.mocked(groupChatService.getStrategy).mockResolvedValue('round_robin' as never);
+
+      await (handler as never as { handleUserMessage: (c: string, m: WSUserMessage) => Promise<void> })
+        .handleUserMessage(CLIENT_ID, userMessage());
+
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(
+        CLIENT_ID,
+        expect.objectContaining({
+          type: WSMessageType.ERROR,
+          data: expect.objectContaining({ message: 'Chat not found' }),
+        })
+      );
+    });
   });
 });

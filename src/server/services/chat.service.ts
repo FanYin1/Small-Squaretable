@@ -27,6 +27,19 @@ import { estimateTokens } from '../utils/tokens';
 import type { Character } from '../../db/schema/characters';
 import { applyMacros, createMacroContextWithVars, persistVarWrites, type MacroContext } from './macro.service';
 
+/**
+ * chat_overrides.overrides 是 jsonb（unknown）。提示词拼装只消费字符串字段，
+ * 其余类型（数字、嵌套对象、数组）以及非对象的畸形数据一律忽略。
+ */
+function pickStringOverrides(raw: unknown): Record<string, string> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+  );
+}
+
 export interface EnhancedPromptParams {
   character: Character;
   characterId: string;
@@ -269,12 +282,14 @@ export class ChatService {
     try {
       const override = await chatOverrideRepository.findByChatId(chatId);
       if (override && override.enabled) {
+        // overrides 是 jsonb（unknown），且路由只校验为 record；这里只取字符串值参与提示词拼装
+        const stringOverrides = pickStringOverrides(override.overrides);
         chatLogger.debug('Applying chat parameter overrides', {
           chatId,
-          overrideKeys: Object.keys(override.overrides)
+          overrideKeys: Object.keys(stringOverrides)
         });
         // Merge overrides into cardData
-        cardData = { ...cardData, ...override.overrides };
+        cardData = { ...cardData, ...stringOverrides };
       }
     } catch (error) {
       chatLogger.warn('Failed to fetch chat overrides, using default parameters', {
@@ -314,7 +329,7 @@ export class ChatService {
     );
 
     if (cardData.system_prompt) {
-      let systemPrompt = cardData.system_prompt;
+      const systemPrompt = cardData.system_prompt;
       // Support {{original}} placeholder - replaces with the default system prompt
       // (handled by applyMacros via macroCtx.original)
       if (!/\{\{original\}\}/i.test(systemPrompt)) {
@@ -376,7 +391,6 @@ export class ChatService {
           ANBottom: '',
           atDepth: [],
           after: '',
-          debugInfo: null,
         };
       } else {
         // Prepend to ANTop if it exists, otherwise set it
@@ -665,7 +679,7 @@ export class ChatService {
 
       for (const line of lines) {
         // Apply full macro replacement if context available, otherwise just char/user
-        let processed = macroCtx
+        const processed = macroCtx
           ? applyMacros(line, macroCtx)
           : line.replace(/\{\{char\}\}/gi, charName).replace(/\{\{user\}\}/gi, userName);
 

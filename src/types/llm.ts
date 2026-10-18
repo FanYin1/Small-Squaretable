@@ -154,7 +154,7 @@ export interface ModelMeta {
 /**
  * LLM 提供商类型
  */
-export type LLMProvider = 'openai' | 'anthropic' | 'custom';
+export type LLMProvider = 'openai' | 'anthropic' | 'custom' | 'ollama';
 
 /**
  * LLM 提供商配置

@@ -472,7 +472,7 @@ chatRoutes.post(
       const character = await characterRepository.findById(chat.characterId);
       if (character) {
         // Fetch persona if personaId exists
-        let userName = user.name || 'User';
+        let userName = user.displayName || 'User';
         if (chat.personaId) {
           const persona = await userPersonaRepository.findById(chat.personaId);
           if (persona && persona.userId === user.id) {

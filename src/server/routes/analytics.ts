@@ -60,6 +60,17 @@ analyticsRoutes.post(
 
     try {
       const producer = await getKafkaProducer();
+      if (!producer) {
+        // Kafka 连接失败时 getKafkaProducer 返回 null：这是依赖不可用，不是服务内部错误
+        analyticsLogger.warn('Kafka producer unavailable, rejecting analytics events', {
+          eventCount: events.length,
+        });
+        return c.json({
+          success: false,
+          error: { code: 'ANALYTICS_UNAVAILABLE', message: 'Analytics pipeline is temporarily unavailable' },
+          meta: { timestamp: new Date().toISOString() },
+        }, 503);
+      }
       const messages = events.map((event) => {
         const topic = routeEventToTopic(event.eventType);
         return {

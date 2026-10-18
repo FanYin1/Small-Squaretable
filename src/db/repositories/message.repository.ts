@@ -35,10 +35,23 @@ export class MessageRepository extends BaseRepository {
     return result[0] ?? null;
   }
 
-  async update(id: number, data: { content: string }): Promise<Message | null> {
+  async update(
+    id: number,
+    data: { content?: string; pinned?: boolean; importance?: number }
+  ): Promise<Message | null> {
+    // 只写入明确传入的字段，避免 undefined 覆盖现有值，也避免编辑 pinned/importance 被静默丢弃
+    const changes: Partial<Pick<NewMessage, 'content' | 'pinned' | 'importance'>> = {};
+    if (data.content !== undefined) changes.content = data.content;
+    if (data.pinned !== undefined) changes.pinned = data.pinned;
+    if (data.importance !== undefined) changes.importance = data.importance;
+
+    if (Object.keys(changes).length === 0) {
+      return this.findById(id);
+    }
+
     const result = await this.db
       .update(messages)
-      .set({ content: data.content })
+      .set(changes)
       .where(eq(messages.id, id))
       .returning();
     return result[0] ?? null;
@@ -99,6 +112,8 @@ export class MessageRepository extends BaseRepository {
           extra: messages.extra,
           characterId: messages.characterId,
           parentMessageId: messages.parentMessageId,
+          pinned: messages.pinned,
+          importance: messages.importance,
           searchVector: messages.searchVector,
           sentAt: messages.sentAt,
           chatTitle: chats.title,
@@ -123,6 +138,8 @@ export class MessageRepository extends BaseRepository {
         extra: messages.extra,
         characterId: messages.characterId,
         parentMessageId: messages.parentMessageId,
+        pinned: messages.pinned,
+        importance: messages.importance,
         searchVector: messages.searchVector,
         sentAt: messages.sentAt,
         chatTitle: chats.title,

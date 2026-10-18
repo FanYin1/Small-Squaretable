@@ -125,6 +125,8 @@ export interface WSAssistantMessageDone extends WSMessage {
     totalTokens?: number;
     characterId?: string;
     characterName?: string;
+    /** 本轮回复是否改动了聊天变量（客户端据此刷新 ERA 变量面板） */
+    variablesChanged?: boolean;
   };
 }
 

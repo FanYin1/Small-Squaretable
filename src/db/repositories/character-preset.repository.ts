@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../index';
 import { characterPresets, type CharacterPreset, type NewCharacterPreset } from '../schema';
 
@@ -84,7 +84,7 @@ export class CharacterPresetRepository {
     await db
       .update(characterPresets)
       .set({
-        useCount: db.$count(characterPresets.useCount, '+', 1),
+        useCount: sql`${characterPresets.useCount} + 1`,
         updatedAt: new Date(),
       })
       .where(eq(characterPresets.id, id));

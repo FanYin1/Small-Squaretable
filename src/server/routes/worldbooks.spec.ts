@@ -147,6 +147,9 @@ describe('World Book Routes', () => {
         order: 0,
         enabled: true,
         depth: 0,
+        // createEntrySchema 的默认值：路由始终显式传入递归开关
+        recursive: true,
+        preventRecursion: false,
       });
     });
   });

@@ -14,6 +14,33 @@ import type { ApiResponse } from '../../types/api';
 import { worldInfoEngine } from '../services/worldinfo-engine.service';
 import { countTokens } from '../utils/tokens';
 
+/**
+ * 把 DB 行（keyword + settings JSONB）显式映射为 world-info 引擎 scanText 期望的条目结构。
+ * 读取方式与导出路由保持一致：settings 中的值缺失或类型不符时回退到列值。
+ */
+function toScanEntry(row: Awaited<ReturnType<typeof worldBookEntryRepository.findByWorldBook>>[number]) {
+  const s = (row.settings ?? {}) as Record<string, unknown>;
+  const stringArray = (v: unknown): string[] | undefined =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined;
+
+  const keys = stringArray(s.keys)?.length
+    ? (s.keys as string[])
+    : row.keyword.split(',').map((k) => k.trim()).filter(Boolean);
+
+  return {
+    id: row.id,
+    keys,
+    secondaryKeys: stringArray(s.keysSecondary),
+    content: row.content,
+    comment: typeof s.comment === 'string' ? s.comment : undefined,
+    depth: typeof s.depth === 'number' ? s.depth : row.priority,
+    constant: s.constant === true,
+    selectiveLogic: typeof s.selectiveLogic === 'string' ? s.selectiveLogic : undefined,
+    recursive: row.recursive,
+    preventRecursion: row.preventRecursion,
+  };
+}
+
 // --- Validation schemas ---
 
 const createWorldBookSchema = z.object({
@@ -653,7 +680,7 @@ worldbooksRouter.post('/:id/scan', authMiddleware(), zValidator('json', scanSche
   const entries = await worldBookEntryRepository.findByWorldBook(id);
 
   // Scan text against entries using the world info engine
-  const scanResult = worldInfoEngine.scanText(text, entries);
+  const scanResult = worldInfoEngine.scanText(text, entries.map(toScanEntry));
 
   // Format results with token counts and recursion depth
   const matches = scanResult.map(match => ({

@@ -39,14 +39,15 @@ describe('useTextToSpeech', () => {
 
     // Capture utterance instances
     (window as any).SpeechSynthesisUtterance = vi.fn(function (this: any, text: string) {
-      this.text = text;
-      this.lang = '';
-      this.rate = 1;
-      this.pitch = 1;
-      this.voice = undefined;
-      this.onend = null;
-      this.onerror = null;
-      lastUtterance = this;
+      lastUtterance = Object.assign(this, {
+        text,
+        lang: '',
+        rate: 1,
+        pitch: 1,
+        voice: undefined,
+        onend: null,
+        onerror: null,
+      });
     });
   });
 

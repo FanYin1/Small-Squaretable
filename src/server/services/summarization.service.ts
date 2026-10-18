@@ -68,6 +68,11 @@ class SummarizationService {
       model: 'glm-4.5-air', // Use fast model for summarization
       temperature: 0.3, // Lower temperature for factual summary
       max_tokens: maxSummaryTokens,
+      // 直接调用 service 时不会经过 zod 默认值填充，这里显式给出
+      stream: false,
+      n: 1,
+      presence_penalty: 0,
+      frequency_penalty: 0,
     });
 
     const summary = response.choices[0]?.message?.content || '';

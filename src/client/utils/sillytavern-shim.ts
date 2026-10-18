@@ -116,5 +116,5 @@ function buildShimScript(opts: {
   }
   window.parent.postMessage({ type: 'era-shim-ready' }, '*');
 })();
-<\/script>`;
+</script>`;
 }

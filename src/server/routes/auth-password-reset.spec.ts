@@ -30,8 +30,8 @@ vi.mock('../../db/repositories/user.repository', () => ({
 }));
 
 // Mock the rate limiter so it doesn't interfere with most tests
-vi.mock('../middleware/rateLimit', () => {
-  const { createMiddleware } = require('hono/factory');
+vi.mock('../middleware/rateLimit', async () => {
+  const { createMiddleware } = await import('hono/factory');
   const passthrough = createMiddleware(async (_c: any, next: any) => {
     await next();
   });

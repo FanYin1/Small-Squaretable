@@ -1,7 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 // Define preload/prefetch hints for performance
-// @ts-ignore - Custom webpackChunkName comment for code splitting
 const loadHome = () => import(/* webpackPrefetch: true */ '../pages/Home.vue');
 const loadLogin = () => import(/* webpackPrefetch: true */ '../pages/auth/Login.vue');
 const loadRegister = () => import(/* webpackPrefetch: true */ '../pages/auth/Register.vue');
