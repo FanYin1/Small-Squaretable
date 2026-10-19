@@ -315,7 +315,7 @@ const handleChatAction = async (command: string, chatId: string) => {
       const chat = chats.value.find(c => c.id === chatId);
       if (!chat) return;
 
-      const { value } = await ElMessageBox.prompt(
+      const result = await ElMessageBox.prompt(
         t('chat.renamePrompt'),
         t('chat.renameTitle'),
         {
@@ -327,7 +327,9 @@ const handleChatAction = async (command: string, chatId: string) => {
         }
       );
 
-      await chatStore.renameChat(chatId, value);
+      // prompt 确认后返回 { value, action }；其余情况（字符串 action）视为未输入
+      if (typeof result === 'string') return;
+      await chatStore.renameChat(chatId, result.value);
       ElMessage.success(t('common.save') + '!');
     } catch (error) {
       if (error !== 'cancel') {

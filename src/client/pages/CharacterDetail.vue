@@ -15,7 +15,7 @@ import CommentSection from '@client/components/social/CommentSection.vue';
 import ShareDialog from '@client/components/character/ShareDialog.vue';
 import CharacterStats from '@client/components/character/CharacterStats.vue';
 import ReportDialog from '@client/components/moderation/ReportDialog.vue';
-import type { RatingInput, RatingResponseDto } from '@/types/rating';
+import type { RatingInputDto, RatingResponseDto } from '@/types/rating';
 import type { CharacterCollection } from '@client/types';
 import { cleanDescription } from '@client/utils/sillytavern';
 
@@ -36,7 +36,7 @@ const loadError = ref(false);
 
 // Rating state
 const ratings = ref<RatingResponseDto | null>(null);
-const userRating = ref<RatingInput>({
+const userRating = ref<RatingInputDto>({
   quality: 0, creativity: 0, interactivity: 0, accuracy: 0, entertainment: 0,
 });
 const showRatingDialog = ref(false);

@@ -33,6 +33,8 @@ const dynamicHeight = ref<number>(0);
  * Provides eventOn/eventEmit functions that bridge to the parent page.
  * Also provides lodash _.get for ERA status bar compatibility.
  */
+// 结尾的 <\/script> 必须转义：原样的结束标签会提前结束 SFC 的 <script> 块
+/* eslint-disable no-useless-escape */
 const BRIDGE_SHIM = `
 <script>
 // CRITICAL: Define lodash shim IMMEDIATELY before any other code runs
@@ -90,6 +92,7 @@ const BRIDGE_SHIM = `
 })();
 <\/script>
 `;
+/* eslint-enable no-useless-escape */
 
 /**
  * Build the srcdoc content by injecting the bridge shim into the HTML.

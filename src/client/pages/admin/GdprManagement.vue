@@ -17,6 +17,11 @@ interface GdprRequest {
   scheduledAt: string | null;
 }
 
+interface GdprRequestsPage {
+  items: GdprRequest[];
+  pagination: { page: number; limit: number; total: number };
+}
+
 const requests = ref<GdprRequest[]>([]);
 const loading = ref(false);
 const currentPage = ref(1);
@@ -26,14 +31,13 @@ const total = ref(0);
 async function fetchRequests() {
   loading.value = true;
   try {
-    const res = await api.get('/api/v1/admin/gdpr/requests', {
-      searchParams: { page: currentPage.value, limit: pageSize.value },
+    const query = new URLSearchParams({
+      page: String(currentPage.value),
+      limit: String(pageSize.value),
     });
-    const data = await res.json();
-    if (data.success) {
-      requests.value = data.data.items;
-      total.value = data.data.pagination.total;
-    }
+    const data = await api.get<GdprRequestsPage>(`/admin/gdpr/requests?${query.toString()}`);
+    requests.value = data.items;
+    total.value = data.pagination.total;
   } catch {
     toast.error(t('common.loadFailed'));
   } finally {
@@ -52,12 +56,9 @@ async function handleProcess(row: GdprRequest) {
     return;
   }
   try {
-    const res = await api.post(`/api/v1/admin/gdpr/requests/${row.id}/process`);
-    const data = await res.json();
-    if (data.success) {
-      toast.success(t('admin.gdpr.processed'));
-      fetchRequests();
-    }
+    await api.post(`/admin/gdpr/requests/${row.id}/process`);
+    toast.success(t('admin.gdpr.processed'));
+    fetchRequests();
   } catch {
     toast.error(t('common.retry'));
   }

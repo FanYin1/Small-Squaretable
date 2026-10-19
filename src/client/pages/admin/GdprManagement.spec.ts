@@ -11,25 +11,20 @@ import i18n from '../../i18n';
 // Mock api
 vi.mock('@client/services/api', () => ({
   api: {
+    // api.get/post 返回已解包的 data 字段（而非 Response）
     get: vi.fn().mockResolvedValue({
-      json: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            items: [
-              {
-                id: 'user-1',
-                email: 'alice@example.com',
-                displayName: 'Alice',
-                deletionRequestedAt: '2026-02-01T00:00:00Z',
-                scheduledAt: '2026-03-03T00:00:00Z',
-              },
-            ],
-            pagination: { page: 1, limit: 20, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
-          },
-        }),
+      items: [
+        {
+          id: 'user-1',
+          email: 'alice@example.com',
+          displayName: 'Alice',
+          deletionRequestedAt: '2026-02-01T00:00:00Z',
+          scheduledAt: '2026-03-03T00:00:00Z',
+        },
+      ],
+      pagination: { page: 1, limit: 20, total: 1, totalPages: 1, hasNext: false, hasPrev: false },
     }),
-    post: vi.fn().mockResolvedValue({ json: () => Promise.resolve({ success: true }) }),
+    post: vi.fn().mockResolvedValue({ message: 'User deletion processed', userId: 'user-1' }),
   },
 }));
 
@@ -75,14 +70,8 @@ describe('GdprManagement Page', () => {
   it('should show empty state when no requests', async () => {
     const { api } = await import('@client/services/api');
     (api.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      json: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            items: [],
-            pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false },
-          },
-        }),
+      items: [],
+      pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false },
     });
 
     const wrapper = mount(GdprManagement, {

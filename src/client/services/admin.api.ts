@@ -131,30 +131,40 @@ export interface SystemStats {
   recentSignups7d: number;
 }
 
+/** 与服务端 audit_logs 表 / GET /admin/audit-logs 返回的行一致 */
 export interface AuditLog {
   id: string;
-  userId: string;
-  userEmail?: string;
+  actorId: string;
+  /** 服务端存的是 SHA-256 哈希后的 IP */
+  actorIp?: string | null;
   action: string;
-  targetType?: string;
-  targetId?: string;
-  details?: Record<string, unknown>;
-  ipAddress?: string;
+  targetType?: string | null;
+  targetId?: string | null;
+  metadata?: Record<string, unknown>;
   createdAt: string;
 }
 
+/** 查询参数名与服务端 auditQuerySchema 一致；dateFrom/dateTo 须为带时区的 ISO 日期时间 */
 export interface AuditLogListParams {
   page?: number;
   limit?: number;
-  userId?: string;
+  actorId?: string;
   action?: string;
+  targetType?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface AuditLogListResponse {
-  logs: AuditLog[];
-  total: number;
-  page: number;
-  limit: number;
+  items: AuditLog[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 export interface InviteCode {

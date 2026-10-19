@@ -62,8 +62,6 @@ function handleClick() {
     router.push({ name: 'UserProfile', params: { userId: targetId } });
   } else if (targetType === 'character' || type === 'favorite' || type === 'create_character') {
     router.push({ name: 'CharacterDetail', params: { id: targetId } });
-  } else if (type === 'comment' && targetType === 'character') {
-    router.push({ name: 'CharacterDetail', params: { id: targetId } });
   }
 }
 </script>

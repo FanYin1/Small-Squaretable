@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus';
 import { Plus, Delete } from '@element-plus/icons-vue';
 import VChart from 'vue-echarts';
 import { use } from 'echarts/core';
+import type { ECElementEvent } from 'echarts/core';
 import { GraphChart } from 'echarts/charts';
 import { TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -244,9 +245,11 @@ const graphOption = computed(() => ({
   ],
 }));
 
-function handleChartClick(params: { dataType: string; dataIndex: number; data?: { _rel?: CharacterRelationship } }) {
-  if (params.dataType === 'node' && params.dataIndex > 0 && params.data?._rel) {
-    openEditDialog(params.data._rel);
+function handleChartClick(params: ECElementEvent) {
+  // 节点 data 由上方 graphOption 构造，_rel 携带原始关系记录
+  const rel = (params.data as { _rel?: CharacterRelationship } | undefined)?._rel;
+  if (params.dataType === 'node' && params.dataIndex > 0 && rel) {
+    openEditDialog(rel);
   }
 }
 

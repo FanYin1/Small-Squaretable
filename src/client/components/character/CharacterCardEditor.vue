@@ -100,7 +100,7 @@
           class="format-hint"
         >
           <template #title>
-            Format: Use <code>&lt;START&gt;</code> to separate multiple examples. Use <code>{{char}}</code> and <code>{{user}}</code> placeholders.
+            Format: Use <code>&lt;START&gt;</code> to separate multiple examples. Use <code v-pre>{{char}}</code> and <code v-pre>{{user}}</code> placeholders.
           </template>
         </el-alert>
         <el-form :model="cardData" label-position="top">

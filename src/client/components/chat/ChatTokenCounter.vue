@@ -220,7 +220,7 @@ const memoryTokens = computed(() => {
 
 const emotionTokens = computed(() => {
   // Emotion state is small, estimate ~50 tokens
-  return intelligenceStore.emotion ? 50 : 0;
+  return intelligenceStore.currentEmotion ? 50 : 0;
 });
 
 const intelligenceTokens = computed(() => {

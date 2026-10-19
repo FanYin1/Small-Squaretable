@@ -12,7 +12,7 @@ import { downloadCharacterJson } from '@client/utils/sillytavern';
 import { createLogger } from '@client/utils/logger';
 import FavoriteButton from '@client/components/social/FavoriteButton.vue';
 import CommentSection from '@client/components/social/CommentSection.vue';
-import type { RatingInput, RatingResponseDto } from '@/types/rating';
+import type { RatingInputDto, RatingResponseDto } from '@/types/rating';
 import { cleanDescription } from '@client/utils/sillytavern';
 
 const logger = createLogger('CharacterDetail');
@@ -41,7 +41,7 @@ function handleResize() { isMobile.value = window.innerWidth < 768; }
 
 // Rating state
 const ratings = ref<RatingResponseDto | null>(null);
-const userRating = ref<RatingInput>({
+const userRating = ref<RatingInputDto>({
   quality: 0,
   creativity: 0,
   interactivity: 0,

@@ -64,6 +64,7 @@ export interface CharacterCardData {
   first_mes?: string;
   mes_example?: string;
   system_prompt?: string;
+  character_author_note?: string;
   creator_notes?: string;
   creator?: string;
   character_version?: string;
@@ -95,6 +96,10 @@ export interface Character {
   ratingCount?: number;
   downloadCount?: number;
   viewCount?: number;
+  /** 服务端返回角色行时附带的统计字段（ratingAvg 为 decimal，序列化后是字符串） */
+  favoriteCount?: number;
+  commentCount?: number;
+  ratingAvg?: string | number | null;
   isPublic: boolean;
   isNsfw?: boolean;
   /**

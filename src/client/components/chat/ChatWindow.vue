@@ -821,7 +821,7 @@ const getMsgHeight = (id: string | number): number => {
 };
 
 const totalEstimatedHeight = computed(() => {
-  heightsVersion.value; // reactive dependency
+  void heightsVersion.value; // reactive dependency
   let height = 0;
   for (const msg of messages.value) {
     height += getMsgHeight(msg.id);
@@ -830,7 +830,7 @@ const totalEstimatedHeight = computed(() => {
 });
 
 const visibleRange = computed(() => {
-  heightsVersion.value; // reactive dependency
+  void heightsVersion.value; // reactive dependency
   if (!messagesContainer.value || messages.value.length === 0) {
     return { start: 0, end: messages.value.length };
   }
@@ -874,7 +874,7 @@ const visibleMessages = computed(() => {
 });
 
 const topSpacerHeight = computed(() => {
-  heightsVersion.value; // reactive dependency
+  void heightsVersion.value; // reactive dependency
   const { start } = visibleRange.value;
   let height = 0;
   for (let i = 0; i < start; i++) {
@@ -884,7 +884,7 @@ const topSpacerHeight = computed(() => {
 });
 
 const bottomSpacerHeight = computed(() => {
-  heightsVersion.value; // reactive dependency
+  void heightsVersion.value; // reactive dependency
   const { end } = visibleRange.value;
   let height = 0;
   for (let i = end; i < messages.value.length; i++) {
@@ -1045,11 +1045,13 @@ const handleMenuCommand = async (command: string) => {
     await handleExport('txt');
   } else if (command === 'rename') {
     try {
-      const { value } = await ElMessageBox.prompt(t('chat.renamePrompt'), t('chat.renameTitle'), {
+      const result = await ElMessageBox.prompt(t('chat.renamePrompt'), t('chat.renameTitle'), {
         confirmButtonText: t('common.confirm'),
         cancelButtonText: t('common.cancel'),
         inputValue: props.currentChat.title || props.currentChat.characterName,
       });
+      // prompt 确认后返回 { value, action }；字符串 action 视为未输入
+      const value = typeof result === 'string' ? '' : result.value;
       if (value?.trim()) {
         await chatStore.renameChat(props.currentChat.id, value.trim());
       }
@@ -1124,7 +1126,11 @@ const handleToolsDropdown = (command: string) => {
     case 'debug': openIntelligenceTab('debug'); break;
     case 'growth': showGrowthPanel.value = true; break;
     case 'pinned': showPinnedDrawer.value = true; break;
-    case 'search': showSearchBar.value = !showSearchBar.value; break;
+    case 'search':
+      // 复用顶部消息搜索栏（与更多菜单的 search 行为一致）
+      showSearch.value = !showSearch.value;
+      if (!showSearch.value) chatStore.clearSearch();
+      break;
   }
 };
 

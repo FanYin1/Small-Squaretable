@@ -64,6 +64,8 @@ const srcdocContent = computed(() => {
   // Build HTML document with shim + all enabled scripts
   const scriptTags = props.scripts
     .filter(s => s.enabled && s.type === 'script')
+    // 必须转义：原样的结束标签会提前结束 SFC 的 <script> 块
+    // eslint-disable-next-line no-useless-escape
     .map(s => `<script type="module">${s.content}<\/script>`)
     .join('\n');
 

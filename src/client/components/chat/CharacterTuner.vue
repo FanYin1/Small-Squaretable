@@ -200,6 +200,12 @@ interface Props {
   characterId?: string;
 }
 
+interface ChatOverride {
+  enabled: boolean;
+  overrides?: Record<string, string>;
+  note?: string | null;
+}
+
 interface Emits {
   (e: 'update:modelValue', value: boolean): void;
   (e: 'applied'): void;
@@ -216,7 +222,7 @@ const visible = computed({
 // State
 const presets = ref<any[]>([]);
 const selectedPresetId = ref<string | null>(null);
-const currentOverride = ref<any>(null);
+const currentOverride = ref<ChatOverride | null>(null);
 const overrideEnabled = ref(true);
 const applying = ref(false);
 const showPresetDialog = ref(false);
@@ -261,10 +267,12 @@ const presetForm = ref({
 // Load presets
 async function loadPresets() {
   try {
-    const response = await api.get('/presets', {
-      params: props.characterId ? { characterId: props.characterId } : {},
-    });
-    presets.value = response.data.data || [];
+    // api.get 已解包 data 字段；查询参数需拼在 URL 上（RequestInit 不支持 params）
+    const query = props.characterId
+      ? `?${new URLSearchParams({ characterId: props.characterId }).toString()}`
+      : '';
+    const response = await api.get<unknown[] | null>(`/presets${query}`);
+    presets.value = response || [];
   } catch (error) {
     console.error('Failed to load presets:', error);
   }
@@ -273,8 +281,8 @@ async function loadPresets() {
 // Load current override
 async function loadCurrentOverride() {
   try {
-    const response = await api.get(`/chats/${props.chatId}/overrides`);
-    currentOverride.value = response.data.data;
+    const response = await api.get<ChatOverride | null>(`/chats/${props.chatId}/overrides`);
+    currentOverride.value = response ?? null;
 
     if (currentOverride.value) {
       overrideEnabled.value = currentOverride.value.enabled;

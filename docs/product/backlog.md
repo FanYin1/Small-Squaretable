@@ -557,13 +557,21 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
 - **依赖**：P0-3
 - **估时**：2–3 天
 
-### [ ] P4-5 补上 .vue 文件的类型检查与 lint
+### [x] P4-5 补上 .vue 文件的类型检查与 lint
 
 `npx tsc --noEmit` 不检查 `.vue` 文件，项目没有装 `vue-tsc`；ESLint 配置也忽略了 `.vue`。也就是说前端组件里的类型错误和 lint 问题目前没有任何工具在拦，P0-2 / P0-5 的"清零"只覆盖了 `.ts`。
 
 - **范围**：引入 `vue-tsc`（锁定版本）与 `eslint-plugin-vue`，`package.json` 增加 `typecheck` 脚本，CI 接入
 - **验收**：`vue-tsc --noEmit` 与 `npm run lint` 覆盖 `.vue`，并在 CI 中执行；首次接入暴露的存量错误要么修完，要么记录数量后分批清理（不得用全局 ignore 掩盖）
 - **估时**：半天接入 + 视存量错误数而定
+- **结论（2026-10-19）**：存量全部修完，没有记账分批
+  - 依赖（锁定版本）：`vue-tsc@3.3.13`、`eslint-plugin-vue@10.11.1`、`vue-eslint-parser@10.4.1`
+  - 没有另加 `typecheck` 脚本，而是把现有 `type-check` 从 `tsc --noEmit` 改成 `vue-tsc --noEmit`（`.ts` 一并覆盖）；CI 的 type-check job 和 CONTRIBUTING 里的命令因此不用改
+  - ESLint 用 `flat/essential`（只拦会出错的写法，不含格式规则）。`.vue` 关掉 `no-undef`（同 typescript-eslint 对 `.ts` 的建议，未定义名由 vue-tsc 查）；`vue/multi-word-component-names` 对 `src/client/pages/**` 关闭（路由页面不作为标签使用），其余只放过 `Toast`。两处 `<\/script>` 的转义是 SFC 必需的，用行内 disable 并注明原因
+  - 首次接入：vue-tsc 46 error / 20 文件；ESLint 232 error（209 个是 `no-undef` 误报浏览器全局）。现在 vue-tsc 0、lint 0 error / 269 warning（warning 未动）
+  - 修复中发现的真实运行时 bug（行为已变）：ChatWindow 工具菜单"搜索"引用未定义的 `showSearchBar`（点击即抛错）；WorldBookTester 导入名写错（`worldBookApi`，扫描永远失败）；ChatTokenCounter 读不存在的 `emotion`（情绪 token 恒为 0）；CharacterTuner / PresetManager 把已解包的响应再取 `.data.data`、查询参数塞进 RequestInit 被丢弃（预设与覆盖加载不出来）；admin Experiments 四个调用全坏（`/api/v1` 重复、对已解包数据调 `res.json()`）；admin GDPR 列表同类问题；审计日志的参数名与返回结构与服务端不符（`userId/startDate` → `actorId/dateFrom`，`{logs,total}` → `{items,pagination}`，日期须为带时区 ISO）；CharacterCardEditor 模板里的 `{{char}}` / `{{user}}` 被当成插值（改 `v-pre` 显示原文）
+  - 未改（不是类型错误）：CharacterTuner / PresetManager 的 catch 读 `error.response?.data?.message` 是 axios 写法，对 `ApiError` 恒为 undefined，用户只看到默认提示
+  - 验证：vue-tsc 0、tsc 0、lint 0 error、vitest 3059 通过 / 17 跳过、`npm run build` 通过
 
 ### [ ] P4-4 文档收口
 

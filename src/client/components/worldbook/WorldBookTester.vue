@@ -137,7 +137,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from '@element-plus/icons-vue';
-import { worldBookApi } from '@client/services/worldbook.api';
+import { worldbookApi } from '@client/services/worldbook.api';
 
 interface WorldBookEntry {
   id: string;
@@ -192,7 +192,7 @@ async function scanEntries() {
 
   scanning.value = true;
   try {
-    const response = await worldBookApi.scanEntries(props.worldBookId, testText.value);
+    const response = await worldbookApi.scanEntries(props.worldBookId, testText.value);
     matchedEntries.value = response.matches;
   } catch (error) {
     ElMessage.error('Failed to scan entries');

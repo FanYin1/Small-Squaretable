@@ -5,12 +5,12 @@ import { View, Download, Star, ChatDotRound, StarFilled } from '@element-plus/ic
 
 const props = defineProps<{
   character: {
-    viewCount: number;
-    downloadCount: number;
-    favoriteCount: number;
-    commentCount: number;
-    ratingAvg: number | string | null;
-    ratingCount: number;
+    viewCount?: number;
+    downloadCount?: number;
+    favoriteCount?: number;
+    commentCount?: number;
+    ratingAvg?: number | string | null;
+    ratingCount?: number;
   };
 }>();
 
@@ -24,7 +24,7 @@ const stats = computed(() => [
   {
     label: t('characterStats.rating'),
     value: props.character.ratingAvg
-      ? `${Number(props.character.ratingAvg).toFixed(1)} (${props.character.ratingCount})`
+      ? `${Number(props.character.ratingAvg).toFixed(1)} (${props.character.ratingCount ?? 0})`
       : '-',
     icon: StarFilled,
   },

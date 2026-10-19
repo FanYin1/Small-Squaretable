@@ -18,9 +18,10 @@ function loadLogs() {
     page: currentPage.value,
     limit: pageSize.value,
     action: actionFilter.value || undefined,
-    userId: actorSearch.value || undefined,
-    startDate: dateRange.value?.[0] || undefined,
-    endDate: dateRange.value?.[1] || undefined,
+    actorId: actorSearch.value || undefined,
+    // 服务端要求带时区的 ISO 日期时间；选择的是 YYYY-MM-DD，按本地时区取当天起止
+    dateFrom: dateRange.value?.[0] ? new Date(`${dateRange.value[0]}T00:00:00`).toISOString() : undefined,
+    dateTo: dateRange.value?.[1] ? new Date(`${dateRange.value[1]}T23:59:59.999`).toISOString() : undefined,
   });
 }
 
@@ -118,9 +119,9 @@ watch(actorSearch, () => {
           {{ formatTimestamp(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column prop="userId" :label="t('admin.auditLogs.actor')" min-width="160">
+      <el-table-column prop="actorId" :label="t('admin.auditLogs.actor')" min-width="160">
         <template #default="{ row }">
-          <span>{{ row.userEmail || row.userId }}</span>
+          <span>{{ row.actorId }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="action" :label="t('admin.auditLogs.action')" min-width="180">
@@ -142,7 +143,7 @@ watch(actorSearch, () => {
       </el-table-column>
       <el-table-column :label="t('admin.auditLogs.ip')" width="140">
         <template #default="{ row }">
-          <code v-if="row.ipAddress">{{ row.ipAddress.slice(0, 12) }}...</code>
+          <code v-if="row.actorIp">{{ row.actorIp.slice(0, 12) }}...</code>
           <span v-else class="text-muted">-</span>
         </template>
       </el-table-column>

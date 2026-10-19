@@ -39,7 +39,7 @@ const router = useRouter();
 const chatStore = useChatStore();
 const userStore = useUserStore();
 
-const currentChat = computed(() => chatStore.currentChat);
+const currentChat = computed(() => chatStore.currentChat ?? null);
 const currentChatId = computed(() => chatStore.currentChatId);
 const creatingChat = ref(false);
 const showPersonaSelector = ref(false);

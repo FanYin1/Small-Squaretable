@@ -33,12 +33,12 @@
     <!-- Sidebar wrapper -->
     <!-- inert: 收起/移出屏幕的侧栏不应被 Tab 键或读屏访问到。
          注意 inert 只要属性存在（哪怕 ="false"）就生效，且 Vue 不把它当布尔属性，
-         所以必须用 '' / undefined 切换，不能直接绑布尔值。 -->
+         所以必须用 true / undefined 切换（undefined 才会移除属性），不能绑 false。 -->
     <aside
       id="chat-sidebar-drawer"
       ref="sidebarRef"
       tabindex="-1"
-      :inert="sidebarHidden ? '' : undefined"
+      :inert="sidebarHidden ? true : undefined"
       :role="isMobile ? 'dialog' : undefined"
       :aria-modal="isMobile && mobileOpen ? 'true' : undefined"
       :aria-label="isMobile ? t('chat.sidebar.drawerLabel') : undefined"
