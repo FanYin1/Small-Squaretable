@@ -6,6 +6,7 @@ import {
   mockCommonEndpoints,
   gotoWithAuth,
   mockLLMStream,
+  mockUnhandledApi,
 } from './utils/helpers';
 
 /**
@@ -62,9 +63,7 @@ const messagesFor = (n: 1 | 2, name: string) => ({
 
 async function setupMocks(page: Page) {
   // Catch-all first (Playwright matches the most recently registered route first).
-  await page.route('**/api/v1/**', (route) => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: {} }) });
-  });
+  await mockUnhandledApi(page);
   await mockApiResponse(page, '**/api/v1/chats', CHATS_LIST);
   await mockApiResponse(page, '**/api/v1/characters*', CHARACTERS);
   await mockApiResponse(page, '**/api/v1/chat-templates*', { success: true, data: [] });

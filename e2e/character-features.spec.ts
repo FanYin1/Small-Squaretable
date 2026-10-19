@@ -23,6 +23,8 @@ test.describe('Character Features', () => {
       success: true,
       data: [],
     });
+    // Unmocked, this hits the real server, 401s and logs the test out
+    await mockApiResponse(page, '**/api/v1/character-collections*', { success: true, data: [] });
     await gotoWithAuth(page, '/my-characters');
     await waitForNetworkIdle(page);
     expect(page.url()).toContain('/my-characters');

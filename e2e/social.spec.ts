@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, gotoWithAuth } from './utils/helpers';
+import { setupAuth, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, gotoWithAuth, mockModules } from './utils/helpers';
 
 /**
  * E2E Tests: Social Features
@@ -13,6 +13,13 @@ const TARGET_USER_ID = 'user_2';
 const TARGET_CHARACTER_ID = 'char_1';
 
 test.describe('Social Features', () => {
+  // P2-1：这些页面属于默认关闭的模块，测试里显式打开
+  test.beforeEach(async ({ page }) => {
+    await mockModules(page, ['social_follow']);
+    // CharacterDetail loads the user's collections; unmocked it hits the real server, 401s and logs the test out
+    await mockApiResponse(page, '**/api/v1/character-collections*', { success: true, data: [] });
+  });
+
   // 1. User profile page loads (public)
   test('user profile page loads', async ({ page }) => {
     await setupAuth(page);

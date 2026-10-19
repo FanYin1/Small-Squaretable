@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints } from './utils/helpers';
+import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, mockModules } from './utils/helpers';
 
 /**
  * E2E Tests: Plugin Marketplace
@@ -34,6 +34,11 @@ const MARKETPLACE_MOCK = {
 };
 
 test.describe('Plugin Marketplace', () => {
+  // P2-1：这些页面属于默认关闭的模块，测试里显式打开
+  test.beforeEach(async ({ page }) => {
+    await mockModules(page, ['plugins']);
+  });
+
   // 1. Plugin marketplace loads
   test('plugin marketplace loads', async ({ page }) => {
     await setupAuth(page, { plan: 'pro' });

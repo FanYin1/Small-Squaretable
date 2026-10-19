@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, gotoWithAuth } from './utils/helpers';
+import { setupAuth, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, gotoWithAuth, mockModules } from './utils/helpers';
 
 /**
  * E2E Tests: Developer API Portal
@@ -27,6 +27,11 @@ const SAMPLE_KEY = {
 };
 
 test.describe('Developer API Portal', () => {
+  // P2-1：这些页面属于默认关闭的模块，测试里显式打开
+  test.beforeEach(async ({ page }) => {
+    await mockModules(page, ['webhooks_developer']);
+  });
+
   // 1. Developer page loads
   test('developer page loads', async ({ page }) => {
     await setupAuth(page);

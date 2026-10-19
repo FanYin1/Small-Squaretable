@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, setupAdminAuth, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, mockChatEndpoints } from './utils/helpers';
+import { setupAuth, setupAdminAuth, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, mockChatEndpoints, mockModules } from './utils/helpers';
 
 /**
  * E2E Tests: Admin Features
@@ -60,6 +60,11 @@ async function gotoAdminPage(page: import('@playwright/test').Page, adminPath: s
 }
 
 test.describe('Admin Features', () => {
+  // P2-1：这些页面属于默认关闭的模块，测试里显式打开
+  test.beforeEach(async ({ page }) => {
+    await mockModules(page, ['admin_advanced']);
+  });
+
   test('admin system dashboard loads', async ({ page }) => {
     await setupAdminAuth(page);
     await mockCommonEndpoints(page);

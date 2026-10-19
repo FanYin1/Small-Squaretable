@@ -30,6 +30,11 @@ async function mockSubscriptionEndpoints(page: import('@playwright/test').Page) 
     success: true,
     data: { messagesUsed: 10, messagesLimit: 100, charactersUsed: 2, charactersLimit: 10, resetDate: '2026-03-01T00:00:00Z' },
   });
+  // CreditsBalance (P3-1) loads the balance; unmocked it hits the real server, 401s and logs the test out
+  await mockApiResponse(page, '**/api/v1/credits/balance', {
+    success: true,
+    data: { billingMode: 'subscription', tokensPerPoint: 1000, balanceTokens: 0, heldTokens: 0, availableTokens: 0, balancePoints: 0, availablePoints: 0 },
+  });
 }
 
 test.describe('Subscription', () => {

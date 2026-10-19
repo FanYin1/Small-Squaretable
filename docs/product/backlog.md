@@ -344,6 +344,13 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   - 顺带：vitals 上报不再要求 `X-Tenant-ID`
   - **已知存量问题（未修）**：analytics 打开时 "Kafka bridge started" 打两次日志；`NotificationBell` 跳转的几个路由名不存在
 - **验收状态**：1–4 均满足。tsc 0 error，lint 0 error，vitest 284 文件 / 3025 通过 / 17 skip，build 通过
+- **更正（2026-10-19）**：上面的"4 满足"当时只跑了 vitest，**Playwright E2E 没跑**。分支整体验证时补跑，E2E 155 通过 / 54 失败（master 基线 88 通过 / 1 失败）。原因与处理：
+  - 聊天类 spec 的兜底 mock 把 `/auth/me` 也吞成 `{data:{}}`，新的异步模块守卫一等待，`initialize()` 就判定未登录清掉鉴权 → 跳登录页。抽成 `e2e/utils/helpers.ts` 的 `mockUnhandledApi()`，放行 `/auth/me`、`/auth/refresh`
+  - 被关模块的页面默认渲染 404。新增 `mockModules(page, [...])`，analytics / plugins / developer / social / admin / recommendations 六个 spec 在 `beforeEach` 里显式打开对应模块；新增 `e2e/module-flags.spec.ts` 覆盖"关闭 → 404 且 URL 不变 / 开关接口失败 → 按关闭处理 / 打开 → 正常渲染"
+  - 市场三列网格用例还按 1024px 当平板，P1-3 统一断点后 1024 已是桌面，改 900px
+  - 未 mock 的真实请求 401 后登出：`/character-collections`（存量问题，master 上 social 收藏用例就因此失败）、`/credits/balance`（P3-1 订阅页新增的余额组件）。补 mock
+  - 修复后全量 211 通过 / 2 失败；这两个用例补 mock 后与 `module-flags.spec.ts` 一起复跑，11/11 通过
+  - 本地跑 E2E 需要 `E2E_INVITE_CODE`，开发库里已种了邀请码 `E2E-LOCAL-RUN`
 
 ### [ ] P2-2 immersive 提为默认主题
 

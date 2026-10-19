@@ -6,6 +6,7 @@ import {
   mockCommonEndpoints,
   gotoWithAuth,
   mockLLMStream,
+  mockUnhandledApi,
 } from './utils/helpers';
 
 /**
@@ -124,9 +125,7 @@ const SEND_MESSAGE_RESPONSE = {
 /** Mock all endpoints needed for the chat page with chats in the sidebar. */
 async function setupChatPageMocks(page: import('@playwright/test').Page) {
   // Catch-all to prevent unmocked API calls from hitting real server
-  await page.route('**/api/v1/**', (route) => {
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: {} }) });
-  });
+  await mockUnhandledApi(page);
 
   await mockApiResponse(page, '**/api/v1/chats', CHATS_LIST);
   await mockApiResponse(page, '**/api/v1/characters*', CHARACTERS);

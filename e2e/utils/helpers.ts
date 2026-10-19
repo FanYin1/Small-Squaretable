@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test';
+import { MODULE_NAMES, type ModuleName } from '../../src/types/modules';
 
 /**
  * Test Utilities
@@ -218,6 +219,42 @@ export async function mockApiResponse(
       status,
       contentType: 'application/json',
       body: JSON.stringify(response),
+    });
+  });
+}
+
+/**
+ * Mock GET /api/v1/config/modules (P2-1 feature flags).
+ *
+ * The client treats every optional module as closed unless this endpoint says
+ * otherwise, and closed-module routes render NotFound. Specs that exercise a
+ * gated feature (plugins, analytics, follow, ...) must open it explicitly.
+ */
+export async function mockModules(page: Page, enabled: readonly ModuleName[] | 'all') {
+  const open = new Set<ModuleName>(enabled === 'all' ? MODULE_NAMES : enabled);
+  const data = Object.fromEntries(MODULE_NAMES.map((name) => [name, open.has(name)]));
+  await mockApiResponse(page, '**/api/v1/config/modules', { success: true, data });
+}
+
+/**
+ * Catch-all for API calls a spec does not mock, so nothing reaches the real
+ * server. Register it BEFORE the specific mocks (Playwright tries the most
+ * recently registered route first).
+ *
+ * Auth endpoints fall through to the mocks setupAuth() registered earlier.
+ * Without that, /auth/me would get `data: {}`, userStore.initialize() would
+ * clear the token, and the router guard (which now waits for the module flags
+ * before the first navigation) would send the test to the login page.
+ */
+export async function mockUnhandledApi(page: Page) {
+  await page.route('**/api/v1/**', (route) => {
+    if (/\/api\/v1\/auth\/(me|refresh)(\?|$)/.test(route.request().url())) {
+      return route.fallback();
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: {} }),
     });
   });
 }

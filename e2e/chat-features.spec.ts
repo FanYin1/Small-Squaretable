@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { clearSession, waitForNetworkIdle, mockApiResponse, setupAuth, mockCommonEndpoints, mockChatEndpoints, gotoWithAuth } from './utils/helpers';
+import { clearSession, waitForNetworkIdle, mockApiResponse, setupAuth, mockCommonEndpoints, mockChatEndpoints, gotoWithAuth, mockUnhandledApi } from './utils/helpers';
 
 /**
  * E2E Tests: Chat Features
@@ -68,9 +68,7 @@ test.describe('Chat Features', () => {
 
     // Catch-all FIRST: prevent any unmocked API call from hitting real server (401 → redirect to /login)
     // Playwright matches routes in LIFO order, so this catch-all must be registered BEFORE specific mocks
-    await page.route('**/api/v1/**', (route) => {
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: {} }) });
-    });
+    await mockUnhandledApi(page);
 
     await setupChatMocks(page);
     await mockApiResponse(page, '**/api/v1/chats/chat_1/messages*', { success: true, data: [] });
