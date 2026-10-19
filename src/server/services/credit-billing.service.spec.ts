@@ -394,7 +394,10 @@ describe('sweepExpired / assertHasCredits / isEnabled', () => {
   });
 
   it('assertHasCredits：可用额度 > 0 通过，否则 402', async () => {
-    await expect(creditBilling.assertHasCredits(TENANT)).rejects.toBeInstanceOf(InsufficientCreditsError);
+    const err = await creditBilling.assertHasCredits(TENANT).catch((e) => e);
+    expect(err).toBeInstanceOf(InsufficientCreditsError);
+    // 前置检查不知道本次要花多少，不带 required，前端退回"点数用完"的通用文案
+    expect(err.details).toEqual({ availableTokens: 0, availablePoints: 0 });
     topUp(TENANT, 10);
     await expect(creditBilling.assertHasCredits(TENANT)).resolves.toBeUndefined();
   });

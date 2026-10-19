@@ -43,12 +43,20 @@ export const HARD_MAX_OUTPUT_TOKENS = 16384;
 const SWEEP_BATCH = 500;
 
 export class InsufficientCreditsError extends AppError {
-  constructor(details: { requiredTokens: number; availableTokens: number }) {
-    super('Insufficient credits', 402, 'INSUFFICIENT_CREDITS', {
-      ...details,
-      requiredPoints: tokensToPoints(details.requiredTokens),
+  /** requiredTokens 缺省 = 不知道本次要花多少（前置检查），前端只显示通用文案 */
+  constructor(details: { requiredTokens?: number; availableTokens: number }) {
+    const available = {
+      availableTokens: details.availableTokens,
       availablePoints: tokensToPoints(Math.max(details.availableTokens, 0)),
-    });
+    };
+    super(
+      'Insufficient credits',
+      402,
+      'INSUFFICIENT_CREDITS',
+      details.requiredTokens === undefined
+        ? available
+        : { requiredTokens: details.requiredTokens, requiredPoints: tokensToPoints(details.requiredTokens), ...available },
+    );
     this.name = 'InsufficientCreditsError';
   }
 }
@@ -117,7 +125,7 @@ export const creditBilling = {
   async assertHasCredits(tenantId: string): Promise<void> {
     const { available } = await creditRepository.getAvailability(tenantId);
     if (available <= 0) {
-      throw new InsufficientCreditsError({ requiredTokens: 1, availableTokens: available });
+      throw new InsufficientCreditsError({ availableTokens: available });
     }
   },
 

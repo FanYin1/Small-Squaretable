@@ -427,7 +427,7 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   - 发布：开关开时 NSFW 卡可发布，卡片 NSFW 标记仍必填
 - **验收状态**：1–3 满足。关于 1 的一处偏差：合集与 `/suggestions` 过去**不过滤** NSFW（漏网），现在开关关闭时也会隐藏——这是修漏，不是行为倒退
 - **未做 / 待决定**：
-  - ~~存量用户（P0-0 之前注册、`age_confirmed_at` 为空）没有补确认年龄的入口~~ 已补（2026-10-19）：`POST /api/v1/users/me/age-confirmation`（幂等，记时间 + 截断 IP 哈希 + 审计日志）+ 设置页按钮弹窗确认。并发两次请求可能都写入（后写覆盖前写），影响可忽略，未加条件更新
+  - ~~存量用户（P0-0 之前注册、`age_confirmed_at` 为空）没有补确认年龄的入口~~ 已补（2026-10-19）：`POST /api/v1/users/me/age-confirmation`（幂等，记时间 + 截断 IP 哈希 + 审计日志）+ 设置页按钮弹窗确认。并发两次请求可能都写入（后写覆盖前写），影响可忽略，未加条件更新。浏览器实测（2026-10-19）：弹窗文案正确，确认后入口消失、`age_confirmed_at` 写入；本地直连没有 `X-Forwarded-For`，`age_confirmed_ip` 为空，与注册路径一致（IP 只从代理头取），部署在反代后才会有值
   - 用户主页的 `characterCount` 和合集的 `itemCount` 仍计入 NSFW 卡，数字比可见列表多，只泄露数量
   - 单卡 JSON 导出原本就不检查权限（存量问题，NSFW 判断已补，公开性判断未补）
 
@@ -476,6 +476,8 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   - 规则：点数不会过期，不能退款（写进订阅页已有的点数规则列表）
   - 超出冻结的部分由平台吸收：接受
   - 402 统一做余额报警弹窗（WebSocket 与 HTTP `/api/v1/llm` 两条通道）
+- **浏览器实测（2026-10-19，`BILLING_MODE=credits`，零余额新用户发消息）**：弹窗出现，「查看余额」跳 `/subscription`。实测发现前置检查 `assertHasCredits` 用 `requiredTokens: 1` 构造错误，弹窗写成"需要约 0.0001 点"，误导。改为前置检查不带 required，前端退回"点数用完"通用文案；真正预扣不足时仍显示所需 / 可用点数
+- **已知存量问题（未修）**：`/chat/:chatId` 路由不会选中该会话，`Chat.vue` 只读 `localStorage.lastChatId`；`Search.vue` / `Notifications.vue` 跳 `ChatSession` 实际落到空聊天页。master 上同样存在
 
 ### [ ] P3-2 让用户看见消耗
 
