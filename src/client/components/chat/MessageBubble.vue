@@ -393,7 +393,7 @@ const setImportance = (importance: number) => {
 
 .message-user .bubble {
   background: var(--accent);
-  color: var(--text-inverse);
+  color: var(--accent-on);
   border-radius: 18px 18px 4px 18px;
   display: inline-block;
 }

@@ -19,9 +19,6 @@ import SkeletonCardImmersive from '@client/components/ui/SkeletonCardImmersive.v
 import RecommendationCarousel from '@client/components/recommendation/RecommendationCarousel.vue';
 import type { Character } from '@client/types';
 
-// 样板面：沉浸叙事视觉语言，作用域限定在 .immersive 容器内
-import '@client/styles/immersive.css';
-
 const toast = useToast();
 const router = useRouter();
 const { t } = useI18n();
@@ -126,13 +123,7 @@ function handleBrowseAll() {
 </script>
 
 <template>
-  <!--
-    immersive 通过 attribute fallthrough 落到 DashboardLayout 的根元素，
-    因此侧栏和顶栏也进入同一套深色令牌——否则顶栏（SearchCombo 所在的
-    #center 插槽）仍是浅色，会和下方深色内容区拼出一道明显接缝。
-    整个样板面的回退方式就是删掉这一个 class。
-  -->
-  <DashboardLayout class="immersive">
+  <DashboardLayout>
     <template #title>{{ $t('market.title') }}</template>
     <template #center>
       <SearchCombo
@@ -193,12 +184,7 @@ function handleBrowseAll() {
 </template>
 
 <style scoped lang="scss">
-/*
- * 样板面：沉浸叙事。所有视觉取值走 --im-* 令牌（见 styles/immersive.css），
- * 不读全局 --accent/--bg-*，因此该页的改动无法回流影响其它页面。
- */
-/* 深色底由 .immersive（挂在 DashboardLayout 根上）提供，
-   这里不再需要负 margin 去抵消内容区 padding。 */
+/* 配色全部走全站主题令牌（variables.css），本页不再有专属的深色作用域。 */
 .market-content {
   display: flex;
   flex-direction: column;
@@ -228,31 +214,31 @@ function handleBrowseAll() {
    只改 --el-* 变量，不重写其 DOM 结构，升级时不易崩。 */
 .pagination-wrapper :deep(.el-pagination) {
   --el-pagination-bg-color: transparent;
-  --el-pagination-text-color: var(--im-content-muted);
-  --el-pagination-button-color: var(--im-content-muted);
-  --el-pagination-button-bg-color: var(--im-raised);
-  --el-pagination-button-disabled-color: var(--im-content-faint);
-  --el-pagination-button-disabled-bg-color: var(--im-surface);
-  --el-pagination-hover-color: var(--im-accent);
-  --el-color-primary: var(--im-accent);
-  --el-disabled-bg-color: var(--im-surface);
-  --el-text-color-regular: var(--im-content-muted);
-  --el-fill-color-blank: var(--im-raised);
-  --el-fill-color: var(--im-raised);
-  --el-fill-color-light: var(--im-overlay);
+  --el-pagination-text-color: var(--text-secondary);
+  --el-pagination-button-color: var(--text-secondary);
+  --el-pagination-button-bg-color: var(--bg-surface);
+  --el-pagination-button-disabled-color: var(--text-tertiary);
+  --el-pagination-button-disabled-bg-color: var(--bg-subtle);
+  --el-pagination-hover-color: var(--accent);
+  --el-color-primary: var(--accent);
+  --el-disabled-bg-color: var(--bg-subtle);
+  --el-text-color-regular: var(--text-secondary);
+  --el-fill-color-blank: var(--bg-surface);
+  --el-fill-color: var(--bg-surface);
+  --el-fill-color-light: var(--bg-hover);
 }
 
 /* 选中页码：琥珀底 + 炭黑字（≈8.5:1）。琥珀底配白字只有 ≈2.1:1，不达 AA。 */
 .pagination-wrapper :deep(.el-pager li.is-active) {
-  color: var(--im-accent-on);
-  background: var(--im-accent);
+  color: var(--accent-on);
+  background: var(--accent);
   border-radius: 8px;
 }
 
 .pagination-wrapper :deep(.el-pagination button:focus-visible),
 .pagination-wrapper :deep(.el-pager li:focus-visible) {
   outline: none;
-  box-shadow: var(--im-focus-ring);
+  box-shadow: var(--focus-ring);
   border-radius: 8px;
 }
 

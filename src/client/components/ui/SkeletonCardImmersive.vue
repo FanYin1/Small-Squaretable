@@ -13,7 +13,7 @@ withDefaults(
 
 <template>
   <div class="im-skel-grid" aria-hidden="true">
-    <div v-for="i in count" :key="i" class="im-skel">
+    <div v-for="i in count" :key="i" class="im-skel" data-theme="dark">
       <div class="im-skel__body">
         <div class="im-skel__line im-skel__line--tag"></div>
         <div class="im-skel__line im-skel__line--name"></div>
@@ -33,14 +33,14 @@ withDefaults(
 .im-skel {
   position: relative;
   aspect-ratio: 3 / 4;
-  border-radius: var(--im-radius-lg);
-  border: 1px solid var(--im-border);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-subtle);
   overflow: hidden;
   background: linear-gradient(
     100deg,
-    var(--im-surface) 20%,
-    var(--im-raised) 50%,
-    var(--im-surface) 80%
+    var(--bg-subtle) 20%,
+    var(--bg-surface) 50%,
+    var(--bg-subtle) 80%
   );
   background-size: 220% 100%;
   animation: im-skel-shimmer 1.4s infinite linear;
@@ -66,8 +66,8 @@ withDefaults(
 
 .im-skel__line {
   height: 10px;
-  border-radius: var(--im-radius-pill);
-  background: var(--im-overlay);
+  border-radius: var(--radius-full);
+  background: var(--bg-hover);
 }
 
 .im-skel__line--tag {

@@ -268,8 +268,9 @@ onUnmounted(() => {
   }
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
+/* Dark mode support：跟随应用主题（<html data-theme>），而不是系统偏好——
+   默认主题是暗色，系统无偏好时 media 查询不会命中，toast 会在暗色页面上显示成浅色 */
+[data-theme="dark"] {
   .toast {
     background: #1F2937;
     border-color: #374151;
@@ -311,7 +312,7 @@ onUnmounted(() => {
   color: #1E40AF;
 }
 
-@media (prefers-color-scheme: dark) {
+[data-theme="dark"] {
   .toast-success .toast-title {
     color: #6EE7B7;
   }

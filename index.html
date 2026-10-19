@@ -2,15 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      主题必须在首帧前确定，否则默认暗色的用户每次刷新都会先闪一下浅色。
+      这段同步脚本只做一件事：按与 src/client/utils/theme.ts 的 resolveTheme 相同的规则
+      设置 <html data-theme>。规则：localStorage 里的显式选择 > 系统明确偏好浅色 > 暗色。
+      键名与规则改动时两处必须同步，utils/theme.spec.ts 会读本文件逐组合比对。
+      故意不用 ES module / 箭头函数 / const：必须在任何 JS 包加载之前、在最老的浏览器里也能跑。
+    -->
+    <script>
+      (function () {
+        var theme = null;
+        try {
+          theme = localStorage.getItem('theme-preference');
+        } catch (e) {}
+        if (theme !== 'light' && theme !== 'dark') {
+          theme =
+            window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <!--
       原值是 Element Plus 默认蓝 #409eff，与品牌毫无关系——它决定移动端浏览器
       地址栏的底色，是用户看到的第一块颜色。改为设计令牌里的 --bg-base。
-      两条 media 分别对应浅色 / 深色，顺序不能反（后者更具体）。
+      默认主题改为暗色（P2-2），所以暗色是无 media 的兜底项，浅色 media 在前：系统明确偏好浅色才用浅色，
+      与 resolveTheme 的规则一致。用户在应用内手动切换后的地址栏颜色不随之改变（meta 不跟 data-theme）。
     -->
     <meta name="theme-color" content="#FAF9F6" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1A1918" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#0F0E0D" />
 
     <!--
       首屏字体预载。@font-face 在打包后的 CSS 里，浏览器要先下完那份 CSS 才发现

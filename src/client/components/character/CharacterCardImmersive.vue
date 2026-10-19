@@ -62,6 +62,7 @@ function startChat(e: Event) {
        按此定位卡片）。样式一律走 im-card__*，两者互不干扰。 -->
   <article
     class="im-card character-card"
+    data-theme="dark"
     role="button"
     tabindex="0"
     :aria-label="character.name"
@@ -132,33 +133,35 @@ function startChat(e: Event) {
   width: 100%;
   /* 竖构图，贴合角色立绘 */
   aspect-ratio: 3 / 4;
-  border-radius: var(--im-radius-lg);
+  border-radius: var(--radius-card);
   overflow: hidden;
   cursor: pointer;
-  background: var(--im-surface);
-  border: 1px solid var(--im-border);
+  background: var(--bg-subtle);
+  /* 卡片自带 data-theme="dark"，文字色要显式取，不然在浅色主题下继承页面的深色文字 */
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
   transition:
-    border-color var(--im-dur) var(--im-ease),
-    transform var(--im-dur) var(--im-ease);
+    border-color var(--duration-soft) var(--ease-soft),
+    transform var(--duration-soft) var(--ease-soft);
   isolation: isolate;
 }
 
 .im-card:hover,
 .im-card:focus-visible {
-  border-color: var(--im-border-accent);
+  border-color: var(--border-accent);
   transform: translateY(-3px);
 }
 
 .im-card:focus-visible {
   outline: none;
-  box-shadow: var(--im-focus-ring);
+  box-shadow: var(--focus-ring);
 }
 
 /* ---------- 封面 ---------- */
 .im-card__cover {
   position: absolute;
   inset: 0;
-  background: var(--im-sunken);
+  background: var(--bg-sunken);
 }
 
 .im-card__img {
@@ -169,8 +172,8 @@ function startChat(e: Event) {
   object-position: 50% 22%;
   opacity: 0;
   transition:
-    opacity 420ms var(--im-ease),
-    transform 620ms var(--im-ease);
+    opacity 420ms var(--ease-soft),
+    transform 620ms var(--ease-soft);
 }
 
 .im-card__img.is-loaded {
@@ -186,9 +189,9 @@ function startChat(e: Event) {
   inset: 0;
   background: linear-gradient(
     100deg,
-    var(--im-surface) 20%,
-    var(--im-raised) 50%,
-    var(--im-surface) 80%
+    var(--bg-subtle) 20%,
+    var(--bg-surface) 50%,
+    var(--bg-subtle) 80%
   );
   background-size: 220% 100%;
   animation: im-shimmer 1.4s infinite linear;
@@ -206,7 +209,7 @@ function startChat(e: Event) {
 .im-card__scrim {
   position: absolute;
   inset: 0;
-  background: var(--im-scrim);
+  background: var(--cover-scrim);
 }
 
 /* ---------- NSFW 角标 ---------- */
@@ -216,13 +219,13 @@ function startChat(e: Event) {
   right: 10px;
   z-index: 2;
   padding: 3px 8px;
-  font-size: var(--im-text-xs);
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--im-content);
+  color: var(--text-primary);
   background: rgba(10, 9, 8, 0.7);
-  border: 1px solid var(--im-border-strong);
-  border-radius: var(--im-radius-pill);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
   backdrop-filter: blur(6px);
 }
 
@@ -240,15 +243,15 @@ function startChat(e: Event) {
 
 /*
  * 文字底衬。跟着文字块高度走（简介展开时自动变高），保证最坏情况
- * ——纯白立绘——下文字仍有 ≥0.90 的暗底，实测 faint 4.60:1 过 AA。
- * 若只靠整卡 --im-scrim，卡片变高时文字会漂到淡区从而跌破 AA。
+ * ——纯白立绘——下文字仍有 ≥0.90 的暗底，实测暗灰字 4.60:1 过 AA。
+ * 若只靠整卡 --cover-scrim，卡片变高时文字会漂到淡区从而跌破 AA。
  */
 .im-card__body::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: var(--im-scrim-text);
+  background: var(--cover-scrim-text);
   pointer-events: none;
 }
 
@@ -260,21 +263,21 @@ function startChat(e: Event) {
 
 .im-card__tag {
   padding: 2px 8px;
-  font-size: var(--im-text-xs);
+  font-size: 11px;
   font-weight: 500;
-  color: var(--im-accent);
-  background: var(--im-accent-wash);
-  border: 1px solid var(--im-border-accent);
-  border-radius: var(--im-radius-pill);
+  color: var(--accent);
+  background: var(--accent-wash);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-full);
 }
 
 .im-card__name {
   margin: 0;
-  font-family: var(--im-font-display);
+  font-family: var(--font-display);
   font-size: 21px;
   font-weight: 600;
   line-height: 1.2;
-  color: var(--im-content);
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -283,9 +286,9 @@ function startChat(e: Event) {
 /* 简介：静态收起，悬停展开 —— 静态时画面让给立绘 */
 .im-card__desc {
   margin: 0;
-  font-size: var(--im-text-sm);
+  font-size: 13px;
   line-height: 1.55;
-  color: var(--im-content-muted);
+  color: var(--text-secondary);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -293,8 +296,8 @@ function startChat(e: Event) {
   max-height: 0;
   opacity: 0;
   transition:
-    max-height var(--im-dur) var(--im-ease),
-    opacity var(--im-dur) var(--im-ease);
+    max-height var(--duration-soft) var(--ease-soft),
+    opacity var(--duration-soft) var(--ease-soft);
 }
 
 .im-card:hover .im-card__desc,
@@ -315,24 +318,24 @@ function startChat(e: Event) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--im-text-sm);
+  font-size: 13px;
   font-weight: 500;
-  color: var(--im-content);
+  color: var(--text-primary);
 }
 
 .im-card__rating--empty {
-  color: var(--im-content-faint);
+  color: var(--text-tertiary);
   font-weight: 400;
 }
 
 .im-card__star {
   width: 13px;
   height: 13px;
-  color: var(--im-accent);
+  color: var(--accent);
 }
 
 .im-card__rating-count {
-  color: var(--im-content-faint);
+  color: var(--text-tertiary);
   font-weight: 400;
 }
 
@@ -341,38 +344,38 @@ function startChat(e: Event) {
   flex-shrink: 0;
   padding: 7px 15px;
   font-family: inherit;
-  font-size: var(--im-text-sm);
+  font-size: 13px;
   font-weight: 600;
-  color: var(--im-accent);
+  color: var(--accent);
   background: transparent;
-  border: 1px solid var(--im-border-accent);
-  border-radius: var(--im-radius-pill);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-full);
   cursor: pointer;
   transition:
-    background var(--im-dur) var(--im-ease),
-    color var(--im-dur) var(--im-ease),
-    border-color var(--im-dur) var(--im-ease);
+    background var(--duration-soft) var(--ease-soft),
+    color var(--duration-soft) var(--ease-soft),
+    border-color var(--duration-soft) var(--ease-soft);
 }
 
 .im-card:hover .im-card__cta {
-  color: var(--im-accent-on);
-  background: var(--im-accent);
-  border-color: var(--im-accent);
+  color: var(--accent-on);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .im-card__cta:hover {
-  background: var(--im-accent-hover);
-  border-color: var(--im-accent-hover);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .im-card__cta:active {
-  background: var(--im-accent-press);
-  border-color: var(--im-accent-press);
+  background: var(--accent-press);
+  border-color: var(--accent-press);
 }
 
 .im-card__cta:focus-visible {
   outline: none;
-  box-shadow: var(--im-focus-ring);
+  box-shadow: var(--focus-ring);
 }
 
 /* ---------- 触屏：无悬停，简介常驻 ---------- */
@@ -383,9 +386,9 @@ function startChat(e: Event) {
   }
 
   .im-card__cta {
-    color: var(--im-accent-on);
-    background: var(--im-accent);
-    border-color: var(--im-accent);
+    color: var(--accent-on);
+    background: var(--accent);
+    border-color: var(--accent);
     /* 触控目标不小于 44px 高 */
     padding: 10px 16px;
   }

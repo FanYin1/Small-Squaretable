@@ -73,7 +73,6 @@ const handleSortChange = (value: string) => {
     <div class="filter-item">
       <label class="filter-label">{{ $t('market.filters.category') }}</label>
       <el-select
-        popper-class="im-select-popper"
         :model-value="selectedCategory"
         :placeholder="$t('market.filters.selectCategory')"
         size="default"
@@ -91,7 +90,6 @@ const handleSortChange = (value: string) => {
     <div class="filter-item">
       <label class="filter-label">{{ $t('market.filters.tags') }}</label>
       <el-select
-        popper-class="im-select-popper"
         :model-value="selectedTags"
         :placeholder="$t('market.filters.selectTags')"
         multiple
@@ -113,7 +111,6 @@ const handleSortChange = (value: string) => {
     <div class="filter-item">
       <label class="filter-label">{{ $t('market.filters.sort') }}</label>
       <el-select
-        popper-class="im-select-popper"
         :model-value="sortBy"
         size="default"
         @update:model-value="handleSortChange"
