@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   assessSampleSize,
   renderPricingReport,
-  tokensToPoints,
+  tokensToPointsUnrounded,
   MIN_GENERATIONS_FOR_PERCENTILES,
   MIN_TENANTS_FOR_MONTHLY_PERCENTILES,
   type Distribution,
@@ -39,10 +39,10 @@ function input(overrides: Partial<PricingReportInput> = {}): PricingReportInput 
   };
 }
 
-describe('tokensToPoints', () => {
+describe('tokensToPointsUnrounded', () => {
   it('按 tokensPerPoint 换算，不取整', () => {
-    expect(tokensToPoints(6200, 10000)).toBeCloseTo(0.62, 10);
-    expect(tokensToPoints(0, 10000)).toBe(0);
+    expect(tokensToPointsUnrounded(6200, 10000)).toBeCloseTo(0.62, 10);
+    expect(tokensToPointsUnrounded(0, 10000)).toBe(0);
   });
 });
 

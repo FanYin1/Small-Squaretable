@@ -48,7 +48,11 @@ export interface PricingReportInput {
 export const MIN_GENERATIONS_FOR_PERCENTILES = 100;
 export const MIN_TENANTS_FOR_MONTHLY_PERCENTILES = 10;
 
-export function tokensToPoints(tokens: number, tokensPerPoint: number): number {
+/**
+ * 估算报告用的换算，不取整、不读 config（本模块保持纯函数）。
+ * 账本与用户展示请用 credit-units 的 tokensToPoints（按 POINT_DECIMALS 取整）。
+ */
+export function tokensToPointsUnrounded(tokens: number, tokensPerPoint: number): number {
   return tokens / tokensPerPoint;
 }
 
@@ -57,7 +61,7 @@ function fmtInt(n: number): string {
 }
 
 function fmtPoints(tokens: number, tokensPerPoint: number): string {
-  const points = tokensToPoints(tokens, tokensPerPoint);
+  const points = tokensToPointsUnrounded(tokens, tokensPerPoint);
   return points >= 100 ? points.toFixed(0) : points >= 1 ? points.toFixed(2) : points.toFixed(4);
 }
 

@@ -6,11 +6,11 @@
  * 写：打开偏好要求平台开关开启且用户已确认年龄（users.age_confirmed_at 非空）。
  */
 
-import crypto from 'crypto';
 import { userRepository } from '../../db/repositories/user.repository';
 import { canViewNsfw, isNsfwAllowed } from '../../db/repositories/nsfw-visibility';
 import { AppError, NotFoundError } from '../../core/errors';
 import { auditService } from './audit.service';
+import { ageConfirmationFields } from '../utils/age-confirmation';
 
 /** 未确认年龄的用户尝试打开偏好。前端据此引导确认年龄，不要把它当成普通 403。 */
 export const AGE_CONFIRMATION_REQUIRED = 'AGE_CONFIRMATION_REQUIRED';
@@ -24,11 +24,6 @@ export interface NsfwPreferenceState {
   showNsfw: boolean;
   /** 是否已确认年龄；false 时无法打开偏好 */
   ageConfirmed: boolean;
-}
-
-/** 与 auth.service / audit_logs 保持一致：截断的 SHA-256，够用于比对，又不是明文 IP。 */
-function hashIp(ip: string): string {
-  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
 }
 
 export class NsfwPreferenceService {
@@ -55,10 +50,7 @@ export class NsfwPreferenceService {
       };
     }
 
-    const updated = await this.userRepo.update(userId, {
-      ageConfirmedAt: new Date(),
-      ageConfirmedIp: actorIp ? hashIp(actorIp) : null,
-    });
+    const updated = await this.userRepo.update(userId, ageConfirmationFields(actorIp));
     if (!updated) {
       throw new NotFoundError('User');
     }

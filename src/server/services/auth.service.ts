@@ -15,6 +15,7 @@ import { UnauthorizedError, ValidationError, BadRequestError } from '../../core/
 import { sendEmail } from '../../core/email';
 import { config } from '../../core/config';
 import { auditService } from './audit.service';
+import { ageConfirmationFields } from '../utils/age-confirmation';
 import { inviteCodeService, InviteCodeError, normalizeInviteCode } from './invite-code.service';
 import type { RegisterInput, LoginInput, AuthTokens, AuthUser } from '../../types/auth';
 import type { User } from '../../db/schema/users';
@@ -33,11 +34,6 @@ export type LoginResult =
  * 让客户端能自己填 IP 等于让证据可伪造。
  */
 export type RegisterContext = RegisterInput & { actorIp?: string };
-
-/** 与 audit_logs 保持一致：截断的 SHA-256，够用于比对，又不是明文 IP。 */
-function hashIp(ip: string): string {
-  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
-}
 
 export class AuthService {
   async register(input: RegisterContext): Promise<{ user: AuthUser; tokens: AuthTokens }> {
@@ -79,9 +75,7 @@ export class AuthService {
             passwordHash,
             tenantId: createdTenant.id,
             displayName: input.displayName ?? null,
-            // 时间点 + 哈希 IP 才是这份声明的证据，单个 boolean 事后无法举证。
-            ageConfirmedAt: new Date(),
-            ageConfirmedIp: input.actorIp ? hashIp(input.actorIp) : null,
+            ...ageConfirmationFields(input.actorIp),
           },
           tx
         );

@@ -6,7 +6,6 @@
  */
 
 import { Google, GitHub, generateState, generateCodeVerifier, OAuth2Tokens } from 'arctic';
-import crypto from 'crypto';
 import { config } from '../../core/config';
 import { oauthRepository } from '../../db/repositories/oauth.repository';
 import { userRepository } from '../../db/repositories/user.repository';
@@ -15,6 +14,7 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '.
 import { redis } from '../../core/redis';
 import { BadRequestError } from '../../core/errors';
 import { inviteCodeService, InviteCodeError, normalizeInviteCode } from './invite-code.service';
+import { ageConfirmationFields } from '../utils/age-confirmation';
 import type { AuthUser, AuthTokens } from '../../types/auth';
 
 // --- Provider registry ---
@@ -70,11 +70,6 @@ export interface OAuthSignupContext extends AgeConsent {
 
 const REFRESH_TOKEN_PREFIX = 'refresh_token:';
 const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60; // 7 days
-
-/** 与 audit_logs / authService 保持一致的截断 SHA-256。 */
-function hashIp(ip: string): string {
-  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
-}
 
 // --- Service ---
 
@@ -211,8 +206,7 @@ export const oauthService = {
             displayName: profile.displayName,
             avatarUrl: profile.avatarUrl,
             emailVerified: true, // OAuth emails are pre-verified
-            ageConfirmedAt: new Date(),
-            ageConfirmedIp: consent.actorIp ? hashIp(consent.actorIp) : null,
+            ...ageConfirmationFields(consent.actorIp),
           } as any,
           tx,
         );

@@ -3,7 +3,7 @@
 > **唯一的活动任务清单。** 不在本文中的工作，先进本文再开始做。
 > 定位与边界见 [`positioning.md`](./positioning.md)。视觉规范见 [`../design/visual-language.md`](../design/visual-language.md)。
 >
-> 最后修订：2026-10-18（审计后修订：新增 P0-6、P0-7、P2-6、P3-3 与里程碑；修正 P1-1、P1-3、P2-1 中与代码不符之处）｜ 基线：`9063c7e`
+> 最后修订：2026-10-19（P2-6 存量用户补确认、P3-1 余额报警与规则文案落地；并发检查脚本入库 `scripts/credit-concurrency-check.ts`）｜ 上次：2026-10-18 审计后修订 ｜ 基线：`9063c7e`
 
 ## 使用约定
 
