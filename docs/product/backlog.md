@@ -352,7 +352,7 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   - 修复后全量 211 通过 / 2 失败；这两个用例补 mock 后与 `module-flags.spec.ts` 一起复跑，11/11 通过
   - 本地跑 E2E 需要 `E2E_INVITE_CODE`，开发库里已种了邀请码 `E2E-LOCAL-RUN`
 
-### [ ] P2-2 immersive 提为默认主题
+### [x] P2-2 immersive 提为默认主题
 
 现状矛盾：`src/client/styles/immersive.css`（242 行）是质量最高的一层视觉工作——暗色叙事语言、遮罩 alpha 按纯白立绘最坏情况实测推导、Element Plus 的 teleport popper 作用域问题都解决了——但它**只在 `Market.vue` 一个页面生效**。同时 `useTheme.ts` 默认 `light`，且不读 `prefers-color-scheme`。
 
@@ -373,6 +373,13 @@ WebSocket 是主聊天通道。而本产品的全部功能都在堆输入 contex
   - **FOUC 需要在 `index.html` 的 `<head>` 里加内联脚本。** 现在 `index.html` 只有一个 `type="module"` 的入口脚本，主题要等整个 JS 包加载完才设置。默认改成暗色后，每次刷新都会先闪一下浅色。内联脚本只做一件事：读 `localStorage` 与 `prefers-color-scheme`，同步设好 `data-theme`
 - **依赖**：P2-1 做完后 QA 面从 44 页降到约 15 页，再做这条成本低得多。**不要反序**
 - **估时**：2 天（P2-1 之后）／4+ 天（之前）
+- **结论（2026-10-19，1b75bbc）**：六条验收满足
+  - 解析规则：显式选择 > 系统明确偏好浅色 > 暗色。TS 端只在 `utils/theme.ts` 定义一次，`index.html` 内联脚本镜像，`theme.spec.ts` 执行该脚本逐组合比对。只有用户显式切换才写 localStorage
+  - `immersive.css` 整文件删除，`--im-*` 并入 `[data-theme="dark"]`，`.dark` 并行选择器移除；Element Plus 弹层直接继承根节点令牌，`popper-class` 去掉
+  - 用户气泡文字改 `--accent-on`：浅色 3.19 → 5.51:1，暗色 8.17:1（`theme-contrast.spec.ts` 守住）
+  - 实测（Playwright 计算色，非截图）：`data-theme` 在 `readyState=loading`、`body` 尚不存在时已设好；el-select / dropdown / popover / dialog / message-box 在暗色下为深底
+  - 待人工看：Market 以外页面在新暗色色阶下的观感（未逐页看）；图片卡片在浅色主题下仍是暗色卡面；`theme-color` meta 不随应用内手动切换；`stores/ui.ts` 是另一套未使用的主题 store（只被 `stores/index.ts` 再导出），未删
+  - 现有 E2E 未跑（隔离工作区里不能起 3000/5173 与灌种子）
 
 ### [ ] P2-3 onboarding
 
