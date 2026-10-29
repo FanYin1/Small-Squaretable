@@ -1,14 +1,30 @@
-# Small Squaretable
+# 小方桌 Small Squaretable
 
-> 基于角色卡的探索式互动体验：快速开始、推荐行动与自由输入、持续状态与游玩记忆。
+> 从一张角色卡开始，走进一段可以由你推动、也能在下次继续的故事。
+
+小方桌是一款角色卡驱动的互动故事应用。选择角色与开场后，你可以通过推荐行动或自由输入探索剧情；故事会保留重要状态与游玩记忆，让人物、地点和已经发生的事在多轮对话中保持连续。
+
+角色卡负责人物与故事设定，世界书可以补充人物、概念和常识。进入故事时会沿用角色卡已有设定，不要求用户先理解复杂配置。产品仍在积极开发中，部分卡片规则和状态适配能力尚有限，详见[当前开发状态](docs/product/current-work.md)。
+
+## 产品实机
+
+以下为产品页面的实际浏览器截图，展示角色发现、故事库和故事对话界面。
+
+### 发现角色
+
+![小方桌发现角色页面实机截图](docs/design/exploration-07ac-integration/production-discover-1440-dark.webp)
+
+### 我的故事
+
+![小方桌我的故事页面实机截图](docs/design/exploration-07ac-integration/production-library-1440-dark.webp)
+
+### 故事对话
+
+![小方桌故事对话页面实机截图](docs/deployment/evidence/story-entry-creator-07ac-play-1440-dark.webp)
 
 ## 项目概述
 
-让用户选择角色卡，以自己的身份逐步参与剧情，并在离开后继续同一段体验。默认使用角色卡已绑定的设定；世界书也可以补充人物、常识和概念，不要求用户每次选择世界。
-
-**当前阶段**：探索式体验已接入正式前后端，**3081 本机验收候选**运行`exploration-20261026-corrections`，见[入口、步骤与限制](docs/deployment/exploration-candidate.md)。七页入口、可视化创作、账户与当前状态优先概况已接入；新故事冻结身份、角色和绑定世界书。推荐默认直接提交，支持独立故事笔记与记忆；[纠正、独立分支与阅读恢复](docs/product/story-corrections-delivery-20261026.md)已完成有限工程及部署核验。第三方卡的持续数值适配与完整工作流、人工视觉/真机和真实模型体验仍待完成，不伪造未知状态或把自动化当用户签收。历史3080与原型5188保留，当前工作见[活动待办](docs/product/backlog.md)，模型额度见[累计授权台账](docs/product/engineering-model-test-budget.md)。
-**版本**: 0.1.0
-**最后更新**: 2026-10-26
+项目面向喜欢角色扮演与互动叙事的用户，重点探索快速进入故事、逐步推动剧情、保留世界状态，以及离开后延续同一段体验。产品决策、已交付能力与待验收事项见[产品体验基线](docs/product/exploration-experience-baseline.md)、[当前工作](docs/product/current-work.md)和[活动待办](docs/product/backlog.md)。
 
 ## 开发必读
 
