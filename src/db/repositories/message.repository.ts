@@ -16,22 +16,33 @@ export class MessageRepository extends BaseRepository {
     if (pagination?.before) {
       conditions.push(lt(messages.id, pagination.before));
     }
-    if (pagination?.after) {
+    if (pagination?.after != null) {
       conditions.push(gt(messages.id, pagination.after));
     }
 
-    let query = this.db.select().from(messages).where(and(...conditions)).$dynamic();
+    const query = this.db.select().from(messages).where(and(...conditions)).$dynamic();
 
     if (pagination) {
-      query = query.limit(pagination.limit);
+      const page = await query.limit(pagination.limit).orderBy(pagination.after != null ? asc(messages.id) : desc(messages.id));
+      return pagination.after != null ? page : page.reverse();
     }
-
-    // Order by sentAt ascending so oldest messages appear first (top of chat)
-    return await query.orderBy(asc(messages.sentAt));
+    return await query.orderBy(asc(messages.sentAt), asc(messages.id));
   }
 
   async findById(id: number): Promise<Message | null> {
     const result = await this.db.select().from(messages).where(eq(messages.id, id));
+    return result[0] ?? null;
+  }
+
+  async findByClientMessageId(chatId: string, clientMessageId: string): Promise<Message | null> {
+    const result = await this.db
+      .select()
+      .from(messages)
+      .where(and(
+        eq(messages.chatId, chatId),
+        sql`${messages.extra}->>'clientMessageId' = ${clientMessageId}`
+      ))
+      .limit(1);
     return result[0] ?? null;
   }
 

@@ -1,0 +1,50 @@
+[dotenv@17.3.1] injecting env (30) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+
+ RUN  v4.0.18 /var/aichat/Small-Squaretable
+
+ ❯ |server| src/server/routes/character-patch.spec.ts (6 tests | 2 failed) 69ms
+     × does not write a private version when an unauthorized editor belongs to tenant-123 30ms
+     × does not write a private version when an unauthorized editor belongs to tenant-other 6ms
+     ✓ retains an authorized author version before applying the edit 10ms
+     ✓ should strip isNsfw from collaborator updates 6ms
+     ✓ should return 403 for collaborator from a different tenant 5ms
+     ✓ should allow owner to update all fields including isNsfw 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |server| src/server/routes/character-patch.spec.ts > PATCH /api/v1/characters/:id > does not write a private version when an unauthorized editor belongs to tenant-123
+ FAIL  |server| src/server/routes/character-patch.spec.ts > PATCH /api/v1/characters/:id > does not write a private version when an unauthorized editor belongs to tenant-other
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st vi.fn() call:
+
+    Array [
+      "char-1",
+      Object {
+        "first_mes": "private original",
+      },
+      "not-the-author",
+      "Auto-save before edit",
+    ]
+
+
+Number of calls: 1
+
+ ❯ src/server/routes/character-patch.spec.ts:145:53
+    143|     });
+    144|     expect(response.status).toBe(403);
+    145|     expect(characterVersionService.saveVersion).not.toHaveBeenCalled();
+       |                                                     ^
+    146|     expect(characterService.update).not.toHaveBeenCalled();
+    147|     expect(mockDbUpdate).not.toHaveBeenCalled();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 4 passed (6)
+   Start at  22:01:38
+   Duration  2.52s (transform 657ms, setup 63ms, import 2.18s, tests 69ms, environment 0ms)
+

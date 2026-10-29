@@ -9,6 +9,8 @@ import { useWorldBookStore } from '@client/stores/worldbook';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import type { WorldBookEntry, CreateEntryInput } from '@client/services/worldbook.api';
 import { worldbookApi } from '@client/services/worldbook.api';
+import WorldbookPurposeField from '@client/components/worldbook/WorldbookPurposeField.vue';
+import { worldbookPositions, worldbookLogics } from '../../types/worldbook-export';
 
 const route = useRoute();
 const router = useRouter();
@@ -35,7 +37,9 @@ const showNewEntry = ref(false);
 interface EntrySettings {
   keys: string[];
   keysSecondary: string[];
-  selectiveLogic: number;
+  selectiveLogic: string;
+  position: string;
+  squaretablePurpose?: string;
   comment: string;
   depth: number;
   order: number;
@@ -51,8 +55,6 @@ interface EntrySettings {
 interface EntryForm {
   keyword: string;
   content: string;
-  position: number;
-  priority: number;
   isEnabled: boolean;
   settings: EntrySettings;
   recursive: boolean;
@@ -60,13 +62,13 @@ interface EntryForm {
 }
 
 const defaultSettings = (): EntrySettings => ({
-  keys: [], keysSecondary: [], selectiveLogic: 0, comment: '', depth: 4, order: 100,
+  keys: [], keysSecondary: [], selectiveLogic: 'AND_ANY', position: 'before', comment: '', depth: 4, order: 100,
   constant: false, probability: 100, sticky: 0, cooldown: 0, delay: 0,
   caseSensitive: false, matchWholeWords: false,
 });
 
 const defaultEntryForm = (): EntryForm => ({
-  keyword: '', content: '', position: 0, priority: 10, isEnabled: true,
+  keyword: '', content: '', isEnabled: true,
   settings: defaultSettings(), recursive: true, preventRecursion: false,
 });
 
@@ -77,21 +79,13 @@ const newSecKeywordInput = ref('');
 const editKeywordInput = ref('');
 const editSecKeywordInput = ref('');
 
-const positionOptions = [
-  { value: 0, label: () => t('worldBookEditor.pos0') },
-  { value: 1, label: () => t('worldBookEditor.pos1') },
-  { value: 2, label: () => t('worldBookEditor.pos2') },
-  { value: 3, label: () => t('worldBookEditor.pos3') },
-  { value: 4, label: () => t('worldBookEditor.pos4') },
-  { value: 5, label: () => t('worldBookEditor.pos5') },
-  { value: 6, label: () => t('worldBookEditor.pos6') },
-];
+const positionOptions = worldbookPositions.map((value, index) => ({ value, label: () => t(`worldBookEditor.pos${index}`) }));
 
 const selectiveLogicOptions = [
-  { value: 0, label: () => t('worldBookEditor.logicAndAny') },
-  { value: 1, label: () => t('worldBookEditor.logicAndAll') },
-  { value: 2, label: () => t('worldBookEditor.logicNotAny') },
-  { value: 3, label: () => t('worldBookEditor.logicNotAll') },
+  { value: 'AND_ANY', label: () => t('worldBookEditor.logicAndAny') },
+  { value: 'AND_ALL', label: () => t('worldBookEditor.logicAndAll') },
+  { value: 'NOT_ANY', label: () => t('worldBookEditor.logicNotAny') },
+  { value: 'NOT_ALL', label: () => t('worldBookEditor.logicNotAll') },
 ];
 
 // Computed
@@ -114,7 +108,9 @@ function scopeTagType(scope: string) {
 
 function capitalize(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-function getPositionLabel(pos: number): string { return t(`worldBookEditor.pos${pos}`); }
+function getPositionLabel(entry: WorldBookEntry): string {
+  return positionOptions.find(option => option.value === entry.settings?.position)?.label() ?? t('worldBookEditor.pos0');
+}
 
 function getEntryKeywords(entry: WorldBookEntry): string[] {
   const s = entry.settings as Partial<EntrySettings> | undefined;
@@ -133,9 +129,9 @@ function entryToForm(entry: WorldBookEntry): EntryForm {
   const s = entry.settings as Partial<EntrySettings> | undefined;
   const keys = s?.keys || (entry.keyword ? entry.keyword.split(',').map((k) => k.trim()).filter(Boolean) : []);
   return {
-    keyword: entry.keyword, content: entry.content, position: entry.position,
-    priority: entry.priority, isEnabled: entry.isEnabled,
-    settings: { ...defaultSettings(), ...s, keys, keysSecondary: s?.keysSecondary || [] },
+    keyword: entry.keyword, content: entry.content, isEnabled: entry.isEnabled,
+    settings: { ...defaultSettings(), ...s, keys, keysSecondary: s?.keysSecondary || [], order: entry.position,
+      selectiveLogic: typeof s?.selectiveLogic === 'number' ? worldbookLogics[s.selectiveLogic] ?? 'AND_ANY' : s?.selectiveLogic ?? 'AND_ANY' },
     recursive: entry.recursive ?? true,
     preventRecursion: entry.preventRecursion ?? false,
   };
@@ -143,8 +139,8 @@ function entryToForm(entry: WorldBookEntry): EntryForm {
 
 function formToInput(form: EntryForm): CreateEntryInput & { isEnabled: boolean } {
   return {
-    keyword: form.settings.keys.join(', '), content: form.content, position: form.position,
-    priority: form.priority, isEnabled: form.isEnabled, settings: { ...form.settings },
+    keyword: form.settings.keys.join(', '), content: form.content, position: form.settings.order,
+    priority: form.settings.depth, isEnabled: form.isEnabled, settings: { ...form.settings },
     recursive: form.recursive, preventRecursion: form.preventRecursion,
   };
 }
@@ -338,6 +334,7 @@ async function handleImportFile(event: Event) {
         </template>
         <!-- Inline form fields for new entry -->
         <el-form label-position="top" class="entry-form">
+          <WorldbookPurposeField v-model="newEntryForm.settings.squaretablePurpose" />
           <!-- FORM_TRIGGER_NEW -->
           <div class="form-section">
             <h4>{{ t('worldBookEditor.primaryKeys') }}</h4>
@@ -379,16 +376,13 @@ async function handleImportFile(event: Event) {
           <div class="form-section">
             <h4>{{ t('worldBookEditor.injectionSettings') }}</h4>
             <el-form-item :label="t('worldBookEditor.position')">
-              <el-select v-model="newEntryForm.position" style="width: 100%">
+              <el-select v-model="newEntryForm.settings.position" style="width: 100%">
                 <el-option v-for="opt in positionOptions" :key="opt.value"
                   :value="opt.value" :label="opt.label()" />
               </el-select>
             </el-form-item>
-            <el-form-item v-if="newEntryForm.position === 4" :label="t('worldBookEditor.depth')">
+            <el-form-item :label="t('worldBookEditor.depth')">
               <el-input-number v-model="newEntryForm.settings.depth" :min="0" :max="999" />
-            </el-form-item>
-            <el-form-item :label="t('worldBookEditor.priority')">
-              <el-input-number v-model="newEntryForm.priority" :min="0" :max="999" />
             </el-form-item>
             <el-form-item label="Insertion Order">
               <el-input-number v-model="newEntryForm.settings.order" :min="0" :max="9999" />
@@ -457,11 +451,11 @@ async function handleImportFile(event: Event) {
             </div>
             <div class="entry-meta">
               <span class="content-preview">{{ truncate(entry.content) }}</span>
-              <el-tag size="small" type="info">{{ getPositionLabel(entry.position) }}</el-tag>
+              <el-tag size="small" type="info">{{ getPositionLabel(entry) }}</el-tag>
               <el-tag size="small" type="warning">P{{ entry.priority }}</el-tag>
               <el-switch v-model="entry.isEnabled" size="small" @change="toggleEntryEnabled(entry)" />
-              <el-button text :icon="Edit" size="small" @click="toggleEditEntry(entry)" />
-              <el-button text :icon="Delete" size="small" type="danger" @click="handleDeleteEntry(entry)" />
+              <el-button text :icon="Edit" size="small" :aria-label="t('worldBookEditor.editEntry')" @click="toggleEditEntry(entry)" />
+              <el-button text :icon="Delete" size="small" type="danger" :aria-label="t('common.delete')" @click="handleDeleteEntry(entry)" />
             </div>
           </div>
 
@@ -475,6 +469,7 @@ async function handleImportFile(event: Event) {
               </div>
             </div>
             <el-form label-position="top" class="entry-form">
+              <WorldbookPurposeField v-model="editForms[entry.id].settings.squaretablePurpose" />
               <div class="form-section">
                 <h4>{{ t('worldBookEditor.primaryKeys') }}</h4>
                 <div class="keyword-tags">
@@ -514,16 +509,13 @@ async function handleImportFile(event: Event) {
               <div class="form-section">
                 <h4>{{ t('worldBookEditor.injectionSettings') }}</h4>
                 <el-form-item :label="t('worldBookEditor.position')">
-                  <el-select v-model="editForms[entry.id].position" style="width: 100%">
+                  <el-select v-model="editForms[entry.id].settings.position" style="width: 100%">
                     <el-option v-for="opt in positionOptions" :key="opt.value"
                       :value="opt.value" :label="opt.label()" />
                   </el-select>
                 </el-form-item>
-                <el-form-item v-if="editForms[entry.id].position === 4" :label="t('worldBookEditor.depth')">
+                <el-form-item :label="t('worldBookEditor.depth')">
                   <el-input-number v-model="editForms[entry.id].settings.depth" :min="0" :max="999" />
-                </el-form-item>
-                <el-form-item :label="t('worldBookEditor.priority')">
-                  <el-input-number v-model="editForms[entry.id].priority" :min="0" :max="999" />
                 </el-form-item>
                 <el-form-item label="Insertion Order">
                   <el-input-number v-model="editForms[entry.id].settings.order" :min="0" :max="9999" />

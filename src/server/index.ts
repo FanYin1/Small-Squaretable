@@ -11,6 +11,7 @@ import { closeRedis } from '../core/redis';
 import { logger as appLogger, getLogConfig } from './services/logger.service';
 import { initializeSentry, closeSentry } from './services/sentry.service';
 import { spendBreaker } from './services/spend-breaker.service';
+import { startStoryAdapterWorker } from './services/story-adapter-jobs.service';
 import { errorHandler } from './middleware/error-handler';
 import { requestIdMiddleware } from './middleware/request-id';
 import { requestTimingMiddleware } from './middleware/request-timing';
@@ -22,6 +23,7 @@ import { isModuleEnabled, getModuleFlags } from '../core/modules';
 import { MODULE_NAMES } from '../types/modules';
 import { securityHeaders, developmentSecurityHeaders } from './middleware/security';
 import { csrfProtection, getCsrfToken } from './middleware/csrf';
+import { authMiddleware } from './middleware/auth';
 import { authRateLimit, apiRateLimit, searchRateLimit, socialCommentRateLimit, reportRateLimit, exportRateLimit, analyticsIngestionRateLimit } from './middleware/rateLimit';
 import { authRoutes } from './routes/auth';
 import { userRoutes } from './routes/users';
@@ -62,6 +64,7 @@ import chatOverrideRoutes from './routes/chat-overrides';
 import { characterRelationshipsRouter } from './routes/character-relationships';
 import { characterGrowthRouter } from './routes/character-growth';
 import { searchRoutes } from './routes/search';
+import { createFrontendRoutes } from './routes/frontend';
 import { pluginBridge } from './services/plugin-bridge';
 import { kafkaBridge } from './services/kafka-bridge.service';
 import { activityService } from './services/activity.service';
@@ -185,7 +188,7 @@ app.route('/api/v1/analytics/vitals', vitalsRoutes);
 // API 路由
 
 // CSRF token endpoint (must be before auth routes)
-app.get('/api/v1/csrf-token', getCsrfToken);
+app.get('/api/v1/csrf-token', authMiddleware(), getCsrfToken);
 
 // 功能模块开关（公开，无需登录和租户头）。前端路由守卫与侧边栏读它，
 // 和后端挂载路由用的是同一份 core/modules 配置。
@@ -365,6 +368,10 @@ app.get('/uploads/*', async (c) => {
   }
 });
 
+if (config.nodeEnv === 'production') {
+  app.route('/', createFrontendRoutes());
+}
+
 // 404 处理
 app.notFound((c) => {
   return c.json({ error: 'Not Found' }, 404);
@@ -376,6 +383,7 @@ app.onError(errorHandler);
 // 启动服务器（仅在非测试环境）
 if (process.env.NODE_ENV !== 'test') {
   const port = config.port;
+  const stopStoryAdapterWorker = process.env.STORY_ADAPTER_JOBS_ENABLED === 'false' ? () => {} : startStoryAdapterWorker();
 
   // P2-1：可选模块。关闭的模块不启动任何后台任务（Kafka 不连接、不重试、不报错）。
   const closedModules = MODULE_NAMES.filter((name) => !isModuleEnabled(name));
@@ -443,6 +451,7 @@ if (process.env.NODE_ENV !== 'test') {
     try {
       // 1. Stop accepting new work
       scheduler.stop();
+      stopStoryAdapterWorker();
       webhookWorker?.stop();
       if (isModuleEnabled('plugins')) pluginBridge.stop();
 

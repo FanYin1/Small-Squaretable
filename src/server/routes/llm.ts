@@ -154,8 +154,8 @@ llmRoutes.post(
     if (tenantId) {
       await usageService.trackUsage(tenantId, 'llm_tokens', tokenUsage, {
         model: request.model,
-        promptTokens: response.usage.prompt_tokens,
-        completionTokens: response.usage.completion_tokens,
+        promptTokens: response.usage?.prompt_tokens,
+        completionTokens: response.usage?.completion_tokens,
       });
     }
 

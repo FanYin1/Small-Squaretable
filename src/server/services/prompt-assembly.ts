@@ -164,10 +164,11 @@ export function formatExampleMessages(mesExample: string, expand: (line: string)
 }
 
 /** 记忆块（按类型分组），与 legacy 的文本逐字一致；没有记忆返回空数组 */
-export function buildMemoryParts(memories: Array<{ type: string; content: string }>): string[] {
+export function buildMemoryParts(memories: Array<{ type: string; content: string }>, story = false): string[] {
   if (memories.length === 0) return [];
 
-  const parts: string[] = ['\n## 关于用户的记忆'];
+  const parts: string[] = story ? ['\n## 本次故事的历史派生记忆',
+    '以下是有原文来源但可能有误的历史摘要，不是现实用户资料或当前状态。保留约定的计划、否定与不确定性；改期等后续调整不抹去旧经历。发生冲突以冻结设定、已确认状态及更新原文为准，不能把旧意图当作已完成行动。表达偏好只作用于本次体验，不改变人物性格。'] : ['\n## 关于用户的记忆'];
   const memoryByType: Record<string, string[]> = { fact: [], preference: [], relationship: [], event: [] };
 
   for (const mem of memories) {

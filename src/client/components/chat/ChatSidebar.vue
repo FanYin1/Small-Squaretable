@@ -1,7 +1,9 @@
 <template>
   <div class="chat-sidebar">
+    <StoryBrand />
+    <StoryNavigation @navigate="emit('navigate')" />
     <div class="sidebar-header">
-      <h2 class="sidebar-title">{{ t('chat.title') }}</h2>
+      <h2 class="sidebar-title">{{ t('storyShell.library') }}</h2>
       <div class="sidebar-header-actions">
         <el-tooltip :content="t('chat.newChat')" placement="bottom">
           <el-button
@@ -72,6 +74,7 @@
       </template>
 
       <template v-else>
+      <StoryBranchFamily :chat-id="currentChatId" :owner-id="userStore.user?.id" @select="handleSelectChat" />
       <div v-if="loading" class="loading-container">
         <el-skeleton :rows="5" animated />
       </div>
@@ -114,27 +117,36 @@
                 {{ chat.lastMessage || t('chat.noMessages') }}
               </div>
             </div>
-            <el-dropdown
-              trigger="click"
-              @command="(command: string) => handleChatAction(command, chat.id)"
-            >
-              <el-button
-                link
-                :icon="More"
-                class="chat-item-menu"
-                @click.stop
-              />
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="rename" :icon="Edit">
-                    {{ t('common.rename') }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="delete" :icon="Delete" divided>
-                    {{ t('common.delete') }}
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <div class="chat-item-actions">
+              <button
+                type="button"
+                class="chat-item-delete"
+                :aria-label="`${t('common.delete')} ${chat.title || chat.characterName}`"
+                :title="t('common.delete')"
+                @click.stop="handleChatAction('delete', chat.id)"
+              >
+                <el-icon><Delete /></el-icon>
+              </button>
+              <el-dropdown
+                trigger="click"
+                @command="(command: string) => handleChatAction(command, chat.id)"
+              >
+                <el-button
+                  link
+                  :icon="More"
+                  class="chat-item-menu"
+                  :aria-label="`${t('storyShell.storyActions')} ${chat.title || chat.characterName}`"
+                  @click.stop
+                />
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="rename" :icon="Edit">
+                      {{ t('common.rename') }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </div>
         </div>
       </div>
@@ -142,23 +154,9 @@
     </div>
 
     <div class="sidebar-footer">
-      <el-tooltip :content="t('nav.market')" placement="top">
-        <button class="footer-btn" @click="router.push({ name: 'Market' })">
-          <el-icon><Shop /></el-icon>
-        </button>
-      </el-tooltip>
-      <el-tooltip :content="t('nav.myCharacters')" placement="top">
-        <button class="footer-btn" @click="router.push({ name: 'MyCharacters' })">
-          <el-icon><User /></el-icon>
-        </button>
-      </el-tooltip>
-      <el-tooltip :content="t('nav.settings')" placement="top">
-        <button class="footer-btn" @click="router.push({ name: 'Profile' })">
-          <el-icon><Setting /></el-icon>
-        </button>
-      </el-tooltip>
+      <button class="appearance-button" type="button" @click="toggleTheme">{{ t('theme.toggle') }}</button>
       <el-dropdown trigger="click" @command="handleUserMenuCommand">
-        <button class="footer-btn" :title="t('nav.user')">
+        <button class="footer-btn" :title="t('storyShell.account')" :aria-label="t('storyShell.account')">
           <el-icon><UserFilled /></el-icon>
         </button>
         <template #dropdown>
@@ -170,7 +168,7 @@
             <el-dropdown-item v-if="modulesStore.isEnabled('plugins')" command="PluginMarketplace">{{ t('nav.plugins') }}</el-dropdown-item>
             <el-dropdown-item v-if="modulesStore.isEnabled('webhooks_developer')" command="DeveloperSettings">{{ t('nav.developer') }}</el-dropdown-item>
             <el-dropdown-item v-if="modulesStore.isEnabled('analytics')" command="Analytics">{{ t('nav.analytics') }}</el-dropdown-item>
-            <el-dropdown-item v-if="isAdminOrMod" command="AdminUsers">{{ t('nav.admin') }}</el-dropdown-item>
+            <el-dropdown-item v-if="isAdminOrMod" :command="userStore.user?.role === 'admin' ? 'AdminUsers' : 'AdminContent'">{{ t('nav.admin') }}</el-dropdown-item>
             <el-dropdown-item divided command="logout">{{ t('nav.logout') }}</el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -183,7 +181,10 @@
 import { ref, computed, markRaw } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { Plus as _Plus, Search as _Search, More as _More, Edit as _Edit, Delete as _Delete, Shop, Setting, UserFilled, User, Fold } from '@element-plus/icons-vue';
+import StoryBrand from '@client/components/layout/StoryBrand.vue';
+import StoryNavigation from '@client/components/layout/StoryNavigation.vue';
+import StoryBranchFamily from './StoryBranchFamily.vue';
+import { Plus as _Plus, Search as _Search, More as _More, Edit as _Edit, Delete as _Delete, UserFilled, Fold } from '@element-plus/icons-vue';
 
 const Plus = markRaw(_Plus);
 const Search = markRaw(_Search);
@@ -196,7 +197,7 @@ import { useUserStore } from '@client/stores/user';
 import { useModulesStore } from '@client/stores/modules';
 import { useBookmarkStore } from '@client/stores/bookmark';
 import type { BookmarkItem } from '@client/stores/bookmark';
-import { useDateTime } from '@client/composables';
+import { useDateTime, useTheme } from '@client/composables';
 import { createLogger } from '@client/utils/logger';
 import type { Chat } from '@client/types';
 
@@ -206,6 +207,7 @@ interface Emits {
   (e: 'new-chat'): void;
   (e: 'select-chat', chatId: string): void;
   (e: 'toggle-collapse'): void;
+  (e: 'navigate'): void;
 }
 
 const emit = defineEmits<Emits>();
@@ -213,6 +215,7 @@ const emit = defineEmits<Emits>();
 const { t } = useI18n();
 const router = useRouter();
 const { formatRelativeTime } = useDateTime();
+const { toggleTheme } = useTheme();
 const chatStore = useChatStore();
 const modulesStore = useModulesStore();
 const userStore = useUserStore();
@@ -366,12 +369,14 @@ const navigateToBookmark = (bookmark: BookmarkItem) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--bg-surface);
+  background-color: var(--bg-subtle);
   border-right: 1px solid var(--border-default);
 }
 
 .sidebar-header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: space-between;
   align-items: center;
   padding: 16px;
@@ -381,7 +386,7 @@ const navigateToBookmark = (bookmark: BookmarkItem) => {
 
 .sidebar-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -405,6 +410,7 @@ const navigateToBookmark = (bookmark: BookmarkItem) => {
 
 .sidebar-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -460,6 +466,7 @@ const navigateToBookmark = (bookmark: BookmarkItem) => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding-right: 66px;
 }
 
 .chat-item-header {
@@ -493,17 +500,40 @@ const navigateToBookmark = (bookmark: BookmarkItem) => {
   white-space: nowrap;
 }
 
-.chat-item-menu {
-  opacity: 0.3;
-  transition: opacity 0.2s;
+.chat-item-actions {
+  position: absolute;
+  top: 7px;
+  right: 8px;
   z-index: 10;
-  position: relative;
-  padding: 4px 8px;
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
-.chat-item:hover .chat-item-menu {
-  opacity: 1;
+.chat-item-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.chat-item-delete:hover,
+.chat-item-delete:focus-visible {
+  color: var(--el-color-danger);
+  background-color: var(--surface-hover);
+}
+
+.chat-item-menu {
+  width: 30px;
+  height: 30px;
+  padding: 4px;
 }
 
 .chat-item-menu:hover {
@@ -643,6 +673,9 @@ const navigateToBookmark = (bookmark: BookmarkItem) => {
   width: 6px;
 }
 
+.appearance-button { border:0; background:transparent; color:var(--text-secondary); min-height:44px; cursor:pointer; }
+.chat-sidebar :deep(.story-navigation), .chat-sidebar :deep(.story-brand) { flex-shrink:0; }
+
 .sidebar-content::-webkit-scrollbar-track {
   background: var(--bg-surface);
 }
@@ -707,8 +740,9 @@ const navigateToBookmark = (bookmark: BookmarkItem) => {
     font-size: 12px;
   }
 
-  .chat-item-menu {
-    padding: 2px 6px;
+  .chat-item-actions {
+    top: 5px;
+    right: 6px;
   }
 }
 </style>

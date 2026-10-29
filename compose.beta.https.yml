@@ -1,0 +1,29 @@
+services:
+  app:
+    environment:
+      APP_URL: https://${BETA_DOMAIN:?Set BETA_DOMAIN to the public hostname}
+      CORS_ORIGINS: https://${BETA_DOMAIN:?Set BETA_DOMAIN to the public hostname}
+      OAUTH_CALLBACK_BASE: https://${BETA_DOMAIN:?Set BETA_DOMAIN to the public hostname}/api/v1/auth/oauth
+
+  proxy:
+    image: caddy:2-alpine
+    environment:
+      BETA_SITE_ADDRESS: https://${BETA_DOMAIN:?Set BETA_DOMAIN to the public hostname}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile.beta:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - beta
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:

@@ -12,6 +12,11 @@ import { NotFoundError, AppError } from '../../core/errors';
 import { logger } from './logger.service';
 import { llmService } from './llm.service';
 import { getDefaultModel } from '../config/llm.config';
+import { storyIdentitySnapshotSchema, type StoryIdentitySnapshot } from '../../types/story-identity';
+import { loadStoryWorldbookEntries } from './story-worldbooks.service';
+import { verifiedStoryMemoryOrigins } from './story-knowledge.service';
+import { selectStoryMemoryContext } from './story-memory-selection';
+import type { StoryAudience } from '../../types/story-knowledge';
 
 const chatLogger = logger.child({ module: 'chat' });
 import type { CreateChatInput, UpdateChatInput, CreateMessageInput } from '../../types/chat';
@@ -96,11 +101,16 @@ function pickStringOverrides(raw: unknown): Record<string, string> {
 }
 
 export interface EnhancedPromptParams {
-  character: Character;
+  character: Pick<Character, 'id' | 'name' | 'description' | 'cardData'>;
   characterId: string;
   userId: string;
   userName?: string;
   personaId?: string;
+  identitySnapshot?: StoryIdentitySnapshot | null;
+  worldbookSnapshotVersion?: number | null;
+  contentSnapshotVersion?: number | null;
+  storyAudience?: StoryAudience;
+  isolateKnowledge?: boolean;
   chatId: string;
   userMessage: string;
   messages?: Array<{ role: string; content: string }>;
@@ -136,7 +146,7 @@ export class ChatService {
 
   async getById(chatId: string, userId: string, tenantId: string): Promise<Chat> {
     const chat = await this.chatRepo.findByIdAndTenant(chatId, tenantId);
-    if (!chat) {
+    if (!chat || chat.userId !== userId) {
       throw new NotFoundError('Chat');
     }
     return chat;
@@ -176,8 +186,12 @@ export class ChatService {
     data: UpdateChatInput
   ): Promise<Chat> {
     const chat = await this.chatRepo.findByIdAndTenant(chatId, tenantId);
-    if (!chat) {
+    if (!chat || chat.userId !== userId) {
       throw new NotFoundError('Chat');
+    }
+
+    if (chat.contentSnapshotVersion != null && data.metadata && ['activeBranchLeafId', 'characterOverrides'].some(key => key in data.metadata!)) {
+      throw new AppError('Saved story content and history cannot be replaced.', 409, 'STORY_HISTORY_FIXED');
     }
 
     const updated = await this.chatRepo.update(chatId, tenantId, data);
@@ -190,7 +204,7 @@ export class ChatService {
 
   async delete(chatId: string, userId: string, tenantId: string): Promise<void> {
     const chat = await this.chatRepo.findByIdAndTenant(chatId, tenantId);
-    if (!chat) {
+    if (!chat || chat.userId !== userId) {
       throw new NotFoundError('Chat');
     }
 
@@ -215,6 +229,8 @@ export class ChatService {
       throw new NotFoundError('Chat');
     }
 
+    if (chat.contentSnapshotVersion != null) throw new AppError('Saved story history cannot be deleted independently of its state.', 409, 'STORY_HISTORY_FIXED');
+
     // Verify message belongs to this chat
     const message = await this.messageRepo.findById(messageId);
     if (!message || message.chatId !== chatId) {
@@ -236,6 +252,7 @@ export class ChatService {
       throw new NotFoundError('Chat');
     }
 
+    if (chat.contentSnapshotVersion != null && updates.content !== undefined) throw new AppError('Saved story history cannot be edited independently of its state.', 409, 'STORY_HISTORY_FIXED');
     const message = await this.messageRepo.findById(messageId);
     if (!message || message.chatId !== chatId) {
       throw new NotFoundError('Message');
@@ -319,7 +336,12 @@ export class ChatService {
     let userName = params.userName || 'User';
     let personaDescription: string | null = null;
 
-    if (params.personaId) {
+    if (params.identitySnapshot != null) {
+      const identity = storyIdentitySnapshotSchema.parse(params.identitySnapshot);
+      if (identity.userId !== userId) throw new AppError('Story identity owner mismatch', 403, 'IDENTITY_OWNER_MISMATCH');
+      userName = identity.name;
+      personaDescription = identity.description;
+    } else if (params.personaId) {
       try {
         const persona = await userPersonaRepository.findById(params.personaId);
         if (persona && persona.userId === userId) {
@@ -340,7 +362,7 @@ export class ChatService {
 
     // Apply chat-level parameter overrides
     try {
-      const override = await chatOverrideRepository.findByChatId(chatId);
+      const override = params.contentSnapshotVersion == null ? await chatOverrideRepository.findByChatId(chatId) : null;
       if (override && override.enabled) {
         // overrides 是 jsonb（unknown），且路由只校验为 record；这里只取字符串值参与提示词拼装
         const stringOverrides = pickStringOverrides(override.overrides);
@@ -393,10 +415,16 @@ export class ChatService {
 
     // Scan world book entries
     let worldInfo: WorldInfoResult | null = null;
-    if (params.messages && params.messages.length > 0) {
+    if (params.worldbookSnapshotVersion != null && params.worldbookSnapshotVersion !== 1) {
+      throw new Error('Unsupported story worldbook snapshot version');
+    }
+    if (params.worldbookSnapshotVersion === 1 || (params.messages && params.messages.length > 0)) {
       try {
+        const entries = params.worldbookSnapshotVersion === 1
+          ? await loadStoryWorldbookEntries(chatId, userId, characterId) : undefined;
         worldInfo = await worldInfoEngine.scan({
-          chat: params.messages as Message[],
+          chat: (params.messages?.length ? params.messages : [{ role: 'user', content: userMessage }]) as Message[],
+          entries,
           characterId,
           userId,
           chatId,
@@ -404,6 +432,7 @@ export class ChatService {
           macroCtx,
         });
       } catch (error) {
+        if (params.worldbookSnapshotVersion === 1) throw error;
         chatLogger.warn('World info scan failed', { error: (error as Error).message });
       }
     }
@@ -424,8 +453,8 @@ export class ChatService {
     // Inject persona description as world info (at AN position, depth 0)
     // legacy: 并入合并后的 ANTop（与改动前逐字一致）；cache_friendly: persona 跨轮不变，单独作为稳定段
     let personaStableBlock = '';
-    if (personaDescription) {
-      const personaWorldInfo = `[User Persona: ${userName}]\n${personaDescription}`;
+    if (personaDescription || params.identitySnapshot != null) {
+      const personaWorldInfo = `[User Persona: ${userName}]${personaDescription ? `\n${personaDescription}` : ''}`;
       if (layout === 'cache_friendly') {
         personaStableBlock = personaWorldInfo;
       } else if (!worldInfo) {
@@ -444,20 +473,26 @@ export class ChatService {
       }
       chatLogger.debug('Injected persona description into world info', {
         personaName: userName,
-        descriptionLength: personaDescription.length
+        descriptionLength: personaDescription?.length ?? 0
       });
     }
 
     // Retrieve relevant memories with timing (session-isolated)
     const retrievalStartTime = Date.now();
     chatLogger.debug('Retrieving memories', { query: userMessage.substring(0, 50) });
-    const memories = await memoryService.retrieveMemories({
+    let memories = await memoryService.retrieveMemories({
       characterId,
       userId,
       query: userMessage,
       chatId,  // Filter by chat session for isolation
-      limit: 5,
+      limit: params.contentSnapshotVersion === 1 || params.isolateKnowledge ? 20 : 5,
     });
+    const isolateKnowledge = params.contentSnapshotVersion === 1 || params.isolateKnowledge === true;
+    if (isolateKnowledge) {
+      memories.push(...await memoryService.retrieveStoryPreferences(characterId, userId, chatId));
+      const origins = await verifiedStoryMemoryOrigins(chatId, characterId, memories.map(memory => memory.id), params.storyAudience);
+      memories = selectStoryMemoryContext(memories, origins);
+    }
     const retrievalLatency = Date.now() - retrievalStartTime;
     chatLogger.debug('Retrieved memories', { count: memories.length, latencyMs: retrievalLatency });
 
@@ -485,10 +520,10 @@ export class ChatService {
       retrievalLatency
     );
 
-    const memoryParts = buildMemoryParts(memories);
+    const memoryParts = buildMemoryParts(memories, isolateKnowledge);
 
     // Get current emotion
-    const emotion = await emotionService.getCurrentEmotion(characterId, userId, chatId);
+    const emotion = isolateKnowledge ? null : await emotionService.getCurrentEmotion(characterId, userId, chatId);
     const emotionParts = buildEmotionParts(emotion);
 
     // 各段顺序与落点见文件顶部的位置表；顺序定义在 prompt-assembly（离线对比脚本共用）
@@ -537,7 +572,7 @@ export class ChatService {
     );
 
     // Persist any variable mutations from macro expansion
-    await persistVarWrites(macroCtx, chatId, userId);
+    if (params.contentSnapshotVersion == null) await persistVarWrites(macroCtx, chatId, userId);
 
     return {
       systemPrompt: fullPrompt,
@@ -566,7 +601,7 @@ export class ChatService {
     // Extract memories every 5 messages (batch extraction to reduce LLM cost)
     if (count >= 5) {
       this.messageCounters.set(key, 0);
-      const recentMessages = messages.slice(-2); // Get last 2 messages (user + assistant)
+      const recentMessages = messages.slice(-10);
       const extracted = await memoryService.extractMemories(characterId, userId, recentMessages);
 
       // Memory-emotion interaction: boost importance based on current arousal

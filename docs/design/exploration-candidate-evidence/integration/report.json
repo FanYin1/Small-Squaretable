@@ -1,0 +1,352 @@
+{
+  "date": "2026-10-23T19:30:11.604Z",
+  "result": "passed",
+  "database": "disposable PostgreSQL",
+  "backend": "current built server",
+  "model": "local deterministic beta-smoke provider; not narrative-quality validation",
+  "networkInterception": "only drop one real committed creation response; no successful API responses fabricated",
+  "fixtures": [
+    "雾海之外",
+    "晚一点开门"
+  ],
+  "checks": [
+    "six-page production/reference comparison: 390/1440, dark/light; view-only creates no chats or charges",
+    "market quick start: stored default persona, distinct save, matching opening, refresh without another POST",
+    "real WebSocket generation and one ledger charge; resume and reload retain exactly the selected opening and one user/assistant turn",
+    "same-card new run creates a distinct chat without copying or deleting the original messages",
+    "identity snapshot survives persona edit/deletion, a new story uses edited identity, and the actual model request uses the original name/biography",
+    "saved worldbook rules reach real model requests after source edit/deletion; new stories use edited rules; global books and hidden snapshot contents stay excluded",
+    "optional identity setup cancellation does not create a chat",
+    "after a real committed POST response is dropped, reload queries its request ID and opens the original chat without another POST",
+    "missing saved worldbooks stop generation visibly, release the held balance and create no generated assistant response or charge",
+    "real action UI: filling does not submit, negated purchase leaves resources intact, execution spends once, map browsing does not move and travel commits a known destination",
+    "per-story style note survives reload without appearing in another story; recorded event opens its actual saved response",
+    "production exploration page at 390/768/1440 in dark/light, no horizontal overflow"
+  ],
+  "screenshots": [
+    "production-discover-390-dark.png",
+    "reference-discover-390-dark.png",
+    "production-detail-390-dark.png",
+    "reference-detail-390-dark.png",
+    "production-identity-390-dark.png",
+    "reference-identity-390-dark.png",
+    "production-library-390-dark.png",
+    "reference-library-390-dark.png",
+    "production-create-390-dark.png",
+    "reference-create-390-dark.png",
+    "production-account-390-dark.png",
+    "reference-account-390-dark.png",
+    "production-discover-390-light.png",
+    "reference-discover-390-light.png",
+    "production-detail-390-light.png",
+    "reference-detail-390-light.png",
+    "production-identity-390-light.png",
+    "reference-identity-390-light.png",
+    "production-library-390-light.png",
+    "reference-library-390-light.png",
+    "production-create-390-light.png",
+    "reference-create-390-light.png",
+    "production-account-390-light.png",
+    "reference-account-390-light.png",
+    "production-discover-1440-dark.png",
+    "reference-discover-1440-dark.png",
+    "production-detail-1440-dark.png",
+    "reference-detail-1440-dark.png",
+    "production-identity-1440-dark.png",
+    "reference-identity-1440-dark.png",
+    "production-library-1440-dark.png",
+    "reference-library-1440-dark.png",
+    "production-create-1440-dark.png",
+    "reference-create-1440-dark.png",
+    "production-account-1440-dark.png",
+    "reference-account-1440-dark.png",
+    "production-discover-1440-light.png",
+    "reference-discover-1440-light.png",
+    "production-detail-1440-light.png",
+    "reference-detail-1440-light.png",
+    "production-identity-1440-light.png",
+    "reference-identity-1440-light.png",
+    "production-library-1440-light.png",
+    "reference-library-1440-light.png",
+    "production-create-1440-light.png",
+    "reference-create-1440-light.png",
+    "production-account-1440-light.png",
+    "reference-account-1440-light.png",
+    "play-390-light.png",
+    "play-390-dark.png",
+    "play-768-light.png",
+    "play-768-dark.png",
+    "play-1440-light.png",
+    "play-1440-dark.png"
+  ],
+  "sources": [
+    {
+      "path": "docs/design/exploration-demo/app.js",
+      "sha256": "b7f220fbcb51edacee24ff6169f99a990a5330dfbf5156d175ece5b2a569202f"
+    },
+    {
+      "path": "src/client/pages/Chat.vue",
+      "sha256": "c1a205344bf30232da6fd2ed0c64d76ff711dff544a2c212df7fca7496128959"
+    },
+    {
+      "path": "src/client/pages/Market.vue",
+      "sha256": "0121e085be3b23b82c825960ab64c2f6b38de78711efdeac33820e132e649340"
+    },
+    {
+      "path": "src/client/pages/CharacterDetail.vue",
+      "sha256": "26237320e6ec03c66e307ac000927f7e88b717ec58f7690f5833bd7476ea55b9"
+    },
+    {
+      "path": "src/client/components/layout/ExplorationLayout.vue",
+      "sha256": "cbebdb4d868af2aa742ebcf88616a04002b9daf4e125999bdd3646f8024510c9"
+    },
+    {
+      "path": "src/client/components/chat/PersonaSelector.vue",
+      "sha256": "e064365ab326d293f866aac8014d965c9ffe8bab29bc287ec60229bde674c8e2"
+    },
+    {
+      "path": "src/client/components/chat/StorySaveCard.vue",
+      "sha256": "b6aaaf6536d2bcfc36a55a9f805ca0265c58343c4c723da3341b965bbf7bfc9b"
+    },
+    {
+      "path": "src/client/styles/exploration-entry.css",
+      "sha256": "255f6b38dc1e6e68297d2d2f432c6cfab8aa28c2f6c0f519011a5be6c1f7ca9a"
+    },
+    {
+      "path": "src/client/main.ts",
+      "sha256": "9192d3fe1b216967567c1a577f6bf05b546e744be4b219ce390492fc2004a607"
+    },
+    {
+      "path": "src/client/router/index.ts",
+      "sha256": "939642490bc4f5b792ee99ffeb10baaf7608525fc967e11547c7adad229173ae"
+    },
+    {
+      "path": "src/client/stores/user.ts",
+      "sha256": "db63131b9e75da3464e26ba3c3dc1d1e4fabcde8e440a82d8420d762be5ac023"
+    },
+    {
+      "path": "src/server/middleware/rateLimit.ts",
+      "sha256": "c09c8602cc4409f5812140c8b9ba3c20e72bf4b5fafdbd23ca30973efd8000a3"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "adc95ed96f9aa5bd6b5494af738c3bcc99c1076614994e357846602708aa0ab8"
+    },
+    {
+      "path": "scripts/exploration-entry-browser-check.mjs",
+      "sha256": "fea79467ca9d9bfed5a35514ec1883fb054ae163c165796e37f771fcd5351efa"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "db9bad640dc0bcbf4247d110e138a091c43a163d9fc080caf168e0ac45e32b29"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "80b87ba7c6ffd23bbc0e42f2078833b17c81fc52934d23a810518a3665b355e3"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "b99e4a9648b370b174ba35ba982f5db8f4091d4dc77297a3bc6f812c5d999b5e"
+    },
+    {
+      "path": "src/types/story-identity.ts",
+      "sha256": "ad41fe44f8b2924d15fd3b52db33ae9de450a9357cc37e77514669ee3bb9bae8"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "ad99964a6a3dcbf21fcadd56928f753d077c13a388768b5e759b9acd376c3b67"
+    },
+    {
+      "path": "src/server/services/chat.service.ts",
+      "sha256": "5c932a7fc62f25bd29a50196555349b907c2cd22449fd6fc52933bbf6f0bb61f"
+    },
+    {
+      "path": "src/server/routes/chats.ts",
+      "sha256": "946daad9cb480b84eac0d0d7d6af8c6854a2a6cebfcd83bbd040d42ccfb805c3"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "4c951317c711b54f66bd7735b11722717b2812118d8a02c599978ec9ea3e61b3"
+    },
+    {
+      "path": "src/client/composables/useStoryIdentity.ts",
+      "sha256": "b2b77d54e7b5e9c119925b74fe2e93a3982041f18f361e9dcde215ff241843aa"
+    },
+    {
+      "path": "src/client/services/chat.api.ts",
+      "sha256": "a626696c0a2bab55fa2881283532ad932a1244038afb85f9b71d90daf77757ff"
+    },
+    {
+      "path": "src/client/stores/chat.ts",
+      "sha256": "5dfeec0c5a720c4274d7578f3cb59b13810d0faaa9aae68c54888013034cb913"
+    },
+    {
+      "path": "src/db/schema/chats.ts",
+      "sha256": "7f52e2e280a8f71b40ebbf142559761e5f2408a3d09c58df3b12b3a468445a7b"
+    },
+    {
+      "path": "src/db/migrations/0042_story_identity_snapshot.sql",
+      "sha256": "734b9210b02986c25c35f4b4409135f51d5b97d5d7d35cb311602bb3875f457c"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "scripts/chat-creation-concurrency-check.ts",
+      "sha256": "cd5d28a517cc443eb59dafb320c42f7b26301854a8a7edf17f4e2fb21bccd910"
+    },
+    {
+      "path": "src/types/story-worldbooks.ts",
+      "sha256": "8622923b8a1fdf50dd80812290fe62be1a3f7d6622ad29591fc241b11590aa40"
+    },
+    {
+      "path": "src/db/schema/story-worldbooks.ts",
+      "sha256": "62474a8611c79106ffa90c7887f7cae767ab253997576f41008fae4737ab0fc0"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/server/services/worldinfo-engine.service.ts",
+      "sha256": "1bdd6d18f64fd7485ee5882bd77469210c3232eb507f585f9edcf9de468a0b6a"
+    },
+    {
+      "path": "src/db/migrations/0043_story_worldbooks.sql",
+      "sha256": "533b9ebdca16ff103b331fab6cd3748234c0d7bd43235e131bed3fc10bee5d15"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/client/components/chat/ChatWindow.vue",
+      "sha256": "53f3a4084b510524b9245bd01fc60407960d94c25794eb006ad9f7d1961656d8"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "2334af94dbe34e11f0c5303e25d9dd54714cd136d83c99a0b51a7e4ee8c306c1"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "4732d7674bb162a79a6231ed80b8185982d842087a7bfc7fa93aaefb972c9444"
+    },
+    {
+      "path": "src/types/story-state.ts",
+      "sha256": "48afa2d92dc81c209d6867b8f13aa3757f43bc9643ee51a1b108181962ccae5d"
+    },
+    {
+      "path": "src/types/story-examples.ts",
+      "sha256": "0d9549eaddfe4835c1b188b053720b52a2417693e8529d1ef0d1647060fc5d93"
+    },
+    {
+      "path": "src/types/story-content.ts",
+      "sha256": "da90a9f9edaa2d1ece56e693ea07cd77ac0f9fc4ad499d6c2d1aae9e4d44d132"
+    },
+    {
+      "path": "src/types/story-capabilities.ts",
+      "sha256": "d4a211aa6b3ce067c72345bf52583d4d0b31587d159e9aa57b802b0255f6b123"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "6ffbbfe888f84e3cc7de83f0d2be61d03c47436fbe0801562fa5cee7d553efe6"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "431f6534b44658e2927a6264dd90f03f2c9ba280f05745a56cf03cf970d5a12d"
+    },
+    {
+      "path": "src/client/components/chat/StoryDossier.vue",
+      "sha256": "46cba5313a85e56cf3dd0d3e9ec13d48a2f27ef6533783670c3757350ac34019"
+    },
+    {
+      "path": "src/client/composables/useStoryState.ts",
+      "sha256": "ccd3a74e5f6a887627dc9b6ab0d0b67195a96e40cf9e758ca20035f903914887"
+    },
+    {
+      "path": "src/client/services/story.api.ts",
+      "sha256": "ac5d70baec0a23d25ac7f336cbc9858256e0e89f5dcf346a5cd779d8a44ccee8"
+    },
+    {
+      "path": "src/db/migrations/0044_story_content.sql",
+      "sha256": "8826165a55427e17ac931271363ae0028e34aa2bf0570b8e10855a5fd3c8e358"
+    },
+    {
+      "path": "src/db/migrations/0045_story_state.sql",
+      "sha256": "e935306e6df0be1231795c7df57f5b3e32abb2b12b1658951d5c9a73403969bb"
+    },
+    {
+      "path": "src/db/migrations/0046_story_memory_scope.sql",
+      "sha256": "ffcda9283a2eea24380b4a91e260345066a221796f8efa8547bcd423d8c2549d"
+    },
+    {
+      "path": "src/server/services/memory.service.ts",
+      "sha256": "091c2c27843e9abdf944d51042d92ee7a44d4073e8c2bd29ed7e6681bee46ab2"
+    },
+    {
+      "path": "src/server/services/memory-consolidation.service.ts",
+      "sha256": "d5eb243affb3f4796d9df0f822129cd36b9b22ad309a6b65648ef91a2e7d3cdd"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+    },
+    {
+      "path": "src/client/pages/CharacterEditor.vue",
+      "sha256": "108e0ae5c4fb8f39fac6be06adc6b6fec595141fdf262143b4c1759e29dc6546"
+    },
+    {
+      "path": "src/client/pages/MyCharacters.vue",
+      "sha256": "f83c844aa516e98c4737f620a11f815dacaef332e52e6e657651ea64d744b628"
+    },
+    {
+      "path": "src/client/pages/Profile.vue",
+      "sha256": "e6aa55701cfaff0ef27a74645a36048294fca174865bf5b0b49c3153bb5d19c4"
+    },
+    {
+      "path": "src/client/pages/Subscription.vue",
+      "sha256": "03b652723d1a04dfdfe3d51587174b4806c72a1e24eea0f588982298826b8232"
+    },
+    {
+      "path": "src/db/repositories/message.repository.ts",
+      "sha256": "7eaaf63d3fdbe07114535aa06e49d0e63e7fd8138f5644b44be943382dbbfda4"
+    },
+    {
+      "path": "src/client/components/layout/ExplorationPlayLayout.vue",
+      "sha256": "6871db32e7260c2d9fc940ec28b70d7b5f898ab993ae2bcb7deb768c9781e585"
+    },
+    {
+      "path": "src/client/components/chat/StoryEntryPreview.vue",
+      "sha256": "fb678c2f752deac3bc6c47d14d9710e2af5318b4993e77609f0cb15224a8886b"
+    },
+    {
+      "path": "src/client/components/chat/StoryIdentitySurface.vue",
+      "sha256": "fb9a336230843a3eee3ba493998a27ab754fe6d8e05291316ff453a4328cb88c"
+    },
+    {
+      "path": "src/client/styles/_breakpoints.scss",
+      "sha256": "438b98aeeda59074e74d77a241f04a5ba00bdfadc987fa1603665df7f46cfefe"
+    },
+    {
+      "path": "vite.config.ts",
+      "sha256": "7b0595b180e4fae4e57c275cba304f8054021df0eea0fde3d609a3368dce9df6"
+    },
+    {
+      "path": "src/db/beta-migrations/0004_story_content.sql",
+      "sha256": "3c09875fe35c43e68d2f0bd4e03044253b9bf879c16c1c564dfa6898f5e1648b"
+    },
+    {
+      "path": "src/db/beta-migrations/0005_story_state.sql",
+      "sha256": "09cae5255133b9fe58a981ee3cadda43210de96a5abfd70a233aead9350b1b89"
+    },
+    {
+      "path": "src/db/beta-migrations/0006_story_memory_scope.sql",
+      "sha256": "4d9519301750da6ad4bb4bba825feee3be843d47dfb9313d6a06d9b2455974e3"
+    }
+  ]
+}

@@ -5,6 +5,9 @@ import { chats } from '../../db/schema/chats';
 import { eq } from 'drizzle-orm';
 import { logger } from './logger.service';
 import { cacheService } from './cache.service';
+import { loadStoryContent } from './story-content.service';
+import { storyCharacterPreview } from '../../types/story-content';
+import { AppError } from '../../core/errors';
 
 const groupLogger = logger.child({ module: 'group-chat' });
 
@@ -22,7 +25,7 @@ export class GroupChatService {
     strategy: TurnStrategy = 'round_robin',
     lastResponderId?: string
   ): Promise<string[]> {
-    const characterIds = await chatCharacterRepository.getCharacterIds(chatId);
+    const characterIds = await this.getCharacterIds(chatId);
     if (characterIds.length === 0) return [];
     if (characterIds.length === 1) return characterIds;
 
@@ -47,7 +50,7 @@ export class GroupChatService {
     const cached = await cacheService.get<{ isGroup: boolean; strategy: TurnStrategy }>(this.groupCacheKey(chatId));
     if (cached !== null) return cached.isGroup;
 
-    const ids = await chatCharacterRepository.getCharacterIds(chatId);
+    const ids = await this.getCharacterIds(chatId);
     const isGroup = ids.length > 1;
 
     // Fetch strategy at the same time to cache together
@@ -60,16 +63,23 @@ export class GroupChatService {
   }
 
   async getChatCharacters(chatId: string) {
+    const chat = await chatRepository.findById(chatId);
+    if (chat?.contentSnapshotVersion != null) {
+      const snapshot = await loadStoryContent(chat.id, chat.userId);
+      return snapshot.characters.map(storyCharacterPreview);
+    }
     return chatCharacterRepository.getCharacters(chatId);
   }
 
   async addCharacter(chatId: string, characterId: string, sortOrder = 0) {
+    await this.requireMutableMembers(chatId);
     const result = await chatCharacterRepository.addCharacter(chatId, characterId, sortOrder);
     await this.invalidateCache(chatId);
     return result;
   }
 
   async removeCharacter(chatId: string, characterId: string) {
+    await this.requireMutableMembers(chatId);
     const result = await chatCharacterRepository.removeCharacter(chatId, characterId);
     await this.invalidateCache(chatId);
     return result;
@@ -96,6 +106,21 @@ export class GroupChatService {
 
   private async invalidateCache(chatId: string): Promise<void> {
     await cacheService.delete(this.groupCacheKey(chatId));
+  }
+
+  private async requireMutableMembers(chatId: string) {
+    const chat = await chatRepository.findById(chatId);
+    if (chat?.contentSnapshotVersion != null || chat?.worldbookSnapshotVersion != null) {
+      throw new AppError('This story keeps its starting cast. Start a new story to change characters.', 409, 'STORY_CAST_FIXED');
+    }
+  }
+
+  private async getCharacterIds(chatId: string) {
+    const chat = await chatRepository.findById(chatId);
+    if (chat?.contentSnapshotVersion != null) {
+      return (await loadStoryContent(chat.id, chat.userId)).characters.map(character => character.id);
+    }
+    return chatCharacterRepository.getCharacterIds(chatId);
   }
 }
 

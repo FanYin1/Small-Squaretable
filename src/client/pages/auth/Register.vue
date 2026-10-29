@@ -7,6 +7,7 @@ import { useToast } from '@client/composables/useToast';
 import type { FormInstance, FormRules } from 'element-plus';
 import { View, Hide } from '@element-plus/icons-vue';
 import { ApiError } from '@client/services/api';
+import AuthStoryIntro from '@client/components/layout/AuthStoryIntro.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -230,7 +231,8 @@ const loginWithOAuth = (provider: string) => {
 </script>
 
 <template>
-  <div class="register-page">
+  <div class="register-page story-shell">
+    <AuthStoryIntro />
     <el-card class="register-card">
       <template #header>
         <div class="card-header">
@@ -500,7 +502,7 @@ const loginWithOAuth = (provider: string) => {
   margin-top: 8px;
   background-color: var(--accent);
   border: none;
-  color: white;
+  color: var(--accent-on);
   transition: all 0.2s ease;
 }
 
@@ -564,6 +566,8 @@ const loginWithOAuth = (provider: string) => {
 
 /* Responsive Design */
 @include below(md) {
+  .social-buttons { flex-direction: column; }
+  :deep(.el-divider__text) { white-space: nowrap; font-size: 13px; }
   .register-page {
     padding: 16px;
   }

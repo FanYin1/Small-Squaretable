@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-23T18:56:35.514Z",
+  "result": "passed",
+  "source": "squaretable-exploration-postgres-1",
+  "isolatedRestore": true,
+  "backupPath": "backups/exploration/candidate-30434ae5-d33d-4e65-a353-63e1464c7813.dump",
+  "fingerprints": {
+    "chats": 1,
+    "notes": "cd418fb04c8c1268559377f0bf66d18e",
+    "state": "925e18c3d1e9a07a72b9a8d96ee096f9",
+    "users": 2,
+    "events": "d41d8cd98f00b204e9800998ecf8427e",
+    "content": "5fefedaf955959ee0670414160579b4c",
+    "chatData": "7059add87423b9ee23b34c1bf349ecf7",
+    "memories": "d41d8cd98f00b204e9800998ecf8427e",
+    "messages": "d41d8cd98f00b204e9800998ecf8427e",
+    "migrations": 7,
+    "worldbooks": "d2c1f03835f62881a2dc86e9a3497519"
+  }
+}

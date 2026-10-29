@@ -1,0 +1,14 @@
+{
+  "result": "failed",
+  "message": "expect(locator).toBeDisabled() failed\n\nLocator:  locator('.form-actions button.el-button--primary')\nExpected: disabled\nReceived: enabled\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.be.disabled\" with timeout 5000ms\n  - waiting for locator('.form-actions button.el-button--primary')\n    9 × locator resolved to <button type=\"button\" data-v-a62bf5ae=\"\" aria-disabled=\"false\" class=\"el-button el-button--primary\">…</button>\n      - unexpected value \"enabled\"\n",
+  "checks": [
+    "Two distinct native mechanisms import through the real file picker, persist privately and preserve unknown extensions",
+    "Preview is local, canceling navigation retains edits, clearing description really persists and unknown extensions survive editing",
+    "Publish uses the real service, shows pending review and does not make an unapproved work visible in discovery"
+  ],
+  "screenshots": [
+    "editor-mobile-unsaved.png",
+    "publish-mobile.png"
+  ],
+  "errors": []
+}

@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-26",
+  "scope": "DEC-24/25 visual creator workbench within EXP-02 package 3; finite engineering delivery, not human acceptance",
+  "contract": "docs/product/creator-workbench-contract.md",
+  "engineeringCriteria": ["CW-01", "CW-02", "CW-03", "CW-04", "CW-05", "CW-06"],
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261026-creator",
+    "imageId": "sha256:188af75f1196ff6dd7b67b91837dd3a90a98fa42a6d52e077a21185e3f5281d6",
+    "build": "full repository Dockerfile",
+    "runtimeFilesMatched": 239,
+    "runtimeScope": ["dist/client", "dist/server"],
+    "htmlRawBytesSha256": "785b6c0aa251a14724ec557eaeac095ab214700d83dbd5461ebd659eb79d303c",
+    "htmlTrimmedTextSha256FromUpgrade": "7cd68298ca0b5e0645d88c72dfadedae89910ccbc9cabc821ce721954eac4b71",
+    "serverSha256": "689090113cd10997144a0e189173cbde63ea917875a4745b98439d5c790f3aac",
+    "restoreTablesCompared": 71,
+    "existingRowsPreserved": true,
+    "migrationRecords": 12,
+    "newMigrations": 0,
+    "port3080Unchanged": true,
+    "health": { "3080": 200, "3081": 200, "5188": 200 },
+    "rollbackDirectory": "backups/exploration/upgrade-8b8da6ab-8a8a-44e6-943f-da80d38b15a6"
+  },
+  "validation": {
+    "targetedUnitTests": 67,
+    "unitTestFiles": 7,
+    "typeCheck": "passed",
+    "focusedLint": "10 files; 0 errors, 1 existing no-explicit-any warning in character.api.ts",
+    "repositoryWideLint": "not claimed",
+    "databaseCreationChecks": 101,
+    "baselineSmoke": "passed; controlled local provider fixture only",
+    "isolatedCreatorAccountGroups": 11,
+    "isolatedScreenshots": 17,
+    "injectedFailure": "character PATCH HTTP 400 followed by a real successful retry; server data preserved on failure",
+    "modelStreamsDuringCreatorGroups": 0,
+    "fullEntryRecoveryAndCardSuitesRerun": false,
+    "paidProviderCallsInitiated": 0
+  },
+  "deployedReadOnlyChecks": {
+    "groups": 4,
+    "screenshots": 10,
+    "widths": [390, 1440],
+    "themes": ["dark", "light"],
+    "pageErrors": 0,
+    "businessMutations": 0,
+    "blockedTelemetryRequests": 50,
+    "horizontalOverflow": false,
+    "businessTableFingerprintsUnchanged": [
+      "characters", "character_versions", "worldbooks", "worldbook_entries",
+      "credit_ledger", "credit_reservations", "chats", "messages", "story_content",
+      "story_worldbooks", "story_states", "story_events", "story_memory_jobs",
+      "story_memory_progress", "generation_requests"
+    ],
+    "countsBeforeAndAfter": {
+      "characters": 15, "characterVersions": 0, "worldbooks": 8, "worldbookEntries": 846,
+      "creditLedger": 2, "creditReservations": 0, "chats": 17, "messages": 149,
+      "storyContent": 16, "storyWorldbooks": 16, "storyStates": 16, "storyEvents": 72,
+      "memoryJobs": 14, "memoryProgress": 3, "generationRequests": 1
+    },
+    "memoryAttempts": 6,
+    "memoryDueAndRunningAtStart": 0,
+    "mutationPolicy": "Login followed by GET-only API interception; synthetic tab draft only; no actual saved work edits, publication or generation",
+    "humanAcceptance": false,
+    "realDeviceAcceptance": false
+  },
+  "privateEvidenceDirectory": "backups/exploration/creator-20261026",
+  "reports": {
+    "isolated": { "file": "isolated/report.json", "sha256": "e2f4b633a219798d7b33fa6da7ff7cb741b81572fe4abeab418651e1bd774b27" },
+    "deployed": { "file": "deployed/report.json", "sha256": "a6108e88f4b193b8e1d6a884a94e7d5d8b410ee0bf65934d7680cdd2b7e5a2b2" }
+  },
+  "publicSyntheticScreenshotDirectory": "docs/design/creator-workbench",
+  "limitations": [
+    "Static player preview does not execute third-party scripts or prove live mechanics",
+    "Tab draft recovery is session storage, not a cross-device cloud draft service",
+    "Private save, independent story creation, failure/retry and publication are verified in isolation; actual deployment checks are read-only",
+    "Full visual rule composition, generic adaptation agent and real-provider narrative quality are not completed by this package",
+    "EXP-02, EXP-ADAPT, EXP-06 and EXP-07D remain open"
+  ]
+}

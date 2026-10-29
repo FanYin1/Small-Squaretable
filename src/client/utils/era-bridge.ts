@@ -7,6 +7,7 @@
 
 import { ref, type Ref } from 'vue';
 import { api } from '@client/services/api';
+import { unflattenCardVariables } from './card-sandbox';
 
 export interface EraBridgeState {
   chatId: string | null;
@@ -36,6 +37,7 @@ export function initEraBridge(chatId: string, opts?: {
   charName?: string;
   userName?: string;
 }): void {
+  if (state.chatId !== chatId) updateVariables({});
   state.chatId = chatId;
   state.charName = opts?.charName ?? '';
   state.userName = opts?.userName ?? '';
@@ -59,12 +61,8 @@ export function unregisterIframe(iframe: HTMLIFrameElement): void {
  * Fetch current chat variables from the server.
  */
 export async function fetchVariables(chatId: string): Promise<Record<string, string>> {
-  try {
-    const data = await api.get<{ variables: Record<string, string> }>(`/chats/${chatId}/variables`);
-    return data.variables ?? {};
-  } catch {
-    return {};
-  }
+  const data = await api.get<{ variables: Record<string, string> }>(`/chats/${chatId}/variables`);
+  return data.variables ?? {};
 }
 
 /**
@@ -100,7 +98,7 @@ export function deleteVariables(keys: string[]): void {
  * Broadcast era:writeDone to all registered iframes.
  */
 function broadcastWriteDone(vars: Record<string, string>): void {
-  const stat = unflattenVars(vars);
+  const stat = unflattenCardVariables(vars);
   const payload = {
     type: 'era-event',
     event: 'era:writeDone',
@@ -118,29 +116,6 @@ function broadcastWriteDone(vars: Record<string, string>): void {
       // iframe may have been removed
     }
   }
-}
-
-/**
- * Convert flat dot-notation keys to nested object.
- */
-function unflattenVars(vars: Record<string, string>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(vars)) {
-    const parts = key.split('.');
-    let current: Record<string, unknown> = result;
-    for (let i = 0; i < parts.length - 1; i++) {
-      if (!current[parts[i]] || typeof current[parts[i]] !== 'object') {
-        current[parts[i]] = {};
-      }
-      current = current[parts[i]] as Record<string, unknown>;
-    }
-    try {
-      current[parts[parts.length - 1]] = JSON.parse(value);
-    } catch {
-      current[parts[parts.length - 1]] = value;
-    }
-  }
-  return result;
 }
 
 /**

@@ -1,0 +1,51 @@
+{
+  "workPackage": "EXP-07E",
+  "status": "engineering-delivered",
+  "verifiedAt": "2026-10-25T09:49:47.402Z",
+  "requirements": [
+    { "requirement": "新增故事数据进入完整导出和恢复范围", "evidence": "story-lifecycle-07e-transfer.json", "behavior": "Admin private bundle, explicit destination owner, source remapping, frozen setup, proposed/private messages, terminal request receipts, derived memories and local attachment bytes" },
+    { "requirement": "非空恢复后可检索和续写", "evidence": "story-lifecycle-07e-transfer.json", "behavior": "Real vector retrieval, valid batch recap provenance, explicit candidate confirmation, checkpoint reuse, real target database restart and actual CLI import" },
+    { "requirement": "删除和生成/派生竞态不复活内容", "evidence": "story-lifecycle-07e-transfer.json", "behavior": "Parent-first lock order verified at generation commit, extraction, embedding and memory commit; deleted imported story IDs remain reserved" },
+    { "requirement": "明确旧备份恢复后的删除约束", "evidence": "story-lifecycle-07e-deletions.json", "behavior": "Live source replay or explicitly trusted independent deletion snapshot, guarded SQL/custom restore, stale-known receipts refused, offline target on missing current evidence" }
+  ],
+  "verification": {
+    "portableStoryAndRaceGroups": 22,
+    "existingRestoreGroups": 19,
+    "existingMemoryGroups": 65,
+    "existingReadingExportGroups": 20,
+    "deletionLifecycleGroups": 16,
+    "deletionReplayGroups": 9,
+    "restoreScriptTests": 16,
+    "vitestTests": 375,
+    "vitestFiles": 19,
+    "nonemptyEvidenceGuards": 14,
+    "databaseCorruptionProbes": 2,
+    "apiWebsocketBrowserRegressionGroups": 35,
+    "allPublicTablesCompared": 71,
+    "typecheck": "passed",
+    "targetedLintErrors": 0,
+    "targetedLintWarnings": 0
+  },
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261025-07e",
+    "imageId": "sha256:f3ab6c92b5b91e2e7b07ae3b02a1e66d50698507b5e16fc80cb6022c5a8c1d97",
+    "migrationCount": 12,
+    "newMigrations": 0,
+    "restartAndBuildHashesVerified": true,
+    "finalHealth": { "3081Ready": 200, "3080": 200, "5188": 200, "historical3080ImageUnchanged": true },
+    "screenshotsReviewed": 4,
+    "report": "story-lifecycle-07e-deployed.json",
+    "upgrade": "story-lifecycle-07e-upgrade.json",
+    "adminTools": "Delivered in workspace; actual CLI verified on isolated databases, not run to migrate or delete existing 3081 user stories"
+  },
+  "modelBudget": { "newCalls": 0, "newTokens": 0, "knownCumulative": 439863, "priorUnreceiptedReservation": 6591, "authorization": 450000, "remaining": 3546 },
+  "limits": [
+    "Complete single-story package is an administrator offline operation, not a public upload endpoint; normal player reading export remains non-restorable",
+    "Legacy stories without frozen snapshots use whole-database restoration; existing or deleted story IDs are never overwritten",
+    "External URLs are retained but not fetched; login credentials, billing, account-global data and public share tokens are excluded",
+    "Independent deletion snapshot is trustworthy only when the operator supplies the latest trusted file and separately recorded digest; no real-time disaster-recovery subscription",
+    "Deletion after the last trustworthy snapshot or before tracking migrations cannot be inferred; keep target offline when required evidence is missing",
+    "Actual database and controlled-provider evidence do not close EXP-05A, full EXP-07D, OPEN decisions, real narrative quality or human acceptance"
+  ]
+}

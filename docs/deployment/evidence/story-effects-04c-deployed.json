@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "provider": "not called; owned prewritten samples only",
+  "paidTokens": 0,
+  "generationSends": 0,
+  "legacyAtomicBatch": true,
+  "interruptedUnchanged": true,
+  "currentOpeningIsolated": true,
+  "restartPersisted": true,
+  "artifacts": {
+    "cardId": "35f75269-b4ad-4897-a813-b403cafb883d",
+    "legacyId": "fcc1b884-bcd9-4977-9794-4a1922632d7b",
+    "currentId": "a8a36c31-cd49-4e3a-aecc-57fe808e74ce"
+  },
+  "screenshots": [
+    "legacy-1440.png",
+    "current-1440.png",
+    "legacy-390.png",
+    "current-390.png"
+  ],
+  "hashes": {
+    "dist/server/index.js": "9e32869f378dc37e6acbae15f8ca68fffb18610432d42c16e2eafc051be5e304",
+    "dist/client/index.html": "07754ebd9e8ef9ecbd001c1b41b66108338e92b8154632f884cca40a366eac4e"
+  },
+  "image": "sha256:64062113a7ac131113772e764e3b13ef683e00f6576e520a68faf04bb5454b31",
+  "migrationCount": 11,
+  "at": "2026-10-25T06:50:29.548Z"
+}

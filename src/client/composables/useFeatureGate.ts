@@ -4,8 +4,9 @@
  * 前端功能权限检查
  */
 
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useSubscriptionStore } from '@client/stores';
+import { useUserStore } from '@client/stores/user';
 import type { PlanType } from '@client/types';
 
 export type FeatureName =
@@ -71,6 +72,10 @@ const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
 
 export function useFeatureGate() {
   const subscriptionStore = useSubscriptionStore();
+  const userStore = useUserStore();
+  watch(() => userStore.user ? JSON.stringify([userStore.user.tenantId, userStore.user.id]) : null, owner => {
+    if (owner) void subscriptionStore.ensureStatus().catch(() => undefined);
+  }, { immediate: true });
 
   /**
    * 当前套餐
@@ -153,6 +158,8 @@ export function useFeatureGate() {
   };
 
   return {
+    featureError: computed(() => subscriptionStore.error),
+    retryFeatures: () => subscriptionStore.ensureStatus().catch(() => undefined),
     currentPlan,
     hasFeature,
     getCurrentFeatures,

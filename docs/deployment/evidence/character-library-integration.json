@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-24T11:58:50.674Z",
+  "task": "EXP-03B",
+  "taskClosed": false,
+  "result": "passed",
+  "database": "disposable PostgreSQL with beta migrations",
+  "backend": "production HTTP/WebSocket, no mocked repositories",
+  "provider": "loopback controlled provider; synthetic prompts only",
+  "paidProviderTokens": 0,
+  "samples": [
+    {
+      "relativePath": "已分类/2025年3月前/正常向(不分类)/冒险者公会的宝物鉴定师.png",
+      "sha256": "eb796df3af4400e32024716089f210b781b11a9ef71700f609db988ac562f74d",
+      "entries": 0,
+      "result": "single_batch_and_story_binding_passed"
+    },
+    {
+      "relativePath": "已分类/世界卡/异世界，奇幻/冒险者公会模拟器.png",
+      "sha256": "130383d1ab858ad9bb4a38111410201c3e35e7f6d88e836e8fcea56786aa8f01",
+      "entries": 5,
+      "result": "single_batch_and_story_binding_passed"
+    },
+    {
+      "relativePath": "已分类/世界卡/异世界，奇幻/异世界冒险团2.1.1.png",
+      "sha256": "d4b24962d7238a8e9785de9f1d546df17870bb6170d6dc7fa1223a1488f893f2",
+      "entries": 53,
+      "result": "single_batch_and_story_binding_passed"
+    },
+    {
+      "relativePath": "世界书及其他/世界书/神明级魔法.json",
+      "sha256": "3fb62df772070d6e0ea1f45013db8ec9905b0ef55b9f5ed3704141ebd358fc80",
+      "entries": 10,
+      "result": "persisted_unbound"
+    },
+    {
+      "relativePath": "世界书及其他/世界书/通用旁白 (只有世界书).json",
+      "sha256": "62f3511ad276ce3793ffa83bc5286eb7e81bb8f278ce2d6aac9f9fa10224b11a",
+      "entries": 4,
+      "result": "persisted_unbound"
+    }
+  ],
+  "checks": [
+    "Three original PNGs: single/batch persistence parity, original data retained, embedded books bound and captured",
+    "Two standalone books persisted with owner attribution and no inferred character binding",
+    "Malformed book rejected; entry database failure rolls back character/book/prior entries; batch retains only its valid file",
+    "Frozen old/new story revisions survive source edits/deletion; unrelated global books remain unbound",
+    "Production WebSocket prompts: keyword/constant/disabled/zero-probability/secondary/atDepth role, frozen revisions and no global fallback"
+  ],
+  "sources": [
+    {
+      "path": "src/types/character-worldbook.ts",
+      "sha256": "a097d24829ae0fd8007fcaddb80555ca479ecaff49cc63e1c2e223433b3b0f65"
+    },
+    {
+      "path": "src/db/repositories/character.repository.ts",
+      "sha256": "6acf04a619316d221787ebe157b38f429194b10ae3f439f7a28936d5c99a0e1f"
+    },
+    {
+      "path": "src/server/routes/characters.ts",
+      "sha256": "6cb47ef6d70cb4dcc4e7e4a6fedd3cad722573c909f9b5bce8f704f9dd0ab971"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/server/services/worldinfo-engine.service.ts",
+      "sha256": "1bdd6d18f64fd7485ee5882bd77469210c3232eb507f585f9edcf9de468a0b6a"
+    },
+    {
+      "path": "scripts/character-library-check.mjs",
+      "sha256": "cde25250c4cd41f9902810021f631580c592b7ba93d0ffa0bda28c50217c1607"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "02bca5e737efea6916849e5890e5ef1b8596138fd1e679324ce42aed9eaddd62"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "536d41ab4fabf6e008cf1aac9b492de26468911908146954af346be89a81cf7e"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "5b18fe16964e14856032ea2be0ba4f23ce28ed4c70844196e75603329fd66b14"
+    }
+  ],
+  "standaloneSyntheticBookCreated": true,
+  "limits": [
+    "No author scripts executed or original library contents submitted to any model",
+    "No full card gameplay, avatar rendering, all metadata formats or recursive/probabilistic parity acceptance",
+    "Standalone books remain unbound; imported-book binding UI and legacy CLI importer are separate work",
+    "No live candidate deployment or user signoff"
+  ]
+}

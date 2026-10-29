@@ -1,0 +1,464 @@
+
+> small-squaretable@0.1.0 lint
+> eslint src --ext .ts,.tsx,.vue
+
+
+/var/aichat/Small-Squaretable/src/client/App.vue
+  15:7  warning  'route' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/MemoryPanel.vue
+  123:12  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  132:12  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/MfaChallenge.vue
+  5:7  warning  'props' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/analytics/RankingTable.vue
+  4:7  warning  'props' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/character/CharacterCard.vue
+  15:9  warning  't' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/character/CharacterCardEditor.vue
+  449:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/components/character/CharacterDetail.vue
+  5:24  warning  'Star' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/character/CharacterPublishForm.vue
+  124:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/components/character/CollectionSidebar.vue
+  42:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  61:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  81:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/components/chat/CharacterTuner.vue
+  192:10  warning  'chatApi' is defined but never used       @typescript-eslint/no-unused-vars
+  223:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  354:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  367:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  418:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/components/chat/ChatTokenCounter.vue
+  218:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/components/chat/ChatWindow.vue
+  549:10  warning  'useTextToSpeech' is defined but never used              @typescript-eslint/no-unused-vars
+  644:9   warning  'formatRelativeTime' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/chat/ContextViewer.vue
+  152:10  warning  'chatApi' is defined but never used         @typescript-eslint/no-unused-vars
+  171:7   warning  'props' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  278:12  warning  'error' is defined but never used           @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/chat/MessageBubble.vue
+  150:33  warning  'ChatLineSquare' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/chat/MessageInput.vue
+  212:12  warning  'error' is defined but never used                     @typescript-eslint/no-unused-vars
+  356:7   warning  'estimatedTokens' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  420:12  warning  'err' is defined but never used                       @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/chat/QuickReplyManager.vue
+  129:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  172:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  180:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+  212:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/layout/GlobalSearchBar.vue
+  14:22  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/components/layout/UserMenu.vue
+  7:9  warning  't' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/recommendation/RecommendationCarousel.vue
+  16:9  warning  't' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/ui/ErrorBoundary.vue
+  5:10  warning  'WarningFilled' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/ui/LazyImage.vue
+  13:7  warning  'props' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/ui/LoadingOverlay.vue
+  2:10  warning  'computed' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/components/worldbook/WorldBookTester.vue
+  137:3  warning  'ArrowUp' is defined but never used    @typescript-eslint/no-unused-vars
+  138:3  warning  'ArrowDown' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/composables/useSpeechToText.ts
+  13:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  28:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/CharacterEditor.vue
+  219:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/pages/ChatTemplates.vue
+  29:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/MyCharacters.vue
+   75:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  114:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  211:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  234:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  282:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  304:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  354:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  400:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/PresetManager.vue
+  151:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  154:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  194:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  228:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  236:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  251:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/Search.vue
+  61:83  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/SharedCharacter.vue
+  43:10  warning  'ElMessage' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/pages/SnapshotViewer.vue
+  64:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/Subscription.vue
+  5:52  warning  'User' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/pages/UserPersonas.vue
+    7:74  warning  'UpdatePersonaInput' is defined but never used  @typescript-eslint/no-unused-vars
+  129:19  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  150:19  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+  163:19  warning  Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/UserProfile.spec.ts
+  10:7  warning  'mockFetchUserActivities' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/pages/WorldBooks.vue
+  152:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/admin/ContentModeration.vue
+  111:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/admin/SystemDashboard.vue
+  42:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  77:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/auth/ForgotPassword.vue
+  12:7  warning  'toast' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/pages/auth/Login.vue
+  78:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/pages/auth/Register.vue
+   77:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   89:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   89:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   89:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:63  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/pages/auth/ResetPassword.vue
+  27:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  27:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/services/character.api.ts
+  84:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/services/chat.api.ts
+   44:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  296:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/services/search.api.ts
+  21:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:13  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/services/user-persona.api.ts
+  16:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/services/websocket.spec.ts
+  45:7   warning  'mockWs' is assigned a value but never used          @typescript-eslint/no-unused-vars
+  72:13  warning  'connectPromise' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/services/websocket.ts
+  242:23  warning  'event' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/stores/chat.ts
+    56:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1354:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1383:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/stores/ui.spec.ts
+  144:13  warning  'store' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/types/index.ts
+  31:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/client/utils/auth.ts
+  45:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  77:12  warning  'error' is defined but never used         @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/utils/sentry.ts
+  23:33  warning  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  55:23  warning  'hint' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/utils/sillytavern.spec.ts
+  4:3  warning  'isV2Format' is defined but never used                @typescript-eslint/no-unused-vars
+  6:3  warning  'normalizeSillyTavernData' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/client/utils/sillytavern.ts
+  219:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/core/kafka.spec.ts
+  47:13  warning  'Kafka' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/db/repositories/character.repository.ts
+    1:35  warning  'gt' is defined but never used            @typescript-eslint/no-unused-vars
+    1:39  warning  'lt' is defined but never used            @typescript-eslint/no-unused-vars
+   70:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/db/repositories/chat.repository.ts
+  22:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/db/repositories/experiment.repository.ts
+  7:14  warning  'and' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/db/repositories/worldbook-entry.repository.ts
+  7:19  warning  'or' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/db/schema/activities.ts
+  7:34  warning  'text' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/middleware/apiKeyAuth.spec.ts
+  8:29  warning  'ForbiddenError' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/middleware/csrf.spec.ts
+  10:10  warning  'HTTPException' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/middleware/csrf.ts
+  134:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  192:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  218:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/middleware/rateLimit.ts
+    9:10  warning  'HTTPException' is defined but never used                                @typescript-eslint/no-unused-vars
+   41:22  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+   46:17  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+   51:14  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  139:13  warning  'key' is defined but never used. Allowed unused args must match /^_/u    @typescript-eslint/no-unused-vars
+  143:13  warning  'key' is defined but never used. Allowed unused args must match /^_/u    @typescript-eslint/no-unused-vars
+  143:26  warning  'entry' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  192:33  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  210:37  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  313:21  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  358:21  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  375:21  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+  420:21  warning  Unexpected any. Specify a different type                                 @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/middleware/rbac.spec.ts
+  5:32  warning  'vi' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/middleware/security.ts
+  52:29  warning  'reportOnly' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/routes/admin/credits.ts
+  52:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/routes/admin/experiments.ts
+  91:73  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/routes/admin/invite-codes.ts
+  39:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/routes/admin/users.ts
+  121:11  warning  'passwordHash' is assigned a value but never used            @typescript-eslint/no-unused-vars
+  121:25  warning  'totpSecret' is assigned a value but never used              @typescript-eslint/no-unused-vars
+  121:37  warning  'emailVerificationToken' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  121:85  warning  Unexpected any. Specify a different type                     @typescript-eslint/no-explicit-any
+  128:44  warning  Unexpected any. Specify a different type                     @typescript-eslint/no-explicit-any
+  157:69  warning  Unexpected any. Specify a different type                     @typescript-eslint/no-explicit-any
+  203:62  warning  Unexpected any. Specify a different type                     @typescript-eslint/no-explicit-any
+  242:61  warning  Unexpected any. Specify a different type                     @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/routes/auth-email-verify.spec.ts
+  2:8  warning  'crypto' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/routes/auth-password-reset.spec.ts
+  137:13  warning  'res' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  157:13  warning  'res' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/routes/character-collaborators.ts
+  98:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/routes/characters.ts
+  1354:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1409:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  1468:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/routes/chats.ts
+  1214:11  warning  'pinned' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/routes/gdpr.ts
+  25:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  64:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/routes/intelligence.ts
+  14:10  warning  'embeddingService' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/routes/mfa.ts
+   41:81  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:67  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  127:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/routes/oauth.ts
+  141:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/routes/reports.spec.ts
+   89:25  warning  '_' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  120:23  warning  '_' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/routes/social.ts
+  329:12  warning  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/routes/subscriptions.ts
+  8:10  warning  'eventBus' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/routes/websocket.ts
+   199:14  warning  'err' is defined but never used  @typescript-eslint/no-unused-vars
+  1128:16  warning  'e' is defined but never used    @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/apiKey.service.ts
+  97:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/auth.service.ts
+    8:18  warning  'randomUUID' is defined but never used    @typescript-eslint/no-unused-vars
+   99:84  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  229:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  243:84  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/chat.service.ts
+   34:32  warning  'PromptLayout' is defined but never used  @typescript-eslint/no-unused-vars
+  547:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/embedding.service.spec.ts
+  2:47  warning  'beforeEach' is defined but never used                    @typescript-eslint/no-unused-vars
+  3:15  warning  'SentimentResult' is defined but never used               @typescript-eslint/no-unused-vars
+  8:9   warning  'createMockEmbedding' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/emotion.service.spec.ts
+  3:26  warning  'EMOTION_MAP' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/gdpr.service.ts
+   20:10  warning  'commentRepository' is defined but never used  @typescript-eslint/no-unused-vars
+   79:59  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  175:73  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  210:74  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  273:12  warning  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/gdpr.spec.ts
+  6:10  warning  'Readable' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/group-chat.service.ts
+  12:7  warning  'groupLogger' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/intelligence-debug.service.ts
+    8:10  warning  'memoryRepository' is defined but never used                                   @typescript-eslint/no-unused-vars
+    9:10  warning  'emotionRepository' is defined but never used                                  @typescript-eslint/no-unused-vars
+   12:10  warning  'chatService' is defined but never used                                        @typescript-eslint/no-unused-vars
+  183:5   warning  'characterId' is defined but never used. Allowed unused args must match /^_/u  @typescript-eslint/no-unused-vars
+  184:5   warning  'userId' is defined but never used. Allowed unused args must match /^_/u       @typescript-eslint/no-unused-vars
+  185:5   warning  'chatId' is defined but never used. Allowed unused args must match /^_/u       @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/llm.service.ts
+  273:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/memory-consolidation.service.spec.ts
+  43:10  warning  'embeddingService' is defined but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/memory.service.ts
+   7:33  warning  'MemoryWithScore' is defined but never used  @typescript-eslint/no-unused-vars
+  76:41  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  77:53  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  78:40  warning  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/notification.service.ts
+  74:77  warning  'priority' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/oauth.service.ts
+  210:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  304:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/plugin-bridge.ts
+  36:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/plugin-sandbox.ts
+   26:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   27:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   89:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  150:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/plugin.service.ts
+  157:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/server/services/rating.service.spec.ts
+  63:10  warning  'NotFoundError' is defined but never used  @typescript-eslint/no-unused-vars
+  82:9   warning  'self' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/search.service.ts
+  21:50  warning  'isNsfw' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/webhook-integration.spec.ts
+  14:7  warning  'service' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/var/aichat/Small-Squaretable/src/server/services/worldinfo-engine.service.ts
+  150:10  warning  'evaluateSelectiveLogic' is defined but never used  @typescript-eslint/no-unused-vars
+  216:41  warning  'depth' is assigned a value but never used          @typescript-eslint/no-unused-vars
+  316:17  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  318:21  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  320:21  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  321:48  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  326:44  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  333:44  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  342:43  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  350:37  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  355:54  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  408:37  warning  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+
+/var/aichat/Small-Squaretable/src/types/character-card-import.ts
+   15:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   17:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   27:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   38:75  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   54:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  123:48  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  188:60  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  195:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  195:88  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 247 problems (0 errors, 247 warnings)
+

@@ -6,6 +6,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import CreditsBalance from './CreditsBalance.vue';
 import i18n from '../../i18n';
+import { nextTick, reactive } from 'vue';
+
+let user: { user: { id: string; tenantId: string } | null };
+vi.mock('@client/stores/user', () => ({ useUserStore: () => user }));
 
 const { mockBalance, mockLedger } = vi.hoisted(() => ({
   mockBalance: vi.fn(),
@@ -41,6 +45,7 @@ function mountComponent() {
 describe('CreditsBalance', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    user = reactive({ user: { id: 'reader-1', tenantId: 'tenant-1' } });
     i18n.global.locale.value = 'zh-CN';
     mockBalance.mockResolvedValue(balance);
     mockLedger.mockResolvedValue(ledger);
@@ -88,6 +93,15 @@ describe('CreditsBalance', () => {
     expect(wrapper.get('[data-testid="held-points"]').text()).toBe('0.5');
   });
 
+  it('shows unlimited permission separately from paid balances', async () => {
+    mockBalance.mockResolvedValue({ ...balance, availablePoints: 0, unlimited: true });
+    const wrapper = mountComponent();
+    await flushPromises();
+    expect(wrapper.get('[data-testid="available-points"]').text()).toBe('无限');
+    expect(wrapper.get('[data-testid="credits-rules"]').text()).toContain('不消耗点数');
+    expect(wrapper.get('[data-testid="credits-rules"]').text()).not.toContain('不支持退款');
+  });
+
   it('订阅模式：整块不渲染，也不请求流水', async () => {
     mockBalance.mockResolvedValue({ ...balance, billingMode: 'subscription' });
     const wrapper = mountComponent();
@@ -112,5 +126,34 @@ describe('CreditsBalance', () => {
     await flushPromises();
 
     expect(wrapper.get('[role="alert"]').text()).toContain('加载点数余额失败');
+  });
+
+  it('discards a previous account balance and ledger after switching owners', async () => {
+    let resolve!: (value: typeof ledger) => void;
+    mockLedger.mockReturnValueOnce(new Promise(success => { resolve = success; }));
+    const wrapper = mountComponent();
+    await flushPromises();
+    mockBalance.mockResolvedValue({ ...balance, availablePoints: 2 });
+    mockLedger.mockResolvedValue({ ...ledger, items: [] });
+    user.user = { id: 'reader-2', tenantId: 'tenant-2' };
+    await nextTick();
+    expect(wrapper.text()).not.toContain('6.2');
+    await flushPromises();
+    resolve(ledger);
+    await flushPromises();
+    expect(wrapper.get('[data-testid="available-points"]').text()).toBe('2');
+    expect(wrapper.findAll('tbody tr')).toHaveLength(0);
+    user.user = null;
+    await flushPromises();
+    expect(wrapper.text()).toBe('');
+  });
+
+  it('does not show zero or an empty ledger while the balance is unknown', async () => {
+    mockBalance.mockReturnValue(new Promise(() => {}));
+    const wrapper = mountComponent();
+    expect(wrapper.find('[data-testid="available-points"]').exists()).toBe(false);
+    expect(wrapper.find('[role="status"]').exists()).toBe(true);
+    expect(mockLedger).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 });

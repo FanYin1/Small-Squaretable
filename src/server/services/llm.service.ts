@@ -15,6 +15,7 @@ import { AppError } from '../../core/errors';
 import { spendBreaker } from './spend-breaker.service';
 import { logger } from './logger.service';
 import { getPromptLayout } from './prompt-layout';
+import { buildGeminiRequest, convertGeminiStream, readGeminiCompletion } from './gemini-adapter';
 
 const llmLogger = logger.child({ module: 'llm' });
 
@@ -32,9 +33,10 @@ export interface CacheUsage {
   cacheCreationTokens: number | null;
 }
 
-/** 调用方可选传入的上下文，仅用于日志归因，不影响请求本身 */
 export interface LlmCallOptions {
   chatId?: string;
+  signal?: AbortSignal;
+  maxAttempts?: number;
 }
 
 function num(value: unknown): number | null {
@@ -206,10 +208,16 @@ export class LLMService {
 
     // 执行请求，带重试机制
     const result = await this.executeWithRetry<ChatCompletionResponse>(async () => {
+      if (providerConfig.apiFormat === 'gemini') {
+        const native = buildGeminiRequest(this.requireBaseUrl(providerConfig), providerConfig.apiKey, { ...request, model });
+        const response = await fetch(native.url, { ...native.init, signal: options?.signal });
+        return readGeminiCompletion(response, model);
+      }
       const response = await fetch(url, {
         method: 'POST',
         headers,
         body: JSON.stringify(request),
+        ...(options?.signal ? { signal: options.signal } : {}),
       });
 
       if (!response.ok) {
@@ -222,7 +230,7 @@ export class LLMService {
       }
 
       return response.json();
-    });
+    }, options?.maxAttempts, options?.signal);
 
     await this.recordPlatformSpend(() => this.calculateTokenUsage(request, result));
     this.safeLogCacheUsage(result?.usage, model, false, options);
@@ -295,12 +303,16 @@ export class LLMService {
       Authorization: `Bearer ${providerConfig.apiKey}`,
     };
 
-    const response = await fetch(url, {
+    const native = providerConfig.apiFormat === 'gemini'
+      ? buildGeminiRequest(baseUrl, providerConfig.apiKey, { ...request, model }, true) : null;
+    let response = native ? await fetch(native.url, { ...native.init, signal: signal ?? options?.signal }) : await fetch(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(modifiedRequest),
       signal,
     });
+
+    if (native) response = convertGeminiStream(response, model);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -338,6 +350,17 @@ export class LLMService {
     const providerConfig = findProviderForModel(model);
     if (!providerConfig) {
       throw new AppError(`Model ${model} not found`, 404, 'MODEL_NOT_FOUND');
+    }
+
+    if (providerConfig.apiFormat === 'gemini') {
+      if (Array.isArray(request.prompt) && request.prompt.length !== 1) {
+        throw new AppError('Gemini text completion requires one prompt', 400, 'GEMINI_REQUEST_UNSUPPORTED');
+      }
+      const prompt = Array.isArray(request.prompt) ? request.prompt[0] : request.prompt;
+      const result = await this.chatCompletion({ ...request, model, messages: [{ role: 'user', content: prompt }], stream: false });
+      const choices = result.choices.map(choice => ({ index: choice.index, text: choice.message.content,
+        finish_reason: choice.finish_reason === 'content_filter' ? null : choice.finish_reason }));
+      return { ...result, object: 'text_completion', choices };
     }
 
     const url = `${this.requireBaseUrl(providerConfig)}/completions`;
@@ -415,14 +438,17 @@ export class LLMService {
   /**
    * 带重试机制的请求执行
    */
-  private async executeWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+  private async executeWithRetry<T>(fn: () => Promise<T>, maxAttempts = this.maxRetries, signal?: AbortSignal): Promise<T> {
     let lastError: Error | null = null;
 
-    for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+    const attempts = Math.max(1, Math.min(this.maxRetries, maxAttempts));
+    for (let attempt = 0; attempt < attempts; attempt++) {
       try {
+        signal?.throwIfAborted();
         return await fn();
       } catch (error) {
         lastError = error as Error;
+        if (signal?.aborted) throw error;
 
         // 如果是客户端错误（4xx），不重试
         if (error instanceof AppError && error.statusCode >= 400 && error.statusCode < 500) {
@@ -430,7 +456,7 @@ export class LLMService {
         }
 
         // 如果不是最后一次尝试，等待后重试
-        if (attempt < this.maxRetries - 1) {
+        if (attempt < attempts - 1) {
           await this.sleep(this.retryDelay * Math.pow(2, attempt));
         }
       }

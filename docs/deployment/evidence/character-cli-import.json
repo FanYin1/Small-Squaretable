@@ -1,0 +1,209 @@
+{
+  "date": "2026-10-24T13:29:55.356Z",
+  "task": "EXP-03B",
+  "taskClosed": false,
+  "result": "passed",
+  "database": "disposable PostgreSQL with beta migrations",
+  "backend": "production HTTP/WebSocket, no mocked repositories",
+  "provider": "loopback controlled provider; synthetic prompts only",
+  "paidProviderTokens": 0,
+  "samples": [
+    {
+      "relativePath": "已分类/2025年3月前/正常向(不分类)/冒险者公会的宝物鉴定师.png",
+      "sha256": "eb796df3af4400e32024716089f210b781b11a9ef71700f609db988ac562f74d",
+      "entries": 0,
+      "result": "single_batch_and_story_binding_passed"
+    },
+    {
+      "relativePath": "已分类/世界卡/异世界，奇幻/冒险者公会模拟器.png",
+      "sha256": "130383d1ab858ad9bb4a38111410201c3e35e7f6d88e836e8fcea56786aa8f01",
+      "entries": 5,
+      "result": "single_batch_and_story_binding_passed"
+    },
+    {
+      "relativePath": "已分类/世界卡/异世界，奇幻/异世界冒险团2.1.1.png",
+      "sha256": "d4b24962d7238a8e9785de9f1d546df17870bb6170d6dc7fa1223a1488f893f2",
+      "entries": 53,
+      "result": "single_batch_and_story_binding_passed"
+    },
+    {
+      "relativePath": "世界书及其他/世界书/神明级魔法.json",
+      "sha256": "3fb62df772070d6e0ea1f45013db8ec9905b0ef55b9f5ed3704141ebd358fc80",
+      "entries": 10,
+      "result": "persisted_unbound"
+    },
+    {
+      "relativePath": "世界书及其他/世界书/通用旁白 (只有世界书).json",
+      "sha256": "62f3511ad276ce3793ffa83bc5286eb7e81bb8f278ce2d6aac9f9fa10224b11a",
+      "entries": 4,
+      "result": "persisted_unbound"
+    }
+  ],
+  "checks": [
+    "Three original PNGs: single/batch persistence parity, original data retained, embedded books bound and captured",
+    "Two standalone books persisted with owner attribution and no inferred character binding",
+    "CLI dry-run produces readiness only; default standalone skip performs no writes",
+    "Three authorized PNGs imported by actual CLI match web fields, original metadata, tags, owner and embedded book rows",
+    "Two explicitly selected standalone books match web mappings without inferred character bindings",
+    "CLI partial failure exit 2, per-file character/book/entry rollback, next-file continuation, exact-byte dedup and same-name variants",
+    "30 synthetic raw-file API cases: JSON/V2/V3/iTXt/magic detection, corrupt/unsupported/ambiguous files produce no character rows",
+    "Actual JSON and PNG exports reimport current fields and V3 version, retain unknown fields, remove stale metadata and do not nest import archives",
+    "Production Chromium single/batch uploads, partial/all failure details, database counts, 1440px/390px layouts and zero page errors",
+    "Malformed book rejected; entry database failure rolls back character/book/prior entries; batch retains only its valid file",
+    "Frozen old/new story revisions survive source edits/deletion; unrelated global books remain unbound",
+    "Production WebSocket prompts: keyword/constant/disabled/zero-probability/secondary/atDepth role, frozen revisions and no global fallback"
+  ],
+  "sources": [
+    {
+      "path": "src/types/character-worldbook.ts",
+      "sha256": "a097d24829ae0fd8007fcaddb80555ca479ecaff49cc63e1c2e223433b3b0f65"
+    },
+    {
+      "path": "src/types/character-card-import.ts",
+      "sha256": "eafb962fe9eedc1ef188efecd5f52d8afb611a67c781c26f631ddda47f8bd6aa"
+    },
+    {
+      "path": "src/client/utils/sillytavern.ts",
+      "sha256": "8fe633a17d24acfcb6bf99ca7bc8e37d442cf7ddd63f30e68022c0e9175986ca"
+    },
+    {
+      "path": "src/types/worldbook-import.ts",
+      "sha256": "e2e93d3d16cfd18b8530960be435756976ed632e9658d9f3e1322aa2ad75edcc"
+    },
+    {
+      "path": "src/db/character-import.ts",
+      "sha256": "c94cbfb762da89976b55f3e9f0dec6faf1e42e437282933c9a3b4c75ef9dc5b9"
+    },
+    {
+      "path": "src/db/worldbook-import.ts",
+      "sha256": "6fa4bf4465851d1ea9fe3aaf63398785a18e0417287aae2f31091e3222e3ca5e"
+    },
+    {
+      "path": "src/server/routes/worldbooks.ts",
+      "sha256": "d5a0ae74f41d8ffc18f880ec2b024f3c3f9982e0d2c1a09c9cb3bbe3d57787ef"
+    },
+    {
+      "path": "scripts/import-cards.ts",
+      "sha256": "d87a75187eeb7749833d79f9549c5422b65e3e5b022e61b898beebceb7f6f8e1"
+    },
+    {
+      "path": "scripts/character-cli-check.mjs",
+      "sha256": "abfda1d7cf6e5ab38b7dba81515bd110127f3e40879a12debc760712d212756e"
+    },
+    {
+      "path": "src/client/services/export.api.ts",
+      "sha256": "aa12af32b5229167fe5f65c93e210dc370898f3fc56d06ee5c5a2d21828e31d7"
+    },
+    {
+      "path": "src/client/pages/MyCharacters.vue",
+      "sha256": "e87064b108454debc4639312df0d58cb8510f7ecc99a902a001e4cad3a1afe35"
+    },
+    {
+      "path": "src/server/utils/png-embed.ts",
+      "sha256": "1b6ee16aa6ef617b660f46d8fe4b4f34f4c95c5fa9d4c0138949d84e2c188d09"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "6348b216afea4f61483e354f70d0248ea8669d0238632ad17efe989e492d4e8d"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "085294f2b0433284be8a23d4bf7ec3f247e3b75c4e24ef2f8f70fd40aad7af43"
+    },
+    {
+      "path": "scripts/fixtures/character-card-formats.mjs",
+      "sha256": "8082f35b91b7071ed15204d832ecde55877a3d984b0d7291fc2e0d2b185f1427"
+    },
+    {
+      "path": "src/db/repositories/character.repository.ts",
+      "sha256": "718ab7db90e4bba386b33f189e3a60088c806adf9a153a9f0c3071ae81df85fa"
+    },
+    {
+      "path": "src/server/routes/characters.ts",
+      "sha256": "f186fc8380412350be04e3c29d309d0ae711c83f8b5c1ef90d67e96f98078156"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/server/services/worldinfo-engine.service.ts",
+      "sha256": "1bdd6d18f64fd7485ee5882bd77469210c3232eb507f585f9edcf9de468a0b6a"
+    },
+    {
+      "path": "scripts/character-library-check.mjs",
+      "sha256": "2c654c1d8712e097977ddbaf064100f8a3a405fcead4d5efa57fe5b337aac12a"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "192d212b8052c06cb223a50c8beb9412ac0a75bd971ec97c597c81bce8640efd"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "1dc81156e9b6311e5f5ef9027108b33e26902f37a3116be1258dfb956bd86604"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "b3a8fbb3e51ff496bac3914283109b32ec4d59db4d331dc41c01c06beb8a7c58"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "08d47ad396e1797f093f95010c17cd8537458af60abb0928e83cc0363707672b"
+    },
+    {
+      "path": "src/types/worldbook-import.spec.ts",
+      "sha256": "2bfd49c6db8a20a7e58c49a9fc7ef91dde6c1d4147ea3edb5b0d3c659be87ee8"
+    },
+    {
+      "path": "src/server/services/character-cli-import.spec.ts",
+      "sha256": "cff27ef955ba5bef45ab20c2b82b71225e63cc829dc30abe677b2a2f90365d0b"
+    },
+    {
+      "path": "src/server/routes/worldbooks.spec.ts",
+      "sha256": "eefd782803ee635d65690936388a2c831ff587442241fa270a1a353b0b698bbf"
+    },
+    {
+      "path": "tsconfig.import-cards.json",
+      "sha256": "c0ec2e9b457c69d3900497ebf3cc03cccfcc26be4bd9a63f3489cc367e672a40"
+    },
+    {
+      "path": "package.json",
+      "sha256": "ebf0b3ebad243defe38e9a14f9bdaea894a6a2b391de7ca3c08f766fb4ef4347"
+    }
+  ],
+  "cli": {
+    "result": "passed",
+    "groups": [
+      "CLI dry-run produces readiness only; default standalone skip performs no writes",
+      "Three authorized PNGs imported by actual CLI match web fields, original metadata, tags, owner and embedded book rows",
+      "Two explicitly selected standalone books match web mappings without inferred character bindings",
+      "CLI partial failure exit 2, per-file character/book/entry rollback, next-file continuation, exact-byte dedup and same-name variants"
+    ],
+    "samples": {
+      "cards": 3,
+      "worldbooks": 2
+    },
+    "paidProviderTokens": 0
+  },
+  "pageErrors": [],
+  "standaloneSyntheticBookCreated": true,
+  "limits": [
+    "No author scripts executed or original library contents submitted to any model",
+    "No full card gameplay, all metadata formats or recursive/probabilistic parity acceptance; compressed metadata explicitly rejected",
+    "Standalone books remain unbound; author binding UI is separately verified; no historical repair or cross-run import deduplication",
+    "No live candidate deployment or user signoff"
+  ],
+  "scope": "EXP-03B-CLI: shared character import and atomic standalone book import, finite CLI parity",
+  "validation": {
+    "targetedTests": 125,
+    "testFiles": 6,
+    "appTypecheck": "passed",
+    "cliTypecheck": "passed",
+    "build": "passed",
+    "targetedLint": {
+      "errors": 0,
+      "warnings": 4
+    },
+    "liveDeploymentChanged": false
+  }
+}

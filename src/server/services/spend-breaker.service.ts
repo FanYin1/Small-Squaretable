@@ -34,6 +34,7 @@ const NOTIFIED_KEY_PREFIX = 'spend-breaker:notified:';
 const KEY_TTL_SECONDS = 72 * 3600;
 
 export const PLATFORM_SPEND_LIMIT_CODE = 'PLATFORM_SPEND_LIMIT';
+export const PLATFORM_SPEND_UNAVAILABLE_CODE = 'PLATFORM_SPEND_UNAVAILABLE';
 
 export class SpendBreaker {
   private startupWarned = false;
@@ -90,7 +91,7 @@ export class SpendBreaker {
       throw new AppError(
         'Chat is temporarily unavailable. Please try again in a few minutes.',
         503,
-        PLATFORM_SPEND_LIMIT_CODE
+        PLATFORM_SPEND_UNAVAILABLE_CODE
       );
     }
 

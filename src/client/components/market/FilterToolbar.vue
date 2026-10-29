@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -17,7 +17,7 @@ interface Emits {
   (e: 'change'): void;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const categories = computed(() => [
@@ -66,6 +66,12 @@ const handleSortChange = (value: string) => {
   emit('update:sortBy', value);
   emit('change');
 };
+function clearFilters() {
+  emit('update:selectedCategory', '');
+  emit('update:selectedTags', []);
+  emit('update:sortBy', 'popular');
+  emit('change');
+}
 </script>
 
 <template>
@@ -74,6 +80,7 @@ const handleSortChange = (value: string) => {
       <label class="filter-label">{{ $t('market.filters.category') }}</label>
       <el-select
         :model-value="selectedCategory"
+        :aria-label="t('market.filters.category')"
         :placeholder="$t('market.filters.selectCategory')"
         size="default"
         @update:model-value="handleCategoryChange"
@@ -87,10 +94,12 @@ const handleSortChange = (value: string) => {
       </el-select>
     </div>
 
+    <details class="filter-details"><summary>{{ t('storyShell.moreFilters') }}</summary><div class="filter-options">
     <div class="filter-item">
       <label class="filter-label">{{ $t('market.filters.tags') }}</label>
       <el-select
         :model-value="selectedTags"
+        :aria-label="t('market.filters.tags')"
         :placeholder="$t('market.filters.selectTags')"
         multiple
         collapse-tags
@@ -112,6 +121,7 @@ const handleSortChange = (value: string) => {
       <label class="filter-label">{{ $t('market.filters.sort') }}</label>
       <el-select
         :model-value="sortBy"
+        :aria-label="t('market.filters.sort')"
         size="default"
         @update:model-value="handleSortChange"
       >
@@ -123,6 +133,8 @@ const handleSortChange = (value: string) => {
         />
       </el-select>
     </div>
+    </div></details>
+    <button v-if="selectedCategory || selectedTags.length || sortBy !== 'popular'" type="button" class="clear-filters" @click="clearFilters">{{ t('storyShell.clearFilters') }}</button>
   </div>
 </template>
 
@@ -132,14 +144,20 @@ const handleSortChange = (value: string) => {
 .filter-toolbar {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 20px 24px;
-  background: var(--bg-surface);
+  gap: 12px 20px;
+  padding: 12px 0;
+  background: transparent;
   border-radius: 12px;
   /* 深色下阴影不可见，分隔完全交给边框承担 */
-  border: 1px solid var(--border-default);
+  border: 0;
   flex-wrap: wrap;
 }
+.filter-details { flex:1; min-width:0; }
+.filter-details summary,.clear-filters { cursor:pointer; min-height:44px; padding:10px 12px; color:var(--text-secondary); font-size:14px; }
+.clear-filters { border:1px solid var(--border-interactive); border-radius:8px; background:var(--bg-surface); }
+.filter-options { display:flex; flex-wrap:wrap; gap:12px; padding:12px 0; }
+.filter-details[open] { flex-basis:100%; order:3; }
+.filter-toolbar :deep(.el-select__wrapper) { min-height:44px; }
 
 .filter-item {
   display: flex;
@@ -165,19 +183,17 @@ const handleSortChange = (value: string) => {
 /* 移动端适配 */
 @include below(md) {
   .filter-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
+    align-items: center;
+    gap: 8px;
   }
 
   .filter-item {
-    flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     gap: 8px;
   }
 
   .filter-item :deep(.el-select) {
-    width: 100%;
+    width: 140px;
   }
 }
 </style>

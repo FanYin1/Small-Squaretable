@@ -245,6 +245,25 @@ list_backups() {
 }
 
 # Restore from SQL dump (gzipped)
+replay_story_deletions() {
+    local phase="$1"
+    local script_dir
+    script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+    local deletion_script="story-deletion-replay.mjs"
+    if [[ -n "${STORY_DELETION_JOURNAL:-}" ]]; then
+        if [[ -n "${STORY_DELETION_SOURCE_DATABASE_URL:-}" ]]; then
+            log_error "Choose exactly one trusted deletion source: live database or independent journal."
+            return 1
+        fi
+        deletion_script="story-deletion-journal.mjs"
+    fi
+    if ! PGHOST="${DB_HOST}" PGPORT="${DB_PORT}" PGDATABASE="${DB_NAME}" PGUSER="${DB_USER}" PGPASSWORD="${DB_PASSWORD}" \
+        node "${script_dir}/${deletion_script}" "${phase}" --target-postgres-env; then
+        log_error "Story deletion verification failed. Keep the restored target offline."
+        return 1
+    fi
+}
+
 restore_from_sql() {
     local backup_path="$1"
 
@@ -254,6 +273,8 @@ restore_from_sql() {
         log_info "[DRY RUN] Would restore from: ${backup_path}"
         return 0
     fi
+
+    replay_story_deletions --preflight || return 1
 
     # Drop and recreate database
     log_info "Dropping existing database..."
@@ -281,11 +302,13 @@ restore_from_sql() {
         -p "${DB_PORT}" \
         -U "${DB_USER}" \
         -d "${DB_NAME}" \
+        --set=ON_ERROR_STOP=1 \
         --quiet \
         2>> "${LOG_FILE}"
 
     if [[ $? -eq 0 ]]; then
-        log_success "Database restored successfully from SQL dump"
+        replay_story_deletions --offline-target || return 1
+        log_success "Database restored from SQL dump and story deletions replayed"
         return 0
     else
         log_error "Failed to restore database from SQL dump"
@@ -304,6 +327,8 @@ restore_from_custom() {
         log_info "[DRY RUN] Would restore from: ${backup_path}"
         return 0
     fi
+
+    replay_story_deletions --preflight || return 1
 
     # Drop and recreate database
     log_info "Dropping existing database..."
@@ -339,7 +364,8 @@ restore_from_custom() {
         2>> "${LOG_FILE}"
 
     if [[ $? -eq 0 ]]; then
-        log_success "Database restored successfully from custom format dump"
+        replay_story_deletions --offline-target || return 1
+        log_success "Database restored from custom format dump and story deletions replayed"
         return 0
     else
         log_error "Failed to restore database from custom format dump"
@@ -389,6 +415,7 @@ restore_pitr() {
     echo "   recovery_target_action = 'promote'"
     echo "6. Start PostgreSQL server"
     echo "7. Verify recovery completed successfully"
+    echo "8. Keep the application offline and run npm run restore:story-deletions with the current authoritative source and restored target before reopening access"
     echo ""
 
     return 0
@@ -467,6 +494,9 @@ OPTIONS:
 
 ENVIRONMENT VARIABLES:
     POSTGRES_HOST           Database host (default: localhost)
+    STORY_DELETION_SOURCE_DATABASE_URL  Current authoritative deletion database; must survive the restore
+    STORY_DELETION_JOURNAL              Alternative: latest trusted private deletion snapshot file
+    STORY_DELETION_JOURNAL_SHA256       Independently recorded digest of that trusted snapshot
     POSTGRES_PORT           Database port (default: 5432)
     POSTGRES_DB             Database name (default: sillytavern_saas)
     POSTGRES_USER           Database user (default: postgres)

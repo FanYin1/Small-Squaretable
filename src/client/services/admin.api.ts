@@ -202,6 +202,7 @@ export interface GenerateInviteCodesInput {
 // ── Credits (P3-1) ──
 
 export interface CreditSummary {
+  unlimited?: boolean;
   tokensPerPoint: number;
   balanceTokens: number;
   heldTokens: number;

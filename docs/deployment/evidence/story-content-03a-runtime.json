@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-25T11:11:21.524Z",
+  "health": {
+    "3080": 200,
+    "3081": 200,
+    "5188": 200
+  },
+  "images": {
+    "squaretable-exploration-app-1": "sha256:513da41b2bdf951c0a06ee7e6a9be377723d2a22482c183284c3070c0fdf5e7c",
+    "squaretable-beta-app-1": "sha256:b65d1767ba17bfcb751e851c9c3c8dc5aac4f432e7c30cd6ac80ec06bda6fec3"
+  },
+  "paidProviderTokens": 0
+}

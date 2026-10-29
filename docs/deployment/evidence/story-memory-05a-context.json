@@ -1,0 +1,150 @@
+{
+  "date": "2026-10-25T10:35:06.822Z",
+  "result": "passed",
+  "backend": "current built server with disposable PostgreSQL/Redis",
+  "model": "controlled loopback provider; beta-smoke uses the existing unknown-model 4096/2048 metadata fallback",
+  "scope": "real API, WebSocket, browser, database and credit effects; synthetic histories and provider output, not real long-form quality",
+  "checks": [
+    {
+      "case": "oversized accepted input is retained without body generation, credit hold or story effects",
+      "result": "passed"
+    },
+    {
+      "case": "input recovery appends to an existing draft without resending",
+      "result": "passed"
+    },
+    {
+      "case": "edited input generates once with frozen identity and saved style; oversized older input stays stored",
+      "result": "passed"
+    },
+    {
+      "case": "real legacy memory API rejects managed story reads and extraction; omitted scope does not expose story facts",
+      "result": "passed"
+    },
+    {
+      "case": "real HTTP rejects foreign-story extraction and managed memory deletion; global clear preserves story derivation",
+      "result": "passed"
+    },
+    {
+      "case": "nonempty long history is trimmed by whole turns while saved notes and current input reach the real provider boundary",
+      "result": "passed",
+      "syntheticHistoricalTurns": 25
+    },
+    {
+      "case": "sourced style preference without a vector survives reload and reaches the actual provider request independently of topic similarity",
+      "result": "passed",
+      "fixture": "explicit synthetic checkpoint and linked preference, not real extraction"
+    },
+    {
+      "case": "validated completed batch recap reaches the real WebSocket provider boundary alongside notes and latest input",
+      "result": "passed",
+      "fixture": "seeded synthetic completed summary, not real provider extraction"
+    },
+    {
+      "case": "changed source digest excludes stale recap from the next real continuation without dropping notes or latest input",
+      "result": "passed"
+    },
+    {
+      "case": "mobile critical depth material is preserved and rejected before generation; error metadata contains no private prompt",
+      "result": "passed"
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/story-context-browser-check.mjs",
+      "sha256": "88b48c35aaa031d76dc2bb5a18dcd9c3a0fb3b31b23cc0b9245e7e2ad3ad3c4e"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "2bb11c98a375f8626cd740cf19d2103ba7a7fca42d5fc4ade91b0cd658ff6926"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "09f25528b338294e55486f03aadd4bb33bb6d459001ab1490d36d02a57f2311c"
+    },
+    {
+      "path": "src/server/services/context-budget.ts",
+      "sha256": "6cb9822fd1445f129d7c8eac8ced481a283db71bd9ba81a7d264c6382a655959"
+    },
+    {
+      "path": "src/server/services/context-manager.service.ts",
+      "sha256": "c5aec3b505d8a7699ea4c41e1a3821bf2d472910e9df8e076ce1498f58ae654b"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "d79b82150e87b7e090f2d09b545a82310f8444d93ad271aff7683d88cb25bc0b"
+    },
+    {
+      "path": "src/server/services/story-summary.service.ts",
+      "sha256": "07a251a377f98d5ab415646bace2fb73222f8cf2807d6704b3cf39a4d99fc516"
+    },
+    {
+      "path": "src/server/services/story-summary-context.ts",
+      "sha256": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b"
+    },
+    {
+      "path": "src/server/services/story-memory-extraction.ts",
+      "sha256": "96098d151b9a8d59e9ad18bd2e9ccce86f676d7a0ff10302cafd0797602eb63b"
+    },
+    {
+      "path": "src/server/services/story-memory-provenance.ts",
+      "sha256": "5c2c79469c80a6d7a354b293d506fbc4cb611f6ed6b11e884f26adb9452f8304"
+    },
+    {
+      "path": "src/server/services/story-knowledge.service.ts",
+      "sha256": "7bcdab43f04beeb3a5900e1305ce2e58ddeff42077697cb2d41379c89826f011"
+    },
+    {
+      "path": "src/server/services/story-memory-selection.ts",
+      "sha256": "d922a306005a4d2c80f7ce31089bd439b5406f5f97a07a2caf2902aba4b20afb"
+    },
+    {
+      "path": "src/server/services/legacy-memory-access.service.ts",
+      "sha256": "96de533e184dfc3c5f8af1e451434d088d1378f226e9fbaadc209fab2ccc9d76"
+    },
+    {
+      "path": "src/server/services/memory.service.ts",
+      "sha256": "4750aa1ffb1678c7c0232e225643080ccfafb0bdd0bffbc37d09cf8911170c81"
+    },
+    {
+      "path": "src/server/services/chat.service.ts",
+      "sha256": "a8fabdbb8a7e0450d8b3b9902e87486a8f7852d9addff3195f0c2ffe2a0e5195"
+    },
+    {
+      "path": "src/server/routes/intelligence.ts",
+      "sha256": "8bd2a489e104797a8e739a8261314253bf32bb812534793fc27dade012f55020"
+    },
+    {
+      "path": "src/types/context-budget.ts",
+      "sha256": "96fdf94abee07109188ce5c7564fac6c304b9c6f1d820b1c8685ab92ff06c809"
+    },
+    {
+      "path": "src/client/stores/chat.ts",
+      "sha256": "216c847bfad245a76adca2afb787a0691fcfb4ee5c7c75da2f6c23f6c9e9d611"
+    },
+    {
+      "path": "src/client/components/chat/ChatWindow.vue",
+      "sha256": "b6b5958982da744fef458626dd23238535071a146870bd0538be6085563a43c4"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "33534d268c13326900e2b3151c0364d8bcd4958e5570a1bf6f5edcf3abdcfe35"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "84413ccfe075f47dbedb2bafdc759d4456b60777c4f0a949d43fb004dabbc4fa"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "f3c1e4caaf336e452a9da989c3a2bb2fe234de6964f26a8bf888775c2ca88730"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "d7fc09a0930eaca3dca2a0b277c7a0e59dc89bd31ee580ad604166bbad26f5b8"
+    }
+  ],
+  "screenshots": [
+    "desktop-overflow.png",
+    "mobile-critical-overflow.png"
+  ]
+}

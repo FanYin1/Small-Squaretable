@@ -1,0 +1,87 @@
+PASS lookup of an unknown key is not_found
+PASS another pool can look up the committed story
+PASS lookup does not disclose a different user result
+PASS lookup does not disclose a different tenant result
+PASS an uncommitted request is not_found rather than proof of failure
+PASS the same lookup sees the result after commit
+PASS 40 creates across two pools have exactly one winner
+PASS all requests return the same story
+PASS one story, one request and one complete group are committed
+PASS group order and selected identity are preserved
+PASS nested object property order does not cause a conflict
+PASS duplicate group members are normalized
+PASS changing identity with the same request key is rejected
+PASS changing title with the same request key is rejected
+PASS changing metadata with the same request key is rejected
+PASS changing characterOrder with the same request key is rejected
+PASS the same key is independent for another user
+PASS the same key is independent for another tenant
+PASS group insertion failure rolls back the story and claim
+PASS a failed group leaves no orphan associations
+PASS the same key can retry after a rolled-back transaction
+PASS unowned or missing identity is rejected without leaving a claim
+PASS unowned or missing identity is rejected without leaving a claim
+PASS identity validation also checks tenant ownership
+PASS creation atomically records a versioned identity
+PASS replaying a request after persona edits keeps the original snapshot
+PASS a new story receives the edited identity and a different revision
+PASS the database prevents identity snapshot overwrite
+PASS account-only stories also preserve their opening name
+PASS source card edits do not change saved character names or opening rules
+PASS saved character content is isolated to the story owner
+PASS the database rejects overwriting saved character content
+PASS private cards cannot be captured by an unrelated player
+PASS creation freezes only explicitly bound author worldbooks
+PASS an empty character binding does not load unrelated books
+PASS source edits do not change existing story rules
+PASS a new story receives the revised character and opening
+PASS a new story receives current worldbook content
+PASS changed worldbooks produce a distinct content revision
+PASS a different owner cannot read saved worldbooks
+PASS the database rejects overwriting saved worldbooks
+PASS the database rejects downgrading a saved binding to legacy mode
+PASS deleting the source book preserves the saved entries
+PASS creation replay after source deletion preserves the original binding
+PASS new stories after source deletion persist an explicit empty binding
+PASS a missing saved binding fails instead of falling back to live books
+PASS replay after identity deletion returns the existing story
+PASS deleting the source persona preserves the full starting identity
+PASS replay returns current story data after rename
+PASS lookup keeps the original ID after rename and identity deletion
+PASS deleting a story also removes its private worldbook snapshot
+PASS deleted stories retain a tombstone and cannot be recreated by replay
+PASS lookup distinguishes deletion from a missing request
+PASS deleting one story leaves another owner replayable
+PASS legacy rows remain explicitly without an identity snapshot
+PASS ordinary legacy story updates remain valid
+PASS native opening has authored resources, unknown source and no secret clue
+PASS negation and price questions do not mutate resources
+PASS two independent database clients commit at most one action at one state version
+PASS the committed turn and its source are available after reconnect
+PASS replaying a committed action returns the original response without another event
+PASS stale suggested actions fail before committing
+PASS stopped generation retains confirmed values and records an interrupted source
+PASS state and notes enforce owner isolation within and across tenants
+PASS saved style notes enter only this story prompt
+PASS deleting a note removes it from subsequent prompts
+PASS 100 subsequent free-text turns preserve confirmed resources and sources
+PASS resume pagination reads the most recent messages in reading order
+PASS an old event source resolves to its exact message
+PASS identical memory content in different stories does not collide or merge
+PASS semantic deduplication searches only the current story
+PASS story memories cannot be promoted into global account memories
+PASS direct promotion also preserves the source story
+PASS retention removes only memories in its target story
+PASS automatic consolidation reads only explicitly global memories
+PASS deleting a story cascades its state, events and notes
+PASS deleting a story removes its derived memories instead of promoting them to global scope
+PASS an author transaction between source read and snapshot write cannot mix card/book revisions
+PASS a later start captures both newly committed card and book revisions
+PASS state view does not combine old balances with a newly committed event
+PASS next state read includes both committed balance and event source
+PASS generation preparation uses the same version for validation, prompt, events and state
+PASS consistent reads preserve commit-time optimistic version protection
+PASS direct event provenance enforces account and story scope without returning private changes
+PASS undiscovered map nodes are excluded from current marker, nodes and links
+PASS invalid typed author conditions roll back the entire new-story creation
+86 checks passed

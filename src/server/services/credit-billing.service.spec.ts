@@ -34,6 +34,7 @@ const { fake } = vi.hoisted(() => {
     reservations: [] as any[],
     ledger: [] as any[],
     locks: new Map<string, Promise<void>>(),
+    unlimited: new Set<string>(),
     seq: 0,
   };
 
@@ -59,9 +60,9 @@ const { fake } = vi.hoisted(() => {
       await new Promise((r) => setImmediate(r));
       const balance = state.ledger.filter((l) => l.tenantId === tenantId).reduce((s, l) => s + l.amount, 0);
       const held = state.reservations
-        .filter((r) => r.tenantId === tenantId && r.status === 'active')
+        .filter((r) => r.tenantId === tenantId && r.status === 'active' && r.metadata?.creditExempt !== true)
         .reduce((s, r) => s + r.tokens, 0);
-      return { balance, held, available: balance - held };
+      return { balance, held, available: balance - held, unlimited: state.unlimited.has(tenantId) };
     },
     async insertReservation(data: any) {
       await new Promise((r) => setImmediate(r));
@@ -77,6 +78,11 @@ const { fake } = vi.hoisted(() => {
       if (!row || !from.includes(row.status)) return null;
       row.status = to;
       row.chargedTokens = charged;
+      return row;
+    },
+    async closeExemptReservation(id: string, usage: Record<string, unknown>) {
+      const row = await repo.closeReservation(id, ['active', 'expired'], 'settled', 0);
+      if (row) row.metadata = { ...row.metadata, ...usage };
       return row;
     },
     async expireDue() {
@@ -98,6 +104,7 @@ const { fake } = vi.hoisted(() => {
     state.reservations.length = 0;
     state.ledger.length = 0;
     state.locks.clear();
+    state.unlimited.clear();
     state.seq = 0;
   };
   return { fake: { repo, state, reset } };
@@ -121,6 +128,32 @@ import {
 } from './credit-billing.service';
 
 const TENANT = 't1';
+
+describe('account credit exemption', () => {
+  it('allows concurrent zero-balance generations only for the granted tenant and records usage once', async () => {
+    fake.state.unlimited.add(TENANT);
+    await expect(creditBilling.assertHasCredits(TENANT)).resolves.toBeUndefined();
+    await expect(creditBilling.assertHasCredits('other')).rejects.toBeInstanceOf(InsufficientCreditsError);
+    const holds = await Promise.all(Array.from({ length: 5 }, () => creditBilling.reserve({ tenantId: TENANT, estimatedInputTokens: 1000, maxOutputTokens: 2000 })));
+    expect((await fake.repo.getAvailability(TENANT)).held).toBe(0);
+    fake.state.unlimited.clear();
+    fake.state.reservations[0].status = 'expired';
+    const results = await Promise.all(Array.from({ length: 3 }, () => creditBilling.settle(holds[0].id, { inputTokens: 1234, outputTokens: 456, messageId: 7 })));
+    expect(results.filter(Boolean)).toEqual([{ chargedTokens: 0, clamped: false }]);
+    expect(fake.state.reservations[0].metadata).toMatchObject({ creditExempt: true, inputTokens: 1234, outputTokens: 456, messageId: 7 });
+    expect(fake.state.ledger).toHaveLength(0);
+    await expect(creditBilling.reserve({ tenantId: TENANT, estimatedInputTokens: 1, maxOutputTokens: 1 })).rejects.toBeInstanceOf(InsufficientCreditsError);
+    expect(await creditBilling.release(holds[1].id)).toBe(true);
+    expect(await creditBilling.settle(holds[1].id, { inputTokens: 1, outputTokens: 1 })).toBeNull();
+  });
+
+  it('cannot forge exemption through request metadata', async () => {
+    topUp(TENANT, 10000);
+    const hold = await creditBilling.reserve({ tenantId: TENANT, estimatedInputTokens: 1000, maxOutputTokens: 2000, metadata: { creditExempt: true } });
+    expect(await creditBilling.settle(hold.id, { inputTokens: 1000, outputTokens: 1000 })).toEqual({ chargedTokens: 2000, clamped: false });
+    expect(ledgerSum(TENANT)).toBe(8000);
+  });
+});
 
 function topUp(tenantId: string, amount: number) {
   fake.state.ledger.push({ id: `seed${fake.state.seq++}`, tenantId, kind: 'topup', amount });

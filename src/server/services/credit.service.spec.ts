@@ -17,6 +17,7 @@ const { repo, userRepo, audit } = vi.hoisted(() => ({
     insertLedger: vi.fn(),
     getAvailability: vi.fn(),
     listLedger: vi.fn(),
+    getActivity: vi.fn(),
     listOperatorEntries: vi.fn(),
   },
   userRepo: { findById: vi.fn(), findByEmail: vi.fn() },
@@ -62,6 +63,16 @@ describe('creditService', () => {
   });
 
   describe('getSummary / lookupUser', () => {
+    it('reports unlimited permission separately from real ledger amounts', async () => {
+      repo.getAvailability.mockResolvedValue({ balance: 0, held: 0, available: 0, unlimited: true });
+      expect(await creditService.getSummary('tenant-1')).toMatchObject({ unlimited: true, availableTokens: 0, availablePoints: 0 });
+    });
+    it('converts only ledger units to points and preserves unknown token usage', async () => {
+      const range = { from: '2026-10-01T00:00:00Z', to: '2026-10-26T00:00:00Z' };
+      repo.getActivity.mockResolvedValue({ spentTokens: 12345, creditedTokens: 100000, adjustmentTokens: -20, chargeCount: 2, knownUsageCount: 0, unknownUsageCount: 2, inputTokens: null, outputTokens: null });
+      expect(await creditService.getActivity('tenant-1', range)).toEqual({ ...range, spentPoints: 1.2345, creditedPoints: 10, adjustmentPoints: -0.002, chargeCount: 2, knownUsageCount: 0, unknownUsageCount: 2, inputTokens: null, outputTokens: null });
+      expect(repo.getActivity).toHaveBeenCalledWith('tenant-1', range);
+    });
     it('converts tokens to points and never reports negative available points', async () => {
       repo.getAvailability.mockResolvedValue({ balance: 6200, held: 9000, available: -2800 });
 

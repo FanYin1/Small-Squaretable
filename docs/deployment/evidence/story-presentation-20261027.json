@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-27",
+  "parent": "EXP-ADAPT",
+  "parentComplete": false,
+  "scope": "Offline source-limited excerpt selection, persisted draft revalidation and four real cards; no product adoption",
+  "checks": {
+    "presentationUnit": 23,
+    "existingOpeningRegression": 10,
+    "budgetControlled": 28,
+    "presentationCli": 9,
+    "typeCheck": "passed",
+    "focusedTsLintFiles": 3
+  },
+  "realProvider": {
+    "protocol": "Gemini native",
+    "model": "gemini-3.8-flash",
+    "calls": 3,
+    "knownTokens": 15440,
+    "retries": 0,
+    "allReceiptsSettled": true,
+    "batchClosed": true
+  },
+  "cards": [
+    { "card": "蔚蓝星域", "status": "draft", "candidates": 31, "omitted": 258, "excerptChars": 154, "calls": 1, "tokens": 6141 },
+    { "card": "t1", "status": "draft", "candidates": 32, "omitted": 342, "excerptChars": 88, "calls": 1, "tokens": 4801 },
+    { "card": "t2", "status": "draft", "candidates": 32, "omitted": 53, "excerptChars": 159, "calls": 1, "tokens": 4498 },
+    { "card": "t3", "status": "preserved", "candidates": 0, "omitted": 0, "excerptChars": 89, "calls": 0, "tokens": 0 }
+  ],
+  "allSourcesRevalidated": true,
+  "originalFilesUnchanged": true,
+  "productAdopted": false,
+  "databaseWrites": 0,
+  "personalCreditAdjustments": 0,
+  "deploymentChanged": false,
+  "candidateImage": "small-squaretable:exploration-20261027-adapter",
+  "limitations": [
+    "Bounded public narrative candidates only, not complete card analysis or free-form rewriting",
+    "Real reports predate CLI cardDigest; revalidated with the server validator and independent original-file hashes",
+    "Automatic production organizing, UI adoption, publish preview and snapshot integration remain open",
+    "Existing third-party finite-rule conversion and real gameplay remain open",
+    "Historical unknown reserve is not a supplier receipt or financial guarantee"
+  ],
+  "sourceHashes": {
+    "src/types/story-presentation.ts": "61c9a89b92b06ff0aae6c56cd358e85feabca1a525875b833f715524173b2944",
+    "src/server/services/story-presentation-workflow.ts": "a738e63a6b4b401b875e1fc53faf5b708a38c3a55a0c03408bca553f607763ae",
+    "src/server/services/story-presentation-workflow.spec.ts": "830444c87e1be5b3939940c24ad6b4a97ff372815cdd21709d149edd6a8d3a63",
+    "scripts/story-presentation-check.mjs": "d74c13b9be9d066bc7402da90a3250a5bcaa918883a4521eb37db387f5aafef9",
+    "scripts/story-presentation-check.test.mjs": "e20a30283463138f85f901b2dd5901563dc35933bf470ecee8d3c105cf3bd441"
+  }
+}

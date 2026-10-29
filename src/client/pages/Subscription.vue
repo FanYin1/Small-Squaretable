@@ -6,11 +6,14 @@ import { Check, CreditCard, Calendar, TrendCharts, User, ChatDotRound, Cpu, Pict
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { useUsageStore } from '@client/stores/usage';
 import { useToast } from '@client/composables/useToast';
-import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
+import ExplorationLayout from '@client/components/layout/ExplorationLayout.vue';
 import UsageDashboard from '@client/components/subscription/UsageDashboard.vue';
 import CreditsBalance from '@client/components/subscription/CreditsBalance.vue';
+import { safeReturnPath } from '@client/utils/safeReturnPath';
 
 const route = useRoute();
+const returnTo = computed(() => safeReturnPath(route.query.returnTo, ''));
+const billingMode = ref<'credits' | 'subscription' | null>(null);
 const subscriptionStore = useSubscriptionStore();
 const usageStore = useUsageStore();
 const toast = useToast();
@@ -163,7 +166,7 @@ onMounted(async () => {
   }
 
   if (route.query.success === 'true') {
-    toast.success(t('subscription.subscribeSuccess'), { message: t('subscription.thankYou') });
+    toast.info(t('subscription.checkoutReturned'));
   } else if (route.query.canceled === 'true') {
     toast.info(t('subscription.cancelled'));
   }
@@ -221,11 +224,14 @@ function formatNumber(num: number): string {
 </script>
 
 <template>
-  <DashboardLayout>
-    <template #title>{{ t('subscription.title') }}</template>
+  <ExplorationLayout>
+    <RouterLink v-if="returnTo" class="story-return-link" :to="returnTo">← {{ t('credits.openStory') }}</RouterLink>
+    <section class="story-page-intro"><h1>{{ t('storyShell.credits') }}</h1><p>{{ t('storyShell.creditsDescription') }}</p></section>
+    <CreditsBalance @mode="billingMode = $event" />
+    <p v-if="billingMode === 'subscription' && subscriptionStore.error" role="alert">{{ t('subscription.statusLoadFailed') }} <el-button @click="subscriptionStore.fetchStatus().catch(() => undefined)">{{ t('credits.refresh') }}</el-button></p>
 
     <!-- Loading skeleton -->
-    <div v-if="loading" class="content-wrapper">
+    <div v-if="loading && billingMode === 'subscription'" class="content-wrapper">
       <section class="current-status-section">
         <div class="section-header">
           <el-skeleton-item variant="h3" style="width: 220px; margin-bottom: 8px" />
@@ -259,7 +265,7 @@ function formatNumber(num: number): string {
       </section>
     </div>
 
-    <div v-else class="content-wrapper">
+    <div v-else-if="billingMode === 'subscription' && !subscriptionStore.error" class="content-wrapper">
       <section class="current-status-section">
         <div class="section-header">
           <h2>{{ t('subscription.currentPlan') }}</h2>
@@ -341,9 +347,6 @@ function formatNumber(num: number): string {
             </div>
           </div>
         </section>
-
-        <!-- 点数余额：仅 BILLING_MODE=credits 时组件自己渲染 -->
-        <CreditsBalance />
 
         <!-- 订阅计划选择 -->
         <section class="plans-section">
@@ -440,7 +443,7 @@ function formatNumber(num: number): string {
           </el-collapse>
         </div>
     </div>
-  </DashboardLayout>
+  </ExplorationLayout>
 </template>
 
 <style scoped lang="scss">

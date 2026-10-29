@@ -1,0 +1,29 @@
+{
+  "result": "passed",
+  "files": 17,
+  "totalTests": 338,
+  "newTests": 29,
+  "regressionTests": 309,
+  "additionalFinalUIRecheck": {
+    "files": 2,
+    "tests": 14,
+    "includedInTotal": false,
+    "reason": "Preserve ordinary card rendering rules while bypassing them for pending protocol notices"
+  },
+  "typecheck": "passed",
+  "targetedLint": {
+    "errors": 0,
+    "warnings": 18
+  },
+  "newCoverage": [
+    "audience membership and fail-closed metadata",
+    "strict proposal/clarification/fact schema and source validation",
+    "stream boundary suppression and premature candidate projection",
+    "discarded candidate prose cannot support facts",
+    "explicit/stale/busy UI confirmation"
+  ],
+  "limits": [
+    "Counts are not requirement coverage",
+    "Most server and store tests are regressions; meaningful end-to-end proof is recorded separately"
+  ]
+}

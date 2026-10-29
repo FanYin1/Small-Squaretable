@@ -5,6 +5,7 @@
  */
 
 import { WebSocketServer, WebSocket } from 'ws';
+import { createHash } from 'node:crypto';
 import type { Server } from 'http';
 import { eq, and, sql } from 'drizzle-orm';
 import { verifyAccessToken } from '../../core/jwt';
@@ -16,18 +17,27 @@ const wsLogger = logger.child({ module: 'websocket' });
 import { websocketService } from '../services/websocket.service';
 import { llmService } from '../services/llm.service';
 import { getDefaultModel, getModelMeta } from '../config/llm.config';
+import { config } from '../../core/config';
 import { chatService, getChatModel } from '../services/chat.service';
 import { contextManager, type LLMMessage } from '../services/context-manager.service';
+import { ContextBudgetError, assertContextBudget, estimateContextMessages, estimateContextTokens } from '../services/context-budget';
+import { getStorySummaries } from '../services/story-summary.service';
+import { addStorySummaries } from '../services/story-summary-context';
 import { AppError, NotFoundError } from '../../core/errors';
 import { chatRepository } from '../../db/repositories/chat.repository';
-import { characterRepository } from '../../db/repositories/character.repository';
+import { resolveStoryCharacter, loadStoryContent } from '../services/story-content.service';
+import { storyAudienceSchema, storyAudienceExtra, storyKnowledgeVisible, type StoryAudience } from '../../types/story-knowledge';
+import { storyIntentVisiblePrefix, storyIntentPresentation } from '../../types/story-intent';
+import { prepareStoryTurn, commitStoryTurn, type PreparedStoryTurn } from '../services/story-state.service';
+import { appendStoryTurnContext, projectOpeningModeSourcePrompt } from '../services/story-turn-prompt';
+import { storyActionRequestSchema, availableStoryActions } from '../../types/story-state';
 import { messageRepository } from '../../db/repositories/message.repository';
+import { generationRequestRepository } from '../../db/repositories/generation-request.repository';
 import { characterGrowthRepository } from '../../db/repositories/character-growth.repository';
 import { groupChatService } from '../services/group-chat.service';
 import { applyRegexScripts, getRegexScripts, RegexPlacement } from '../services/regex-scripts.service';
 import { formatMessagesWithTemplate } from '../config/prompt-templates';
-import { extractVariableInserts, extractVariableEdits, extractVariableDeletes } from '../utils/variable-insert';
-import { chatVariableStore } from '../services/chat-variable.service';
+import { applyLegacyVariables, saveLegacyAssistantMessage } from '../services/legacy-variables.service';
 import { featureService } from '../services/feature.service';
 import {
   meterUsage,
@@ -44,7 +54,7 @@ import {
   settleGeneration,
   releaseGeneration,
 } from '../services/credit-generation';
-import { InsufficientCreditsError, type CreditHold } from '../services/credit-billing.service';
+import { DEFAULT_MAX_OUTPUT_TOKENS, InsufficientCreditsError, type CreditHold } from '../services/credit-billing.service';
 import {
   WSMessageType,
   type WSMessageUnion,
@@ -68,6 +78,12 @@ const TEMPLATE_COMPLETION_MAX_TOKENS = 2048;
 interface StreamedLlmResult {
   content: string;
   usage: ProviderUsage | null;
+  outputTruncated?: boolean;
+}
+
+function assertNotTruncated(result: StreamedLlmResult): void {
+  if (result.outputTruncated) throw new AppError('The response reached its output limit and was interrupted. Review the text before continuing.',
+    502, 'GENERATION_OUTPUT_TRUNCATED');
 }
 
 /**
@@ -108,7 +124,14 @@ async function closeFailedGeneration(
 export class WebSocketHandler {
   private wss: WebSocketServer | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  private activeGenerations = new Map<string, AbortController>();
+  private activeGenerations = new Map<string, {
+    controller: AbortController;
+    userId: string;
+    tenantId: string;
+    requestId: string;
+    commitStarted?: boolean;
+    stopAfterCommit?: boolean;
+  }>();
 
   /**
    * 初始化 WebSocket 服务器
@@ -212,7 +235,7 @@ export class WebSocketHandler {
           break;
 
         case WSMessageType.ABORT_GENERATION:
-          await this.handleAbortGeneration(message as WSAbortGenerationMessage);
+          await this.handleAbortGeneration(clientId, message as WSAbortGenerationMessage);
           break;
 
         case WSMessageType.CHAT_READ:
@@ -239,19 +262,95 @@ export class WebSocketHandler {
     }
 
     const { chatId, content, mentionedCharacterIds } = message.data;
+    const clientMessageId = message.data.clientMessageId || message.data.messageId;
     wsLogger.debug('Processing message', { chatId, contentPreview: content.substring(0, 50) });
+    const requestId = clientMessageId || nanoid();
+    if (this.activeGenerations.has(chatId)) {
+      websocketService.sendToClient(clientId, {
+        type: WSMessageType.ERROR,
+        timestamp: new Date().toISOString(),
+        data: { code: 'GENERATION_BUSY', message: 'A reply is already being generated', chatId, requestId },
+      });
+      return;
+    }
+    const turn = { controller: new AbortController(), userId: clientInfo.userId, tenantId: clientInfo.tenantId, requestId };
+    this.activeGenerations.set(chatId, turn);
+    let status: 'completed' | 'stopped' | 'failed' = 'completed';
+    let authorized = false;
+    let retryable = false;
+    let generationId: string | undefined;
+    let errorCode: string | undefined;
+    let duplicateRequest = false;
 
     try {
+      const chat = await chatRepository.findById(chatId);
+      if (!chat) {
+        throw new NotFoundError('Chat');
+      }
+      if (chat.userId !== clientInfo.userId || chat.tenantId !== clientInfo.tenantId) {
+        throw new AppError('You do not have access to this chat', 403, 'FORBIDDEN');
+      }
+      authorized = true;
+      if (turn.controller.signal.aborted) return;
+      if (typeof requestId !== 'string' || requestId.length > 200) {
+        throw new AppError('Invalid generation request id', 400, 'INVALID_REQUEST_ID');
+      }
+      const payloadHash = createHash('sha256')
+        .update(JSON.stringify({ content, mentionedCharacterIds: mentionedCharacterIds ?? [], ...(message.data.storyAction ? { storyAction: message.data.storyAction } : {}),
+          ...(message.data.storyAudience ? { storyAudience: message.data.storyAudience } : {}) }))
+        .digest('hex');
+      const existingGeneration = await generationRequestRepository.findByRequest(chatId, requestId);
+      if (existingGeneration && existingGeneration.payloadHash !== payloadHash) {
+        duplicateRequest = true;
+        throw new AppError('This request id is already associated with different input', 409, 'IDEMPOTENCY_CONFLICT');
+      }
+      const existingUserMessage = clientMessageId
+        ? await messageRepository.findByClientMessageId(chatId, clientMessageId)
+        : null;
+      if (existingUserMessage) {
+        duplicateRequest = true;
+        if (existingUserMessage.role !== 'user' || existingUserMessage.content !== content) {
+          throw new AppError('This message id is already associated with different content', 409, 'IDEMPOTENCY_CONFLICT');
+        }
+        websocketService.sendToClient(clientId, {
+          type: WSMessageType.USER_MESSAGE,
+          timestamp: new Date().toISOString(),
+          data: { chatId, content, messageId: existingUserMessage.id.toString(), clientMessageId },
+        });
+        throw new AppError('This request was already accepted. Check the saved story and balance before continuing.', 409, 'GENERATION_ALREADY_ACCEPTED');
+      }
+      if (existingGeneration) {
+        duplicateRequest = true;
+        throw new AppError('This request was already accepted. Check the saved story and balance before continuing.', 409, 'GENERATION_ALREADY_ACCEPTED');
+      }
+      const storyAction = message.data.storyAction == null ? undefined : storyActionRequestSchema.parse(message.data.storyAction);
+      const audience = message.data.storyAudience === undefined ? undefined : storyAudienceSchema.parse(message.data.storyAudience).sort();
+      if (audience) {
+        if (chat.contentSnapshotVersion !== 1 || !(await groupChatService.isGroupChat(chatId))) {
+          throw new AppError('Private story conversations require a versioned group story.', 400, 'STORY_AUDIENCE_UNSUPPORTED');
+        }
+        const snapshot = await loadStoryContent(chatId, clientInfo.userId);
+        if (audience.some(id => !snapshot.characters.some(character => character.id === id)) ||
+          mentionedCharacterIds?.some(id => !audience.includes(id))) {
+          throw new AppError('The selected listener is not in this story conversation.', 400, 'STORY_AUDIENCE_INVALID');
+        }
+      }
+      const preparedStory = await prepareStoryTurn(chat, content, storyAction, db,
+        audience ? { characterId: audience[0], audience } : undefined);
+      retryable = true;
       // 配额检查必须在这里做一次：WebSocket 不经过 Hono 中间件链，
       // HTTP 那边的 requireQuota('messages') 对这条链路完全无效，
       // 而客户端只要连上 WebSocket 就默认走这里。
       const quota = await featureService.checkQuota(clientInfo.tenantId, 'messages');
       if (!quota.allowed) {
+        status = 'failed';
         websocketService.sendToClient(clientId, {
           type: WSMessageType.ERROR,
           timestamp: new Date().toISOString(),
           data: {
             code: 'QUOTA_EXCEEDED',
+            chatId,
+            requestId,
             message: `Message quota exceeded (${quota.currentUsage}/${quota.limit})`,
           },
         });
@@ -261,22 +360,33 @@ export class WebSocketHandler {
       // 预付点数模式：余额为 0 时在保存用户消息之前就拒绝（订阅模式为空操作）。
       // 真正的并发安全由每次生成前的 reserve 保证，这里只是避免明显的「消息已落库、生成被拒」
       await assertCreditsAvailable(clientInfo.tenantId);
+      if (turn.controller.signal.aborted) return;
 
-      // 保存用户消息到数据库
+      retryable = false;
+      const claim = await generationRequestRepository.claim(chatId, requestId, payloadHash);
+      if (!claim.claimed) {
+        duplicateRequest = true;
+        if (claim.request.payloadHash !== payloadHash) {
+          throw new AppError('This request id is already associated with different input', 409, 'IDEMPOTENCY_CONFLICT');
+        }
+        throw new AppError('This request was already accepted. Check the saved story and balance before continuing.', 409, 'GENERATION_ALREADY_ACCEPTED');
+      }
+      generationId = claim.request.id;
+      if (turn.controller.signal.aborted) return;
       const userMessage = await chatService.addMessage(chatId, {
         role: 'user',
         content,
+        extra: { ...(clientMessageId ? { clientMessageId } : {}), ...storyAudienceExtra(audience) },
       });
 
-      // 先落库再记账：反过来的话写库失败会留下幻影用量。
-      // 不 throw——消息已经存下来了，这里失败只该进日志。
+      await generationRequestRepository.markRunning(generationId, userMessage.id);
+
       await meterUsage(clientInfo.tenantId, 'messages', 1, {
         transport: 'websocket',
         chatId,
         role: 'user',
       });
 
-      // 广播用户消息到聊天室
       websocketService.broadcastToChat(chatId, {
         type: WSMessageType.USER_MESSAGE,
         timestamp: new Date().toISOString(),
@@ -284,11 +394,13 @@ export class WebSocketHandler {
           chatId,
           content,
           messageId: userMessage.id.toString(),
+          clientMessageId,
+          ...storyAudienceExtra(audience),
         },
       });
-
       // Check if this is a group chat (multiple characters)
       const isGroup = await groupChatService.isGroupChat(chatId);
+      if (turn.controller.signal.aborted) return;
 
       if (isGroup) {
         // --- Group chat: multi-character response loop ---
@@ -297,7 +409,11 @@ export class WebSocketHandler {
           content,
           clientInfo.userId,
           mentionedCharacterIds,
-          clientInfo.tenantId
+          clientInfo.tenantId,
+          turn.controller.signal,
+          userMessage.id,
+          requestId,
+          audience
         );
       } else {
         // --- Single-character path (unchanged) ---
@@ -306,10 +422,20 @@ export class WebSocketHandler {
           content,
           clientInfo.userId,
           userMessage.id,
-          clientInfo.tenantId
+          clientInfo.tenantId,
+          turn.controller.signal,
+          preparedStory,
+          requestId
         );
       }
     } catch (error) {
+      if (turn.controller.signal.aborted && error instanceof Error && error.name === 'AbortError') {
+        status = 'stopped';
+        return;
+      }
+      status = 'failed';
+      errorCode = error instanceof AppError ? error.code : 'MESSAGE_ERROR';
+      if (error instanceof ContextBudgetError || errorCode === 'GENERATION_OUTPUT_TRUNCATED') retryable = false;
       wsLogger.error('Error handling user message', { error: (error as Error).message, stack: (error as Error).stack });
       websocketService.sendToClient(clientId, {
         type: WSMessageType.ERROR,
@@ -318,12 +444,31 @@ export class WebSocketHandler {
           // AppError（例如 P0-7 的 PLATFORM_SPEND_LIMIT）带着面向用户的可读信息和稳定错误码，
           // 原样透传，客户端才能区分「平台限流」和普通失败
           code: error instanceof AppError ? error.code : 'MESSAGE_ERROR',
+          chatId,
+          requestId,
           message: error instanceof Error ? error.message : 'Failed to process message',
           // 点数不足（P3-1）带上点数明细，客户端报警弹窗据此显示「需要 X 点 / 可用 Y 点」。
           // 其它 AppError 的 details 不下发
-          ...(error instanceof InsufficientCreditsError ? { details: error.details } : {}),
+          ...(error instanceof InsufficientCreditsError || error instanceof ContextBudgetError ? { details: error.details } : {}),
         },
       });
+    } finally {
+      if (status === 'completed' && turn.controller.signal.aborted) status = 'stopped';
+      if (generationId) {
+        try {
+          await generationRequestRepository.finish(generationId, status, errorCode);
+        } catch (error) {
+          wsLogger.error('Failed to persist generation outcome', { chatId, requestId, generationId, error: (error as Error).message });
+        }
+      }
+      if (this.activeGenerations.get(chatId) === turn) this.activeGenerations.delete(chatId);
+      const finished = {
+        type: WSMessageType.GENERATION_FINISHED as const,
+        timestamp: new Date().toISOString(),
+        data: { chatId, requestId, retryable: status === 'failed' && retryable, status },
+      };
+      if (authorized && !duplicateRequest) websocketService.broadcastToChat(chatId, finished);
+      else websocketService.sendToClient(clientId, finished);
     }
   }
 
@@ -335,14 +480,19 @@ export class WebSocketHandler {
     content: string,
     userId: string,
     userMessageId: number,
-    tenantId?: string
+    tenantId?: string,
+    signal?: AbortSignal,
+    preparedStory?: PreparedStoryTurn | null,
+    requestId?: string
   ): Promise<void> {
+    if (signal?.aborted) return;
     const chat = await chatRepository.findById(chatId);
     if (!chat) throw new Error('Chat not found');
 
-    const character = chat.characterId
-      ? await characterRepository.findById(chat.characterId)
-      : null;
+    const character = await resolveStoryCharacter(chat, chat.characterId);
+    const interpretation = preparedStory?.intentProtocol && !preparedStory.action && !preparedStory.confirmedIntent
+      ? { input: content, actionIds: availableStoryActions(preparedStory.rules, preparedStory.values, preparedStory.completedActions).map(action => action.id) }
+      : undefined;
 
     const chatMetadata = (chat.metadata as Record<string, unknown>) || {};
     const activeBranchLeaf = chatMetadata.activeBranchLeafId as number | undefined;
@@ -381,7 +531,12 @@ export class WebSocketHandler {
         userId,
         chatId,
         userMessage: content,
+        messages: chat.worldbookSnapshotVersion != null ? chatMessages : undefined,
+        worldbookSnapshotVersion: chat.worldbookSnapshotVersion,
+        contentSnapshotVersion: chat.contentSnapshotVersion,
+        isolateKnowledge: chat.contentSnapshotVersion === 1,
         personaId: chat.personaId || undefined,
+        identitySnapshot: chat.identitySnapshot,
       });
       systemPrompt = enhancedPrompt.systemPrompt;
       atDepthEntries = enhancedPrompt.atDepthEntries;
@@ -391,6 +546,11 @@ export class WebSocketHandler {
         character.id, userId, chatId, content, userMessageId
       );
     }
+
+    systemPrompt = projectOpeningModeSourcePrompt(systemPrompt, preparedStory?.ruleScope);
+    atDepthEntries = appendStoryTurnContext(atDepthEntries.map(entry => ({ ...entry,
+      content: projectOpeningModeSourcePrompt(entry.content, preparedStory?.ruleScope),
+    })), preparedStory?.prompt);
 
     // Fix: Ensure AI continues the greeting scene
     // Based on SillyTavern best practices: use Author's Note at depth 0
@@ -426,10 +586,16 @@ export class WebSocketHandler {
     }
 
     // Use context manager to fit within token budget
-    const contextResult = contextManager.buildContext(systemPrompt, chatMessages, model, reservedTokens);
+    const promptTemplate = (character?.cardData as { extensions?: { promptTemplate?: string } } | null)?.extensions?.promptTemplate || 'default';
+    const depthBudget = Math.max(reservedTokens, estimateContextMessages(atDepthEntries));
+    let contextResult = contextManager.buildContext(systemPrompt, chatMessages, model, depthBudget);
+    if (chat.contentSnapshotVersion === 1 && character && promptTemplate === 'default' && contextResult.truncated) {
+      contextResult = addStorySummaries(systemPrompt, chatMessages, model, depthBudget, contextResult,
+        await getStorySummaries(chatId, userId, chat.tenantId, character.id));
+    }
 
     // Debug: Log what's actually being sent to LLM
-    if (chatMessages.length <= 3) {
+    if (config.nodeEnv !== 'production' && chatMessages.length <= 3) {
       wsLogger.info('🔍 DEBUG: Messages sent to LLM', {
         chatId,
         systemPromptLength: systemPrompt.length,
@@ -446,15 +612,11 @@ export class WebSocketHandler {
 
     // Inject depth entries (depth_prompt, world book atDepth) into the message array
     contextResult.messages = contextManager.injectAtDepth(contextResult.messages, atDepthEntries);
+    assertContextBudget(estimateContextMessages(contextResult.messages) + 2, getModelMeta(model));
 
-    // Check if character uses a custom prompt template
-    const promptTemplate = character
-      ? ((character.cardData as any)?.extensions?.promptTemplate || 'default')
-      : 'default';
 
     const assistantMessageId = nanoid();
-    const abortController = new AbortController();
-    this.activeGenerations.set(chatId, abortController);
+    if (signal?.aborted) return;
 
     let generated: StreamedLlmResult;
     // 输入 token 估算：context-manager 的 totalTokens 不含之后注入的 atDepth 条目，这里补上
@@ -471,13 +633,9 @@ export class WebSocketHandler {
         wsLogger.info('Using prompt template', { chatId, template: promptTemplate });
 
         // Build full message array with system prompt
-        const allMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-          { role: 'system', content: systemPrompt },
-          ...contextResult.messages
-        ];
-
         // Format messages using the template
-        const formattedPrompt = formatMessagesWithTemplate(allMessages, promptTemplate);
+        const formattedPrompt = formatMessagesWithTemplate(contextResult.messages, promptTemplate);
+        assertContextBudget(estimateContextTokens(formattedPrompt), getModelMeta(model), 'template', TEMPLATE_COMPLETION_MAX_TOKENS);
 
         // 模板路径实际发给 provider 的是格式化后的整段 prompt，按它估算输入
         estimatedPromptTokens = countTokens(formattedPrompt);
@@ -498,13 +656,16 @@ export class WebSocketHandler {
           assistantMessageId,
           formattedPrompt,
           model,
-          abortController.signal
+          signal,
+          preparedStory?.intentProtocol,
+          interpretation
         );
       } else {
         hold = await reserveForGeneration({
           tenantId,
           chatId,
           estimatedPromptTokens,
+          requestedMaxTokens: Math.min(getModelMeta(model).maxOutputTokens, DEFAULT_MAX_OUTPUT_TOKENS),
           metadata: { transport: 'websocket', model },
         });
 
@@ -516,16 +677,14 @@ export class WebSocketHandler {
           undefined,
           undefined,
           model,
-          abortController.signal,
-          { maxTokens: hold?.maxOutputTokens, progress }
+          signal,
+          { maxTokens: hold?.maxOutputTokens ?? getModelMeta(model).maxOutputTokens, progress, storyIntent: preparedStory?.intentProtocol, interpretation }
         );
       }
     } catch (error) {
       // 连接前失败 -> 释放；流中途失败 -> 结算已产生的部分。不留悬空预扣
       await closeFailedGeneration(hold, progress, estimatedPromptTokens, chatId);
       throw error;
-    } finally {
-      this.activeGenerations.delete(chatId);
     }
     let fullContent = generated.content;
 
@@ -543,9 +702,14 @@ export class WebSocketHandler {
     // 空内容（中断）/ 保存失败 / 后处理抛错时 finally 仍会结算（不带 messageId），不会留悬空预扣
     let assistantMessage: Awaited<ReturnType<typeof chatService.addMessage>>;
     let savedMessageId: number | null = null;
+    const interrupted = Boolean(signal?.aborted || generated.outputTruncated);
     try {
       // Don't save empty message if aborted before any content was generated
-      if (!fullContent) return;
+      if (!fullContent) { assertNotTruncated(generated); return; }
+
+      if (preparedStory?.intentProtocol) fullContent = interpretation
+        ? storyIntentPresentation(generated.content, interpretation.input, interpretation.actionIds, interrupted)
+        : storyIntentVisiblePrefix(generated.content, !interrupted);
 
       // Apply regex_scripts post-processing on AI output (skip markdownOnly scripts — those run client-side)
       if (character) {
@@ -553,11 +717,19 @@ export class WebSocketHandler {
         fullContent = applyRegexScripts(fullContent, scripts, RegexPlacement.AI_OUTPUT, false);
       }
 
-      assistantMessage = await chatService.addMessage(chatId, {
+      const activeTurn = this.activeGenerations.get(chatId);
+      if (!interrupted && activeTurn) activeTurn.commitStarted = true;
+      assistantMessage = preparedStory && requestId
+        ? await commitStoryTurn(preparedStory, userMessageId, requestId, fullContent, interrupted, db, undefined, generated.content)
+        : chat.contentSnapshotVersion == null && !interrupted
+        ? await saveLegacyAssistantMessage({ chatId, role: 'assistant', content: fullContent }, requestId)
+        : await chatService.addMessage(chatId, {
         role: 'assistant',
         content: fullContent,
+        ...(interrupted ? { extra: { stateStatus: 'interrupted' } } : {}),
       });
       savedMessageId = assistantMessage.id;
+      fullContent = assistantMessage.content;
     } finally {
       await settleGeneration(hold, {
         providerUsage: generated.usage,
@@ -577,27 +749,10 @@ export class WebSocketHandler {
       role: 'assistant',
     });
 
-    // Extract ERA VariableInsert blocks and persist to chat variables
-    const extractedVars = extractVariableInserts(fullContent);
-    for (const v of extractedVars) {
-      await chatVariableStore.setChatVar(chatId, v.key, v.value);
-    }
-    // Process VariableEdit (update existing variables)
-    const editedVars = extractVariableEdits(fullContent);
-    for (const v of editedVars) {
-      await chatVariableStore.setChatVar(chatId, v.key, v.value);
-    }
-    // Process VariableDelete (remove variables)
-    const deletedKeys = extractVariableDeletes(fullContent);
-    for (const key of deletedKeys) {
-      await chatVariableStore.deleteChatVar(chatId, key);
-    }
-
-    // Load updated variables for ERA bridge notification
-    const hasVarChanges = extractedVars.length > 0 || editedVars.length > 0 || deletedKeys.length > 0;
+    const hasVarChanges = chat.contentSnapshotVersion == null && !interrupted && applyLegacyVariables(fullContent, {}).changed;
 
     // After saving assistant message, increment character growth
-    if (character) {
+    if (character && !interrupted) {
       characterGrowthRepository.getOrCreate(character.id, userId)
         .then((growth) => characterGrowthRepository.incrementMessages(growth.id))
         .catch((err) => wsLogger.warn('Failed to increment message growth', { error: err }));
@@ -614,16 +769,30 @@ export class WebSocketHandler {
       data: {
         chatId,
         messageId: assistantMessage.id.toString(),
+        requestId: this.activeGenerations.get(chatId)?.requestId,
         variablesChanged: hasVarChanges,
+        stateStatus: (assistantMessage.extra as { stateStatus?: 'confirmed' | 'interrupted' | 'proposed' } | null)?.stateStatus,
+        ...((assistantMessage.extra as Record<string, unknown> | null)?.storyIntent ? { storyIntent: (assistantMessage.extra as Record<string, unknown>).storyIntent as import('../../types/story-intent').StoredStoryIntent } : {}),
+        ...((assistantMessage.extra as Record<string, unknown> | null)?.storyConfirmedIntent ? { storyConfirmedIntent: (assistantMessage.extra as Record<string, unknown>).storyConfirmedIntent as import('../../types/story-intent').StoryIntent } : {}),
+        ...((assistantMessage.extra as Record<string, unknown> | null)?.storyIntentInvalid ? { storyIntentInvalid: true } : {}),
+        ...((assistantMessage.extra as Record<string, unknown> | null)?.storyRecommendations
+          ? { storyRecommendations: (assistantMessage.extra as Record<string, unknown>).storyRecommendations as Array<{ label: string; input: string }> } : {}),
+        ...((assistantMessage.extra as Record<string, unknown> | null)?.storyRecommendationsSource
+          ? { storyRecommendationsSource: (assistantMessage.extra as Record<string, unknown>).storyRecommendationsSource as import('../../types/story-recommendations').StoryRecommendationsSource } : {}),
       },
     });
 
-    if (character) {
-      const allMessages = await chatService.getMessages(chatId);
-      await chatService.checkAndExtractMemories(chatId, character.id, userId, allMessages);
-      await chatService.updateEmotionFromMessage(
-        character.id, userId, chatId, fullContent, assistantMessage.id
-      );
+    assertNotTruncated(generated);
+    if (character && !interrupted) {
+      try {
+        if (!preparedStory) {
+          const allMessages = await chatService.getMessages(chatId);
+          await chatService.checkAndExtractMemories(chatId, character.id, userId, allMessages);
+        }
+        await chatService.updateEmotionFromMessage(character.id, userId, chatId, fullContent, assistantMessage.id);
+      } catch (error) {
+        wsLogger.warn('Derived memory update failed after the response was saved', { chatId, error: (error as Error).message });
+      }
     }
   }
 
@@ -635,8 +804,13 @@ export class WebSocketHandler {
     userContent: string,
     userId: string,
     mentionedCharacterIds?: string[],
-    tenantId?: string
+    tenantId?: string,
+    signal?: AbortSignal,
+    userMessageId?: number,
+    requestId?: string,
+    audience?: StoryAudience
   ): Promise<void> {
+    if (signal?.aborted) return;
     // Load chat to determine model
     const chat = await chatRepository.findById(chatId);
     if (!chat) {
@@ -659,7 +833,9 @@ export class WebSocketHandler {
 
     // If @mentions are present, override strategy and only respond with mentioned characters
     let respondentIds: string[];
-    if (mentionedCharacterIds && mentionedCharacterIds.length > 0) {
+    if (audience) {
+      respondentIds = mentionedCharacterIds?.length ? mentionedCharacterIds : audience;
+    } else if (mentionedCharacterIds && mentionedCharacterIds.length > 0) {
       respondentIds = mentionedCharacterIds;
     } else {
       respondentIds = await groupChatService.selectRespondents(
@@ -668,20 +844,24 @@ export class WebSocketHandler {
     }
 
     // Fetch messages once before the loop; append each new reply in-memory
-    let chatMessages: LLMMessage[] = recentMessages.map(m => ({
+    const sharedHistory = [...recentMessages];
+    const toPromptMessage = (m: (typeof recentMessages)[number]): LLMMessage => ({
       role: m.role as 'user' | 'assistant' | 'system',
       content: m.content,
       pinned: m.pinned,
       importance: m.importance,
       messageId: m.id,
-    }));
+    });
 
     for (const charId of respondentIds) {
-      const character = await characterRepository.findById(charId);
+      if (signal?.aborted) break;
+      const character = await resolveStoryCharacter(chat, charId);
       if (!character) {
         wsLogger.warn('Group chat character not found, skipping', { charId });
         continue;
       }
+      const chatMessages = sharedHistory.filter(item => chat.contentSnapshotVersion == null ||
+        storyKnowledgeVisible(item.extra, charId, audience)).map(toPromptMessage);
 
       // Build system prompt for this character
       const enhancedPrompt = await chatService.buildEnhancedSystemPrompt({
@@ -690,20 +870,32 @@ export class WebSocketHandler {
         userId,
         chatId,
         userMessage: userContent,
+        messages: chat.worldbookSnapshotVersion != null ? chatMessages : undefined,
+        worldbookSnapshotVersion: chat.worldbookSnapshotVersion,
+        contentSnapshotVersion: chat.contentSnapshotVersion,
+        isolateKnowledge: chat.contentSnapshotVersion === 1,
+        storyAudience: audience,
         personaId: chat.personaId || undefined,
+        identitySnapshot: chat.identitySnapshot,
       });
 
+      const storyTurn = await prepareStoryTurn(chat, userContent, undefined, db, { characterId: charId, audience });
+
       // Use the in-memory message array (no re-fetch)
-      const contextResult = contextManager.buildContext(
-        enhancedPrompt.systemPrompt, chatMessages, model, enhancedPrompt.reservedTokens ?? 0
-      );
+      const systemPrompt = enhancedPrompt.systemPrompt + (storyTurn ? `\n\n${storyTurn.prompt}` : '');
+      const depthBudget = Math.max(enhancedPrompt.reservedTokens ?? 0, estimateContextMessages(enhancedPrompt.atDepthEntries));
+      let contextResult = contextManager.buildContext(systemPrompt, chatMessages, model, depthBudget);
+      if (chat.contentSnapshotVersion === 1 && contextResult.truncated) {
+        contextResult = addStorySummaries(systemPrompt, chatMessages, model, depthBudget, contextResult,
+          await getStorySummaries(chatId, userId, chat.tenantId, character.id, db, audience));
+      }
       // Inject depth entries for this character
       contextResult.messages = contextManager.injectAtDepth(contextResult.messages, enhancedPrompt.atDepthEntries);
+      assertContextBudget(estimateContextMessages(contextResult.messages) + 2, getModelMeta(model));
 
       // Stream LLM response with character identification
       const tempMessageId = nanoid();
-      const abortController = new AbortController();
-      this.activeGenerations.set(chatId, abortController);
+      if (signal?.aborted) break;
 
       const estimatedPromptTokens =
         contextResult.totalTokens + estimateInjectedTokens(enhancedPrompt.atDepthEntries);
@@ -717,17 +909,16 @@ export class WebSocketHandler {
           tenantId,
           chatId,
           estimatedPromptTokens,
+          requestedMaxTokens: Math.min(getModelMeta(model).maxOutputTokens, DEFAULT_MAX_OUTPUT_TOKENS),
           metadata: { transport: 'websocket', model, characterId: character.id, group: true },
         });
         generated = await this.streamLlmResponse(
-          chatId, tempMessageId, contextResult.messages, character.id, character.name, model, abortController.signal,
-          { maxTokens: hold?.maxOutputTokens, progress }
+          chatId, tempMessageId, contextResult.messages, character.id, character.name, model, signal,
+          { maxTokens: hold?.maxOutputTokens ?? getModelMeta(model).maxOutputTokens, progress }
         );
       } catch (error) {
         await closeFailedGeneration(hold, progress, estimatedPromptTokens, chatId);
         throw error;
-      } finally {
-        this.activeGenerations.delete(chatId);
       }
       let fullContent = generated.content;
 
@@ -746,20 +937,28 @@ export class WebSocketHandler {
       // 结算在保存之后（流水要记 messageId）；空内容 / 保存失败时 finally 仍会结算（不带 messageId）
       let savedMessage: Awaited<ReturnType<typeof messageRepository.create>>;
       let savedMessageId: number | null = null;
+      const interrupted = Boolean(signal?.aborted || generated.outputTruncated);
       try {
         // Don't save empty message if aborted before any content was generated
-        if (!fullContent) break;
+        if (!fullContent) { assertNotTruncated(generated); break; }
 
         // Apply regex_scripts post-processing on AI output (skip markdownOnly — those run client-side)
         const scripts = getRegexScripts(character.cardData as Record<string, unknown>);
         fullContent = applyRegexScripts(fullContent, scripts, RegexPlacement.AI_OUTPUT, false);
 
         // Save message with characterId
-        savedMessage = await messageRepository.create({
+        const activeTurn = this.activeGenerations.get(chatId);
+        if (!interrupted && activeTurn) activeTurn.commitStarted = true;
+        savedMessage = storyTurn && userMessageId && requestId
+          ? await commitStoryTurn(storyTurn, userMessageId, createHash('sha256').update(`${requestId}:${charId}`).digest('hex'), fullContent, interrupted, db, charId)
+          : chat.contentSnapshotVersion == null && !interrupted
+          ? await saveLegacyAssistantMessage({ chatId, role: 'assistant', content: fullContent, characterId: character.id }, requestId)
+          : await messageRepository.create({
           chatId,
           role: 'assistant',
           content: fullContent,
           characterId: character.id,
+          ...(interrupted ? { extra: { stateStatus: 'interrupted' } } : {}),
         });
         savedMessageId = savedMessage.id;
       } finally {
@@ -781,25 +980,11 @@ export class WebSocketHandler {
         characterId: character.id,
       });
 
-      // Extract ERA VariableInsert blocks and persist to chat variables
-      const groupExtractedVars = extractVariableInserts(fullContent);
-      for (const v of groupExtractedVars) {
-        await chatVariableStore.setChatVar(chatId, v.key, v.value);
-      }
-      const groupEditedVars = extractVariableEdits(fullContent);
-      for (const v of groupEditedVars) {
-        await chatVariableStore.setChatVar(chatId, v.key, v.value);
-      }
-      const groupDeletedKeys = extractVariableDeletes(fullContent);
-      for (const key of groupDeletedKeys) {
-        await chatVariableStore.deleteChatVar(chatId, key);
-      }
-
       // Append to in-memory array so next character sees this reply
-      chatMessages = [...chatMessages, { role: 'assistant' as const, content: fullContent }];
+      sharedHistory.push(savedMessage);
 
       // Increment growth for this character
-      characterGrowthRepository.getOrCreate(character.id, userId)
+      if (!interrupted) characterGrowthRepository.getOrCreate(character.id, userId)
         .then((growth) => characterGrowthRepository.incrementMessages(growth.id))
         .catch((err) => wsLogger.warn('Failed to increment group message growth', { error: err }));
 
@@ -814,20 +999,38 @@ export class WebSocketHandler {
         data: {
           chatId,
           messageId: savedMessage.id.toString(),
+          requestId: this.activeGenerations.get(chatId)?.requestId,
           characterId: character.id,
           characterName: character.name,
+          variablesChanged: chat.contentSnapshotVersion == null && !interrupted && applyLegacyVariables(fullContent, {}).changed,
+          stateStatus: (savedMessage.extra as { stateStatus?: 'confirmed' | 'interrupted' | 'proposed' } | null)?.stateStatus,
+          ...storyAudienceExtra(audience),
         },
       });
 
+      assertNotTruncated(generated);
       // Emotion update + memory extraction (same as single-character path)
-      await chatService.updateEmotionFromMessage(
-        character.id, userId, chatId, userContent, savedMessage.id
-      );
-      await chatService.updateEmotionFromMessage(
-        character.id, userId, chatId, fullContent, savedMessage.id
-      );
-      const allMessages = await chatService.getMessages(chatId);
-      await chatService.checkAndExtractMemories(chatId, character.id, userId, allMessages);
+      if (!interrupted) {
+        try {
+          await chatService.updateEmotionFromMessage(
+            character.id, userId, chatId, userContent, savedMessage.id
+          );
+          await chatService.updateEmotionFromMessage(
+            character.id, userId, chatId, fullContent, savedMessage.id
+          );
+          if (!storyTurn) {
+            const allMessages = await chatService.getMessages(chatId);
+            await chatService.checkAndExtractMemories(chatId, character.id, userId, allMessages);
+          }
+        } catch (error) {
+          wsLogger.warn('Derived group memory update failed after the response was saved', { chatId, characterId: character.id, error: (error as Error).message });
+        }
+      }
+      const activeTurn = this.activeGenerations.get(chatId);
+      if (activeTurn) {
+        activeTurn.commitStarted = false;
+        if (activeTurn.stopAfterCommit && charId !== respondentIds.at(-1)) activeTurn.controller.abort();
+      }
     }
   }
 
@@ -848,10 +1051,15 @@ export class WebSocketHandler {
       maxTokens?: number;
       /** 实时进度，调用方在失败/中断时据此结算或释放预扣 */
       progress?: StreamProgress;
+      storyIntent?: boolean;
+      interpretation?: { input: string; actionIds: string[] };
     }
   ): Promise<StreamedLlmResult> {
+    signal?.throwIfAborted();
     const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
     const meta = getModelMeta(selectedModel);
+    const maxTokens = Math.min(options?.maxTokens ?? meta.maxOutputTokens, meta.maxOutputTokens);
+    assertContextBudget(estimateContextMessages(llmMessages) + 2, meta, 'payload', maxTokens);
     const response = await llmService.streamChatCompletion({
       messages: llmMessages,
       model: selectedModel,
@@ -860,7 +1068,7 @@ export class WebSocketHandler {
       stream: true,
       presence_penalty: 0,
       frequency_penalty: 0,
-      ...(options?.maxTokens ? { max_tokens: options.maxTokens } : {}),
+      max_tokens: maxTokens,
     }, signal, { chatId });
 
     // progress 同时承载累积内容与 usage（用对象，避免闭包内赋值被 TS 控制流收窄成 null）
@@ -870,21 +1078,29 @@ export class WebSocketHandler {
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
-    const emitChunk = (content: string): void => {
-      streamState.content += content;
-
+    let displayed = '';
+    const sendVisible = (content: string): void => {
+      if (!content) return;
       websocketService.broadcastToChat(chatId, {
         type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
         timestamp: new Date().toISOString(),
         data: {
           chatId,
           messageId,
+          requestId: this.activeGenerations.get(chatId)?.requestId,
           chunk: content,
           index: chunkIndex++,
           ...(characterId && { characterId }),
           ...(characterName && { characterName }),
         },
       });
+    };
+    const emitChunk = (content: string): void => {
+      streamState.content += content;
+      if (options?.interpretation) return;
+      const visible = options?.storyIntent ? storyIntentVisiblePrefix(streamState.content) : streamState.content;
+      sendVisible(visible.slice(displayed.length));
+      displayed = visible;
     };
 
     const handleLine = (line: string): void => {
@@ -897,6 +1113,7 @@ export class WebSocketHandler {
           const parsed = JSON.parse(data);
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) emitChunk(content);
+          if (parsed.choices?.[0]?.finish_reason === 'length') streamState.outputTruncated = true;
 
           // include_usage 的最后一个 chunk：choices 为空，带真实 usage
           streamState.usage = readOpenAiUsage(parsed.usage) ?? streamState.usage;
@@ -912,6 +1129,7 @@ export class WebSocketHandler {
         // Ollama native API format: message.content
         const content = parsed.message?.content;
         if (content) emitChunk(content);
+        if (parsed.done === true && parsed.done_reason === 'length') streamState.outputTruncated = true;
 
         // Ollama 的最后一行（done: true）带 prompt_eval_count / eval_count
         streamState.usage = readOllamaUsage(parsed) ?? streamState.usage;
@@ -949,11 +1167,16 @@ export class WebSocketHandler {
         wsLogger.info('LLM stream aborted', { chatId });
       } finally {
         // Ensure the reader is released
-        try { reader.cancel(); } catch { /* ignore */ }
+        try { await reader.cancel(); } catch { /* ignore */ }
       }
     }
 
-    return { content: streamState.content, usage: streamState.usage };
+    const finalVisible = options?.interpretation
+      ? storyIntentPresentation(streamState.content, options.interpretation.input, options.interpretation.actionIds, Boolean(signal?.aborted || streamState.outputTruncated))
+      : options?.storyIntent ? storyIntentVisiblePrefix(streamState.content, !signal?.aborted && !streamState.outputTruncated) : streamState.content;
+    sendVisible(finalVisible.slice(displayed.length));
+    return { content: streamState.content, usage: streamState.usage,
+      ...(streamState.outputTruncated ? { outputTruncated: true } : {}) };
   }
 
   /**
@@ -964,8 +1187,11 @@ export class WebSocketHandler {
     messageId: string,
     prompt: string,
     model?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    storyIntent?: boolean,
+    interpretation?: { input: string; actionIds: string[] }
   ): Promise<StreamedLlmResult> {
+    signal?.throwIfAborted();
     const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
     const meta = getModelMeta(selectedModel);
 
@@ -991,24 +1217,32 @@ export class WebSocketHandler {
       data: {
         chatId,
         messageId,
-        chunk: fullContent,
+        requestId: this.activeGenerations.get(chatId)?.requestId,
+        chunk: interpretation ? storyIntentPresentation(fullContent, interpretation.input, interpretation.actionIds, response.choices?.[0]?.finish_reason === 'length')
+          : storyIntent ? storyIntentVisiblePrefix(fullContent, true) : fullContent,
         index: 0,
       },
     });
 
-    return { content: fullContent, usage: readOpenAiUsage(response.usage) };
+    return { content: fullContent, usage: readOpenAiUsage(response.usage),
+      ...(response.choices?.[0]?.finish_reason === 'length' ? { outputTruncated: true } : {}) };
   }
 
   /**
    * 处理中止生成
    */
-  private async handleAbortGeneration(message: WSAbortGenerationMessage): Promise<void> {
-    const { chatId } = message.data;
-    const controller = this.activeGenerations.get(chatId);
-    if (controller) {
+  private async handleAbortGeneration(clientId: string, message: WSAbortGenerationMessage): Promise<void> {
+    const { chatId, requestId } = message.data;
+    const client = websocketService.getClientInfo(clientId);
+    const turn = this.activeGenerations.get(chatId);
+    if (client && turn && turn.userId === client.userId && turn.tenantId === client.tenantId
+      && (!requestId || requestId === turn.requestId)) {
+      if (turn.commitStarted) {
+        turn.stopAfterCommit = true;
+        return;
+      }
       wsLogger.info('Aborting generation', { chatId });
-      controller.abort();
-      this.activeGenerations.delete(chatId);
+      turn.controller.abort();
     }
   }
 
@@ -1028,7 +1262,7 @@ export class WebSocketHandler {
     }
 
     const chat = await chatRepository.findById(chatId);
-    if (!chat || chat.userId !== clientInfo.userId) {
+    if (!chat || chat.userId !== clientInfo.userId || chat.tenantId !== clientInfo.tenantId) {
       websocketService.sendToClient(clientId, {
         type: WSMessageType.ERROR,
         timestamp: new Date().toISOString(),
@@ -1041,6 +1275,17 @@ export class WebSocketHandler {
     }
 
     websocketService.joinChat(clientId, chatId);
+
+    const turn = this.activeGenerations.get(chatId);
+    websocketService.sendToClient(clientId, {
+      type: WSMessageType.GENERATION_STATE,
+      timestamp: new Date().toISOString(),
+      data: {
+        chatId,
+        status: turn ? 'running' : 'idle',
+        ...(turn ? { requestId: turn.requestId } : {}),
+      },
+    });
   }
 
   /**

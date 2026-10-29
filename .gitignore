@@ -11,6 +11,8 @@ build/
 .env
 .env.local
 .env.*.local
+.env.beta
+.env.exploration
 
 # Logs
 logs/
@@ -43,6 +45,8 @@ uploads/
 temp/
 
 # Database
+backups/
+k8s/secrets.yaml
 *.db
 *.sqlite
 # Redis 落盘快照。开发时跑 redis-server 会在工作目录生成，里面是真实缓存内容。

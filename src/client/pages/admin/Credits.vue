@@ -205,7 +205,7 @@ onMounted(() => fetchEntries());
           </div>
           <div>
             <dt>{{ t('admin.credits.available') }}</dt>
-            <dd>{{ account.summary.availablePoints }}</dd>
+            <dd>{{ account.summary.unlimited ? t('credits.unlimited') : account.summary.availablePoints }}</dd>
           </div>
         </dl>
 

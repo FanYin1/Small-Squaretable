@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-24T16:16:47.149Z",
+  "mode": "real-provider-owned-prompts",
+  "result": "incomplete",
+  "tokenBudget": 30000,
+  "tokens": 6015,
+  "calls": [
+    {
+      "scenario": "fog-harbor",
+      "turn": 1,
+      "status": "completed",
+      "reservation": 4183,
+      "promptSha256": "75cdbeffca808e6a440249d007baf1ef8dbd29c17fe78bb9b850430b145246aa",
+      "httpStatus": 200,
+      "tokens": 1525,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "fog-harbor",
+      "turn": 2,
+      "status": "completed",
+      "reservation": 4717,
+      "promptSha256": "88bdd12a7763fa7246b0ff9ea1769dc9ad35feb773a8982c98924666d8c53a0e",
+      "httpStatus": 200,
+      "tokens": 1957,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "fog-harbor",
+      "turn": 3,
+      "status": "completed",
+      "reservation": 5756,
+      "promptSha256": "3c434c5c386370a0e2e2587f444bce509459fa10ad20460071cdb9475479931a",
+      "httpStatus": 200,
+      "tokens": 2533,
+      "finishReason": "length"
+    }
+  ],
+  "inputSha256": "c17d3d0b31dbffd7e6cb28504ff04a017d91eb700fddfe889d2c974d0b3f5911",
+  "limits": [
+    "Production context replay with earlier controlled assistant messages replaced by real replies",
+    "Real replies are not persisted in app; browser/state/restart evidence is separate",
+    "Original third-party source and author code are not sent",
+    "Short two-mechanism sample, not long-term or human acceptance"
+  ],
+  "sourceHashes": {
+    "scripts/character-journey-model-check.mjs": "e249a8d0f9d233d940517daa684523e0d86883ab40d8e367b75524f054a871de",
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd"
+  },
+  "failure": "Real card check stopped; inspect sanitized evidence, no automatic paid retry",
+  "semanticReview": {
+    "status": "failed",
+    "reviewer": "coding-agent",
+    "findings": [
+      "First answer invented a 50-coin deposit/fee and a 20-coin refund although the native purchase rule costs 20 coins",
+      "Third response ended with length at the test-only 1024 output limit; the production request limit was 2048"
+    ],
+    "resolution": "Inject only current player-visible action labels into authoritative story context; keep hidden outcomes excluded; recheck using the captured production output limit"
+  }
+}

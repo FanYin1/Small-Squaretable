@@ -1,0 +1,474 @@
+{
+  "date": "2026-10-24T10:56:56.633Z",
+  "scope": "four synthetic extraction cases; no long-run, database or user acceptance",
+  "model": "gemini-3.8-flash",
+  "maxCalls": 4,
+  "tokenThreshold": 20000,
+  "recordedTokens": 9425,
+  "cases": [
+    {
+      "name": "uncertain-authorship",
+      "sources": [
+        {
+          "input": "我们约好第五夜在南门见面，凭证是红色缎带。今天第一夜，尚未赴约。",
+          "reply": "小禾把手中擦拭书脊的棉布叠好，放在柜台上。\n\n“记着呢，今晚才刚开始。”\n“随便坐，要找什么书可以直接告诉我。”",
+          "version": 1,
+          "messageId": 2,
+          "inputMessageId": 1,
+          "eventId": "synthetic-1"
+        },
+        {
+          "input": "我查看一本旧书的封面。我仍留在书店，继续这一夜的交谈。",
+          "reply": "小禾拨了拨柜台上的油灯芯，光亮微晃了一下。\n\n“那一排大多是早些年的旧志，落了些灰。”\n“若封面字迹辨不清，可以拿近些看。”",
+          "version": 2,
+          "messageId": 4,
+          "inputMessageId": 3,
+          "eventId": "synthetic-2"
+        },
+        {
+          "input": "我询问书页上的手写批注。我仍留在书店，继续这一夜的交谈。",
+          "reply": "小禾微微探身看了一眼摊开的纸页。\n\n“收来时里头便有了，多半是原主人的随笔。”\n“字迹有些乱，我也没仔细辨认过。”",
+          "version": 3,
+          "messageId": 6,
+          "inputMessageId": 5,
+          "eventId": "synthetic-3"
+        },
+        {
+          "input": "我观察窗外的雨。我仍留在书店，继续这一夜的交谈。",
+          "reply": "小禾抬眼看向被水汽打湿的木格窗。\n\n“雨下得密，一时半会儿大概停不了。”\n“多待一阵无妨，在店里避避也好。”",
+          "version": 4,
+          "messageId": 8,
+          "inputMessageId": 7,
+          "eventId": "synthetic-4"
+        },
+        {
+          "input": "我询问店内的修书工具。我仍留在书店，继续这一夜的交谈。",
+          "reply": "小禾伸手示意了一下柜台角落里的一只敞口木匣。\n\n“骨刀、麻线和浆糊都在那儿，平时补些破页用。”\n“若有兴趣，顺手拿来看便是。”",
+          "version": 5,
+          "messageId": 10,
+          "inputMessageId": 9,
+          "eventId": "synthetic-5"
+        }
+      ],
+      "status": 200,
+      "usage": {
+        "prompt_tokens": 980,
+        "completion_tokens": 1535,
+        "total_tokens": 2515
+      },
+      "finishReason": "stop",
+      "extraction": {
+        "version": 1,
+        "facts": [
+          {
+            "type": "event",
+            "content": "双方约定第五夜在南门见面，凭证是红色缎带；当前处于第一夜，尚未赴约。",
+            "sourceMessageIds": [
+              1,
+              2
+            ]
+          },
+          {
+            "type": "event",
+            "content": "“我”在第一夜留在书店内查看旧志封面、询问书页手写批注、观察窗外的雨以及询问修书工具，与小禾持续交谈。",
+            "sourceMessageIds": [
+              3,
+              5,
+              7,
+              9
+            ]
+          },
+          {
+            "type": "fact",
+            "content": "那一排书大多是早些年落了灰的旧志；摊开纸页上的手写批注收来店里时便已有，小禾表示多半是原主人的随笔，且字迹较乱、自己未仔细辨认过。",
+            "sourceMessageIds": [
+              4,
+              6
+            ]
+          },
+          {
+            "type": "fact",
+            "content": "窗外下着密雨，小禾认为一时半会儿大概停不了。",
+            "sourceMessageIds": [
+              8
+            ]
+          },
+          {
+            "type": "fact",
+            "content": "书店柜台角落的敞口木匣里放有骨刀、麻线和浆糊，小禾平时用来修补破页。",
+            "sourceMessageIds": [
+              10
+            ]
+          }
+        ],
+        "summary": {
+          "content": "第一夜开始，“我”留在书店内避雨并与小禾交谈。双方约定于第五夜在南门凭红色缎带见面，目前尚未赴约。交谈期间，“我”查看了早些年落灰的旧志封面，小禾说明纸页上较乱的手写批注收来店里时便有、多半是原主人随笔，自己并未仔细辨认；窗外雨下得密，小禾推测一时半会儿大概停不了；小禾亦示意了柜台角落放有骨刀、麻线和浆糊等平时补破页工具的敞口木匣供“我”查看。",
+          "sourceMessageIds": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        }
+      },
+      "sourceValidationPassed": true
+    },
+    {
+      "name": "unaccepted-overnight-stay",
+      "sources": [
+        {
+          "input": "我们约好第三夜在北门见面，凭证是蓝色票据。今天第一夜，尚未赴约。",
+          "reply": "小禾合上手中的旧账本，抬头看过来。\n\n“票据收好，还有两天。今晚先在店里避避风吧。”",
+          "version": 1,
+          "messageId": 12,
+          "inputMessageId": 11,
+          "eventId": "synthetic-1"
+        },
+        {
+          "input": "我查看一本旧书的封面。我仍留在书店，继续这一夜的交谈。",
+          "reply": "小禾拿起一块粗布擦了擦柜台上的浮灰。\n\n“那些都是早些年留下的。有想问的，随时开口。”",
+          "version": 2,
+          "messageId": 14,
+          "inputMessageId": 13,
+          "eventId": "synthetic-2"
+        },
+        {
+          "input": "我询问书页上的手写批注。我仍留在书店，继续这一夜的交谈。",
+          "reply": "小禾停下手里的活计，往书页上瞥了一眼。\n\n“字迹有些年头了，具体是谁留下的我也说不准。要是认不全，我替你掌灯。”",
+          "version": 3,
+          "messageId": 16,
+          "inputMessageId": 15,
+          "eventId": "synthetic-3"
+        },
+        {
+          "input": "我观察窗外的雨。我仍留在书店，继续这一夜的交谈。",
+          "reply": "小禾顺着你的目光望向窗玻璃。\n\n“这雨一时半会儿停不下来。店里还算干燥。”",
+          "version": 4,
+          "messageId": 18,
+          "inputMessageId": 17,
+          "eventId": "synthetic-4"
+        },
+        {
+          "input": "我询问店内的修书工具。我仍留在书店，继续这一夜的交谈。",
+          "reply": "小禾拉开柜台下方的抽屉，示意里面放着的骨刀与棉线。\n\n“平时修补散页用的，算不上精细。有需要的话可以拿去用。”",
+          "version": 5,
+          "messageId": 20,
+          "inputMessageId": 19,
+          "eventId": "synthetic-5"
+        }
+      ],
+      "status": 200,
+      "usage": {
+        "prompt_tokens": 935,
+        "completion_tokens": 1631,
+        "total_tokens": 2566
+      },
+      "finishReason": "stop",
+      "extraction": {
+        "version": 1,
+        "facts": [
+          {
+            "type": "event",
+            "content": "双方约定第三夜在北门见面，凭证是蓝色票据；当前处于第一夜，尚未赴约。",
+            "sourceMessageIds": [
+              11,
+              12
+            ]
+          },
+          {
+            "type": "fact",
+            "content": "书店柜台下方的抽屉里放着平时修补散页用的骨刀与棉线。",
+            "sourceMessageIds": [
+              20
+            ]
+          },
+          {
+            "type": "fact",
+            "content": "小禾表示书页上的手写批注有些年头，具体是谁留下的自己也说不准。",
+            "sourceMessageIds": [
+              16
+            ]
+          },
+          {
+            "type": "fact",
+            "content": "窗外下着雨，小禾表示这雨一时半会儿停不下来，店里还算干燥。",
+            "sourceMessageIds": [
+              18
+            ]
+          }
+        ],
+        "summary": {
+          "content": "双方约定第三夜在北门见面，凭证为蓝色票据；当前为第一夜，尚未赴约。在第一夜期间，用户留在书店内避风并与小禾交谈。用户查看了店内早年留下的旧书封面，询问了书页上的手写批注（小禾表示说不准字迹是谁留下的，并提出若认不全可替用户掌灯），观察了窗外一时半会儿停不下来的雨，并询问了店内的修书工具；小禾展示了柜台下抽屉里用于修补散页的骨刀与棉线，并表示有需要可以拿去用。",
+          "sourceMessageIds": [
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20
+          ]
+        }
+      },
+      "sourceValidationPassed": true
+    },
+    {
+      "name": "invitation-and-unpaid-purchase",
+      "sources": [
+        {
+          "eventId": "synthetic-1",
+          "version": 1,
+          "inputMessageId": 1,
+          "messageId": 2,
+          "input": "我只想问价格，还没决定买。",
+          "reply": "掌柜说：“这枚徽章要八枚银币，你愿意的话可以带走。”"
+        },
+        {
+          "eventId": "synthetic-2",
+          "version": 2,
+          "inputMessageId": 3,
+          "messageId": 4,
+          "input": "我先把徽章放回柜台，钱还没付。",
+          "reply": "掌柜点头：“不着急，我替你留着。”"
+        },
+        {
+          "eventId": "synthetic-3",
+          "version": 3,
+          "inputMessageId": 5,
+          "messageId": 6,
+          "input": "我考虑明晚再来，但还没确定。",
+          "reply": "掌柜说：“等你有空再说，不算约好了。”"
+        },
+        {
+          "eventId": "synthetic-4",
+          "version": 4,
+          "inputMessageId": 7,
+          "messageId": 8,
+          "input": "我在门边看看天色，没有出门。",
+          "reply": "掌柜指着乌云：“也许会下雨。”"
+        },
+        {
+          "eventId": "synthetic-5",
+          "version": 5,
+          "inputMessageId": 9,
+          "messageId": 10,
+          "input": "我仍在柜台旁，没有购买或离开。",
+          "reply": "掌柜继续擦拭柜台。"
+        }
+      ],
+      "status": 200,
+      "usage": {
+        "prompt_tokens": 998,
+        "completion_tokens": 1224,
+        "total_tokens": 2222
+      },
+      "finishReason": "stop",
+      "extraction": {
+        "version": 1,
+        "facts": [
+          {
+            "type": "fact",
+            "content": "掌柜称一枚徽章要八枚银币。",
+            "sourceMessageIds": [
+              2
+            ]
+          },
+          {
+            "type": "fact",
+            "content": "掌柜指着乌云称也许会下雨。",
+            "sourceMessageIds": [
+              8
+            ]
+          },
+          {
+            "type": "event",
+            "content": "我把徽章放回柜台且尚未付款，掌柜表示先替我留着。",
+            "sourceMessageIds": [
+              3,
+              4
+            ]
+          },
+          {
+            "type": "event",
+            "content": "我考虑明晚再来但尚未确定，掌柜表示等我有空再说、不算约好。",
+            "sourceMessageIds": [
+              5,
+              6
+            ]
+          },
+          {
+            "type": "event",
+            "content": "我在门边看天色并未出门，随后仍在柜台旁未购买也未离开，掌柜继续擦拭柜台。",
+            "sourceMessageIds": [
+              7,
+              9,
+              10
+            ]
+          }
+        ],
+        "summary": {
+          "content": "我向掌柜询问徽章价格，尚未决定购买；掌柜称徽章要八枚银币，若愿意可以带走。我把徽章放回柜台且未付款，掌柜表示不着急并替我留着。我考虑明晚再来但尚未确定，掌柜说明等我有空再说、不算约好。我在门边看天色但未出门，掌柜指着乌云表示也许会下雨。之后我仍在柜台旁，没有购买也没有离开，掌柜继续擦拭柜台。",
+          "sourceMessageIds": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        }
+      },
+      "sourceValidationPassed": true
+    },
+    {
+      "name": "rumor-denial-and-degree",
+      "sources": [
+        {
+          "eventId": "synthetic-1",
+          "version": 1,
+          "inputMessageId": 1,
+          "messageId": 2,
+          "input": "门上的封印是什么情况？",
+          "reply": "守卫说：“听说封印可能松动了，我还没亲自检查。”"
+        },
+        {
+          "eventId": "synthetic-2",
+          "version": 2,
+          "inputMessageId": 3,
+          "messageId": 4,
+          "input": "这是已经证实的事吗？",
+          "reply": "守卫摇头：“没有，这只是巡夜人转述的猜测。”"
+        },
+        {
+          "eventId": "synthetic-3",
+          "version": 3,
+          "inputMessageId": 5,
+          "messageId": 6,
+          "input": "我看看门板，没有碰封印。",
+          "reply": "门板边缘有些褪色，纹样仍清楚可见。"
+        },
+        {
+          "eventId": "synthetic-4",
+          "version": 4,
+          "inputMessageId": 7,
+          "messageId": 8,
+          "input": "有人说我已经入城，但我还在城门外。",
+          "reply": "守卫说：“对，你尚未入城。”"
+        },
+        {
+          "eventId": "synthetic-5",
+          "version": 5,
+          "inputMessageId": 9,
+          "messageId": 10,
+          "input": "我决定等检查结果，暂时不进去。",
+          "reply": "守卫答应稍后检查，目前还未开始。"
+        }
+      ],
+      "status": 200,
+      "usage": {
+        "prompt_tokens": 991,
+        "completion_tokens": 1131,
+        "total_tokens": 2122
+      },
+      "finishReason": "stop",
+      "extraction": {
+        "version": 1,
+        "facts": [
+          {
+            "type": "fact",
+            "content": "守卫表示听说封印可能松动未被证实，仅是巡夜人转述的猜测，且守卫尚未亲自检查。",
+            "sourceMessageIds": [
+              2,
+              4
+            ]
+          },
+          {
+            "type": "fact",
+            "content": "门板边缘有些褪色，纹样仍清楚可见。",
+            "sourceMessageIds": [
+              6
+            ]
+          },
+          {
+            "type": "fact",
+            "content": "角色仍在城门外，尚未入城。",
+            "sourceMessageIds": [
+              7,
+              8
+            ]
+          },
+          {
+            "type": "event",
+            "content": "角色查看了门板，没有碰封印。",
+            "sourceMessageIds": [
+              5
+            ]
+          },
+          {
+            "type": "event",
+            "content": "角色决定等待检查结果且暂时不进去，守卫答应稍后检查，目前尚未开始。",
+            "sourceMessageIds": [
+              9,
+              10
+            ]
+          }
+        ],
+        "summary": {
+          "content": "守卫表示听说封印可能松动只是巡夜人转述的猜测，并未证实，守卫也尚未亲自检查。角色查看了门板但未碰封印，见到门板边缘有些褪色、纹样仍清楚可见。角色仍在城门外尚未入城，并决定等待检查结果暂时不进去；守卫答应稍后检查，目前检查尚未开始。",
+          "sourceMessageIds": [
+            2,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        }
+      },
+      "sourceValidationPassed": true
+    }
+  ],
+  "taskClosed": false,
+  "sourceHashes": {
+    "src/server/services/story-memory-extraction.ts": "96098d151b9a8d59e9ad18bd2e9ccce86f676d7a0ff10302cafd0797602eb63b",
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+    "scripts/story-memory-semantic-check.mjs": "160f36065d7fc1cf30d2f197fab2c6a57486ac0b4ca1e88027c37468ad6430f3"
+  },
+  "result": "structural_checks_passed_semantic_review_required",
+  "review": {
+    "performedBy": "coding agent comparing synthetic sources and outputs; not user signoff",
+    "result": "targeted_defects_not_reproduced_in_four_single_samples_not_full_acceptance",
+    "observations": [
+      "uncertain-authorship: facts and summary retain 多半 and speaker attribution; weather probability retained.",
+      "unaccepted-overnight-stay: no overnight stay invented; appointment, first night and pending status retained.",
+      "invitation-and-unpaid-purchase: no payment, purchase, departure or confirmed appointment invented.",
+      "rumor-denial-and-degree: rumor provenance, unperformed inspection, no entry and partial fading preserved."
+    ],
+    "remainingConcern": "First two summaries still characterize remaining in the shop as sheltering from rain/wind; the player did not explicitly state this purpose. Prompt changes alone do not establish strict semantic grounding.",
+    "longRunRevalidationRequired": true,
+    "authorizationAccounting": {
+      "authorizedTokens": 300000,
+      "longRunRecordedTokens": 131182,
+      "followupRecordedTokens": 9425,
+      "totalRecordedTokens": 140607,
+      "remainingTokens": 159393,
+      "controlledUsageExcluded": true,
+      "onlineLimitUnchanged": 100000
+    }
+  }
+}

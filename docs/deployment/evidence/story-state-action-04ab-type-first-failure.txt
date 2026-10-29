@@ -1,0 +1,6 @@
+
+> small-squaretable@0.1.0 type-check
+> vue-tsc --noEmit
+
+src/server/services/story-export.service.ts(20,56): error TS2345: Argument of type 'PgTransaction<PostgresJsQueryResultHKT, typeof import("/var/aichat/Small-Squaretable/src/db/schema/index"), ExtractTablesWithRelations<typeof import("/var/aichat/Small-Squaretable/src/db/schema/index")>>' is not assignable to parameter of type 'PostgresJsDatabase<typeof import("/var/aichat/Small-Squaretable/src/db/schema/index")> & { $client: Sql<{}>; }'.
+  Property '$client' is missing in type 'PgTransaction<PostgresJsQueryResultHKT, typeof import("/var/aichat/Small-Squaretable/src/db/schema/index"), ExtractTablesWithRelations<typeof import("/var/aichat/Small-Squaretable/src/db/schema/index")>>' but required in type '{ $client: Sql<{}>; }'.

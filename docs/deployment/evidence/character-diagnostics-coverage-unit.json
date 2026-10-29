@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-25T05:41:28.048Z",
+  "result": "passed after reproducing unset-timer rejection",
+  "before": {
+    "failed": 2,
+    "passed": 14,
+    "log": "character-diagnostics-coverage-unit-before.txt"
+  },
+  "after": {
+    "files": 6,
+    "passed": 113,
+    "added": 8,
+    "log": "character-diagnostics-coverage-unit-after.txt"
+  },
+  "typecheck": "passed",
+  "targetedLint": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "sources": [
+    {
+      "path": "src/types/character-worldbook.ts",
+      "sha256": "c03faa3659f2fffc87071615310090721697fddc39019d7ce33a16857e1638df"
+    },
+    {
+      "path": "src/types/character-worldbook.spec.ts",
+      "sha256": "97931de1a9481a3f55cd3121c440b34c91a64cb2900a29e135815d77ef14d397"
+    },
+    {
+      "path": "src/types/worldbook-import.spec.ts",
+      "sha256": "3cf29e3db0af14cb43add5e4f558430ea50dfb7e5e562489e8015f0ae35d4818"
+    }
+  ],
+  "limits": [
+    "Targeted regression, not all-repository tests",
+    "Nullable timers map to existing defaults; invalid types remain rejected"
+  ]
+}

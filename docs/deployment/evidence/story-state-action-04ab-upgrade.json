@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-25T12:33:22.152Z",
+  "image": "small-squaretable:exploration-20261025-04ab",
+  "imageId": "sha256:e36464956e1d614641bd853a37edff2ec7da5ff29ac8c0bf95b0804d306e3bdf",
+  "previousImage": "sha256:513da41b2bdf951c0a06ee7e6a9be377723d2a22482c183284c3070c0fdf5e7c",
+  "historicalImage": "sha256:b65d1767ba17bfcb751e851c9c3c8dc5aac4f432e7c30cd6ac80ec06bda6fec3",
+  "port": 3081,
+  "rehearsal": {
+    "passed": true,
+    "comparedTables": 71,
+    "existingRowsPreserved": true,
+    "migrationCount": 12
+  },
+  "deployed": true,
+  "paidProviderTokens": 0,
+  "limits": [
+    "Migration rehearsal preserves existing rows; it is not complete semantic restore/continuation acceptance",
+    "No third-party scripts or paid model probes",
+    "User visual and real-device acceptance remain open"
+  ],
+  "providerConfigurationSynced": true,
+  "htmlSha256": "d1f6a5f94f0535a4f11f4005444cbee3d3cd06be8d0c45e192e2281a190d1aab",
+  "migrationCount": 12,
+  "previousConfiguration": "backups/exploration/upgrade-f1bdc5d8-9b46-4474-93c2-02514fedbc90/previous.env",
+  "databaseBackup": "backups/exploration/upgrade-f1bdc5d8-9b46-4474-93c2-02514fedbc90/before-upgrade.dump",
+  "uploadBackup": "backups/exploration/upgrade-f1bdc5d8-9b46-4474-93c2-02514fedbc90/uploads.tar"
+}

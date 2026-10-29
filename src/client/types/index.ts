@@ -1,4 +1,5 @@
 import type { ModerationStatusValue, ViolationCategory } from '@/types/moderation';
+import type { StoryIdentitySnapshot } from '@/types/story-identity';
 
 export interface User {
   id: string;
@@ -19,6 +20,10 @@ export interface Chat {
   title: string;
   characterId: string;
   characterName: string;
+  personaId?: string | null;
+  identitySnapshot?: StoryIdentitySnapshot | null;
+  worldbookSnapshotVersion?: number | null;
+  contentSnapshotVersion?: number | null;
   characterAvatar?: string;
   lastMessage?: string;
   lastMessageAt?: string;
@@ -86,6 +91,9 @@ export interface CharacterCardData {
 }
 
 export interface Character {
+  presentation?: import('../../types/story-presentation').PresentationVersion;
+  diagnostics?: import('../../types/story-diagnostics').StoryDiagnostics;
+  compatibility?: import('../../types/story-capabilities').StoryCapabilities;
   id: string;
   name: string;
   description?: string;

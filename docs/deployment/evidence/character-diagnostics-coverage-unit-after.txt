@@ -1,0 +1,17 @@
+[dotenv@17.3.1] injecting env (30) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+
+ RUN  v4.0.18 /var/aichat/Small-Squaretable
+
+ ✓ |server| src/types/character-worldbook.spec.ts (16 tests) 25ms
+ ✓ |server| src/types/story-diagnostics.spec.ts (10 tests) 28ms
+ ✓ |server| src/types/story-capabilities.spec.ts (21 tests) 36ms
+ ✓ |server| src/types/worldbook-import.spec.ts (9 tests) 16ms
+ ✓ |server| src/types/character-worldbook-bindings.spec.ts (5 tests) 8ms
+ ✓ |server| src/types/character-card-import.spec.ts (52 tests) 1973ms
+     ✓ accepts the exact decompressed limit without rejecting a valid padded JSON payload  1721ms
+
+ Test Files  6 passed (6)
+      Tests  113 passed (113)
+   Start at  13:33:10
+   Duration  2.53s (transform 574ms, setup 190ms, import 821ms, tests 2.09s, environment 1ms)
+

@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-25T04:48:29.076Z",
+  "timezone": "Asia/Hong_Kong",
+  "task": "EXP-03C",
+  "result": "passed within declared D1-D5 scope",
+  "criteria": {
+    "D1": "Legacy/V2/V3, embedded/independent books, script/variable hints, alternate openings and ordinary multi-character stories covered; external samples and owned fixtures separated",
+    "D2": "Actual bound/enabled/disabled/empty/ambiguous state and explicit entry purposes verified; no name-based auto-binding or hidden content disclosure",
+    "D3": "Optional explicit fixed-name protocol validated transactionally, including cross-card conflicts and browser recovery; prose identity remains unverified",
+    "D4": "Entry and frozen per-character reports verified; source edits and restarts preserve snapshots; old saves do not acquire invented diagnostics",
+    "D5": "API/browser regression, production build, isolated candidate-data migration, deployment and actual deployed browser/restart checks passed"
+  },
+  "audit03B": [
+    "Extended incomplete capability scanning",
+    "Corrected stale nested data in dependency diagnosis",
+    "Updated omitted group-chat preview regression assertion"
+  ],
+  "validation": {
+    "targetedTests": 238,
+    "testFiles": 13,
+    "libraryGroups": 33,
+    "externalSamples": 5,
+    "diagnosticGroups": 6,
+    "sandboxBrowserGroups": 4,
+    "typecheck": "passed",
+    "build": "passed in production mode",
+    "targetedLint": {
+      "errors": 0,
+      "warnings": 12
+    },
+    "librarySourceFingerprints": 61,
+    "sandboxSourceFingerprints": 6,
+    "sourceMismatches": 0,
+    "migrationComparedTables": 63,
+    "deployedScreenshots": 8
+  },
+  "deployment": {
+    "image": "small-squaretable:exploration-20261025-03c",
+    "imageId": "sha256:66428c8babd13a3af996453c1bb2c77352c794b1ed92ae45a3db3a4573ca95d4",
+    "port": 3081,
+    "betaMigrationCount": 10,
+    "latestBetaMigration": "0009_character_import_repairs",
+    "providerConfigurationSynced": true,
+    "historical3080Unchanged": true,
+    "prototype5188Unchanged": true,
+    "syntheticAccountArtifacts": "backups/exploration/acceptance-03c.json"
+  },
+  "modelBudget": {
+    "newPaidTokens": 0,
+    "knownCumulativeTokens": 436728,
+    "unacknowledgedReservation": 6591,
+    "accountedTokens": 443319,
+    "authorization": 450000,
+    "remaining": 6681
+  },
+  "limits": [
+    "No arbitrary author-script or full-framework compatibility",
+    "Fixed-name validation is an optional native declaration, not inference of prose identities, occupations or relationships",
+    "Multi-character generation uses ordinary narrative cards; native state rules still require a single card; character knowledge isolation remains open",
+    "No paid-provider story replay this turn, human visual approval or real-device acceptance",
+    "No historical source repair, memory backfill or automatic content upgrades",
+    "Complete portable restore/deletion lifecycle and EXP-07D final experience acceptance remain open"
+  ],
+  "evidenceFiles": [
+    "character-diagnostics-library.json",
+    "character-diagnostics-sandbox.json",
+    "character-diagnostics-upgrade.json",
+    "character-diagnostics-deployed.json"
+  ],
+  "sources": [
+    {
+      "path": "scripts/upgrade-exploration-candidate.mjs",
+      "sha256": "e1bf87c9515c9c55f6fd5af7eff8dccc07d7fda6fcb8e8680a959f224d819b8d"
+    },
+    {
+      "path": "scripts/character-diagnostics-deployed-check.mjs",
+      "sha256": "99d511b3d85db3f843c23361374133aebd3bdc85c2fed3d8703a0324a7fc9992"
+    }
+  ]
+}

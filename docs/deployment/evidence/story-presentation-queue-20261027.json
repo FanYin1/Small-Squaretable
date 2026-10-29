@@ -1,0 +1,113 @@
+{
+  "date": "2026-10-27",
+  "parent": "EXP-ADAPT",
+  "parentComplete": false,
+  "package": "Bounded local automatic presentation queue PQ-01..08",
+  "deployment": {
+    "tag": "small-squaretable:exploration-20261027-presentation-queue",
+    "image": "sha256:1e51399b44127960be42e57d3b3354e3dd13dc2fe5c788155b3b26170758d808",
+    "backup": "backups/exploration/upgrade-47770164-65f6-4df4-8cb5-d92d1052f7d0",
+    "betaMigrations": 16,
+    "publicTables": 76,
+    "existingTablesPreservedInRehearsal": 75,
+    "matchedBuildFiles": 242,
+    "old3080Unchanged": true
+  },
+  "checks": {
+    "unit": 106,
+    "unitFiles": 7,
+    "budgetAndProviderControlledTests": 33,
+    "typeCheck": "passed",
+    "focusedLintFiles": 7,
+    "lintErrors": 0,
+    "lintWarnings": 0,
+    "isolatedGroups": 20,
+    "isolatedScreenshots": 10,
+    "restoreBehavior": 21,
+    "evidenceGuards": 14,
+    "corruptionProbes": 2,
+    "exports": 20,
+    "durableMemory": 76,
+    "portableStory": 28,
+    "deployedSyntheticCard": {
+      "result": "passed",
+      "screenshots": 2,
+      "operations": [
+        "create",
+        "cancel",
+        "restart",
+        "delete own fixture"
+      ],
+      "tablesUnchangedAfterCleanup": 16,
+      "paidCalls": 0
+    },
+    "deployedReadOnly": {
+      "result": "passed",
+      "groups": 6,
+      "screenshots": 26,
+      "tablesUnchanged": 20,
+      "errors": 0,
+      "mutations": 0
+    },
+    "actualCandidateIdleWorker": {
+      "processed": 0,
+      "paidCalls": 0
+    }
+  },
+  "realProvider": {
+    "scope": "Original t1 in disposable database through independent queue worker and existing engineering gateway; not user story gameplay",
+    "model": "gemini-3.8-flash",
+    "protocol": "Gemini native",
+    "calls": 1,
+    "tokens": 4811,
+    "retries": 0,
+    "originalFileUnchanged": true,
+    "adoptedChars": 88,
+    "apiMatchesAdoptedVersion": true,
+    "batchClosed": true,
+    "gatewayStopped": true
+  },
+  "budget": {
+    "authorization": 1450000,
+    "known": 468747,
+    "historicalUnreceipted": 6591,
+    "historicalUnknownReserve": 198000,
+    "occupied": 673338,
+    "available": 776662,
+    "newPending": 0,
+    "newUnknown": 0,
+    "personalCreditAdjustments": 0
+  },
+  "limits": [
+    "No standing paid queue worker currently running; new missing-intro imports wait for bounded authorized service",
+    "Engineering authorization is not public production operating budget",
+    "Unknown calls are not retried; no management reconciliation UI or supplier lost-body recovery",
+    "Existing third-party finite-rule conversion and four-card continuous gameplay remain open",
+    "No human visual, real-device or full narrative quality acceptance",
+    "Actual owner's publication feature remains gated"
+  ],
+  "privateArchive": "backups/exploration/presentation-queue-integration-20261027",
+  "sourceHashes": {
+    "src/types/presentation-job.ts": "b06b76be483bd4130e205333c606cdcb3996bf589bf4830c6a05986de6655682",
+    "src/db/schema/presentation-jobs.ts": "efa26ccce71e845f44a49e80876d746551915a7e037004bb2b19142d4aa070c4",
+    "src/db/presentation-queue.ts": "88a1a171a19fee38413adbb212c9852d1db1b197fd37a41784fd9522800c8c45",
+    "src/db/character-import.ts": "3892f5047aa36d38c05f1956db1ece8e3b245d41c04016f7bbd3fee1641e6380",
+    "src/server/services/presentation-jobs.service.ts": "fcc35ffb806cb870e8351222f6268ab467f46e91afcdc151df1c5a5206e0257c",
+    "src/server/routes/characters.ts": "70f40583ec295bba047df88e7dddb8a823b7deb28615f3585aa0e6dca2f9c5d1",
+    "src/client/services/character.api.ts": "24cc99829e47f0e828596cd8ce56339939b424c2415b5f5433822321b07034b9",
+    "src/client/components/character/PresentationJobPanel.vue": "c5de80cc57ae2c4121e8b31e8a01d77e119ccb0f364c3c7f4e33c1472c33764f",
+    "src/client/components/character/PresentationJobPanel.spec.ts": "48dad63ee6abbf6eef09ba56154f8d2bf653600b2221f2a0902bf8a46a9f7d23",
+    "src/client/pages/CharacterDetail.vue": "e598e025b1c4e57e21ab48e20ec94783502f9eecf28235b85aea80eeb7cb3d88",
+    "src/db/beta-migrations/0015_presentation_jobs.sql": "c0e811b1783b8f52bf097582245485f8fab229df2b4abf0230398fcd20e91f45",
+    "src/db/migrations/0055_presentation_jobs.sql": "c0e811b1783b8f52bf097582245485f8fab229df2b4abf0230398fcd20e91f45",
+    "scripts/story-presentation-worker.mjs": "2c5b191dfba276998e1b8e6aebbb942b844ffada787bfc38cdf350719aca873d",
+    "scripts/lib/presentation-queue-provider.mjs": "b0f83b44df60f4f7e84726bb7ce8f2201c1a70a186862619ff79bd2b61aca051",
+    "scripts/lib/engineering-model-gateway.mjs": "6ffdf02f6fdfd714dc8987f7f921d87eb2c4baa4f6f29e990ecf6d2d3522d3ad",
+    "scripts/presentation-queue-provider.test.mjs": "1169273f9012eb44bfbc925082f2b56bde09eb0aa4f9a747a778562a73c55d2c",
+    "scripts/story-presentation-queue-check.mjs": "b1165a5705b04a2c8b0d00e8e7941878e4fd26ecd7c9f8a09adb888fe6c5ce7a",
+    "scripts/story-presentation-queue-cli-check.mjs": "f9660e4b2c747bc58773a1151eb4180f9309ecf42e61539d4327ff417c38d70d",
+    "scripts/story-presentation-queue-real-check.mjs": "24131932ffcbc35eed41a1db059954579fc206ea1ff014688df4bf3bab55e0e1",
+    "scripts/story-presentation-queue-deployed-check.mjs": "87b06752af58941dd7e3ace5507dd0db6cb0a13fff99b86a41546232d0bf5556",
+    "scripts/story-overview-deployed-check.mjs": "d0374a33fb86436f7cf76b4a22812fd0ad6cb1e73caa0734a35a66b8a6da7530"
+  }
+}

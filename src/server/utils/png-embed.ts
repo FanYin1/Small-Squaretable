@@ -73,13 +73,18 @@ export function embedJsonInPng(pngBuffer: Buffer, characterJson: Record<string, 
 
   // Insert tEXt chunk before IEND (last chunk)
   let pos = 8; // skip signature
+  const chunks: Buffer[] = [PNG_SIGNATURE];
   while (pos < pngBuffer.length) {
     const chunkLength = pngBuffer.readUInt32BE(pos);
     const chunkType = pngBuffer.slice(pos + 4, pos + 8).toString('ascii');
     if (chunkType === 'IEND') {
-      const before = pngBuffer.slice(0, pos);
-      const after = pngBuffer.slice(pos);
-      return Buffer.concat([before, textChunk, after]);
+      return Buffer.concat([...chunks, textChunk, pngBuffer.subarray(pos)]);
+    }
+    const payload = pngBuffer.subarray(pos + 8, pos + 8 + chunkLength);
+    const separator = payload.indexOf(0);
+    const keyword = separator < 0 ? '' : payload.toString('ascii', 0, separator);
+    if (!(['tEXt', 'iTXt', 'zTXt'].includes(chunkType) && ['chara', 'ccv3'].includes(keyword))) {
+      chunks.push(pngBuffer.subarray(pos, pos + 12 + chunkLength));
     }
     pos += 12 + chunkLength; // length(4) + type(4) + data + crc(4)
   }

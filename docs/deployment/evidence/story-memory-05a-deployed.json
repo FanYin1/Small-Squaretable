@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "at": "2026-10-25T10:37:19.760Z",
+  "artifacts": {
+    "cardId": "9ee723a1-a4a1-487f-b4a2-09a203438d6d",
+    "storyId": "3abfe3cf-82e2-42c9-a0a7-a32d8babd542",
+    "groupId": "7b9d949b-3bb5-4e72-8e06-243de6b51cf9",
+    "characterIds": [
+      "65948210-bbd8-4aa4-b339-3ef1e50db35f",
+      "d5ded70a-04ef-4661-a74c-146414442086"
+    ]
+  },
+  "hashes": {
+    "dist/server/index.js": "f3c1e4caaf336e452a9da989c3a2bb2fe234de6964f26a8bf888775c2ca88730",
+    "dist/client/index.html": "d7fc09a0930eaca3dca2a0b277c7a0e59dc89bd31ee580ad604166bbad26f5b8"
+  },
+  "screenshots": [
+    "intent-1440.png",
+    "knowledge-1440.png",
+    "intent-390.png",
+    "knowledge-390.png"
+  ],
+  "candidateState": "proposed",
+  "candidateMemoryJobs": 0,
+  "restartPersisted": true,
+  "generationSends": 0,
+  "provider": "not called; owned prewritten fixtures",
+  "migrationCount": 12,
+  "image": "sha256:113b972d8b00b5ed69b6be4165f3bd3b212ec1e993eef7c2904db5c43fe84ad4"
+}

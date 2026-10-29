@@ -1,3 +1,5 @@
+import { scriptString } from './card-sandbox';
+
 /**
  * SillyTavern API Shim for ERA tavern_helper scripts
  *
@@ -33,9 +35,9 @@ function buildShimScript(opts: {
   chatId: string;
   scriptId?: string;
 }): string {
-  const userName = JSON.stringify(opts.userName);
-  const charName = JSON.stringify(opts.charName);
-  const scriptId = JSON.stringify(opts.scriptId || 'era-script-0');
+  const userName = scriptString(opts.userName);
+  const charName = scriptString(opts.charName);
+  const scriptId = scriptString(opts.scriptId || 'era-script-0');
 
   return `<script>
 (function() {
@@ -51,6 +53,7 @@ function buildShimScript(opts: {
     }
   };
   window.addEventListener('message', function(e) {
+    if (e.source !== window.parent) return;
     if (e.data && e.data.type === 'era-event' && _handlers[e.data.event]) {
       _handlers[e.data.event].forEach(function(fn) { try { fn(e.data.payload); } catch(e2) { console.error(e2); } });
     }
@@ -68,6 +71,7 @@ function buildShimScript(opts: {
     });
   }
   window.addEventListener('message', function(e) {
+    if (e.source !== window.parent) return;
     if (e.data && e.data.type === 'era-response' && e.data.requestId) {
       var p = _pendingRequests[e.data.requestId];
       if (p) { delete _pendingRequests[e.data.requestId]; if (e.data.error) p.reject(new Error(e.data.error)); else p.resolve(e.data.result); }
@@ -75,12 +79,10 @@ function buildShimScript(opts: {
   });
   window.getVar = function(name) { return requestFromParent('era-getVar', { name: name }); };
   window.getChatMessages = function(index) { return requestFromParent('era-getChatMessages', { index: index }); };
-  window.getWorldbook = function() { return Promise.resolve([]); };
-  window.createWorldbookEntries = function() { return Promise.resolve(); };
-  window.getCharWorldbookNames = function() { return Promise.resolve({ primary: null, additional: [] }); };
-  window.createWorldbook = function() { return Promise.resolve(); };
-  window.rebindCharWorldbooks = function() { return Promise.resolve(); };
-  window.isCharacterTavernRegexesEnabled = function() { return true; };
+  ['getWorldbook', 'createWorldbookEntries', 'getCharWorldbookNames', 'createWorldbook', 'rebindCharWorldbooks'].forEach(function(name) {
+    window[name] = function() { return Promise.reject(new Error('UNSUPPORTED_API: ' + name)); };
+  });
+  window.isCharacterTavernRegexesEnabled = function() { throw new Error('UNSUPPORTED_API: isCharacterTavernRegexesEnabled'); };
   if (!window.jQuery && !window.$) {
     var jq = function(sel) {
       var el;

@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-25T14:08:11.434Z",
+  "result": "passed",
+  "tests": 250,
+  "files": 19,
+  "groups": [
+    {
+      "tests": 164,
+      "failed": 0,
+      "files": [
+        {
+          "path": "src/client/composables/useFeatureGate.spec.ts",
+          "status": "passed",
+          "tests": 21
+        },
+        {
+          "path": "src/client/pages/CharacterDetail.spec.ts",
+          "status": "passed",
+          "tests": 14
+        },
+        {
+          "path": "src/client/pages/CharacterEditor.spec.ts",
+          "status": "passed",
+          "tests": 19
+        },
+        {
+          "path": "src/client/pages/Chat.spec.ts",
+          "status": "passed",
+          "tests": 34
+        },
+        {
+          "path": "src/client/pages/MyCharacters.spec.ts",
+          "status": "passed",
+          "tests": 12
+        },
+        {
+          "path": "src/client/pages/Profile.spec.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/client/pages/Subscription.spec.ts",
+          "status": "passed",
+          "tests": 2
+        },
+        {
+          "path": "src/client/stores/subscription.spec.ts",
+          "status": "passed",
+          "tests": 38
+        },
+        {
+          "path": "src/client/components/character/CharacterPublishForm.spec.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "src/client/components/subscription/CreditsBalance.spec.ts",
+          "status": "passed",
+          "tests": 9
+        }
+      ]
+    },
+    {
+      "tests": 24,
+      "failed": 0,
+      "files": [
+        {
+          "path": "src/client/composables/useStoryCreationRecovery.spec.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/client/composables/useStoryIdentity.spec.ts",
+          "status": "passed",
+          "tests": 11
+        },
+        {
+          "path": "src/client/components/chat/MessageInput.spec.ts",
+          "status": "passed",
+          "tests": 8
+        }
+      ]
+    },
+    {
+      "tests": 13,
+      "failed": 0,
+      "files": [
+        {
+          "path": "src/client/components/chat/ChatWindow.spec.ts",
+          "status": "passed",
+          "tests": 13
+        }
+      ]
+    },
+    {
+      "tests": 49,
+      "failed": 0,
+      "files": [
+        {
+          "path": "src/server/routes/character-collaborators.spec.ts",
+          "status": "passed",
+          "tests": 8
+        },
+        {
+          "path": "src/server/routes/character-patch.spec.ts",
+          "status": "passed",
+          "tests": 6
+        },
+        {
+          "path": "src/server/routes/character-versions.spec.ts",
+          "status": "passed",
+          "tests": 4
+        },
+        {
+          "path": "src/server/routes/characters-version-restore.spec.ts",
+          "status": "passed",
+          "tests": 5
+        },
+        {
+          "path": "src/server/routes/characters.spec.ts",
+          "status": "passed",
+          "tests": 26
+        }
+      ]
+    }
+  ]
+}

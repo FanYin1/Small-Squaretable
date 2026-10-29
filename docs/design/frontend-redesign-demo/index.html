@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>小方桌 · 故事体验 R2 演示</title>
+  <link rel="stylesheet" href="/demo.css">
+  <script src="/demo.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">跳到正文</a>
+  <aside class="sidebar">
+    <a class="brand" href="#discover"><span class="brand-mark" aria-hidden="true">◈</span><span>小方桌<small>SMALL SQUARETABLE</small></span></a>
+    <p class="eyebrow">属于你的另一种生活</p>
+    <nav class="main-nav" aria-label="主导航">
+      <a href="#library"><span aria-hidden="true">▤</span>我的故事</a>
+      <a href="#discover"><span aria-hidden="true">✧</span>发现</a>
+      <a href="#create"><span aria-hidden="true">＋</span>创作</a>
+      <a href="#account"><span aria-hidden="true">◯</span>我的</a>
+    </nav>
+    <div class="sidebar-foot"><p class="eyebrow">故事还在，等你回来</p><p>不必急着抵达结局。<br>下一句话，由你决定。</p><button data-action="credits" class="balance-card"><span>示例可用点数</span><strong><b id="sidebar-balance">24.80</b> <small>点 ↗</small></strong></button><div class="user"><span class="avatar">林</span><span>林岚<small>演示身份 · 不关联账号</small></span></div></div>
+  </aside>
+  <div class="workspace">
+    <div class="demo-banner"><strong>R2 交互样板</strong><span>模拟内容 · 不调用 AI / 不扣费 · 非生产改版</span></div>
+    <header class="topbar"><span id="breadcrumb">发现</span><div class="top-actions"><label class="review-control">评审状态<select id="scenario"><option value="normal">正常</option><option value="empty">空列表</option><option value="error">加载失败</option><option value="failure">生成失败</option><option value="insufficient">余额不足</option></select></label><button id="theme-toggle" class="icon-button" aria-label="切换到浅色主题">☀</button></div></header>
+    <main id="content" tabindex="-1"></main>
+    <footer class="demo-foot">视觉评审样板 · 所有角色、记录与费用均为示例 · 刷新后重置</footer>
+  </div>
+  <nav class="mobile-nav" aria-label="移动端主导航"><a href="#library">▤<span>我的故事</span></a><a href="#discover">✧<span>发现</span></a><a href="#create">＋<span>创作</span></a><a href="#account">◯<span>我的</span></a></nav>
+  <dialog id="modal" aria-labelledby="modal-title"><button class="modal-close icon-button" aria-label="关闭弹窗">×</button><div id="modal-content"></div></dialog>
+  <div id="notice" class="notice" role="status" aria-live="polite"></div>
+</body>
+</html>

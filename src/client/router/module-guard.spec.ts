@@ -22,10 +22,33 @@ async function loadRouter(flags: Record<string, boolean>) {
 describe('router module guard (P2-1)', () => {
   beforeEach(() => {
     fetchMock.mockReset();
+    localStorage.clear();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('waits for restored identity before entering the story library', async () => {
+    const router = await loadRouter({});
+    const { useUserStore } = await import('@client/stores/user');
+    const { authApi } = await import('@client/services');
+    const user = { id: 'reader', tenantId: 'tenant', email: 'reader@example.test', name: 'Reader', createdAt: '2026-10-23' };
+    let finishProfile!: (response: { user: typeof user }) => void;
+    const profile = vi.spyOn(authApi, 'getMe').mockReturnValue(new Promise(resolve => { finishProfile = resolve; }));
+    const store = useUserStore();
+    store.setToken(`header.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`);
+
+    const navigation = router.push('/chat');
+    await vi.waitFor(() => expect(profile).toHaveBeenCalledOnce());
+    expect(router.currentRoute.value.name).not.toBe('Chat');
+    expect(store.user).toBeNull();
+
+    finishProfile({ user });
+    await navigation;
+    expect(store.user).toEqual(user);
+    expect(router.currentRoute.value.name).toBe('Chat');
   });
 
   it('renders NotFound with the original URL for a closed module route', async () => {

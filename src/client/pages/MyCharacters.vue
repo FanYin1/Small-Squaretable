@@ -1,35 +1,41 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { ElMessageBox } from 'element-plus';
 import { createLogger } from '@client/utils/logger';
 
 const logger = createLogger('MyCharacters');
-import { Plus, Edit, Delete, Upload, Download, Share, Search, ChatDotRound, CopyDocument, FolderAdd, PriceTag } from '@element-plus/icons-vue';
+import { Plus, Delete, Upload, Download, Search, FolderAdd, PriceTag } from '@element-plus/icons-vue';
 import { api } from '@client/services/api';
 import { characterApi } from '@client/services/character.api';
 import { characterCollectionApi } from '@client/services/character-collection.api';
-import { exportApi } from '@client/services/export.api';
+import { exportApi, type CharacterBatchImportResult } from '@client/services/export.api';
 import { useFeatureGate } from '@client/composables/useFeatureGate';
 import { useToast } from '@client/composables/useToast';
-import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
-import CharacterCard from '@client/components/character/CharacterCard.vue';
-import EmptyState from '@client/components/market/EmptyState.vue';
+import ExplorationLayout from '@client/components/layout/ExplorationLayout.vue';
+import PrivateStoryCard from '@client/components/character/PrivateStoryCard.vue';
 import CharacterPublishForm from '@client/components/character/CharacterPublishForm.vue';
 import ModerationStatusBadge from '@client/components/character/ModerationStatusBadge.vue';
 import CollectionSidebar from '@client/components/character/CollectionSidebar.vue';
-import { downloadCharacterJson, readCharacterFile } from '@client/utils/sillytavern';
+import { downloadCharacterJson } from '@client/utils/sillytavern';
 import type { Character, CharacterCollection } from '@client/types';
 
-const { t } = useI18n();
-const { hasFeature } = useFeatureGate();
+const { t, te } = useI18n();
+const { hasFeature, featureError, retryFeatures } = useFeatureGate();
 const toast = useToast();
 const router = useRouter();
 
 // State
 const characters = ref<Character[]>([]);
 const loading = ref(false);
+const loadFailed = ref(false);
+const loadTimedOut = ref(false);
+const retryAppend = ref(false);
+const nextPage = ref<number | null>(null);
+let listVersion = 0;
+let listController: AbortController | null = null;
+onUnmounted(() => { listVersion += 1; listController?.abort(); });
 const activeTab = ref<'private' | 'published'>('private');
 const searchQuery = ref('');
 
@@ -41,6 +47,13 @@ const activeCollection = ref<string | null>(null);
 const batchMode = ref(false);
 const selectedIds = ref<string[]>([]);
 const importInput = ref<HTMLInputElement | null>(null);
+const importResult = ref<CharacterBatchImportResult | null>(null);
+const importing = ref(false);
+
+function importErrorMessage(error: { code?: string; error: string }) {
+  const key = `myCharacters.importErrors.${error.code}`;
+  return error.code && te(key) ? t(key) : error.error;
+}
 
 // Tag management
 const showTagDialog = ref(false);
@@ -71,15 +84,20 @@ async function batchExport(format: 'json' | 'png') {
 
 async function handleBatchImport(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (!input.files?.length) return;
+  if (!input.files?.length || importing.value) return;
+  importing.value = true;
+  importResult.value = null;
   try {
     const result = await exportApi.batchImportCharacters(Array.from(input.files));
-    toast.success(t('myCharacters.batchImportSuccess', { count: result.imported }));
-    await fetchCharacters();
+    importResult.value = result;
+    if (result.failed.length === 0) toast.success(t('myCharacters.batchImportSuccess', { count: result.imported.length }));
+    if (result.imported.length > 0) await fetchCharacters();
   } catch (e: any) {
     toast.error(t('myCharacters.importFailed'), { message: e.message || t('common.retry') });
+  } finally {
+    importing.value = false;
+    input.value = '';
   }
-  input.value = '';
 }
 
 async function batchDelete() {
@@ -165,20 +183,48 @@ async function fetchCollections() {
   }
 }
 
-async function fetchCharacters() {
+async function fetchCharacters(append = false) {
+  const page = append ? nextPage.value : 1;
+  if (!page) return;
+  const requestedVersion = ++listVersion;
+  listController?.abort();
+  const controller = new AbortController();
+  listController = controller;
+  let timedOut = false;
+  let cancelRead!: () => void;
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    cancelRead = () => reject(new Error('Character list read cancelled'));
+    controller.signal.addEventListener('abort', cancelRead, { once: true });
+  });
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 15000);
   loading.value = true;
+  loadFailed.value = false;
+  loadTimedOut.value = false;
+  retryAppend.value = append;
+  if (!append) { characters.value = []; nextPage.value = null; }
   try {
     if (activeCollection.value) {
-      characters.value = await characterCollectionApi.getCollectionCharacters(activeCollection.value);
+      const result = await Promise.race([characterCollectionApi.getCollectionCharacters(activeCollection.value, { signal: controller.signal }), cancelled]);
+      if (requestedVersion !== listVersion) return;
+      characters.value = result;
+      nextPage.value = null;
     } else {
-      const result = await characterApi.getCharacters();
-      characters.value = result.characters;
+      const result = await Promise.race([characterApi.getCharacters({ page, limit: 50 }, { signal: controller.signal }), cancelled]);
+      if (requestedVersion !== listVersion) return;
+      characters.value = append ? [...new Map([...characters.value, ...result.characters].map(character => [character.id, character])).values()] : result.characters;
+      nextPage.value = result.pagination?.hasNext ? page + 1 : null;
     }
   } catch (error) {
+    if (requestedVersion !== listVersion) return;
+    loadFailed.value = true;
+    loadTimedOut.value = timedOut;
     logger.error('Failed to fetch characters', error);
-    toast.error(t('myCharacters.loadFailed'), { message: t('myCharacters.loadListFailed') });
+    toast.error(t('myCharacters.loadFailed'), { message: t(timedOut ? 'myCharacters.loadListTimedOut' : 'myCharacters.loadListFailed') });
   } finally {
-    loading.value = false;
+    clearTimeout(timeout);
+    controller.signal.removeEventListener('abort', cancelRead);
+    if (listController === controller) listController = null;
+    if (requestedVersion === listVersion) loading.value = false;
   }
 }
 
@@ -300,39 +346,6 @@ function handleExport(character: Character) {
   toast.success(t('myCharacters.exported'));
 }
 
-/**
- * Compress avatar image to keep base64 data URL within server limits.
- * Resizes to max 1024px and converts to JPEG at 85% quality.
- */
-function compressAvatar(blob: Blob, maxSize = 1024): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(blob);
-    // 必须在两个分支都 revoke：批量导入几十张图时，每个未释放的 object URL
-    // 都会把整份 blob 留在内存里直到页面卸载。
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      let { width, height } = img;
-      if (width > maxSize || height > maxSize) {
-        const ratio = Math.min(maxSize / width, maxSize / height);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('Failed to load image for compression'));
-    };
-    img.src = objectUrl;
-  });
-}
-
 async function handleDuplicate(character: Character) {
   try {
     await characterApi.duplicateCharacter(character.id);
@@ -343,54 +356,12 @@ async function handleDuplicate(character: Character) {
   }
 }
 
-async function handleImport() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json,.png,.jpg,.jpeg,.webp';
-
-  input.onchange = async (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-
-    try {
-      const characterData = await readCharacterFile(file);
-
-      // If we have an avatar URL from PNG, we need to convert it to base64
-      let avatarUrl = characterData.avatarUrl;
-
-      // For PNG files, convert blob URL to base64 data URL
-      if (avatarUrl && avatarUrl.startsWith('blob:')) {
-        try {
-          const response = await fetch(avatarUrl);
-          const blob = await response.blob();
-          // Compress large images to keep the data URL within server limits
-          const compressed = await compressAvatar(blob);
-          avatarUrl = compressed;
-          // Clean up blob URL
-          URL.revokeObjectURL(characterData.avatarUrl!);
-        } catch {
-          avatarUrl = undefined;
-        }
-      }
-
-      // Create character with correct field names matching backend schema
-      await api.post('/characters', {
-        name: characterData.name,
-        description: characterData.description,
-        avatarUrl: avatarUrl,
-        tags: characterData.tags,
-        cardData: characterData.cardData,
-        isNsfw: characterData.isNsfw || false,
-      });
-      toast.success(t('myCharacters.imported'));
-      await fetchCharacters();
-    } catch (error: any) {
-      logger.error('Import error', error);
-      toast.error(t('myCharacters.importFailed'), { message: error.message || t('common.retry') });
-    }
-  };
-
-  input.click();
+function handleManage(command: string, character: Character) {
+  if (command === 'publish') handlePublish(character);
+  else if (command === 'unpublish') void handleUnpublish(character);
+  else if (command === 'export') handleExport(character);
+  else if (command === 'duplicate') void handleDuplicate(character);
+  else if (command === 'delete') void handleDelete(character);
 }
 
 function handlePublishSuccess() {
@@ -404,31 +375,46 @@ function handleCardClick(characterId: string) {
 }
 
 function handleStartChat(character: Character) {
-  router.push({ name: 'Chat', query: { characterId: character.id } });
+  router.push({ name: 'Chat', query: { characterId: character.id, storyEntry: 'quick' } });
 }
 
 </script>
 
 <template>
-  <DashboardLayout>
-    <template #title>{{ $t('myCharacters.title') }}</template>
-    <template #center>
-      <div class="search-combo">
-        <el-input
-          v-model="searchQuery"
-          :placeholder="$t('myCharacters.searchPlaceholder')"
-          :prefix-icon="Search"
-          clearable
-          @keyup.enter="handleSearch"
-        />
+  <ExplorationLayout>
+    <header class="library-intro">
+      <div>
+        <p class="library-eyebrow">{{ t('privateLibrary.eyebrow') }}</p>
+        <h1>{{ t('privateLibrary.heading') }}</h1>
+        <p class="library-description">{{ t('privateLibrary.description') }}</p>
       </div>
-    </template>
-    <template #actions>
-      <el-button type="primary" :icon="Plus" @click="handleCreateNew">
-        {{ $t('myCharacters.createCharacter') }}
-      </el-button>
-    </template>
-
+      <div class="library-entry-actions">
+        <input ref="importInput" type="file" multiple accept=".json,.png,.jpg,.jpeg,.webp" hidden @change="handleBatchImport" />
+        <el-button type="primary" :icon="Upload" :loading="importing" @click="importInput?.click()">{{ t('privateLibrary.import') }}</el-button>
+        <el-button :icon="Plus" @click="handleCreateNew">{{ t('privateLibrary.create') }}</el-button>
+      </div>
+    </header>
+    <section v-if="importResult" class="import-result" role="status" aria-live="polite" data-testid="import-result">
+      <h2>{{ t('myCharacters.batchImportResult', { imported: importResult.imported.length, failed: importResult.failed.length }) }}</h2>
+      <p>{{ t('myCharacters.importScope') }}</p>
+      <ul v-if="importResult.failed.length">
+        <li v-for="(failure, index) in importResult.failed" :key="index">
+          <strong>{{ failure.filename }}</strong> — {{ importErrorMessage(failure) }}
+        </li>
+      </ul>
+      <el-button @click="importResult = null">{{ t('common.close') }}</el-button>
+    </section>
+    <div class="library-search-row">
+      <div class="search-combo"><el-input v-model="searchQuery" :aria-label="t('myCharacters.searchPlaceholder')" :placeholder="t('myCharacters.searchPlaceholder')" :prefix-icon="Search" clearable @keyup.enter="handleSearch" /></div>
+      <details class="library-tools">
+        <summary>{{ t('privateLibrary.tools') }}</summary>
+        <nav class="story-shortcuts" :aria-label="t('storyShell.authorTools')">
+          <RouterLink :to="{ name: 'WorldBooks' }">{{ t('nav.worldBooks') }}</RouterLink>
+          <RouterLink :to="{ name: 'PresetManager' }">{{ t('storyShell.presets') }}</RouterLink>
+          <RouterLink :to="{ name: 'CharacterTemplates' }">{{ t('storyShell.templates') }}</RouterLink>
+        </nav>
+      </details>
+    </div>
     <div class="my-characters-layout">
       <CollectionSidebar
         :active-collection="activeCollection"
@@ -462,15 +448,9 @@ function handleStartChat(character: Character) {
         <el-button @click="batchMode = !batchMode" :type="batchMode ? 'primary' : 'default'" size="small">
           {{ t('myCharacters.batchMode') }}
         </el-button>
-        <input ref="importInput" type="file" multiple accept=".json,.png,.jpg,.jpeg,.webp" style="display:none" @change="handleBatchImport" />
-        <el-button :icon="Upload" @click="importInput?.click()" size="small">
-          {{ t('myCharacters.batchImport') }}
-        </el-button>
-        <el-button :icon="Upload" @click="handleImport">
-          {{ $t('myCharacters.importCharacter') }}
-        </el-button>
       </div>
     </div>
+    <p class="library-privacy">{{ t('privateLibrary.privacy') }} <span v-if="nextPage">{{ t('privateLibrary.loadedCounts') }}</span></p>
 
     <!-- Batch action bar -->
     <div v-if="batchMode && selectedIds.length > 0" class="batch-actions">
@@ -483,19 +463,22 @@ function handleStartChat(character: Character) {
     </div>
 
     <div v-loading="loading" class="characters-section">
-      <div v-if="!loading && displayCharacters.length === 0">
-        <EmptyState
-          v-if="searchQuery.trim()"
-          type="no-results"
-          @action-primary="handleClearFilters"
-          @action-secondary="handleBrowseAll"
-        />
-        <EmptyState
-          v-else
-          type="no-data"
-          @action-primary="handleCreateNew"
-        />
-      </div>
+      <p v-if="featureError" role="alert">{{ t('subscription.statusLoadFailed') }} <el-button @click="retryFeatures">{{ t('credits.refresh') }}</el-button></p>
+      <p v-if="loadFailed" role="alert" data-testid="library-load-error">{{ t(loadTimedOut ? 'myCharacters.loadListTimedOut' : 'myCharacters.loadListFailed') }} <el-button :disabled="loading" @click="fetchCharacters(retryAppend)">{{ t('myCharacters.retryLoad') }}</el-button></p>
+      <p v-if="nextPage" role="status">{{ t('myCharacters.partialList') }} <el-button :disabled="loading" @click="fetchCharacters(true)">{{ t('myCharacters.loadMore') }}</el-button></p>
+      <section v-if="!loading && !loadFailed && displayCharacters.length === 0" class="library-empty" role="status" :data-type="searchQuery.trim() ? 'no-results' : 'no-data'">
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" aria-hidden="true"><path d="M30 14C22 8 12 9 6 12V45C14 42 22 43 30 48M30 14C38 8 48 9 54 12V45C46 42 38 43 30 48M30 14V48" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
+        <h2>{{ t(searchQuery.trim() ? 'market.empty.noResults' : activeTab === 'private' ? 'privateLibrary.emptyTitle' : 'privateLibrary.publishedEmptyTitle') }}</h2>
+        <p>{{ t(searchQuery.trim() ? 'market.empty.noResultsDesc' : activeTab === 'private' ? 'privateLibrary.emptyDescription' : 'privateLibrary.publishedEmptyDescription') }}</p>
+        <div v-if="searchQuery.trim()" class="library-empty-actions">
+          <el-button @click="handleClearFilters">{{ t('market.empty.clearFilters') }}</el-button>
+          <el-button @click="handleBrowseAll">{{ t('market.empty.browseAll') }}</el-button>
+        </div>
+        <div v-else class="library-empty-actions">
+          <el-button type="primary" :disabled="importing" @click="importInput?.click()">{{ t('privateLibrary.import') }}</el-button>
+          <el-button @click="handleCreateNew">{{ t('privateLibrary.create') }}</el-button>
+        </div>
+      </section>
 
       <div v-else class="characters-grid">
         <div
@@ -507,82 +490,23 @@ function handleStartChat(character: Character) {
           <el-checkbox
             v-if="batchMode"
             class="batch-checkbox"
+            :aria-label="t('privateLibrary.selection', { name: character.name })"
             :model-value="selectedIds.includes(character.id)"
             @change="toggleSelect(character.id)"
             @click.stop
           />
-          <CharacterCard
+          <PrivateStoryCard
             :character="character"
-            @click="handleCardClick(character.id)"
-          />
-
-          <!-- isPublic 只表示作者点过发布；能不能被看到由审核状态决定 -->
-          <div v-if="character.isPublic" class="card-moderation">
-            <ModerationStatusBadge
-              :status="character.moderationStatus"
-              :category="character.violationCategory"
-              :note="character.moderationNote"
-            />
-          </div>
-
-          <div class="card-actions-overlay">
-            <el-button
-              type="primary"
-              size="small"
-              :icon="ChatDotRound"
-              @click.stop="handleStartChat(character)"
-            >
-              {{ $t('market.startChat') }}
-            </el-button>
-
-            <el-button
-              size="small"
-              :icon="Edit"
-              circle
-              @click.stop="handleEdit(character)"
-            />
-
-            <el-button
-              v-if="!character.isPublic"
-              size="small"
-              type="success"
-              :icon="Share"
-              circle
-              :disabled="!hasFeature('character_share')"
-              @click.stop="handlePublish(character)"
-            />
-
-            <el-button
-              v-else
-              size="small"
-              type="warning"
-              :icon="Download"
-              circle
-              @click.stop="handleUnpublish(character)"
-            />
-
-            <el-button
-              size="small"
-              :icon="Download"
-              circle
-              @click.stop="handleExport(character)"
-            />
-
-            <el-button
-              size="small"
-              :icon="CopyDocument"
-              circle
-              @click.stop="handleDuplicate(character)"
-            />
-
-            <el-button
-              size="small"
-              type="danger"
-              :icon="Delete"
-              circle
-              @click.stop="handleDelete(character)"
-            />
-          </div>
+            :can-publish="hasFeature('character_share')"
+            @view="handleCardClick(character.id)"
+            @enter="handleStartChat(character)"
+            @edit="handleEdit(character)"
+            @manage="handleManage($event, character)"
+          >
+            <template v-if="character.isPublic" #status>
+              <ModerationStatusBadge :status="character.moderationStatus" :category="character.violationCategory" :note="character.moderationNote" />
+            </template>
+          </PrivateStoryCard>
         </div>
       </div>
     </div>
@@ -630,13 +554,47 @@ function handleStartChat(character: Character) {
       @close="publishDialogVisible = false"
       @success="handlePublishSuccess"
     />
-  </DashboardLayout>
+  </ExplorationLayout>
 </template>
 
 <style scoped lang="scss">
+.library-intro { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 8px 0 32px; }
+.library-eyebrow { margin: 0 0 16px; color: var(--accent-text); font-size: 11px; letter-spacing: .12em; }
+.library-intro h1 { margin: 0 0 14px; color: var(--text-primary); font: 500 clamp(30px, 4vw, 42px)/1.3 var(--font-display); }
+.library-description { margin: 0; color: var(--text-secondary); font-size: 14px; line-height: 1.8; }
+.library-entry-actions { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.library-entry-actions :deep(.el-button) { margin: 0; min-height: 44px; }
+.library-search-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 0; border-top: 1px solid var(--border-default); }
+.library-tools { font-size: 13px; color: var(--text-secondary); }
+.library-tools summary { padding: 10px 4px; min-height: 44px; cursor: pointer; }
+.library-tools summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.story-shortcuts { display: flex; flex-wrap: wrap; gap: 12px; padding-block: 8px; }
+.story-shortcuts a { display: inline-flex; align-items: center; min-height: 44px; color: var(--text-secondary); }
+.library-privacy { margin: 4px 0 24px; color: var(--text-secondary); font-size: 12px; line-height: 1.8; }
+.library-privacy span { display: block; }
+.library-empty { display: flex; flex-direction: column; align-items: center; padding: 56px 20px; border: 1px dashed var(--border-default); border-radius: 14px; text-align: center; color: var(--text-secondary); }
+.library-empty svg { color: var(--accent-text); margin-bottom: 24px; }
+.library-empty h2 { margin: 0 0 12px; font: 500 24px/1.4 var(--font-display); color: var(--text-primary); }
+.library-empty p { max-width: 400px; font-size: 14px; line-height: 1.8; }
+.library-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
+.library-empty-actions :deep(.el-button) { min-height: 44px; margin: 0; }
+.import-result {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  overflow-wrap: anywhere;
+
+  h2 { font-size: 1rem; }
+  p { color: var(--text-secondary); }
+  ul { padding-inline-start: 1.25rem; }
+  li { margin-block: 0.5rem; }
+}
+
 .my-characters-layout {
   display: flex;
-  gap: 0;
+  gap: 24px;
   min-height: 500px;
 }
 
@@ -647,7 +605,7 @@ function handleStartChat(character: Character) {
 
 .search-combo {
   width: 100%;
-  max-width: 520px;
+  max-width: 420px;
 }
 
 .search-combo :deep(.el-input) {
@@ -655,17 +613,14 @@ function handleStartChat(character: Character) {
 }
 
 .search-combo :deep(.el-input__wrapper) {
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease;
-}
-
-.search-combo :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+  min-height: 44px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 1px var(--border-default);
 }
 
 .search-combo :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 /* 标签栏 */
@@ -673,10 +628,10 @@ function handleStartChat(character: Character) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  background: var(--bg-surface);
+  gap: 16px;
+  padding: 0 0 12px;
+  margin-bottom: 16px;
   border-bottom: 1px solid var(--border-default);
-  border-radius: 12px;
 }
 
 .character-tabs {
@@ -727,7 +682,7 @@ function handleStartChat(character: Character) {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  background: var(--color-bg);
+  background: var(--bg-subtle);
   color: var(--accent-text);
   border-radius: 10px;
   font-size: 12px;
@@ -736,7 +691,7 @@ function handleStartChat(character: Character) {
 
 .character-tabs :deep(.el-tabs__item.is-active) .tab-count {
   background: var(--accent);
-  color: white;
+  color: var(--accent-on);
 }
 
 .tabs-actions {
@@ -746,6 +701,7 @@ function handleStartChat(character: Character) {
 
 .tabs-actions :deep(.el-button) {
   border-radius: 8px;
+  min-height: 44px;
 }
 
 /* Batch mode */
@@ -754,7 +710,7 @@ function handleStartChat(character: Character) {
   align-items: center;
   gap: 12px;
   padding: 12px 24px;
-  background: var(--color-primary-light-9, #ecf5ff);
+  background: var(--bg-subtle);
   border-radius: 8px;
   margin-bottom: 8px;
   flex-wrap: wrap;
@@ -766,12 +722,16 @@ function handleStartChat(character: Character) {
   color: var(--accent-text);
   margin-right: auto;
 }
+.batch-actions :deep(.el-button) { min-height: 44px; margin: 0; }
 
 .batch-checkbox {
   position: absolute;
   top: 8px;
   left: 8px;
   z-index: 10;
+  background: var(--bg-surface);
+  padding: 6px;
+  border-radius: 6px;
 }
 
 .character-card-wrapper.batch-selected {
@@ -787,70 +747,27 @@ function handleStartChat(character: Character) {
 
 .characters-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
 }
 
 /* 角色卡片包装器 */
 .character-card-wrapper {
   position: relative;
-}
-
-.character-card-wrapper:hover .card-actions-overlay,
-.character-card-wrapper:focus-within .card-actions-overlay {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* 审核状态徽标：贴在卡片左上角，不被 hover 的操作层遮住 */
-.card-moderation {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 2;
-  pointer-events: none;
-}
-
-/* 操作按钮覆盖层 */
-.card-actions-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: color-mix(in srgb, var(--bg-surface) 95%, transparent);
-  backdrop-filter: blur(4px);
-  border-radius: 16px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-  padding: 16px;
-  flex-wrap: wrap;
-}
-
-.card-actions-overlay :deep(.el-button) {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.card-actions-overlay :deep(.el-button.is-circle) {
-  width: 36px;
-  height: 36px;
+  min-width: 0;
 }
 
 /* 平板端适配 (3列) */
 @include between(md, lg) {
   .characters-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20px;
   }
 }
 
 /* 移动端适配 (1列) */
-@include below(md) {
+@include below(lg) {
+  .library-intro { align-items: flex-start; flex-direction: column; gap: 20px; }
   .my-characters-layout {
     flex-direction: column;
   }
@@ -874,26 +791,31 @@ function handleStartChat(character: Character) {
   }
 
   .characters-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
 
-  .card-actions-overlay {
-    opacity: 1;
-    pointer-events: auto;
-    position: static;
-    background: var(--bg-surface);
-    border-top: 1px solid var(--border-default);
-    border-radius: 0 0 16px 16px;
-    margin-top: -16px;
-    padding: 12px;
-  }
 }
 
 /* 小屏手机适配 (1列) */
 @include below(sm) {
+  .library-intro { gap: 12px; padding: 0 0 20px; }
+  .library-eyebrow { display: none; }
+  .library-intro h1 { margin-bottom: 8px; }
+  .library-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px 0; }
+  .library-tools summary { padding-inline: 0; font-size: 12px; }
+  .story-shortcuts { flex-direction: column; gap: 0; }
+  .library-entry-actions { width: 100%; }
+  .library-entry-actions :deep(.el-button) { flex: 1; }
+  .my-characters-layout { gap: 12px; }
+  .tabs-section { flex-direction: row; align-items: center; gap: 8px; padding-bottom: 8px; margin-bottom: 10px; }
+  .tabs-actions { width: auto; flex-shrink: 0; }
+  .tabs-actions .el-button { flex: unset; }
+  .character-tabs { min-width: 0; }
+  .character-tabs :deep(.el-tabs__item) { font-size: 13px; padding: 0 10px; }
+  .library-privacy { margin-bottom: 16px; }
   .characters-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

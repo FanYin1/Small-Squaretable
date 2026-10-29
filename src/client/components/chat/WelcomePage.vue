@@ -1,7 +1,16 @@
 <template>
   <div class="welcome-page">
-    <h1 class="welcome-title">{{ t('chat.welcomeTitle') }}</h1>
-    <p class="welcome-subtitle">{{ t('chat.welcomeSubtitle') }}</p>
+    <p class="library-eyebrow">{{ t('storyShell.library') }}</p>
+    <h1 class="welcome-title">{{ t('storyShell.libraryHeading') }}</h1>
+    <p class="welcome-subtitle">{{ t('storyShell.libraryDescription') }}</p>
+    <div class="story-library-actions"><el-button type="primary" @click="goToMarket">{{ t('market.discovery.title') }} ↗</el-button></div>
+    <p v-if="chatStore.loading" role="status">{{ t('common.loading') }}</p>
+    <div v-else-if="chatStore.error" class="library-error" role="alert"><p>{{ t('chat.loadError') }}</p><el-button @click="retryStories">{{ t('common.retry') }}</el-button></div>
+    <p v-else-if="!chatStore.chats.length" class="library-empty">{{ t('storyShell.libraryEmpty') }}</p>
+    <section v-if="!chatStore.loading && !chatStore.error && chatStore.chats.length" class="story-library" :aria-label="t('storyShell.library')">
+      <StorySaveCard v-for="story in chatStore.chats" :key="story.id" :story="story" />
+    </section>
+    <details class="story-start-tools"><summary>{{ t('storyShell.advancedTools') }}</summary>
 
     <!-- Chat mode toggle -->
     <div class="mode-toggle">
@@ -116,12 +125,14 @@
         {{ t('chat.browseMarket') }} →
       </button>
     </template>
+    </details>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useChatStore } from '@client/stores/chat';
 import { useI18n } from 'vue-i18n';
 import { Search } from '@element-plus/icons-vue';
 import { characterApi } from '@client/services/character.api';
@@ -129,6 +140,7 @@ import type { Character } from '@client/types';
 import { useChatTemplateStore } from '@client/stores/chatTemplate';
 import { cleanDescription } from '@client/utils/sillytavern';
 import type { ChatTemplate } from '@client/services/chat-template.api';
+import StorySaveCard from './StorySaveCard.vue';
 
 const emit = defineEmits<{
   (e: 'select-character', characterId: string): void;
@@ -137,6 +149,10 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const chatStore = useChatStore();
+async function retryStories() {
+  try { await chatStore.fetchChats(); } catch { return; }
+}
 const { t } = useI18n();
 const templateStore = useChatTemplateStore();
 
@@ -238,20 +254,28 @@ onMounted(async () => {
 .welcome-page {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   min-height: 100%;
-  padding: 48px 24px;
+  padding: 0;
 }
 
 .welcome-title {
   font-family: var(--font-display);
-  font-size: 32px;
+  font-size: clamp(32px, 4vw, 48px);
   font-weight: 500;
   color: var(--text-primary);
   margin-bottom: 8px;
-  text-align: center;
+  text-align: left;
 }
+
+.story-library-actions { margin:20px 0 32px; }
+.story-library { width:100%; display:grid; gap:20px; margin-bottom:32px; }
+.library-eyebrow { margin: 0 0 12px; font-size: 12px; color: var(--accent-text); letter-spacing: .08em; }
+.library-empty,.library-error { color:var(--text-secondary); line-height:1.75; margin:24px 0; }
+.story-start-tools { width:100%; }
+.story-start-tools summary { cursor:pointer; padding:14px 0; min-height:44px; color:var(--text-secondary); border-top:1px solid var(--border-default); }
+.story-start-tools summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 
 .welcome-subtitle {
   font-size: 16px;

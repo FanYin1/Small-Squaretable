@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-26",
+  "scope": "DEC-23 current-state-first overview; finite engineering delivery, not human acceptance",
+  "contract": "docs/product/story-overview-contract.md",
+  "engineeringCriteria": ["OV-01", "OV-02", "OV-03", "OV-04", "OV-05", "OV-06"],
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261026-overview",
+    "imageId": "sha256:90ba6bc86b3c89dc7362f6c47a78605b3176b0b7d031d5e16b1f86373d0ad81f",
+    "build": "full repository Dockerfile; final mobile CSS included",
+    "runtimeFilesMatched": 239,
+    "runtimeScope": ["dist/client", "dist/server"],
+    "htmlRawBytesSha256": "9d167f2765021b095428e8a56d7b8a32310bdc3ab88d026a2944a7308664ea46",
+    "htmlTrimmedTextSha256FromUpgrade": "6d9bf3d5e99b673c24cc64d06bbd305340a51449c9d2a2ac90e5ac06472a8f85",
+    "serverSha256": "689090113cd10997144a0e189173cbde63ea917875a4745b98439d5c790f3aac",
+    "restoreTablesCompared": 71,
+    "existingRowsPreserved": true,
+    "migrationRecords": 12,
+    "newMigrations": 0,
+    "port3080Unchanged": true,
+    "health": { "3080": 200, "3081": 200, "5188": 200 },
+    "rollbackDirectory": "backups/exploration/upgrade-697d14cf-5cce-4dec-9691-b1eb836b4615"
+  },
+  "validation": {
+    "targetedUnitTests": 42,
+    "unitTestFiles": 5,
+    "dossierUnitTests": 16,
+    "typeCheck": "passed",
+    "focusedLint": "StoryDossier.vue and StoryDossier.spec.ts: 0 errors, 0 warnings",
+    "nodeScriptSyntax": "passed",
+    "repositoryWideLint": "not claimed",
+    "databaseCreationChecks": 101,
+    "baselineSmoke": "passed; controlled local provider only",
+    "isolatedOverviewGroups": 9,
+    "isolatedScreenshots": 14,
+    "serviceCommittedProvenanceRounds": 35,
+    "failureInjection": "delayed initial read and HTTP 503; retry real endpoint; last confirmed state retained",
+    "realImportedSample": "t1, disposable database only, selected sourced initial-only opening; four private desktop/mobile screenshots",
+    "modelStreamsDuringOverviewGroups": 0,
+    "fullEntryRecoveryAndCardSuitesRerun": false,
+    "initialFailedAttempt": "service import environment initialization, fixed and preserved privately; not counted as passed",
+    "paidProviderCallsInitiated": 0
+  },
+  "deployedReadOnlyChecks": {
+    "groups": 4,
+    "screenshots": 9,
+    "widths": [390, 1440],
+    "themes": ["dark", "light"],
+    "otherOwnedSavesChecked": 2,
+    "actualSavedInitialOnlyRecordsChecked": 0,
+    "historicalRecordCoverageLimit": "No initial-only records in tested owned saves; real t1 disclosure verified in disposable database, not claimed on production",
+    "pageErrors": 0,
+    "businessMutations": 0,
+    "blockedTelemetryRequests": 37,
+    "businessTableFingerprintsUnchanged": [
+      "characters", "character_versions", "worldbooks", "worldbook_entries",
+      "credit_ledger", "credit_reservations", "chats", "messages", "story_content",
+      "story_worldbooks", "story_states", "story_events", "story_memory_jobs",
+      "story_memory_progress", "generation_requests"
+    ],
+    "countsBeforeAndAfter": {
+      "characters": 15, "character_versions": 0, "worldbooks": 8, "worldbook_entries": 846,
+      "credit_ledger": 2, "credit_reservations": 0, "chats": 17, "messages": 149,
+      "story_content": 16, "story_worldbooks": 16, "story_states": 16, "story_events": 72,
+      "story_memory_jobs": 14, "story_memory_progress": 3, "generation_requests": 1
+    },
+    "memoryAttempts": 6,
+    "memoryDueAndRunningAtStart": 0,
+    "mutationPolicy": "Login then GET-only API interception and generation-frame guard; no saved story creation, edits, notes or generation",
+    "humanAcceptance": false,
+    "realDeviceAcceptance": false
+  },
+  "evidence": {
+    "privateArchive": "backups/exploration/overview-20261026",
+    "publicScreenshots": "docs/design/story-overview/README.md",
+    "screenshotScope": "four synthetic disposable-story screenshots from deployment-matching build; real saves and t1 screenshots remain private"
+  },
+  "remainingParents": ["EXP-02", "EXP-ADAPT", "EXP-06", "EXP-07D"],
+  "limits": [
+    "Presentation does not implement third-party continuous mechanics or a full LangGraph agent",
+    "Claims and plans do not become assets; opening initial values remain history",
+    "Correction branches, bounded source-supported rule conversion and full experience acceptance remain open",
+    "No paid test budget available; personal experience credits were not used"
+  ]
+}

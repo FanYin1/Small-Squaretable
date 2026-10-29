@@ -6,6 +6,12 @@
 
 import { api } from './api';
 
+export interface CharacterBatchImportResult {
+  imported: Array<{ id: string; name: string }>;
+  failed: Array<{ filename: string; error: string; code?: string }>;
+  total: number;
+}
+
 export const exportApi = {
   /**
    * Export character as PNG (with embedded card data)
@@ -38,7 +44,7 @@ export const exportApi = {
   /**
    * Batch import characters from files
    */
-  batchImportCharacters: (files: File[]): Promise<{ imported: number; failed: number; errors: string[] }> => {
+  batchImportCharacters: (files: File[]): Promise<CharacterBatchImportResult> => {
     const formData = new FormData();
     files.forEach(f => formData.append('files', f));
     return api.postFormData('/characters/import/batch', formData);

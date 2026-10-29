@@ -7,7 +7,8 @@
  * 账本 credit_ledger 只有 INSERT 和 SELECT；这里没有任何 UPDATE / DELETE 账本的方法。
  */
 
-import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, lt, inArray, sql, type SQL } from 'drizzle-orm';
+import type { CreditLedgerFilters, CreditRange } from '../../types/credit-activity';
 import { BaseRepository, type DbExecutor, type DbTransaction } from './base.repository';
 import { db } from '../index';
 import {
@@ -21,6 +22,7 @@ import {
 } from '../schema/credits';
 
 export interface CreditAvailability {
+  unlimited?: boolean;
   /** 账本合计（token） */
   balance: number;
   /** 活动冻结合计（token） */
@@ -59,12 +61,26 @@ export class CreditRepository extends BaseRepository {
       SELECT
         COALESCE((SELECT SUM(amount) FROM credit_ledger WHERE tenant_id = ${tenantId}), 0)::bigint AS balance,
         COALESCE((SELECT SUM(tokens) FROM credit_reservations
-                  WHERE tenant_id = ${tenantId} AND status = 'active'), 0)::bigint AS held
-    `)) as unknown as Array<{ balance: string | number; held: string | number }>;
+                  WHERE tenant_id = ${tenantId} AND status = 'active'
+                    AND metadata->'creditExempt' IS DISTINCT FROM 'true'::jsonb), 0)::bigint AS held,
+        EXISTS (SELECT 1 FROM tenants tenant JOIN users account ON account.tenant_id = tenant.id
+          WHERE tenant.id = ${tenantId}
+            AND tenant.settings->>'creditUnlimitedUserId' = account.id::text
+            AND NOT EXISTS (SELECT 1 FROM users other_account
+              WHERE other_account.tenant_id = tenant.id AND other_account.id <> account.id)) AS unlimited
+    `)) as unknown as Array<{ balance: string | number; held: string | number; unlimited?: boolean }>;
 
     const balance = Number(rows[0]?.balance ?? 0);
     const held = Number(rows[0]?.held ?? 0);
-    return { balance, held, available: balance - held };
+    return { balance, held, available: balance - held, ...(rows[0]?.unlimited === true ? { unlimited: true } : {}) };
+  }
+
+  async closeExemptReservation(id: string, usage: { inputTokens: number; outputTokens: number; messageId: number | null }, executor: DbExecutor): Promise<CreditReservation | null> {
+    const rows = await executor.update(creditReservations).set({
+      status: 'settled', closedAt: sql`now()`, chargedTokens: 0,
+      metadata: sql`metadata || ${JSON.stringify(usage)}::jsonb`,
+    }).where(and(eq(creditReservations.id, id), inArray(creditReservations.status, ['active', 'expired']))).returning();
+    return rows[0] ?? null;
   }
 
   async insertReservation(
@@ -154,23 +170,60 @@ export class CreditRepository extends BaseRepository {
   /** 某租户的流水，新的在前。 */
   async listLedger(
     tenantId: string,
-    params: { page: number; limit: number },
+    params: { page: number; limit: number } & CreditLedgerFilters,
   ): Promise<{ items: CreditLedgerEntry[]; total: number }> {
     const offset = (params.page - 1) * params.limit;
+    const condition = and(eq(creditLedger.tenantId, tenantId), params.chatId ? eq(creditLedger.chatId, params.chatId) : undefined,
+      params.kind ? eq(creditLedger.kind, params.kind) : undefined,
+      params.from ? gte(creditLedger.createdAt, new Date(params.from)) : undefined,
+      params.to ? lt(creditLedger.createdAt, new Date(params.to)) : undefined);
     const [items, [{ count }]] = await Promise.all([
       this.db
         .select()
         .from(creditLedger)
-        .where(eq(creditLedger.tenantId, tenantId))
+        .where(condition)
         .orderBy(desc(creditLedger.createdAt), desc(creditLedger.id))
         .limit(params.limit)
         .offset(offset),
       this.db
         .select({ count: sql<number>`count(*)::int` })
         .from(creditLedger)
-        .where(eq(creditLedger.tenantId, tenantId)),
+        .where(condition),
     ]);
     return { items, total: Number(count) };
+  }
+
+  async getActivity(tenantId: string, range: CreditRange) {
+    const rows = await this.db.execute(sql`
+      WITH entries AS (
+        SELECT kind, amount,
+          CASE WHEN jsonb_typeof(metadata->'inputTokens') = 'number' THEN (metadata->>'inputTokens')::numeric END AS input,
+          CASE WHEN jsonb_typeof(metadata->'outputTokens') = 'number' THEN (metadata->>'outputTokens')::numeric END AS output
+        FROM credit_ledger
+        WHERE tenant_id = ${tenantId} AND created_at >= ${range.from}::timestamptz AND created_at < ${range.to}::timestamptz
+      ), checked AS (
+        SELECT *, (input BETWEEN 0 AND 9007199254740991 AND input = trunc(input)
+          AND output BETWEEN 0 AND 9007199254740991 AND output = trunc(output)) IS TRUE AS known FROM entries
+      )
+      SELECT
+        COALESCE(-SUM(amount) FILTER (WHERE kind = 'charge'), 0)::text AS spent,
+        COALESCE(SUM(amount) FILTER (WHERE kind = 'topup'), 0)::text AS credited,
+        COALESCE(SUM(amount) FILTER (WHERE kind = 'reversal'), 0)::text AS adjustment,
+        COUNT(*) FILTER (WHERE kind = 'charge')::int AS charges,
+        COUNT(*) FILTER (WHERE kind = 'charge' AND known)::int AS known,
+        SUM(input) FILTER (WHERE kind = 'charge' AND known)::text AS input,
+        SUM(output) FILTER (WHERE kind = 'charge' AND known)::text AS output
+      FROM checked
+    `);
+    const row = rows[0] as { spent: string; credited: string; adjustment: string; charges: number; known: number; input: string | null; output: string | null };
+    const safe = (value: string) => {
+      const result = Number(value);
+      if (!Number.isSafeInteger(result)) throw new Error('Credit activity total is outside the supported range');
+      return result;
+    };
+    return { spentTokens: safe(row.spent), creditedTokens: safe(row.credited), adjustmentTokens: safe(row.adjustment),
+      chargeCount: row.charges, knownUsageCount: row.known, unknownUsageCount: row.charges - row.known,
+      inputTokens: row.input === null ? null : safe(row.input), outputTokens: row.output === null ? null : safe(row.output) };
   }
 
   /**

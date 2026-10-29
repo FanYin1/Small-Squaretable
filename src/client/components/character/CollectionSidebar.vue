@@ -22,7 +22,7 @@ const toast = useToast();
 
 const showCreateDialog = ref(false);
 const newName = ref('');
-const newColor = ref('#409EFF');
+const newColor = ref('#a87536');
 const newIsPublic = ref(false);
 
 async function handleCreate() {
@@ -36,7 +36,7 @@ async function handleCreate() {
     toast.success(t('common.createSuccess'));
     showCreateDialog.value = false;
     newName.value = '';
-    newColor.value = '#409EFF';
+    newColor.value = '#a87536';
     newIsPublic.value = false;
     emit('refresh');
   } catch (e: any) {
@@ -91,32 +91,35 @@ async function handleCommand(command: string, col: CharacterCollection) {
   <div class="collection-sidebar">
     <div class="collection-header">
       <span class="collection-title">{{ t('collections.title') }}</span>
-      <el-button :icon="Plus" size="small" text @click="showCreateDialog = true" />
+      <el-button :icon="Plus" :aria-label="t('collections.create')" text @click="showCreateDialog = true" />
     </div>
 
     <div class="collection-list">
-      <div
+      <button
+        type="button"
         class="collection-item"
         :class="{ active: !activeCollection }"
+        :aria-pressed="!activeCollection"
         @click="emit('select', null)"
       >
         <el-icon><Folder /></el-icon>
         <span>{{ t('collections.all') }}</span>
-      </div>
+      </button>
 
       <div
         v-for="col in collections"
         :key="col.id"
-        class="collection-item"
+        class="collection-row"
         :class="{ active: activeCollection === col.id }"
-        @click="emit('select', col.id)"
       >
+        <button type="button" class="collection-item" :aria-pressed="activeCollection === col.id" @click="emit('select', col.id)">
         <span class="color-dot" :style="{ backgroundColor: col.color || '#909399' }" />
         <span class="collection-name">{{ col.name }}</span>
         <el-tag v-if="col.isPublic" size="small" type="success" class="public-tag">{{ t('collections.publicCollection') }}</el-tag>
         <span class="item-count">{{ col.itemCount }}</span>
+        </button>
         <el-dropdown trigger="click" @command="handleCommand($event, col)" size="small">
-          <el-icon class="more-icon" @click.stop><MoreFilled /></el-icon>
+          <button type="button" class="more-icon" :aria-label="t('privateLibrary.manageNamed', { name: col.name })"><el-icon><MoreFilled /></el-icon></button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="rename">{{ t('collections.rename') }}</el-dropdown-item>
@@ -149,22 +152,19 @@ async function handleCommand(command: string, col: CharacterCollection) {
 
 <style scoped lang="scss">
 .collection-sidebar {
-  width: 220px;
-  min-width: 220px;
-  border-right: 1px solid var(--border-default);
-  padding: 16px 0;
+  width: 184px;
+  min-width: 184px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: var(--bg-surface);
-  border-radius: 12px 0 0 12px;
 }
 
 .collection-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px 12px;
+  padding: 0 8px 12px;
   border-bottom: 1px solid var(--border-default);
 }
 
@@ -178,7 +178,7 @@ async function handleCommand(command: string, col: CharacterCollection) {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px;
+  padding: 8px 0;
   overflow-y: auto;
 }
 
@@ -186,21 +186,27 @@ async function handleCommand(command: string, col: CharacterCollection) {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px;
+  min-height: 44px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  font: inherit;
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--text-color-regular);
+  color: var(--text-secondary);
   transition: background 0.15s ease;
 }
 
 .collection-item:hover {
-  background: var(--el-fill-color-light);
+  background: var(--bg-subtle);
 }
 
-.collection-item.active {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
+.collection-item.active, .collection-row.active {
+  background: var(--bg-subtle);
+  color: var(--accent-text);
   font-weight: 500;
 }
 
@@ -231,17 +237,23 @@ async function handleCommand(command: string, col: CharacterCollection) {
 }
 
 .more-icon {
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
   font-size: 14px;
   color: var(--text-secondary);
 }
 
-.collection-item:hover .more-icon {
-  opacity: 1;
-}
+.collection-row { display: flex; align-items: center; border-radius: 8px; }
+.collection-row > .collection-item { flex: 1; }
+.collection-sidebar :deep(.el-button) { min-height: 44px; min-width: 44px; }
 
-@include below(md) {
+@include below(lg) {
   .collection-sidebar {
     width: 100%;
     min-width: unset;
@@ -257,9 +269,16 @@ async function handleCommand(command: string, col: CharacterCollection) {
     gap: 4px;
   }
 
-  .collection-item {
+  .collection-item, .collection-row {
     white-space: nowrap;
     flex-shrink: 0;
   }
+}
+
+@include below(sm) {
+  .collection-sidebar { flex-direction: row; align-items: center; gap: 8px; padding: 8px 0; }
+  .collection-header { flex-shrink: 0; gap: 4px; padding: 0; border: 0; }
+  .collection-title { font-size: 12px; }
+  .collection-list { flex: 1; padding: 0; min-width: 0; }
 }
 </style>

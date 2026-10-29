@@ -4,7 +4,7 @@
  * Stores long-term memories extracted from conversations
  */
 
-import { pgTable, uuid, varchar, text, decimal, integer, timestamp, customType, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, decimal, integer, bigint, timestamp, customType, index } from 'drizzle-orm/pg-core';
 import { characters } from './characters';
 import { users } from './users';
 import { chats } from './chats';
@@ -40,8 +40,8 @@ export const characterMemories = pgTable('character_memories', {
   accessCount: integer('access_count').default(0),
 
   // Source tracking
-  sourceChatId: uuid('source_chat_id').references(() => chats.id, { onDelete: 'set null' }),
-  sourceMessageId: integer('source_message_id'),
+  sourceChatId: uuid('source_chat_id').references(() => chats.id, { onDelete: 'cascade' }),
+  sourceMessageId: bigint('source_message_id', { mode: 'number' }),
 
   // Timestamps
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

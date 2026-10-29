@@ -6,18 +6,16 @@
 # -----------------------------------------------------------------------------
 # Build Arguments (for versioning and metadata)
 # -----------------------------------------------------------------------------
-ARG NODE_VERSION=20
-ARG ALPINE_VERSION=3.19
+ARG NODE_VERSION=22
 
 # =============================================================================
 # Stage 1: Base image with common dependencies
 # =============================================================================
-FROM node:${NODE_VERSION}-alpine${ALPINE_VERSION} AS base
+FROM node:${NODE_VERSION}-bookworm-slim AS base
 
 # Install security updates and common tools
-RUN apk update && apk upgrade --no-cache && \
-    apk add --no-cache dumb-init && \
-    rm -rf /var/cache/apk/*
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init curl && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -41,7 +39,6 @@ FROM deps AS frontend-builder
 # Copy frontend source files
 COPY vite.config.ts ./
 COPY tsconfig.json ./
-COPY tsconfig.node.json* ./
 COPY index.html ./
 COPY public ./public
 COPY src/client ./src/client
@@ -58,9 +55,10 @@ FROM deps AS backend-builder
 # Copy backend source files
 COPY tsconfig.json ./
 COPY src ./src
+COPY scripts/build-server.mjs ./scripts/build-server.mjs
 
 # Compile TypeScript
-RUN npx tsc --project tsconfig.json
+RUN npm run build:server
 
 # =============================================================================
 # Stage 5: Production dependencies only
@@ -70,21 +68,12 @@ FROM base AS prod-deps
 COPY package*.json ./
 
 # Install production dependencies only
-RUN npm ci --omit=dev --ignore-scripts && \
-    npm cache clean --force && \
-    # Remove unnecessary files from node_modules
-    find node_modules -name "*.md" -delete 2>/dev/null || true && \
-    find node_modules -name "*.ts" -not -name "*.d.ts" -delete 2>/dev/null || true && \
-    find node_modules -name "LICENSE*" -delete 2>/dev/null || true && \
-    find node_modules -name "CHANGELOG*" -delete 2>/dev/null || true && \
-    find node_modules -name ".npmignore" -delete 2>/dev/null || true && \
-    find node_modules -name ".eslintrc*" -delete 2>/dev/null || true && \
-    find node_modules -name ".prettierrc*" -delete 2>/dev/null || true
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # =============================================================================
 # Stage 6: Production runtime (final image)
 # =============================================================================
-FROM node:${NODE_VERSION}-alpine${ALPINE_VERSION} AS production
+FROM base AS production
 
 # -----------------------------------------------------------------------------
 # Image Metadata (OCI standard labels)
@@ -92,25 +81,21 @@ FROM node:${NODE_VERSION}-alpine${ALPINE_VERSION} AS production
 LABEL org.opencontainers.image.title="Small-Squaretable" \
       org.opencontainers.image.description="SillyTavern SaaS - Multi-tenant LLM Frontend Platform" \
       org.opencontainers.image.vendor="Small-Squaretable Team" \
-      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.version="0.1.0-beta.1" \
       org.opencontainers.image.source="https://github.com/small-squaretable/small-squaretable" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.base.name="node:${NODE_VERSION}-alpine"
+      org.opencontainers.image.base.name="node:${NODE_VERSION}-bookworm-slim"
 
 # Security labels
 LABEL security.privileged="false" \
       security.capabilities.drop="ALL"
 
 # Install security updates and dumb-init for proper signal handling
-RUN apk update && apk upgrade --no-cache && \
-    apk add --no-cache dumb-init curl && \
-    rm -rf /var/cache/apk/*
-
 WORKDIR /app
 
 # Create non-root user first (before copying files)
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 -G nodejs
+RUN groupadd -g 1001 nodejs && \
+    useradd -u 1001 -g nodejs -m nodejs
 
 # Copy production dependencies from prod-deps stage
 COPY --from=prod-deps --chown=nodejs:nodejs /app/node_modules ./node_modules
@@ -124,11 +109,14 @@ COPY --from=frontend-builder --chown=nodejs:nodejs /app/dist/client ./dist/clien
 
 # Copy database migration files
 COPY --from=backend-builder --chown=nodejs:nodejs /app/src/db/migrations ./src/db/migrations
-COPY --chown=nodejs:nodejs drizzle.config.ts ./
+COPY --from=backend-builder --chown=nodejs:nodejs /app/src/db/beta-migrations ./src/db/beta-migrations
+COPY --chown=nodejs:nodejs scripts/beta-admin.mjs ./scripts/beta-admin.mjs
+COPY --chown=nodejs:nodejs scripts/credit-exemption.mjs ./scripts/credit-exemption.mjs
+COPY --chown=nodejs:nodejs scripts/seed-exploration.mjs ./scripts/seed-exploration.mjs
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/uploads /app/logs && \
-    chown -R nodejs:nodejs /app
+    chown nodejs:nodejs /app/uploads /app/logs
 
 # Switch to non-root user
 USER nodejs
@@ -143,7 +131,7 @@ EXPOSE 3000
 
 # Health check with curl (more reliable than node)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:3000/health/ready || exit 1
 
 # Use dumb-init as PID 1 for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]

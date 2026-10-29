@@ -37,6 +37,7 @@ vi.mock('./logger.service', () => ({
 
 import { worldInfoEngine } from './worldinfo-engine.service';
 import type { WorldInfoScanParams } from './worldinfo-engine.service';
+import type { StoryWorldbookEntry } from '../../types/story-worldbooks';
 
 // ── Helpers ──
 const makeBook = (id: string, scope: string = 'character', isEnabled = true) => ({
@@ -90,6 +91,24 @@ describe('WorldInfoEngine', () => {
     vi.clearAllMocks();
     mockFindByCharacter.mockResolvedValue([makeBook('book-1')]);
     mockFindByUser.mockResolvedValue([]);
+  });
+
+  it('uses saved entries without fetching edited character books or global books', async () => {
+    const entry = { ...makeEntry('saved', 'world', 'Saved setting', { settings: { keys: ['world'], position: 'before' } }),
+      characterFilter: [], scanDepth: null, contextPercentage: null, recursive: true, preventRecursion: false,
+    } as StoryWorldbookEntry;
+    const result = await worldInfoEngine.scan({ ...baseParams, entries: [entry] });
+    expect(result.before).toBe('Saved setting');
+    expect(mockFindByCharacter).not.toHaveBeenCalled();
+    expect(mockFindByUser).not.toHaveBeenCalled();
+    expect(mockFindByWorldBook).not.toHaveBeenCalled();
+  });
+
+  it('preserves an explicitly empty binding without falling back to the library', async () => {
+    const result = await worldInfoEngine.scan({ ...baseParams, entries: [] });
+    expect(result.debugInfo?.activatedCount).toBe(0);
+    expect(mockFindByCharacter).not.toHaveBeenCalled();
+    expect(mockFindByUser).not.toHaveBeenCalled();
   });
 
   it('activates entry when keyword found in messages', async () => {

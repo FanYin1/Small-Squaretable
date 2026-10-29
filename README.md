@@ -1,16 +1,29 @@
 # Small Squaretable
 
-> SillyTavern SaaS — 企业级多租户 AI 角色聊天平台
+> 基于角色卡的探索式互动体验：快速开始、推荐行动与自由输入、持续状态与游玩记忆。
 
 ## 项目概述
 
-将 SillyTavern (单用户 LLM 前端) 转换为企业级多租户 SaaS 平台，支持订阅计费、角色市场、实时聊天、智能角色系统、数据分析等功能。
+让用户选择角色卡，以自己的身份逐步参与剧情，并在离开后继续同一段体验。默认使用角色卡已绑定的设定；世界书也可以补充人物、常识和概念，不要求用户每次选择世界。
 
-**当前阶段**: 迭代 32 完成 (UI/UX 缺陷修复)
+**当前阶段**：探索式体验已接入正式前后端，**3081 本机验收候选**运行`exploration-20261026-corrections`，见[入口、步骤与限制](docs/deployment/exploration-candidate.md)。七页入口、可视化创作、账户与当前状态优先概况已接入；新故事冻结身份、角色和绑定世界书。推荐默认直接提交，支持独立故事笔记与记忆；[纠正、独立分支与阅读恢复](docs/product/story-corrections-delivery-20261026.md)已完成有限工程及部署核验。第三方卡的持续数值适配与完整工作流、人工视觉/真机和真实模型体验仍待完成，不伪造未知状态或把自动化当用户签收。历史3080与原型5188保留，当前工作见[活动待办](docs/product/backlog.md)，模型额度见[累计授权台账](docs/product/engineering-model-test-budget.md)。
 **版本**: 0.1.0
-**最后更新**: 2026-02-28
+**最后更新**: 2026-10-26
 
-## 项目状态
+## 开发必读
+
+- [产品决策与讨论纪要](docs/product/exploration-experience-baseline.md)：已确认、推导约束和待讨论项。
+- [主开发计划](docs/product/story-development-plan.md) 与 [活动待办](docs/product/backlog.md)：当前工作与验收映射。
+- [正式实施计划](docs/product/exploration-implementation-plan.md)：七页生产落点、接口依赖、分批顺序与验收标准。
+- [七页示例](docs/design/exploration-demo/README.md) 与 [开发参考快照](docs/design/exploration-baseline/README.md)：获准使用的开发参考，包含源码归档、画面及校验命令。
+- [页面参考与讨论稿](docs/design/exploration-page-proposal.md)：保留研究来源、推导及尚未定案的交互。
+- [R5 验收记录](docs/deployment/frontend-r5-acceptance.md)：已部署版本、验证证据与未签收项。
+- [探索候选验收记录](docs/deployment/exploration-candidate.md)：当前3081入口、真实数据恢复、检查证据和剩余验收条件；取代历史记录作为当前交付入口。
+- [仓库协作规则](AGENTS.md)：后续任务如何保留决策与验收边界。
+
+以下阶段百分比、技术栈、功能和测试数来自旧工程说明，保留用于追溯；不是当前生产能力、发布进度或新体验完成率。当前结论以上述文档为准。
+
+## 历史工程状态
 
 ```
 Phase 1-7: 基础设施 → 生产部署    ████████████████████ 100% ✅

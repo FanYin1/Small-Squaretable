@@ -19,6 +19,25 @@ export class EmbeddingService {
   private initialized = false;
   private serviceAvailable = false;
 
+  async embedBatchStrict(texts: string[], signal: AbortSignal): Promise<number[][]> {
+    if (texts.length === 0) return [];
+    const response = await fetch(`${ML_SERVICE_URL}/embed/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texts }),
+      signal,
+    });
+    if (!response.ok) throw new Error('STORY_MEMORY_EMBEDDING_UNAVAILABLE');
+    const data = await response.json();
+    if (!Array.isArray(data.embeddings) || data.embeddings.length !== texts.length ||
+      data.embeddings.some((vector: unknown) => !Array.isArray(vector) || vector.length !== 384 ||
+        !vector.every(value => typeof value === 'number' && Number.isFinite(value)) || !vector.some(value => value !== 0))) {
+      throw new Error('STORY_MEMORY_EMBEDDING_INVALID');
+    }
+    this.serviceAvailable = true;
+    return data.embeddings;
+  }
+
   async initialize(): Promise<void> {
     if (this.initialized) return;
 

@@ -81,6 +81,7 @@ describe('Register Page', () => {
     router = createRouter({
       history: createMemoryHistory(),
       routes: [
+        { path: '/market', name: 'Market', component: { template: '<div>Discover</div>' } },
         { path: '/', name: 'Home', component: { template: '<div>Home</div>' } },
         { path: '/auth/login', name: 'Login', component: { template: '<div>Login</div>' } },
         { path: '/auth/register', name: 'Register', component: Register },

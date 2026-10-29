@@ -25,17 +25,19 @@ type EventHandler = (data?: unknown) => void;
 
 export class WebSocketClient {
   private ws: WebSocket | null = null;
-  private config: Required<WSClientConfig>;
+  private config: Required<Omit<WSClientConfig, 'refreshAccessToken'>> & Pick<WSClientConfig, 'refreshAccessToken'>;
   private state: WSConnectionState = WSConnectionState.DISCONNECTED;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private refreshingAuth = false;
   private eventHandlers: Map<string, Set<EventHandler>> = new Map();
 
   constructor(config: WSClientConfig) {
     this.config = {
       url: config.url,
       token: config.token,
+      refreshAccessToken: config.refreshAccessToken,
       reconnectInterval: config.reconnectInterval || 3000,
       maxReconnectAttempts: config.maxReconnectAttempts || 5,
       heartbeatInterval: config.heartbeatInterval || 30000,
@@ -98,7 +100,8 @@ export class WebSocketClient {
   /**
    * 发送用户消息
    */
-  sendMessage(chatId: string, content: string, attachments?: WSAttachment[], mentionedCharacterIds?: string[], messageId?: string): void {
+  sendMessage(chatId: string, content: string, attachments?: WSAttachment[], mentionedCharacterIds?: string[], messageId?: string, storyAction?: import('../../types/story-state').StoryActionRequest,
+    storyAudience?: import('../../types/story-knowledge').StoryAudience): void {
     const message: WSUserMessage = {
       type: WSMessageType.USER_MESSAGE,
       timestamp: new Date().toISOString(),
@@ -106,7 +109,10 @@ export class WebSocketClient {
         chatId,
         content,
         messageId,
+        clientMessageId: messageId,
         attachments,
+        ...(storyAction && { storyAction }),
+        ...(storyAudience && { storyAudience }),
         ...(mentionedCharacterIds && mentionedCharacterIds.length > 0 && { mentionedCharacterIds }),
       },
     };
@@ -169,11 +175,11 @@ export class WebSocketClient {
   /**
    * 发送中止生成请求
    */
-  sendAbortGeneration(chatId: string): void {
+  sendAbortGeneration(chatId: string, requestId?: string): void {
     const message: WSAbortGenerationMessage = {
       type: WSMessageType.ABORT_GENERATION,
       timestamp: new Date().toISOString(),
-      data: { chatId },
+      data: { chatId, requestId },
     };
 
     this.send(message);
@@ -242,7 +248,7 @@ export class WebSocketClient {
       this.state = WSConnectionState.RECONNECTING;
       this.emit('stateChange', this.state);
       this.emit('disconnected');
-      this.scheduleReconnect();
+      if (!this.refreshingAuth) this.scheduleReconnect();
     }
   }
 
@@ -284,11 +290,20 @@ export class WebSocketClient {
           this.emit('assistantMessageDone', message.data);
           break;
 
+        case WSMessageType.GENERATION_FINISHED:
+          this.emit('generationFinished', message.data);
+          break;
+
+        case WSMessageType.GENERATION_STATE:
+          this.emit('generationState', message.data);
+          break;
+
         case WSMessageType.USER_TYPING:
           this.emit('userTyping', message.data);
           break;
 
         case WSMessageType.ERROR:
+          if (this.refreshAfterUnauthorized(message.data)) break;
           this.emit('error', message.data);
           break;
 
@@ -349,6 +364,30 @@ export class WebSocketClient {
     } catch (error) {
       logger.error('Failed to parse message', error);
     }
+  }
+
+  private refreshAfterUnauthorized(data: unknown): boolean {
+    if (!this.config.refreshAccessToken || typeof data !== 'object' || data === null
+      || !('code' in data) || data.code !== 'UNAUTHORIZED') return false;
+    if (this.refreshingAuth) return true;
+    this.refreshingAuth = true;
+    this.stopReconnect();
+    void this.config.refreshAccessToken().then(token => {
+      this.config.token = token;
+      this.reconnectAttempts = 0;
+      if (this.state === WSConnectionState.DISCONNECTED) return;
+      this.state = WSConnectionState.RECONNECTING;
+      this.emit('stateChange', this.state);
+      this.connect();
+    }).catch(error => {
+      logger.error('Failed to refresh WebSocket authentication', error);
+      this.state = WSConnectionState.ERROR;
+      this.emit('stateChange', this.state);
+      this.emit('error', { code: 'AUTH_REFRESH_FAILED', message: '登录状态已过期，请重新登录' });
+    }).finally(() => {
+      this.refreshingAuth = false;
+    });
+    return true;
   }
 
   /**

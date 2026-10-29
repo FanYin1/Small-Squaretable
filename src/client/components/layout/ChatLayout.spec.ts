@@ -62,6 +62,34 @@ describe('ChatLayout mobile drawer', () => {
     expect(wrapper.find('.sidebar-backdrop').exists()).toBe(false);
   });
 
+  it('uses a drawer at tablet widths and does not crowd reading with a bottom bar', () => {
+    setViewportWidth(768);
+    wrapper = mountLayout();
+    expect(wrapper.find('#chat-sidebar-drawer').classes()).toContain('mobile-closed');
+    expect(wrapper.find('bottom-tab-bar-stub').exists()).toBe(false);
+  });
+  it('retains the four-destination bar in the library but not over an open drawer', async () => {
+    wrapper = mountLayout();
+    await wrapper.setProps({ reading: false });
+    expect(wrapper.find('bottom-tab-bar-stub').exists()).toBe(true);
+    await wrapper.find('.mobile-hamburger').trigger('click');
+    expect(wrapper.find('bottom-tab-bar-stub').exists()).toBe(false);
+  });
+
+  it('keeps background reading inert and traps keyboard focus while open', async () => {
+    wrapper = mountLayout();
+    await wrapper.find('.mobile-hamburger').trigger('click');
+    await nextTick();
+    expect(wrapper.find('.chat-main').attributes('inert')).toBeDefined();
+    const drawer = wrapper.get('#chat-sidebar-drawer');
+    await drawer.trigger('keydown', { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(wrapper.get('.sidebar-btn').element);
+    await wrapper.get('.sidebar-btn').trigger('keydown', { key: 'Tab' });
+    expect(document.activeElement).toBe(wrapper.get('.sidebar-btn').element);
+    await drawer.trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('.chat-main').attributes('inert')).toBeUndefined();
+  });
+
   it('opens as a modal dialog drawer and moves focus into it', async () => {
     wrapper = mountLayout();
     await wrapper.find('.mobile-hamburger').trigger('click');

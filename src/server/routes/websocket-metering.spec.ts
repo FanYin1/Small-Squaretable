@@ -11,6 +11,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { WSMessageType } from '../../types/websocket';
 import type { WSUserMessage } from '../../types/websocket';
 
+vi.mock('../../db/repositories/generation-request.repository', () => ({
+  generationRequestRepository: {
+    findByRequest: vi.fn().mockResolvedValue(null),
+    claim: vi.fn().mockResolvedValue({ claimed: true, request: { id: 'generation-1' } }),
+    markRunning: vi.fn().mockResolvedValue(undefined),
+    finish: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 vi.mock('../services/websocket.service', () => ({
   websocketService: {
     getClientInfo: vi.fn(),
@@ -69,7 +78,7 @@ vi.mock('../../db/repositories/character.repository', () => ({
 }));
 
 vi.mock('../../db/repositories/message.repository', () => ({
-  messageRepository: { create: vi.fn(), findBranch: vi.fn() },
+  messageRepository: { create: vi.fn(), findBranch: vi.fn(), findByClientMessageId: vi.fn().mockResolvedValue(null) },
 }));
 
 vi.mock('../../db/repositories/character-growth.repository', () => ({
@@ -102,11 +111,12 @@ vi.mock('../services/spend-breaker.service', () => ({
 
 vi.mock('../config/llm.config', () => ({
   getDefaultModel: vi.fn().mockReturnValue('glm-4.5-air'),
-  getModelMeta: vi.fn().mockReturnValue({ defaultTemperature: 0.7 }),
+  getModelMeta: vi.fn().mockReturnValue({ defaultTemperature: 0.7, contextWindow: 128000, maxOutputTokens: 4096 }),
 }));
 
 vi.mock('../../db', () => ({
   db: {
+    transaction: vi.fn(async (callback: (transaction: unknown) => Promise<unknown>) => callback({})),
     update: vi.fn().mockReturnThis(),
     set: vi.fn().mockReturnThis(),
     where: vi.fn().mockResolvedValue(undefined),
@@ -116,6 +126,12 @@ vi.mock('../../db', () => ({
 vi.mock('../../db/schema/chats', () => ({ chats: { id: 'id', unreadCount: 'unreadCount' } }));
 vi.mock('../services/chat-variable.service', () => ({
   chatVariableStore: { setChatVar: vi.fn(), deleteChatVar: vi.fn() },
+}));
+vi.mock('../services/legacy-variables.service', async importOriginal => ({
+  ...await importOriginal<typeof import('../services/legacy-variables.service')>(),
+  saveLegacyAssistantMessage: vi.fn(async ({ chatId, ...data }) => data.characterId
+    ? messageRepository.create({ chatId, ...data })
+    : chatService.addMessage(chatId, data)),
 }));
 vi.mock('../services/regex-scripts.service', () => ({
   applyRegexScripts: vi.fn((content: string) => content),
@@ -134,6 +150,8 @@ import { groupChatService } from '../services/group-chat.service';
 import { messageRepository } from '../../db/repositories/message.repository';
 import { contextManager } from '../services/context-manager.service';
 import { AppError } from '../../core/errors';
+import { generationRequestRepository } from '../../db/repositories/generation-request.repository';
+import { db } from '../../db';
 
 const CLIENT_ID = 'client-1';
 const TENANT = 'tenant-1';
@@ -161,6 +179,11 @@ describe('WebSocket chat — quota metering and enforcement', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(db.transaction).mockReset().mockImplementation(async callback => callback({} as never));
+    vi.mocked(generationRequestRepository.findByRequest).mockReset().mockResolvedValue(null);
+    vi.mocked(generationRequestRepository.claim).mockReset().mockResolvedValue({ claimed: true, request: { id: 'generation-1' } } as never);
+    vi.mocked(generationRequestRepository.markRunning).mockReset().mockResolvedValue(undefined);
+    vi.mocked(generationRequestRepository.finish).mockReset().mockResolvedValue(undefined);
     handler = new WebSocketHandler();
 
     vi.mocked(websocketService.getClientInfo).mockReturnValue({
@@ -178,6 +201,8 @@ describe('WebSocket chat — quota metering and enforcement', () => {
     });
     vi.mocked(usageService.trackUsage).mockResolvedValue({} as never);
     vi.mocked(chatService.addMessage).mockResolvedValue({ id: 1 } as never);
+    vi.mocked(messageRepository.findByClientMessageId).mockResolvedValue(null);
+    vi.mocked(chatRepository.findById).mockResolvedValue({ id: CHAT, userId: USER, tenantId: TENANT } as never);
     vi.mocked(groupChatService.isGroupChat).mockResolvedValue(false);
     // 隔离出 handleUserMessage：回复生成本身在别的用例里单独测
     vi.spyOn(handler as never as { handleSingleCharacterResponse: () => Promise<void> }, 'handleSingleCharacterResponse')
@@ -185,6 +210,98 @@ describe('WebSocket chat — quota metering and enforcement', () => {
   });
 
   describe('user message', () => {
+    it('reads the actual legacy story preparation inside a read-only repeatable transaction before metering', async () => {
+      await (handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> })
+        .handleUserMessage(CLIENT_ID, userMessage());
+      expect(db.transaction).toHaveBeenCalledWith(expect.any(Function), {
+        isolationLevel: 'repeatable read', accessMode: 'read only',
+      });
+      expect(vi.mocked(db.transaction).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(featureService.checkQuota).mock.invocationCallOrder[0]
+      );
+      expect(messagesMetered()).toHaveLength(1);
+    });
+
+    it('does not claim, persist, meter or generate when reading the story transaction fails', async () => {
+      vi.mocked(db.transaction).mockRejectedValueOnce(new Error('story snapshot unavailable'));
+      const dispatch = handler as unknown as {
+        handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void>;
+        handleSingleCharacterResponse: () => Promise<void>;
+      };
+      await dispatch.handleUserMessage(CLIENT_ID, userMessage());
+      expect(featureService.checkQuota).not.toHaveBeenCalled();
+      expect(generationRequestRepository.claim).not.toHaveBeenCalled();
+      expect(generationRequestRepository.finish).not.toHaveBeenCalled();
+      expect(chatService.addMessage).not.toHaveBeenCalled();
+      expect(usageService.trackUsage).not.toHaveBeenCalled();
+      expect(dispatch.handleSingleCharacterResponse).not.toHaveBeenCalled();
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        type: WSMessageType.ERROR,
+        data: expect.objectContaining({ code: 'MESSAGE_ERROR' }),
+      }));
+      await dispatch.handleUserMessage(CLIENT_ID, userMessage('After recovery'));
+      expect(chatService.addMessage).toHaveBeenCalledTimes(1);
+      expect(messagesMetered()).toHaveLength(1);
+      expect(dispatch.handleSingleCharacterResponse).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the real legacy action guard before quota and request acceptance', async () => {
+      const message = userMessage();
+      message.data.storyAction = { actionId: 'invented-action', expectedVersion: 0 };
+      await (handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> })
+        .handleUserMessage(CLIENT_ID, message);
+      expect(db.transaction).toHaveBeenCalledOnce();
+      expect(featureService.checkQuota).not.toHaveBeenCalled();
+      expect(generationRequestRepository.claim).not.toHaveBeenCalled();
+      expect(chatService.addMessage).not.toHaveBeenCalled();
+      expect(usageService.trackUsage).not.toHaveBeenCalled();
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        type: WSMessageType.ERROR,
+        data: expect.objectContaining({ code: 'STORY_ACTION_UNAVAILABLE' }),
+      }));
+    });
+
+    it('returns the client request identity with the persisted message', async () => {
+      const message = userMessage();
+      message.data.messageId = 'temp-story-request';
+      await (handler as never as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> })
+        .handleUserMessage(CLIENT_ID, message);
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(message.data.chatId, expect.objectContaining({
+        type: WSMessageType.USER_MESSAGE,
+        data: expect.objectContaining({ messageId: '1', clientMessageId: 'temp-story-request' }),
+      }));
+    });
+
+    it('acknowledges but never regenerates an already accepted request after restart', async () => {
+      const message = userMessage();
+      message.data.messageId = 'retry-request';
+      vi.mocked(messageRepository.findByClientMessageId).mockResolvedValue({
+        id: 7,
+        role: 'user',
+        content: message.data.content,
+      } as never);
+
+      await (handler as never as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> })
+        .handleUserMessage(CLIENT_ID, message);
+
+      expect(chatService.addMessage).not.toHaveBeenCalled();
+      expect(messagesMetered()).toHaveLength(0);
+      expect(featureService.checkQuota).not.toHaveBeenCalled();
+      expect(groupChatService.isGroupChat).not.toHaveBeenCalled();
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        type: WSMessageType.USER_MESSAGE,
+        data: expect.objectContaining({ messageId: '7', clientMessageId: 'retry-request' }),
+      }));
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        type: WSMessageType.GENERATION_FINISHED,
+        data: expect.objectContaining({ status: 'failed', retryable: false }),
+      }));
+      expect(websocketService.broadcastToChat).not.toHaveBeenCalledWith(
+        CHAT,
+        expect.objectContaining({ type: WSMessageType.USER_MESSAGE })
+      );
+    });
+
     it('meters one message after the user message is saved', async () => {
       await (handler as never as { handleUserMessage: (c: string, m: WSUserMessage) => Promise<void> })
         .handleUserMessage(CLIENT_ID, userMessage());
@@ -196,6 +313,220 @@ describe('WebSocket chat — quota metering and enforcement', () => {
         1,
         expect.objectContaining({ transport: 'websocket' }),
       ]);
+      expect(generationRequestRepository.markRunning).toHaveBeenCalledWith('generation-1', 1);
+      expect(generationRequestRepository.finish).toHaveBeenCalledWith('generation-1', 'completed', undefined);
+    });
+
+    it('allows only one of two handler instances to generate the same request', async () => {
+      type Dispatch = {
+        handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void>;
+        handleSingleCharacterResponse: () => Promise<void>;
+      };
+      const first = handler as unknown as Dispatch;
+      const second = new WebSocketHandler() as unknown as Dispatch;
+      const secondGeneration = vi.spyOn(second, 'handleSingleCharacterResponse').mockResolvedValue(undefined);
+      let releaseGeneration!: () => void;
+      let generationStarted!: () => void;
+      const started = new Promise<void>((resolve) => { generationStarted = resolve; });
+      vi.mocked(first.handleSingleCharacterResponse).mockImplementation(async () => {
+        generationStarted();
+        await new Promise<void>((resolve) => { releaseGeneration = resolve; });
+      });
+      let claimed = false;
+      vi.mocked(generationRequestRepository.claim).mockImplementation(async (chatId, requestId, payloadHash) => {
+        const result = { claimed: !claimed, request: { id: 'winner', chatId, requestId, payloadHash } };
+        claimed = true;
+        return result as never;
+      });
+      const message = userMessage();
+      message.data.clientMessageId = 'shared-request';
+      const firstTurn = first.handleUserMessage(CLIENT_ID, message);
+      await started;
+      try {
+        await second.handleUserMessage('other-client', message);
+        expect(chatService.addMessage).toHaveBeenCalledTimes(1);
+        expect(messagesMetered()).toHaveLength(1);
+        expect(secondGeneration).not.toHaveBeenCalled();
+        expect(generationRequestRepository.finish).not.toHaveBeenCalled();
+        expect(websocketService.broadcastToChat).not.toHaveBeenCalledWith(CHAT, expect.objectContaining({
+          type: WSMessageType.GENERATION_FINISHED,
+        }));
+        expect(websocketService.sendToClient).toHaveBeenCalledWith('other-client', expect.objectContaining({
+          type: WSMessageType.ERROR,
+          data: expect.objectContaining({ code: 'GENERATION_ALREADY_ACCEPTED' }),
+        }));
+      } finally {
+        releaseGeneration();
+        await firstTurn;
+      }
+      expect(generationRequestRepository.finish).toHaveBeenCalledTimes(1);
+      expect(generationRequestRepository.finish).toHaveBeenCalledWith('winner', 'completed', undefined);
+    });
+
+    it.each(['accepted', 'running', 'completed', 'stopped', 'failed'])(
+      'never reclaims a durable %s request even if its user message is missing', async (status) => {
+        const dispatch = handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> };
+        const message = userMessage();
+        message.data.clientMessageId = 'durable-request';
+        await dispatch.handleUserMessage(CLIENT_ID, message);
+        const payloadHash = vi.mocked(generationRequestRepository.claim).mock.calls[0][2];
+        vi.mocked(generationRequestRepository.findByRequest).mockResolvedValue({
+          id: 'generation-1', status, payloadHash, userMessageId: null,
+        } as never);
+        vi.clearAllMocks();
+        await dispatch.handleUserMessage(CLIENT_ID, message);
+        expect(chatService.addMessage).not.toHaveBeenCalled();
+        expect(featureService.checkQuota).not.toHaveBeenCalled();
+        expect(generationRequestRepository.claim).not.toHaveBeenCalled();
+        expect(generationRequestRepository.finish).not.toHaveBeenCalled();
+        expect(websocketService.broadcastToChat).not.toHaveBeenCalled();
+        expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+          type: WSMessageType.ERROR,
+          data: expect.objectContaining({ code: 'GENERATION_ALREADY_ACCEPTED' }),
+        }));
+      }
+    );
+
+    it('includes mentioned characters in the request identity', async () => {
+      const dispatch = handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> };
+      const message = userMessage();
+      message.data.clientMessageId = 'character-request';
+      message.data.mentionedCharacterIds = ['character-1'];
+      await dispatch.handleUserMessage(CLIENT_ID, message);
+      const payloadHash = vi.mocked(generationRequestRepository.claim).mock.calls[0][2];
+      vi.mocked(generationRequestRepository.findByRequest).mockResolvedValue({ payloadHash } as never);
+      message.data.mentionedCharacterIds = ['character-2'];
+      await dispatch.handleUserMessage(CLIENT_ID, message);
+      expect(chatService.addMessage).toHaveBeenCalledTimes(1);
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        type: WSMessageType.ERROR,
+        data: expect.objectContaining({ code: 'IDEMPOTENCY_CONFLICT' }),
+      }));
+    });
+
+    it('fails closed when claiming a request has an unknown outcome', async () => {
+      vi.mocked(generationRequestRepository.claim).mockRejectedValueOnce(new Error('lost claim acknowledgement'));
+      await (handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> })
+        .handleUserMessage(CLIENT_ID, userMessage());
+      expect(chatService.addMessage).not.toHaveBeenCalled();
+      expect(generationRequestRepository.finish).not.toHaveBeenCalled();
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.GENERATION_FINISHED,
+        data: expect.objectContaining({ status: 'failed', retryable: false }),
+      }));
+    });
+
+    it('rejects a conflicting payload found during atomic claim', async () => {
+      vi.mocked(generationRequestRepository.claim).mockResolvedValueOnce({
+        claimed: false, request: { id: 'another-owner', payloadHash: 'different' },
+      } as never);
+      await (handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> })
+        .handleUserMessage(CLIENT_ID, userMessage());
+      expect(chatService.addMessage).not.toHaveBeenCalled();
+      expect(generationRequestRepository.finish).not.toHaveBeenCalled();
+      expect(websocketService.broadcastToChat).not.toHaveBeenCalled();
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        type: WSMessageType.ERROR,
+        data: expect.objectContaining({ code: 'IDEMPOTENCY_CONFLICT' }),
+      }));
+    });
+
+    it('persists cancellation after claiming and before saving the message', async () => {
+      const dispatch = handler as unknown as {
+        handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void>;
+        activeGenerations: Map<string, { controller: AbortController }>;
+      };
+      vi.mocked(generationRequestRepository.claim).mockImplementationOnce(async () => {
+        dispatch.activeGenerations.get(CHAT)!.controller.abort();
+        return { claimed: true, request: { id: 'cancelled-request' } } as never;
+      });
+      await dispatch.handleUserMessage(CLIENT_ID, userMessage());
+      expect(chatService.addMessage).not.toHaveBeenCalled();
+      expect(generationRequestRepository.finish).toHaveBeenCalledWith('cancelled-request', 'stopped', undefined);
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.GENERATION_FINISHED,
+        data: expect.objectContaining({ status: 'stopped', retryable: false }),
+      }));
+    });
+
+    it('records a failed turn and does not call the model if linking the user message fails', async () => {
+      vi.mocked(generationRequestRepository.markRunning).mockRejectedValueOnce(new Error('lost status acknowledgement'));
+      await (handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> })
+        .handleUserMessage(CLIENT_ID, userMessage());
+      expect(chatService.addMessage).toHaveBeenCalledTimes(1);
+      expect(groupChatService.isGroupChat).not.toHaveBeenCalled();
+      expect(generationRequestRepository.finish).toHaveBeenCalledWith('generation-1', 'failed', 'MESSAGE_ERROR');
+    });
+
+    it('still releases the local turn when persisting the final status fails', async () => {
+      vi.mocked(generationRequestRepository.finish).mockRejectedValueOnce(new Error('database unavailable'));
+      const dispatch = handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> };
+      await dispatch.handleUserMessage(CLIENT_ID, userMessage());
+      await dispatch.handleUserMessage(CLIENT_ID, userMessage('Next turn'));
+      expect(chatService.addMessage).toHaveBeenCalledTimes(2);
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.GENERATION_FINISHED,
+        data: expect.objectContaining({ status: 'completed', retryable: false }),
+      }));
+    });
+
+    it('only allows retry before persistence, not after a write with an unknown outcome', async () => {
+      const dispatch = handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> };
+      vi.mocked(featureService.checkQuota).mockResolvedValueOnce({ allowed: false, currentUsage: 100, limit: 100, remaining: 0 });
+      await dispatch.handleUserMessage(CLIENT_ID, userMessage());
+      expect(websocketService.broadcastToChat).toHaveBeenLastCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.GENERATION_FINISHED,
+        data: expect.objectContaining({ status: 'failed', retryable: true }),
+      }));
+
+      vi.mocked(chatService.addMessage).mockRejectedValueOnce(new Error('write acknowledgement lost'));
+      await dispatch.handleUserMessage(CLIENT_ID, userMessage());
+      expect(websocketService.broadcastToChat).toHaveBeenLastCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.GENERATION_FINISHED,
+        data: expect.objectContaining({ status: 'failed', retryable: false }),
+      }));
+    });
+
+    it('does not restart a partially failed group turn', async () => {
+      const dispatch = handler as unknown as {
+        handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void>;
+        handleGroupChatResponse: () => Promise<void>;
+      };
+      vi.mocked(groupChatService.isGroupChat).mockResolvedValue(true);
+      const groupResponse = vi.spyOn(dispatch, 'handleGroupChatResponse').mockRejectedValue(new Error('second character failed'));
+      const message = userMessage();
+      message.data.clientMessageId = 'group-turn';
+      await dispatch.handleUserMessage(CLIENT_ID, message);
+      vi.mocked(messageRepository.findByClientMessageId).mockResolvedValueOnce({ id: 1, role: 'user', content: 'Hello' } as never);
+      await dispatch.handleUserMessage(CLIENT_ID, message);
+      expect(groupResponse).toHaveBeenCalledTimes(1);
+      expect(generationRequestRepository.finish).toHaveBeenCalledTimes(1);
+      expect(generationRequestRepository.finish).toHaveBeenCalledWith('generation-1', 'failed', 'MESSAGE_ERROR');
+      expect(chatService.addMessage).toHaveBeenCalledTimes(1);
+      expect(messagesMetered()).toHaveLength(1);
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        type: WSMessageType.ERROR,
+        data: expect.objectContaining({ code: 'GENERATION_ALREADY_ACCEPTED', requestId: 'group-turn' }),
+      }));
+    });
+
+    it('rejects conflicting content and checks ownership before request lookup', async () => {
+      const dispatch = handler as unknown as { handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void> };
+      const message = userMessage();
+      message.data.clientMessageId = 'request-identity';
+      vi.mocked(messageRepository.findByClientMessageId).mockResolvedValueOnce({ id: 1, role: 'user', content: 'Different' } as never);
+      await dispatch.handleUserMessage(CLIENT_ID, message);
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        type: WSMessageType.ERROR,
+        data: expect.objectContaining({ code: 'IDEMPOTENCY_CONFLICT' }),
+      }));
+      vi.mocked(messageRepository.findByClientMessageId).mockClear();
+      vi.mocked(generationRequestRepository.findByRequest).mockClear();
+      vi.mocked(chatRepository.findById).mockResolvedValueOnce({ id: CHAT, userId: USER, tenantId: 'other-tenant' } as never);
+      await dispatch.handleUserMessage(CLIENT_ID, message);
+      expect(messageRepository.findByClientMessageId).not.toHaveBeenCalled();
+      expect(generationRequestRepository.findByRequest).not.toHaveBeenCalled();
+      expect(chatService.addMessage).not.toHaveBeenCalled();
     });
 
     // 这是整个修复的重点：WebSocket 是客户端默认走的通道，
@@ -213,6 +544,7 @@ describe('WebSocket chat — quota metering and enforcement', () => {
 
       expect(chatService.addMessage).not.toHaveBeenCalled();
       expect(usageService.trackUsage).not.toHaveBeenCalled();
+      expect(generationRequestRepository.claim).not.toHaveBeenCalled();
     });
 
     it('tells the client why the message was refused', async () => {
@@ -264,7 +596,10 @@ describe('WebSocket chat — quota metering and enforcement', () => {
         CHAT,
         expect.objectContaining({ type: WSMessageType.USER_MESSAGE })
       );
-      expect(websocketService.sendToClient).not.toHaveBeenCalled();
+      expect(websocketService.sendToClient).not.toHaveBeenCalledWith(
+        CLIENT_ID,
+        expect.objectContaining({ type: WSMessageType.ERROR })
+      );
     });
   });
 
@@ -273,6 +608,7 @@ describe('WebSocket chat — quota metering and enforcement', () => {
       vi.mocked(chatRepository.findById).mockResolvedValue({
         id: CHAT,
         userId: USER,
+        tenantId: TENANT,
         characterId: null,
         personaId: null,
         metadata: {},
@@ -316,6 +652,19 @@ describe('WebSocket chat — quota metering and enforcement', () => {
 
     // WebSocket 流式生成走的是自己的 streamLlmResponse，不经过
     // llm.ts 那两个路由，所以 llm_tokens 在这条链路上也是 0
+    it('awaits a rejected reader cancellation after an aborted stream', async () => {
+      const { llmService } = await import('../services/llm.service');
+      const aborted = new DOMException('Stopped', 'AbortError');
+      const cancel = vi.fn().mockRejectedValue(aborted);
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue({
+        body: { getReader: () => ({ read: vi.fn().mockRejectedValue(aborted), cancel }) },
+      } as never);
+      const streamer = handler as unknown as { streamLlmResponse: (chatId: string, messageId: string, messages: unknown[]) => Promise<{ content: string }> };
+      await expect(streamer.streamLlmResponse(CHAT, 'partial', [])).resolves.toMatchObject({ content: '' });
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(llmService.streamChatCompletion).toHaveBeenCalledWith(expect.objectContaining({ max_tokens: 4096 }), undefined, { chatId: CHAT });
+    });
+
     it('meters the llm tokens produced by the stream', async () => {
       await runReply('a'.repeat(400));
 
@@ -355,7 +704,7 @@ describe('WebSocket chat — quota metering and enforcement', () => {
 
     it('adds the depth-injected entries that the context total does not include', async () => {
       vi.mocked(chatRepository.findById).mockResolvedValue({
-        id: CHAT, userId: USER, characterId: 'char-1', personaId: null, metadata: {},
+        id: CHAT, userId: USER, tenantId: TENANT, characterId: 'char-1', personaId: null, metadata: {},
       } as never);
       const { characterRepository } = await import('../../db/repositories/character.repository');
       vi.mocked(characterRepository.findById).mockResolvedValue({ id: 'char-1', name: 'Alice', cardData: {} } as never);
@@ -373,7 +722,7 @@ describe('WebSocket chat — quota metering and enforcement', () => {
     // P3-3：cache_friendly 布局的变动块在截断之后才注入，预算要预先扣掉
     it('reserves the dynamic-block tokens in the context budget', async () => {
       vi.mocked(chatRepository.findById).mockResolvedValue({
-        id: CHAT, userId: USER, characterId: 'char-1', personaId: null, metadata: {},
+        id: CHAT, userId: USER, tenantId: TENANT, characterId: 'char-1', personaId: null, metadata: {},
       } as never);
       const { characterRepository } = await import('../../db/repositories/character.repository');
       vi.mocked(characterRepository.findById).mockResolvedValue({ id: 'char-1', name: 'Alice', cardData: {} } as never);
@@ -418,6 +767,7 @@ describe('WebSocket chat — quota metering and enforcement', () => {
       vi.mocked(chatRepository.findById).mockResolvedValue({
         id: CHAT,
         userId: USER,
+        tenantId: TENANT,
         personaId: null,
         metadata: {},
       } as never);
@@ -495,10 +845,10 @@ describe('WebSocket chat — quota metering and enforcement', () => {
         CLIENT_ID,
         expect.objectContaining({
           type: WSMessageType.ERROR,
-          data: {
+          data: expect.objectContaining({
             code: 'PLATFORM_SPEND_LIMIT',
             message: 'The platform has reached its daily usage limit. Please try again tomorrow.',
-          },
+          }),
         })
       );
     });

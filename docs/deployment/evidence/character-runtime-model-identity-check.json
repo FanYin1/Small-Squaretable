@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-24T16:45:50.993Z",
+  "pid": 4266,
+  "mode": "real-provider-owned-prompts",
+  "result": "completed-pending-semantic-review",
+  "tokenBudget": 8000,
+  "tokens": 2047,
+  "calls": [
+    {
+      "scenario": "late-bookshop",
+      "turn": 2,
+      "status": "completed",
+      "reservation": 5870,
+      "promptSha256": "cc0420c758fa254fff56cd88cd8750b5fe516c83d6d67dd652b0b5b1e7e23433",
+      "httpStatus": 200,
+      "tokens": 2047,
+      "finishReason": "stop"
+    }
+  ],
+  "inputSha256": "daddc158c1b43a35584860663770e78b7024cdb04674c315cb53ae922e429d90",
+  "limits": [
+    "Production context replay with earlier controlled assistant messages replaced by real replies",
+    "Real replies are not persisted in app; browser/state/restart evidence is separate",
+    "Original third-party source and author code are not sent",
+    "Short two-mechanism sample, not long-term or human acceptance"
+  ],
+  "selection": {
+    "key": "late-bookshop",
+    "turn": 2
+  },
+  "previousTranscriptsSha256": "9f8ea521bb07797ffb39b3e8bc9a5f15a3ab97b5e85a6b151b32953a8fb5ef2b",
+  "sourceHashes": {
+    "scripts/character-journey-model-check.mjs": "eea2e5eab71346d7d2c7156920cbf856ae175dccf79cffffa81cd23f7b66a035",
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd"
+  },
+  "semanticReview": {
+    "reviewer": "coding-agent",
+    "status": "passed-for-targeted-regression",
+    "findings": [
+      "Corrected production prompt includes the frozen name despite an empty biography",
+      "Reply acknowledges and remembers the introduction without asking for the name again",
+      "Reply preserves the quiet boundary and does not force disclosure or romantic escalation"
+    ],
+    "limits": [
+      "One targeted turn using the earlier real quiet response",
+      "Not a new full nine-turn real-model run; browser persistence/restart evidence remains separate"
+    ]
+  }
+}

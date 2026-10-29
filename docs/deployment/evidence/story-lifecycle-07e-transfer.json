@@ -1,0 +1,896 @@
+{
+  "date": "2026-10-25T09:49:23.720Z",
+  "result": "passed",
+  "database": "two disposable PostgreSQL/pgvector containers with full beta migrations",
+  "scope": "whole-database dump/restore and current service/repository behavior; not HTTP/browser or model-quality validation",
+  "memoryFixture": "synthetic memory and fixed nonzero vector, explicitly linked to a confirmed synthetic reply; no model or embedding provider called",
+  "fingerprints": {
+    "tables": {
+      "books": {
+        "rows": 1,
+        "digest": "5f3e4881816d66969fb67519b848a63a"
+      },
+      "chats": {
+        "rows": 10,
+        "digest": "2c1a562391d5a972891854004f094f1b"
+      },
+      "notes": {
+        "rows": 3,
+        "digest": "f190f0140431a2c47f70dd6e6fb916dc"
+      },
+      "state": {
+        "rows": 10,
+        "digest": "589ee66ae809e5131156887d40b02dbc"
+      },
+      "users": {
+        "rows": 2,
+        "digest": "adcc28515ef23c7101ac146ae445ae23"
+      },
+      "events": {
+        "rows": 79,
+        "digest": "3127fb80bc15d962c821f284b656d1d7"
+      },
+      "content": {
+        "rows": 10,
+        "digest": "f000987f9de039e323c544c80afcd343"
+      },
+      "entries": {
+        "rows": 1,
+        "digest": "22dea0029328dd51d4d790b381a4c739"
+      },
+      "lineage": {
+        "rows": 1,
+        "digest": "f99ccad628f415601dbd2e7ccafac4a3"
+      },
+      "tenants": {
+        "rows": 1,
+        "digest": "8ea0900b716b2b752e4b2fce44a5f397"
+      },
+      "vectors": {
+        "rows": 13,
+        "digest": "72f12df7df953f57576580f25d917649"
+      },
+      "memories": {
+        "rows": 13,
+        "digest": "356a995bc0c858cb5fbc69d7082b6fce"
+      },
+      "messages": {
+        "rows": 158,
+        "digest": "21174425cb1238fa686f8948376c988e"
+      },
+      "personas": {
+        "rows": 1,
+        "digest": "7b46a39e02b3117b91f3eb60ec21a079"
+      },
+      "deletions": {
+        "rows": 1,
+        "digest": "c69def29b2ba453301f3a660836a71f4"
+      },
+      "characters": {
+        "rows": 3,
+        "digest": "a15e840451d0bd1e804437bdec96eb09"
+      },
+      "memoryJobs": {
+        "rows": 14,
+        "digest": "f68b39550268f45433d17f91b4331434"
+      },
+      "migrations": {
+        "rows": 12,
+        "digest": "63f9f3fc396d1504c3bc3d2a9bbfcc76"
+      },
+      "worldbooks": {
+        "rows": 10,
+        "digest": "19cfd60d6e79ce652b296cd63a3cdd72"
+      },
+      "memoryLinks": {
+        "rows": 11,
+        "digest": "f4d0532eb3036e15bc814e9b95d4d7c5"
+      },
+      "participants": {
+        "rows": 11,
+        "digest": "29b520278c721c79ffc4a2231e51245e"
+      },
+      "reservations": {
+        "rows": 11,
+        "digest": "d56097a06c3e1442d42f1fdbc2ce1fc6"
+      },
+      "memoryProgress": {
+        "rows": 8,
+        "digest": "a47f01a65c7c316f8f901aab250bec04"
+      },
+      "creationRequests": {
+        "rows": 11,
+        "digest": "8442c384b1e0e9efbbba761aa2270aee"
+      }
+    },
+    "coverage": {
+      "identities": 10,
+      "boundEntries": 9,
+      "confirmedEvents": 75,
+      "sourcedMemories": 13,
+      "interruptedEvents": 3,
+      "invalidMemoryLinks": 0,
+      "invalidEventSources": 0,
+      "invalidStateSources": 0,
+      "invalidMemorySources": 0
+    },
+    "protocol": 2
+  },
+  "allPublicTables": [
+    {
+      "name": "activities",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "api_keys",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "audit_logs",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "backup_codes",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_collaborators",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_collection_items",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_collections",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_emotions",
+      "count": 1,
+      "digest": "88e34190a8e5339707728a83569780e4"
+    },
+    {
+      "name": "character_growth",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_import_repairs",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_memories",
+      "count": 13,
+      "digest": "e93219b09239a05aa811addd225b89fe"
+    },
+    {
+      "name": "character_memory_vectors",
+      "count": 13,
+      "digest": "02e4c4876d83d4b6a14ef4f0ea60d756"
+    },
+    {
+      "name": "character_presets",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_relationships",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_templates",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_versions",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "characters",
+      "count": 3,
+      "digest": "6f03b66806e4f4730f464cb18894f586"
+    },
+    {
+      "name": "chat_characters",
+      "count": 11,
+      "digest": "b95cc67422945df9371c9d2cb77fe7c2"
+    },
+    {
+      "name": "chat_creation_requests",
+      "count": 11,
+      "digest": "58947d2af0f8601cf78f507ca8fcca65"
+    },
+    {
+      "name": "chat_overrides",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "chat_snapshots",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "chat_templates",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "chats",
+      "count": 10,
+      "digest": "8c4bc27f48b6aa240f0798aa2a155dd2"
+    },
+    {
+      "name": "comment_likes",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "comments",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "credit_ledger",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "credit_reservations",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "experiments",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "favorites",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "follows",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "generation_requests",
+      "count": 2,
+      "digest": "31cfea2123d577872769d214dff47b7b"
+    },
+    {
+      "name": "invite_code_uses",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "invite_codes",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "legacy_chat_variables",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "message_bookmarks",
+      "count": 1,
+      "digest": "66ecd4c075ca7a945119a53dac94f5b6"
+    },
+    {
+      "name": "message_reactions",
+      "count": 1,
+      "digest": "bba655af809550ec3f1ac0db72ce2c1c"
+    },
+    {
+      "name": "messages",
+      "count": 158,
+      "digest": "a414b969c55db223a88a1e7a65ad7f3e"
+    },
+    {
+      "name": "moderation_actions",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "notification_preferences",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "notifications",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "oauth_accounts",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "password_reset_tokens",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "plugin_installs",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "plugin_kv_store",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "plugins",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "quick_replies",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "ratings",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "reports",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "story_content",
+      "count": 10,
+      "digest": "2f03e5ceb63098ac0560fdb2de4c9b55"
+    },
+    {
+      "name": "story_deletions",
+      "count": 1,
+      "digest": "e6c1dfbc173f8eecfbdb5f4fb776cc17"
+    },
+    {
+      "name": "story_events",
+      "count": 79,
+      "digest": "444f3ef66acdaba698bae15d8dfc2768"
+    },
+    {
+      "name": "story_id_reservations",
+      "count": 11,
+      "digest": "88995c4143560a3cb5604b8d9c3596be"
+    },
+    {
+      "name": "story_memory_jobs",
+      "count": 14,
+      "digest": "29339276949d61a43d4d2bd0fb6ece6f"
+    },
+    {
+      "name": "story_memory_links",
+      "count": 11,
+      "digest": "20eb0f0f985aecbc05283986c822daad"
+    },
+    {
+      "name": "story_memory_progress",
+      "count": 8,
+      "digest": "4cb6b0e15cb5fd435ee6ada553c9b175"
+    },
+    {
+      "name": "story_notes",
+      "count": 3,
+      "digest": "16fbfeb4e16ee77ee37dce37840594ba"
+    },
+    {
+      "name": "story_restore_lineage",
+      "count": 1,
+      "digest": "c470638b3bf28767f92b5392362aa6c7"
+    },
+    {
+      "name": "story_states",
+      "count": 10,
+      "digest": "a1fc23b96585c37309b6022d849c85ef"
+    },
+    {
+      "name": "story_worldbooks",
+      "count": 10,
+      "digest": "287d82cd53aff2490ae01e35730daa48"
+    },
+    {
+      "name": "stripe_webhook_events",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "subscriptions",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "template_ratings",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "tenants",
+      "count": 1,
+      "digest": "310b73a4cebdc3505a1d3a6397f8faeb"
+    },
+    {
+      "name": "usage",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "user_consents",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "user_personas",
+      "count": 1,
+      "digest": "7521008e62d8267124ceb572fd5f7665"
+    },
+    {
+      "name": "users",
+      "count": 2,
+      "digest": "4c3c3de89e94941f8a25f329f4b37448"
+    },
+    {
+      "name": "webhook_deliveries",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "webhook_endpoints",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "worldbook_entries",
+      "count": 1,
+      "digest": "b47cc64b2af685630c4f4ab9ef676593"
+    },
+    {
+      "name": "worldbooks",
+      "count": 1,
+      "digest": "dc2943e87d6b12e18736203ff35f7f6b"
+    }
+  ],
+  "guardTests": 14,
+  "corruptionProbes": [
+    "changed vector with same row count rejected",
+    "wrong-story message provenance rejected"
+  ],
+  "sourceUnchangedAfterTargetDeletion": true,
+  "checks": [
+    "Restored panel, available actions, event sources and style notes match the saved story",
+    "Identity remains frozen after its source changes",
+    "Character content snapshot remains readable",
+    "Bound worldbook uses the frozen entry after its source changes",
+    "Real pgvector retrieval recovers only this story memory",
+    "Another story with the same query vector stays isolated",
+    "Retrieved memory still links to its original confirmed text",
+    "Restored story still rejects a different owner",
+    "A pre-backup committed action replays without a second event",
+    "Resumed generation preparation includes confirmed state and saved style notes",
+    "A new action after restore advances once and preserves resources",
+    "Restored message sequence allocates fresh source IDs",
+    "Continuing the restored story does not alter another save",
+    "A story deleted before backup stays deleted after restore",
+    "Replaying the deleted creation request cannot recreate its story",
+    "Deleting a restored story cascades its messages, snapshots, state, notes, events, memories and vectors",
+    "Deleted story memory is absent from scoped and global retrieval",
+    "Late memory insertion and late turn commit cannot resurrect the deleted story",
+    "Deletion and rejected late writes leave the other save intact"
+  ],
+  "continuation": {
+    "version": 3,
+    "coins": 100,
+    "location": "lighthouse"
+  },
+  "deletion": {
+    "messages": 0,
+    "events": 0,
+    "state": 0,
+    "notes": 0,
+    "content": 0,
+    "worldbooks": 0,
+    "memories": 0,
+    "vectors": 0
+  },
+  "storyTransfer": {
+    "checks": [
+      "Export rejects wrong owner and in-flight generation instead of creating an incomplete portable story",
+      "Private portable file roundtrip retains full story and refuses overwriting an existing package",
+      "Read-only plan, changed digest and wrong destination owner cannot write story or characters",
+      "Corrupt audience, cross-story source, checkpoint, vector, attachment, path and active lease all fail closed",
+      "Destination symlink is rejected before creating files outside the chosen storage root",
+      "Late import failure rolls back story, private characters and memory rows, restores enqueue trigger, and removes staged attachments",
+      "Target account and new private cast retain frozen identity and source-valid private summaries, excluded from public/other-character contexts",
+      "Real pgvector retrieval and whole-batch provenance survive identifier remapping without leaking private memory",
+      "Local attachment bytes are verified, moved under target tenant and reexportable with no source filesystem dependency",
+      "Completed generation receipt and remapped user-message source preserve duplicate-request rejection without copying platform credit balances",
+      "Creation receipt, owner bookmarks/reactions and story-scoped emotion retain mapped owners and message references",
+      "Restored pending candidate does not enter memory or execute early; explicit confirmation continues through real state transaction",
+      "Restored retry reuses extracted checkpoint without another model call; unfinished batch and interrupted history remain intact",
+      "Actual target database restart preserves imported summaries, vector retrieval, private scope and confirmed action state",
+      "Deleting an imported story cascades derived memories and permanently rejects reimport of the same story ID",
+      "An active target reader prevents offline import instead of racing running application writes",
+      "Standalone deletion artifact requires explicit trusted digest and cannot be replayed across unrelated database lineage",
+      "Real CLI export, independent deletion snapshot, read-only plan and digest-confirmed apply restore a nonempty story to the target owner",
+      "Generation commit versus deletion serializes with parent-first locking; no deadlock or resurrected response",
+      "Deletion during extract rejects late derived memory and removes pending work",
+      "Deletion during embed rejects late derived memory and removes pending work",
+      "Deletion at memory commit serializes without deadlock and cascades checkpoint, vectors and provenance"
+    ],
+    "modelCalls": 0,
+    "target": "fresh independent PostgreSQL with different owner",
+    "artifacts": "private synthetic bundles and local attachments, removed after run"
+  },
+  "storyExport": {
+    "checks": [
+      "Exports every visible message beyond ordinary page limits",
+      "Exports all 71 events beyond the panel and event-page limits in chronological order",
+      "Every exported event and visible state source resolves inside the reading record",
+      "Interrupted text and events remain explicitly distinguishable",
+      "Identity and character names use the frozen opening",
+      "Preserves saved style, visible resources and known location",
+      "Carries content and worldbook revisions without raw author payloads",
+      "json excludes private card, worldbook, state, undiscovered map, derived memory, system text and extra metadata",
+      "txt excludes private card, worldbook, state, undiscovered map, derived memory, system text and extra metadata",
+      "markdown excludes private card, worldbook, state, undiscovered map, derived memory, system text and extra metadata",
+      "Clearly identifies a reading record, not an importable backup",
+      "A different owner cannot export the story",
+      "A mismatched tenant cannot export the story",
+      "Concurrent commits cannot mix newer messages, events or notes into an older export snapshot",
+      "A later export consistently includes the newly committed turn and note",
+      "Legacy stories export readable history without invented identity, state, map or revisions",
+      "Same-owner stories remain isolated",
+      "Missing versioned character content fails instead of silently exporting an incomplete story",
+      "Missing versioned worldbook content fails instead of dropping its version reference",
+      "A deleted story cannot be exported again"
+    ],
+    "messageCount": 142,
+    "eventCount": 71,
+    "scope": "actual service and database checks; synthetic content; no HTTP/browser/model"
+  },
+  "storyMemory": {
+    "checks": [
+      "Dump/restore plus a separate process resumes the saved extraction without another model call",
+      "Versioned batch recap survives full backup/restore and checkpoint resume with its ten source messages",
+      "Recap retrieval is isolated by owner, tenant, story and responding character",
+      "Pending, running, retry and failed checkpoints cannot supply recaps to generation",
+      "Changed source text invalidates a completed recap even if IDs and event versions still match",
+      "Legacy fact-only checkpoints and malformed recap versions or references are not treated as summaries",
+      "A recap without a persisted source digest is excluded rather than trusted",
+      "Recovered memory is retrievable by real pgvector and retains message/event provenance",
+      "A 50-turn story restores its notes, successful batches and failed embedding checkpoint in a new process without re-extraction",
+      "100 confirmed turns span 20 persisted batches across backup/restore; the interrupted turn never enters derived memory",
+      "Real pgvector retrieval after 100 turns returns the original unfulfilled appointment and excludes an identically embedded other-story secret",
+      "After 100 turns, real context assembly preserves the retrieved early agreement, saved style and return input alongside bounded valid recaps",
+      "Deleting the parallel story preserves the long-running story; deleting the latter removes its derived retrieval results",
+      "Partial batch progress survives process restart and excludes interrupted replies",
+      "Replaying an already committed turn creates no duplicate job or memory",
+      "Enqueue and progress roll back with the story turn and recover on a subsequent commit",
+      "A crashed lease is reclaimed by only one of two concurrent workers",
+      "An expired worker cannot commit after replacement; checkpoint reuse avoids a second extraction",
+      "Zero vectors are failures; embedding recovery reuses extraction and writes no partial memory",
+      "Cross-story source references are rejected and retries stop at the configured cap",
+      "Explicit failed-job replay retains attempt history, checks reviewed state and cannot replay completed work",
+      "A valid empty extraction succeeds without embedding or a fabricated memory",
+      "Extraction has an abort deadline and a failed attempt is recorded",
+      "Over-budget sources stop visibly without truncation or a provider call",
+      "Editing source text during embedding prevents stale derived memory from committing",
+      "A message/event version mismatch is rejected before any extraction call",
+      "A database failure rolls back memory, vector and provenance together; retry uses the saved extraction",
+      "Deleting a story during extraction cascades work and rejects late completion without resurrection",
+      "Group participants count and derive independently within the same story",
+      "Group memory progress shows each frozen character and only their own five confirmed reply sources",
+      "Group recap retrieval includes only the responding character's confirmed input/reply sources",
+      "A repeatedly crashed job stops at the retry cap instead of being claimed forever",
+      "Lowering the retry limit marks already exhausted queued work as failed instead of stranding it",
+      "Deleting completed work preserves other stories and every remaining provenance link stays in its confirmed story",
+      "Deleting a completed story removes its saved recap from continuation reads",
+      "Player view exposes real successful batch provenance and retained counts without returning memory text",
+      "Player memory reads reject another owner or tenant before loading jobs",
+      "Progress shows three confirmed replies before reaching the five-reply batch threshold",
+      "Extracted checkpoints, failure internals, digests and replay details never enter the player response",
+      "A source digest mismatch withholds references and never exposes the private digest",
+      "Queued, expired-running, retry, failed and completed-with-no-retained-memory states remain distinguishable",
+      "Foreign and missing pagination cursors fail identically",
+      "Bounded pagination preserves all batches sharing the same microsecond timestamp and global counts",
+      "Cross-story event references are withheld rather than becoming player source links",
+      "Interrupted or version-mismatched replies cannot be presented as confirmed memory provenance",
+      "Legacy stories explicitly report unsupported progress without inventing historical coverage",
+      "Deleted stories cannot return remembered progress or stale source IDs",
+      "Backfill inspection detects missing historical batches without writes or disclosure of dialogue",
+      "Operator CLI defaults to inspection and rejects missing review tokens or unknown force flags without writes",
+      "Reviewed backfill creates only omitted batches; replay cannot duplicate jobs or regroup covered events",
+      "Backfilled pending jobs run through the real worker and become source-validated continuation summaries",
+      "Live event enqueue continues from retained partial progress after backfill without duplicate sources",
+      "New confirmed turns and source edits invalidate a reviewed backfill before any queue changes",
+      "Concurrent reviewed backfills serialize per story and create each missing batch once",
+      "Failed jobs still count as covered and backfill cannot bypass their explicit retry policy",
+      "An occupied story commit lock causes bounded backfill failure without partial queue changes",
+      "The first job page includes the minimum UUID instead of treating its covered sources as missing",
+      "Group backfill repairs only the selected frozen character and preserves the other participant's jobs",
+      "A failure on the second batch rolls back all inserts and progress; the same reviewed plan can then recover",
+      "Missing partial progress is restored and interrupted replies never count toward a backfilled batch",
+      "Corrupt coverage and unconfirmed reply metadata stop backfill rather than inventing replacement evidence",
+      "Unsupported legacy stories, unrelated characters and deleted stories cannot be backfilled or resurrected",
+      "Paged inspection covers 5003 confirmed turns and over two million source characters without returning raw dialogue",
+      "Ten bounded reviewed applications recover 1000 batches with no duplicate sources and preserve the three-turn tail",
+      "Changing the apply limit or reusing an old large-history review cannot overrun or duplicate recovery"
+    ],
+    "extraction": "controlled provider; no real model calls",
+    "embedding": "fixed nonzero 384-dimensional vectors",
+    "extractions": 12
+  },
+  "sources": [
+    {
+      "path": "scripts/story-nonempty-restore-check.mjs",
+      "sha256": "949765602ffa985c97253c9c1966a2cdc7a87017c9d7eaed6d6ee125316c471a"
+    },
+    {
+      "path": "scripts/story-restore-fixture.mjs",
+      "sha256": "7dbfc79dd2602c4da34c02a8fbba8978cd18ea34f79912aacbb29991c0270d40"
+    },
+    {
+      "path": "scripts/story-restore-evidence.mjs",
+      "sha256": "c9317c706bd67f7e06945f53a9d8d896246c8173ab7541c35b40d22b2b5f373d"
+    },
+    {
+      "path": "scripts/story-restore-evidence.test.mjs",
+      "sha256": "719553edc73cffbed8550c75977a8d10fb1a457a8ee1debf4d2df417de83213d"
+    },
+    {
+      "path": "scripts/exploration-restore-check.mjs",
+      "sha256": "855e39688fb02853057ddeb5cc8ff8d218cb2b0a09251cb934c316e01174413f"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "7158fe20d45fb258b60f5e1a611da3b5cc7a5009c257556514808b104288d35f"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "333cd1a957178cc8fdf02db804ecf004a498ed9840fc1e117f149713d6dac0c6"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "537886a0e6ad6e717e85c28351dd63a33e5c570e6cd0ad2bac8dde33b1f0970e"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "4bc33b4b83a586e6ddb1513a85f259e5616547d80d89bf8ba755c87db57ac919"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+    },
+    {
+      "path": "src/db/migrate.ts",
+      "sha256": "91bbac98d250f3c2f89edf6511b80f674fa0db55ec428abbd2f4c6daedb93e57"
+    },
+    {
+      "path": "src/db/beta-migrations/0000_beta_schema.sql",
+      "sha256": "1d21eaef4b6c561bd431924a45533480ce328510a7e3ef2ac4a2d4d2be7c163a"
+    },
+    {
+      "path": "src/db/beta-migrations/0001_beta_invariants.sql",
+      "sha256": "b77d1ccea176602d34da511f7e1242fdedd9c71963b8a3b4902d6b307d6a8c16"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/db/beta-migrations/0004_story_content.sql",
+      "sha256": "3c09875fe35c43e68d2f0bd4e03044253b9bf879c16c1c564dfa6898f5e1648b"
+    },
+    {
+      "path": "src/db/beta-migrations/0005_story_state.sql",
+      "sha256": "09cae5255133b9fe58a981ee3cadda43210de96a5abfd70a233aead9350b1b89"
+    },
+    {
+      "path": "src/db/beta-migrations/0006_story_memory_scope.sql",
+      "sha256": "4d9519301750da6ad4bb4bba825feee3be843d47dfb9313d6a06d9b2455974e3"
+    },
+    {
+      "path": "src/db/beta-migrations/0007_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/beta-migrations/0008_story_memory_jobs.sql",
+      "sha256": "919011023b56c679a08abd2d220458de35796005d5749ccaa025615ac2a7f8e6"
+    },
+    {
+      "path": "src/db/beta-migrations/0009_character_import_repairs.sql",
+      "sha256": "45d9d83bc16ad11f97874a756a271b696d112fb6ecc458700843a0d4a2d8a79d"
+    },
+    {
+      "path": "src/db/beta-migrations/0010_legacy_chat_variables.sql",
+      "sha256": "5cc94519d21a4ac2c5268ab90403921755ba5045fc194243d01f52d5b49c2a39"
+    },
+    {
+      "path": "src/db/beta-migrations/0011_story_intent_proposals.sql",
+      "sha256": "076208bd2d3387db1f82ee8ea8e7fff4511f3dce4a2aaae9607d0d6608bc1132"
+    },
+    {
+      "path": "src/db/beta-migrations/meta/_journal.json",
+      "sha256": "418c1b3b678cf842223a6d52f8477e52fda5650b06134afda405511be6838c34"
+    },
+    {
+      "path": "scripts/story-export-fixture.mjs",
+      "sha256": "9d32e192bc74f23ced68d6659bf47fb7faacd87e6c870dc0e1e5c867a01813d4"
+    },
+    {
+      "path": "src/server/services/story-export.service.ts",
+      "sha256": "58f0fa866b6a3d96ca5f04d2a95599b2f05b5ea6ef79d8bdb21416f0c1591d23"
+    },
+    {
+      "path": "src/types/story-export.ts",
+      "sha256": "421b61023f1b456ddf816fa75bd78ad0bd1f4c357c7b809c8f0c4fc960428242"
+    },
+    {
+      "path": "src/server/routes/chats.ts",
+      "sha256": "6fb762e6325dd721e2d4da71d7875a209dcdec9fefb7459b7cc52e92598879bc"
+    },
+    {
+      "path": "src/server/routes/chats.spec.ts",
+      "sha256": "4592ad443348561d4a9069e5c96d58609565e22a3273809b50f0e291cb252661"
+    },
+    {
+      "path": "scripts/story-transfer.mjs",
+      "sha256": "c0304698712a8464b157fcd7f5ab717d553242b0c69d65759cd453abaa882ec0"
+    },
+    {
+      "path": "scripts/story-transfer-format.mjs",
+      "sha256": "8bec42945070574cf48e9a2f448ca36f13422b6868e1f21b68ea0fcb5d71c0ac"
+    },
+    {
+      "path": "scripts/story-transfer-fixture.mjs",
+      "sha256": "f9342069ad34e2e3ee81fd5727086ff3bb1d4f10aabeaec2d9542e3c47600b9c"
+    },
+    {
+      "path": "scripts/story-deletion-journal.mjs",
+      "sha256": "970ef0d9fa689b9196de5c485bdec46679fbe9742a09f1a2b6170f925948b3c1"
+    },
+    {
+      "path": "scripts/story-deletion-races.mjs",
+      "sha256": "17e35692aaa0e34701170196687a22276a66d9d004a10c73630a1d7f4b62ac2b"
+    },
+    {
+      "path": "scripts/story-deletion-replay.mjs",
+      "sha256": "9459012dd6f217012268e44a1b476aab29aef928c96a6959e08fbfe183fc9fa5"
+    },
+    {
+      "path": "src/db/migrations/0047_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/schema/story-lifecycle.ts",
+      "sha256": "2e6ed153e51a28617cb2feb32f8474afb00217a35c90d435fea60044acb324cf"
+    },
+    {
+      "path": "scripts/story-memory-fixture.mjs",
+      "sha256": "104b2163ded134f3d9a029d9281dfb28d428aee61106359fea73efafcf59061f"
+    },
+    {
+      "path": "scripts/story-memory-view-fixture.mjs",
+      "sha256": "502cfdfdad531ce0b6676368b75de3a5483f8060bd8ba360069f977305950f66"
+    },
+    {
+      "path": "scripts/story-summary-fixture.mjs",
+      "sha256": "4fc57f3b61339234f0c559b671405978e8e6d826b762f6cf05f53a71ec1994c4"
+    },
+    {
+      "path": "src/server/services/story-summary.service.ts",
+      "sha256": "e50888d54e95c4f65f435afc56047bb55569904ad7d980182ddf80aadd1ec659"
+    },
+    {
+      "path": "src/server/services/story-summary-context.ts",
+      "sha256": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b"
+    },
+    {
+      "path": "src/server/services/story-memory-view.service.ts",
+      "sha256": "f777498d0fae9652fe6987e3094d2d47063341587e98c9777196238f98a24d12"
+    },
+    {
+      "path": "src/types/story-memory.ts",
+      "sha256": "c9712199f13a11d41661053c85d2a1f3d3e8a18f7ff5ffe57c9640a89fc93c0c"
+    },
+    {
+      "path": "src/server/services/story-memory-worker.service.ts",
+      "sha256": "54a1383604c702f50d985fd405e4b91dc3e5cf983164f09303dc799479c0ae8c"
+    },
+    {
+      "path": "scripts/story-memory-retry.mjs",
+      "sha256": "05b1072c03d2d3c1cb84f7b4fe374c018c518c476c60c9ef0460d6003245607d"
+    },
+    {
+      "path": "scripts/story-memory-backfill.mjs",
+      "sha256": "c3b3df67ab6f79e432b07c75627e4b5748a44c40befd4ca73970e673ba07a92f"
+    },
+    {
+      "path": "scripts/story-memory-backfill-plan.mjs",
+      "sha256": "39623f1cb50e69417a2e6ab94a2500d46ec9b7c9681721ef8e0208759def2715"
+    },
+    {
+      "path": "scripts/story-memory-backfill.test.mjs",
+      "sha256": "14b51f39ebcdd8434528a3ffd6494f8eb0f2c6cfd27114e7dae267c580e5866c"
+    },
+    {
+      "path": "scripts/story-memory-backfill-fixture.mjs",
+      "sha256": "33ff350aa4ba3057eda59c78fe2e18ceca78bfc08018b5cf35c5db6f478c8d46"
+    },
+    {
+      "path": "scripts/story-memory-large-history-fixture.mjs",
+      "sha256": "834c9c9b63d5e1b06e70c2563cf54e84fca38e2c6a927109f98976c188634775"
+    },
+    {
+      "path": "scripts/story-memory-longrun-fixture.mjs",
+      "sha256": "31ec8bcad01c2360c21fb640d54b2be3d50cd137ab2fba53316a14bb6989d516"
+    },
+    {
+      "path": "src/server/services/story-memory-extraction.ts",
+      "sha256": "96098d151b9a8d59e9ad18bd2e9ccce86f676d7a0ff10302cafd0797602eb63b"
+    },
+    {
+      "path": "src/server/jobs/story-memory.job.ts",
+      "sha256": "ab9b94ae68c8a09783e2e17ea80f1d152165654c01034e18e488046fbb481c9c"
+    },
+    {
+      "path": "src/server/jobs/index.ts",
+      "sha256": "2a996583157296ec9e0c40b8f8e988fbfbf6305a2c5f16283143247714302cf9"
+    },
+    {
+      "path": "src/db/schema/story-memory.ts",
+      "sha256": "e9ab7222ea9981ceaf7a673f77c561d96799704d64f33c852ce9a8067ee5aa42"
+    },
+    {
+      "path": "src/db/schema/memories.ts",
+      "sha256": "8b71c85500495a54ac3c9bc57d083b56cccf1c9b9aa5c16dcfad4b48407ac57f"
+    },
+    {
+      "path": "src/db/migrations/0048_story_memory_jobs.sql",
+      "sha256": "919011023b56c679a08abd2d220458de35796005d5749ccaa025615ac2a7f8e6"
+    },
+    {
+      "path": "src/server/services/embedding.service.ts",
+      "sha256": "177b7598f47bfe4138e51614b4abef1b4291ed4048338d145c26b8dc9a40e94e"
+    },
+    {
+      "path": "src/server/services/llm.service.ts",
+      "sha256": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "22bbd27686217c2f730ed0e2440cffa1dedcc7e9c379a94683c63ee269e271c4"
+    }
+  ]
+}

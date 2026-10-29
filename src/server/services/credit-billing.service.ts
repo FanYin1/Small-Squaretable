@@ -123,8 +123,8 @@ export const creditBilling = {
    * 用户消息）之前挡掉明显没余额的请求。真正的并发安全由 reserve 保证。
    */
   async assertHasCredits(tenantId: string): Promise<void> {
-    const { available } = await creditRepository.getAvailability(tenantId);
-    if (available <= 0) {
+    const { available, unlimited } = await creditRepository.getAvailability(tenantId);
+    if (!unlimited && available <= 0) {
       throw new InsufficientCreditsError({ availableTokens: available });
     }
   },
@@ -139,8 +139,8 @@ export const creditBilling = {
     const reservation = await creditRepository.withTransaction(async (tx) => {
       await creditRepository.lockTenant(input.tenantId, tx);
 
-      const { available } = await creditRepository.getAvailability(input.tenantId, tx);
-      if (available < tokens) {
+      const { available, unlimited } = await creditRepository.getAvailability(input.tenantId, tx);
+      if (!unlimited && available < tokens) {
         throw new InsufficientCreditsError({ requiredTokens: tokens, availableTokens: available });
       }
 
@@ -153,6 +153,7 @@ export const creditBilling = {
           expiresAt: sql`now() + make_interval(secs => ${config.creditReservationTtlSeconds})`,
           metadata: {
             ...(input.metadata ?? {}),
+            creditExempt: unlimited === true,
             estimatedInputTokens: input.estimatedInputTokens,
             maxOutputTokens: input.maxOutputTokens,
           },
@@ -185,6 +186,15 @@ export const creditBilling = {
 
       await creditRepository.lockTenant(reservation.tenantId, tx);
       const wasExpired = reservation.status === 'expired';
+
+      if ((reservation.metadata as Record<string, unknown> | null)?.creditExempt === true) {
+        const closed = await creditRepository.closeExemptReservation(holdId, {
+          inputTokens: toNonNegativeInt(input.inputTokens),
+          outputTokens: toNonNegativeInt(input.outputTokens),
+          messageId: input.messageId ?? null,
+        }, tx);
+        return closed ? { chargedTokens: 0, clamped: false } : null;
+      }
 
       const { balance } = await creditRepository.getAvailability(reservation.tenantId, tx);
       const cap = Math.min(reservation.tokens, Math.max(balance, 0));

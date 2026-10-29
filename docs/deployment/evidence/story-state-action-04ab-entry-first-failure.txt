@@ -1,0 +1,21 @@
+Entry failure diagnostics: /tmp/squaretable-entry-integration-evidence/efab6e73-bdbc-4f6c-8a24-2005b2270bf5
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+1 !== 2
+
+    at checkExplorationEntry (file:///var/aichat/Small-Squaretable/scripts/exploration-entry-browser-check.mjs:243:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///var/aichat/Small-Squaretable/scripts/beta-smoke-check.mjs:367:60 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 2,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.13.0

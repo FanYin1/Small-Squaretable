@@ -27,7 +27,7 @@ export class MemoryConsolidationService {
   ): Promise<ConsolidationResult> {
     // 1. Fetch all memories
     const memories = await memoryRepository.findByCharacterAndUser(
-      characterId, userId, 500
+      characterId, userId, 500, null
     );
 
     if (memories.length < minClusterSize) {
@@ -115,7 +115,7 @@ export class MemoryConsolidationService {
 
       const embedding = await embeddingService.embed(memory.content);
       const similar = await memoryRepository.findSimilar(
-        characterId, userId, embedding, threshold, 20
+        characterId, userId, embedding, threshold, 20, null
       );
 
       const cluster = similar

@@ -91,14 +91,16 @@ export const llmApi = {
   streamChatCompletion: async (
     request: ChatCompletionRequest,
     onChunk: (chunk: string) => void,
-    onDone: () => void,
-    onError: (error: Error) => void
+    onDone: () => void | Promise<void>,
+    onError: (error: Error) => void,
+    signal?: AbortSignal
   ): Promise<void> => {
     const token = localStorage.getItem('token');
     const tenantId = localStorage.getItem('tenantId');
 
     const response = await fetch('/api/v1/llm/chat/completions', {
       method: 'POST',
+      signal,
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -133,7 +135,7 @@ export const llmApi = {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
             if (data === '[DONE]') {
-              onDone();
+              await onDone();
               return;
             }
             try {
@@ -148,9 +150,10 @@ export const llmApi = {
           }
         }
       }
-      onDone();
+      await onDone();
     } catch (error) {
-      onError(error instanceof Error ? error : new Error('Stream error'));
+      if (signal?.aborted) await onDone();
+      else onError(error instanceof Error ? error : new Error('Stream error'));
     } finally {
       reader.releaseLock();
     }

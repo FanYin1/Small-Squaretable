@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-25T11:08:42.616Z",
+  "result": "passed",
+  "task": "EXP-03A",
+  "taskClosed": false,
+  "backend": "production HTTP/WebSocket with disposable PostgreSQL/Redis",
+  "browser": "Chromium 1440px and 390px, no API interception",
+  "provider": "loopback controlled provider, synthetic material only",
+  "paidProviderTokens": 0,
+  "checks": [
+    "Owner/tenant checks reject foreign characters/books and reads; mutations require explicit expected binding",
+    "Production editor at 1440/390px: explicit selection/save, actual persisted binding, declared-name hint and frozen previous save",
+    "Unbind through UI preserves existing snapshot, excludes future starts and avoids global promotion; disabled/empty references diagnosed",
+    "Concurrent binding attempts serialize: exactly one succeeds; the stale operation gets 409 without stealing another binding",
+    "Three actual WebSocket generations read their own frozen binding versions across bind/unbind/rebind",
+    "Author creates a constant entry without keywords through the real UI; purpose, injection position and ordering persist",
+    "Purpose edit survives reload at desktop/mobile sizes; old story keeps knowledge and new story captures style",
+    "Unknown purpose survives edit; export/import and append preserve purpose, position, logic, role and recursion; invalid append writes nothing"
+  ],
+  "pageErrors": [],
+  "sources": [
+    {
+      "path": "src/types/character-worldbook-bindings.ts",
+      "sha256": "0ca63a602a2ae916ac89c1fa291a4a1c70b4cd98af53f8c54a56492d73225d17"
+    },
+    {
+      "path": "src/server/services/character-worldbook-bindings.service.ts",
+      "sha256": "1475d4c6d383b1247f320215079c4289dd675ad70c77a8033fffef6f035cd4b8"
+    },
+    {
+      "path": "src/server/routes/characters.ts",
+      "sha256": "b6e40b3c919e958e53d5566481c1f007e74468a94b89fbf8da02772f0a72f526"
+    },
+    {
+      "path": "src/client/services/character-worldbook.api.ts",
+      "sha256": "f6d088c6662a0fd4b13814d6c91749c32212606998e629ffea96acc2ea1164a5"
+    },
+    {
+      "path": "src/client/components/worldbook/CharacterWorldbookBindings.vue",
+      "sha256": "6568bb2acda862d294dfb91e91b9ee5fdfc63623be5828db5d081f02d8b920d5"
+    },
+    {
+      "path": "src/client/pages/CharacterEditor.vue",
+      "sha256": "54f0ec68fc4a850165352c328b87876d001f8783c02a4a8eec0c8d7701e67d55"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "69aa9650aea7b57f7dbc469054e56e3e5e15f65c201cd58405f5a81b82b8a67e"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "687a64cacdef95047451091e07f9fe4509763d9bde87ecd24cc84cd6850d5f21"
+    },
+    {
+      "path": "scripts/worldbook-bindings-check.mjs",
+      "sha256": "5568a11074c2fcbcc7bc1e98dab51921583ff83709c356640bc0a302f08063d9"
+    },
+    {
+      "path": "scripts/worldbook-authoring-check.mjs",
+      "sha256": "fba1836f362a780a722137059050299c0e788ccbf98d970b4af9351d5b17a937"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "2bb11c98a375f8626cd740cf19d2103ba7a7fca42d5fc4ade91b0cd658ff6926"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "09f25528b338294e55486f03aadd4bb33bb6d459001ab1490d36d02a57f2311c"
+    },
+    {
+      "path": "src/server/services/story-diagnostics.service.ts",
+      "sha256": "e75bf1113b70203f128a3548fb71d691107881e82c89cac2fcb93dcc745587c0"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "e16be1f2b5adf821c6c3417a8b573793ebe3bee7a18ef3f28fd057100140ac47"
+    },
+    {
+      "path": "src/server/routes/worldbooks.ts",
+      "sha256": "69d0593487c113df7ff086891205f6e466e65fef3dc4aaedd6024c4d873444e5"
+    },
+    {
+      "path": "src/types/worldbook-export.ts",
+      "sha256": "697bef62ef8284f904ba65557b6a7eec88d37fe30e146e8b921b950321cba532"
+    },
+    {
+      "path": "src/client/pages/WorldBookDetail.vue",
+      "sha256": "39081a2e8596e287a57803dba2bd3f2dc9a9b7ab4b5c97ee5f6f6a4c1079d8a2"
+    },
+    {
+      "path": "src/client/components/worldbook/WorldbookPurposeField.vue",
+      "sha256": "82241831da8179aa3bbf631f61e269c6fa78c0c7915a91c3b34c7ec5883edad3"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "898b6c600a987ed24b39d76411cfda3d2a1d8f5440f5b01b6cd5903c04272930"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "19a726d679f2857f8d49094b285fbed82a84bdeb4431549568c717c8ed653783"
+    }
+  ],
+  "limits": [
+    "Single character per book; no shared multi-character bindings",
+    "Only extensions.world name hints; no full dependency or script diagnosis",
+    "No source library gameplay, physical device signoff or live candidate deployment"
+  ]
+}

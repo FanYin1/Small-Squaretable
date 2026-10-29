@@ -1,0 +1,177 @@
+{
+  "date": "2026-10-23T03:16:11.759Z",
+  "result": "passed",
+  "database": "disposable PostgreSQL",
+  "backend": "current built server",
+  "model": "local deterministic beta-smoke provider; not narrative-quality validation",
+  "networkInterception": "only drop one real committed creation response; no successful API responses fabricated",
+  "fixtures": [
+    "雾海之外",
+    "晚一点开门"
+  ],
+  "checks": [
+    "same-content four-page comparison: 390/1440, dark/light; view-only creates no chats or charges",
+    "market quick start: stored default persona, distinct save, matching opening, refresh without another POST",
+    "real WebSocket generation and one ledger charge; resume and reload retain exactly the selected opening and one user/assistant turn",
+    "same-card new run creates a distinct chat without copying or deleting the original messages",
+    "identity snapshot survives persona edit/deletion, a new story uses edited identity, and the actual model request uses the original name/biography",
+    "optional identity setup cancellation does not create a chat",
+    "after a real committed POST response is dropped, reload queries its request ID and opens the original chat without another POST"
+  ],
+  "screenshots": [
+    "production-discover-390-dark.png",
+    "reference-discover-390-dark.png",
+    "production-detail-390-dark.png",
+    "reference-detail-390-dark.png",
+    "production-identity-390-dark.png",
+    "reference-identity-390-dark.png",
+    "production-library-390-dark.png",
+    "reference-library-390-dark.png",
+    "production-discover-390-light.png",
+    "reference-discover-390-light.png",
+    "production-detail-390-light.png",
+    "reference-detail-390-light.png",
+    "production-identity-390-light.png",
+    "reference-identity-390-light.png",
+    "production-library-390-light.png",
+    "reference-library-390-light.png",
+    "production-discover-1440-dark.png",
+    "reference-discover-1440-dark.png",
+    "production-detail-1440-dark.png",
+    "reference-detail-1440-dark.png",
+    "production-identity-1440-dark.png",
+    "reference-identity-1440-dark.png",
+    "production-library-1440-dark.png",
+    "reference-library-1440-dark.png",
+    "production-discover-1440-light.png",
+    "reference-discover-1440-light.png",
+    "production-detail-1440-light.png",
+    "reference-detail-1440-light.png",
+    "production-identity-1440-light.png",
+    "reference-identity-1440-light.png",
+    "production-library-1440-light.png",
+    "reference-library-1440-light.png"
+  ],
+  "sources": [
+    {
+      "path": "docs/design/exploration-demo/app.js",
+      "sha256": "b7f220fbcb51edacee24ff6169f99a990a5330dfbf5156d175ece5b2a569202f"
+    },
+    {
+      "path": "src/client/pages/Chat.vue",
+      "sha256": "3fac63aac84d34e93f044169d17ed15ef823814a2e34ec948cfc49d324e05f85"
+    },
+    {
+      "path": "src/client/pages/Market.vue",
+      "sha256": "0121e085be3b23b82c825960ab64c2f6b38de78711efdeac33820e132e649340"
+    },
+    {
+      "path": "src/client/pages/CharacterDetail.vue",
+      "sha256": "9b37e7e50e63b2664313aa5cf59dc329aa628480699dba40fef0ad5450964ee8"
+    },
+    {
+      "path": "src/client/components/layout/ExplorationLayout.vue",
+      "sha256": "8a6aadc018a4210a25793fb136875459e3dc202506e201951bac24bd979cf700"
+    },
+    {
+      "path": "src/client/components/chat/PersonaSelector.vue",
+      "sha256": "e064365ab326d293f866aac8014d965c9ffe8bab29bc287ec60229bde674c8e2"
+    },
+    {
+      "path": "src/client/components/chat/StorySaveCard.vue",
+      "sha256": "5223d1aad0d6997043373c4e12c1919c68f936bb3d7fa01754a8f6b6887b5d86"
+    },
+    {
+      "path": "src/client/styles/exploration-entry.css",
+      "sha256": "306cecaa5a640b8621f43330ade1c36152b04d4d112cd171bb4e815274070d4f"
+    },
+    {
+      "path": "src/client/main.ts",
+      "sha256": "9192d3fe1b216967567c1a577f6bf05b546e744be4b219ce390492fc2004a607"
+    },
+    {
+      "path": "src/client/router/index.ts",
+      "sha256": "939642490bc4f5b792ee99ffeb10baaf7608525fc967e11547c7adad229173ae"
+    },
+    {
+      "path": "src/client/stores/user.ts",
+      "sha256": "db63131b9e75da3464e26ba3c3dc1d1e4fabcde8e440a82d8420d762be5ac023"
+    },
+    {
+      "path": "src/server/middleware/rateLimit.ts",
+      "sha256": "c09c8602cc4409f5812140c8b9ba3c20e72bf4b5fafdbd23ca30973efd8000a3"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "2480659b9cd58dbcbabe32c519e28428681eb495f6b688ecebdd6d96bc8b0e2e"
+    },
+    {
+      "path": "scripts/exploration-entry-browser-check.mjs",
+      "sha256": "9c196b5702a6bd4fa0bc2e61d36f253d80865ed2a2892dbf0834d513e0f98234"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "c06410585faf96cd022f46a54b31b6df84848d58dc067a2fd4b0d907221e458c"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "c67cbef9096b6ed897cb3796aea8d31f8b2f972ceab456b19e6aa80129d825b8"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "1891754d2a55d73ac0a29d7284b70ec9163f694ee43e0bcb7be8163bbe170333"
+    },
+    {
+      "path": "src/types/story-identity.ts",
+      "sha256": "ad41fe44f8b2924d15fd3b52db33ae9de450a9357cc37e77514669ee3bb9bae8"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "813cccee6d1b75f117b02bc8d3d6d92817584597fd408748dc4ec5218db4fd1a"
+    },
+    {
+      "path": "src/server/services/chat.service.ts",
+      "sha256": "fb02da7824b6a782070e45a679574228d2b16257560a6f7a2b4af713167b27c4"
+    },
+    {
+      "path": "src/server/routes/chats.ts",
+      "sha256": "a87b43e4f95990e30e6073c2e9d3e7022623bd32ba9944b267cdead5c5e7c7d6"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "d2ddaee5028f130d2c84db49234166e7907a2e4fa72da764487f4fd6547a17fb"
+    },
+    {
+      "path": "src/client/composables/useStoryIdentity.ts",
+      "sha256": "b2b77d54e7b5e9c119925b74fe2e93a3982041f18f361e9dcde215ff241843aa"
+    },
+    {
+      "path": "src/client/services/chat.api.ts",
+      "sha256": "09ad4265b1aec4eba251b826b7641f871bc5f96065c4c9a2b3fa07c20e5ae236"
+    },
+    {
+      "path": "src/client/stores/chat.ts",
+      "sha256": "997d8c375b4e2dbfe1b58e0690ac84b5f800ebb301d3336fc8b11b1db77ef6c0"
+    },
+    {
+      "path": "src/db/schema/chats.ts",
+      "sha256": "c2a90b85a3717648e0ce71d0dea49bb8ec814b4d36447dcd7f2e6cdd486ce7a6"
+    },
+    {
+      "path": "src/db/migrations/0042_story_identity_snapshot.sql",
+      "sha256": "734b9210b02986c25c35f4b4409135f51d5b97d5d7d35cb311602bb3875f457c"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "scripts/chat-creation-concurrency-check.ts",
+      "sha256": "86b40d0da95959b1fb1f0c5f0177019fe74e190fed0ae456865b6684e2358274"
+    }
+  ]
+}

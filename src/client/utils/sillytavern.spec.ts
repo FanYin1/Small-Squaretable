@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest';
+import { formatCases } from '../../../scripts/fixtures/character-card-formats.mjs';
 import {
   isV2Format,
   isV3Format,
@@ -176,50 +177,20 @@ describe('readCharacterImage', () => {
   });
 });
 
-describe('readCharacterFile — magic byte detection', () => {
-  it('detects PNG with .jpg extension as PNG and falls back to image import', async () => {
-    // PNG signature + minimal IHDR + IEND (no tEXt chunk)
-    const pngSignature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-    // IHDR chunk (13 bytes data)
-    const ihdr = new Uint8Array([
-      0, 0, 0, 13, // length
-      73, 72, 68, 82, // "IHDR"
-      0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0, // 1x1 RGB
-      0x90, 0x77, 0x53, 0xDE, // CRC
-    ]);
-    // IEND chunk
-    const iend = new Uint8Array([
-      0, 0, 0, 0, // length
-      73, 69, 78, 68, // "IEND"
-      0xAE, 0x42, 0x60, 0x82, // CRC
-    ]);
-    const pngData = new Uint8Array([...pngSignature, ...ihdr, ...iend]);
-    const file = new File([pngData], 'avatar.jpg', { type: 'image/jpeg' });
+describe('readCharacterFile — shared format contract', () => {
+  beforeAll(() => vi.stubGlobal('URL', { createObjectURL: () => 'blob:synthetic-card' }));
+  afterAll(() => vi.unstubAllGlobals());
 
-    const result = await readCharacterFile(file);
-
-    // Should detect as PNG, find no character data, fall back to image import
-    expect(result.name).toBe('avatar');
-    expect(result.avatarUrl).toMatch(/^data:/);
-    expect(result.cardData.name).toBe('avatar');
-  });
-
-  it('detects JPEG by magic bytes', async () => {
-    const jpegHeader = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0]);
-    const file = new File([jpegHeader], 'photo.jpg', { type: 'image/jpeg' });
-
-    const result = await readCharacterFile(file);
-
-    expect(result.name).toBe('photo');
-    expect(result.avatarUrl).toMatch(/^data:/);
-  });
-
-  it('detects JSON content regardless of extension', async () => {
-    const json = JSON.stringify({ name: 'TestChar', description: 'A test' });
-    const file = new File([json], 'character.txt', { type: 'text/plain' });
-
-    const result = await readCharacterFile(file);
-
-    expect(result.name).toBe('TestChar');
-  });
+  for (const fixture of formatCases()) {
+    it(fixture.name, async () => {
+      const file = new File([new Uint8Array(fixture.bytes)], fixture.name);
+      if (fixture.code) {
+        await expect(readCharacterFile(file)).rejects.toMatchObject({ code: fixture.code });
+      } else {
+        const imported = await readCharacterFile(file);
+        expect(imported.cardData._squaretableImport.original).toEqual(fixture.original);
+        expect(imported.name).toBe((fixture.original.data ?? fixture.original).name);
+      }
+    });
+  }
 });

@@ -36,7 +36,17 @@ import { eventBus } from '../services/event-bus.service';
 import { notificationService } from '../services/notification.service';
 import { resolveShowNsfw } from '../services/nsfw-preference.service';
 import { canViewCharacterNsfw } from '../../db/repositories/nsfw-visibility';
-import { NotFoundError } from '../../core/errors';
+import { BadRequestError, NotFoundError } from '../../core/errors';
+import { characterWorldbookBindingsService } from '../services/character-worldbook-bindings.service';
+import { collectStorySources } from '../services/story-diagnostics.service';
+import { captureStoryContent } from '../services/story-content.service';
+import { buildStoryEntryProfile } from '../services/story-entry.service';
+import { attachStoryAdaptation, createAdapterJob, listAdapterJobs, cancelAdapterJob } from '../services/story-adapter-jobs.service';
+import { adapterRequestSchema } from '../../types/story-adapter';
+import { attachStoryPresentations, decorateCharacterPresentations } from '../services/character-presentation.service';
+import { listPresentationJobs, cancelPresentationJob } from '../services/presentation-jobs.service';
+import { changeWorldbookBindingSchema } from '../../types/character-worldbook-bindings';
+import { CharacterCardImportError, MAX_CHARACTER_FILE_BYTES, characterCardExportData, parseCharacterFile } from '../../types/character-card-import';
 
 /**
  * 按 id 直取一张卡时的 NSFW 闸（详情、Fork、导出）。
@@ -56,122 +66,23 @@ async function assertNsfwVisible(
   }
 }
 
-/**
- * Create a world book from a SillyTavern character_book embedded in card data.
- *
- * Maps the V2 character_book format to the internal world book schema and
- * creates all associated entries. Errors are caught and logged so that a
- * failure here never prevents the character from being created.
- */
-async function createCharacterWorldBook(
-  characterId: string,
-  ownerId: string,
-  characterName: string,
-  characterBook: any
-) {
-  try {
-    // Map position from SillyTavern format to internal format
-    // Supports both string formats (V1) and numeric formats (V2: 0-6)
-    const mapPosition = (pos: string | number | undefined): string => {
-      switch (pos) {
-        case 0:
-        case 'before_char':
-          return 'before';
-        case 1:
-        case 'after_char':
-          return 'after';
-        case 2:
-          return 'ANTop';
-        case 3:
-          return 'ANBottom';
-        case 4:
-          return 'atDepth';
-        case 5:
-          return 'EMTop';
-        case 6:
-          return 'EMBottom';
-        default:
-          return 'after';
-      }
-    };
-
-    // Map selective logic from SillyTavern numeric format to internal string format
-    const mapSelectiveLogic = (entry: any): string => {
-      if (entry.selective === false) {
-        return 'AND_ANY';
-      }
-      switch (entry.selectiveLogic ?? entry.selective_logic) {
-        case 0:
-          return 'AND_ANY';
-        case 1:
-          return 'AND_ALL';
-        case 2:
-          return 'NOT_ANY';
-        case 3:
-          return 'NOT_ALL';
-        default:
-          return 'AND_ANY';
-      }
-    };
-
-    // Create the world book
-    const worldBook = await worldBookRepository.create({
-      name: characterBook.name || `${characterName}'s Lorebook`,
-      scope: 'character',
-      ownerId,
-      characterId,
-      settings: {
-        budget: 25,
-        budgetCap: characterBook.token_budget ?? 0,
-        recursive: characterBook.recursive_scanning ?? false,
-        maxRecursionSteps: 0,
-        caseSensitive: false,
-        matchWholeWords: false,
-        scanDepth: characterBook.scan_depth ?? 4,
-      },
-    });
-
-    // Create entries
-    const entries = Array.isArray(characterBook.entries) ? characterBook.entries : [];
-    for (const entry of entries) {
-      // extensions.position (numeric) takes precedence over top-level position (string)
-      // This is critical for V2/V3 cards where extensions.position=4 means atDepth
-      const effectivePosition = entry.extensions?.position ?? entry.position;
-      await worldBookEntryRepository.create({
-        worldBookId: worldBook.id,
-        keys: Array.isArray(entry.keys) ? entry.keys : [],
-        keysSecondary: Array.isArray(entry.secondary_keys) ? entry.secondary_keys : [],
-        selectiveLogic: mapSelectiveLogic(entry),
-        content: entry.content ?? '',
-        comment: entry.comment || entry.name || null,
-        position: mapPosition(effectivePosition),
-        depth: entry.extensions?.depth ?? entry.depth ?? 4,
-        order: entry.insertion_order ?? 100,
-        enabled: entry.enabled ?? true,
-        constant: entry.constant ?? false,
-        probability: entry.extensions?.probability ?? entry.probability ?? 100,
-        sticky: entry.extensions?.sticky ?? entry.sticky ?? 0,
-        cooldown: entry.extensions?.cooldown ?? entry.cooldown ?? 0,
-        delay: entry.extensions?.delay ?? entry.delay ?? 0,
-        caseSensitive: entry.extensions?.case_sensitive ?? entry.case_sensitive ?? false,
-        matchWholeWords: entry.extensions?.match_whole_words ?? entry.match_whole_words ?? false,
-        preventRecursion: entry.extensions?.prevent_recursion ?? entry.prevent_recursion ?? false,
-        excludeRecursion: entry.extensions?.exclude_recursion ?? entry.exclude_recursion ?? false,
-        role: entry.extensions?.role ?? entry.role,
-      });
-    }
-
-    return worldBook;
-  } catch (error) {
-    charLogger.warn(
-      `Failed to create world book for character ${characterId}`,
-      { error: String(error) }
-    );
-    return null;
-  }
-}
 
 export const characterRoutes = new Hono();
+
+characterRoutes.get('/:id/worldbooks', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), async c => {
+  const user = c.get('user');
+  const data = await characterWorldbookBindingsService.list(c.req.valid('param').id, user.id, user.tenantId);
+  return c.json({ success: true, data });
+});
+
+characterRoutes.put('/:id/worldbooks/:bookId', authMiddleware(),
+  zValidator('param', z.object({ id: z.string().uuid(), bookId: z.string().uuid() })),
+  zValidator('json', changeWorldbookBindingSchema), async c => {
+    const user = c.get('user');
+    const { id, bookId } = c.req.valid('param');
+    const data = await characterWorldbookBindingsService.change(id, bookId, user.id, user.tenantId, c.req.valid('json'));
+    return c.json({ success: true, data });
+  });
 
 // 创建角色
 characterRoutes.post(
@@ -199,21 +110,6 @@ characterRoutes.post(
     // Invalidate relevant caches
     await cacheService.invalidateCharacter(character.id);
 
-    // Create world book from character_book if present
-    const cardData = input.cardData as Record<string, any>;
-    const characterBook = cardData?.character_book;
-    if (
-      characterBook &&
-      Array.isArray(characterBook.entries) &&
-      characterBook.entries.length > 0
-    ) {
-      await createCharacterWorldBook(
-        character.id,
-        user.id,
-        character.name,
-        characterBook
-      );
-    }
 
 
     eventBus.emit('character.created', { characterId: character.id, creatorId: user.id, name: character.name, isPublic: character.isPublic });
@@ -238,6 +134,7 @@ characterRoutes.get(
     const user = c.get('user');
     const pagination = c.req.valid('query');
     const result = await characterService.getByTenantId(user.tenantId, pagination);
+    result.items = await decorateCharacterPresentations(result.items);
 
     return c.json<ApiResponse<PaginatedResponse<Character>>>(
       {
@@ -424,7 +321,7 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
     }
 
     const imported: Array<{ id: string; name: string }> = [];
-    const failed: Array<{ filename: string; error: string }> = [];
+    const failed: Array<{ filename: string; error: string; code?: string }> = [];
 
     for (const file of fileList) {
       if (!(file instanceof File)) {
@@ -433,95 +330,12 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
       }
 
       try {
-        let cardData: Record<string, unknown>;
-        let name: string;
-        let description: string;
-        let tags: string[];
-        let avatarUrl: string | undefined;
-
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-
-        // Detect actual format by magic bytes (handles mismatched extensions like .jpg that is really PNG)
-        const isPng = buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
-        const isJpeg = buffer.length >= 3 && buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
-        const isWebp = buffer.length >= 4 && buffer.slice(0, 4).toString('ascii') === 'RIFF';
-        const isJson = file.name.endsWith('.json') || (!isPng && !isJpeg && !isWebp && (buffer[0] === 0x7B || buffer[0] === 0x5B));
-
-        if (isJson) {
-          // Parse JSON character card
-          const text = buffer.toString('utf-8');
-          const parsed = JSON.parse(text);
-
-          // Handle V2 format — unwrap .data so fields are at top level
-          const data = parsed.data || parsed;
-          name = data.name || parsed.name || file.name.replace('.json', '');
-          description = data.description || parsed.description || '';
-          tags = data.tags || parsed.tags || [];
-          cardData = data;
-          avatarUrl = data.avatar || undefined;
-
-        } else if (isPng) {
-          // Try to extract JSON from PNG tEXt chunk
-          let pos = 8;
-          let found = false;
-          while (pos < buffer.length) {
-            const chunkLength = buffer.readUInt32BE(pos);
-            const chunkType = buffer.slice(pos + 4, pos + 8).toString('ascii');
-
-            if (chunkType === 'tEXt' || chunkType === 'iTXt') {
-              const chunkData = buffer.slice(pos + 8, pos + 8 + chunkLength);
-              const nullIdx = chunkData.indexOf(0);
-              if (nullIdx > 0) {
-                const keyword = chunkData.slice(0, nullIdx).toString('ascii');
-                if (keyword === 'chara') {
-                  const base64Data = chunkData.slice(nullIdx + 1).toString('ascii');
-                  const jsonStr = Buffer.from(base64Data, 'base64').toString('utf-8');
-                  const parsed = JSON.parse(jsonStr);
-                  const data = parsed.data || parsed;
-                  name = data.name || parsed.name || file.name.replace(/\.[^.]+$/, '');
-                  description = data.description || parsed.description || '';
-                  tags = data.tags || parsed.tags || [];
-                  cardData = data;
-                  avatarUrl = `data:image/png;base64,${buffer.toString('base64')}`;
-                  found = true;
-                  break;
-                }
-              }
-            }
-
-            if (chunkType === 'IEND') break;
-            pos += 12 + chunkLength;
-          }
-
-          if (!found) {
-            // PNG without character data — treat as image-only import
-            avatarUrl = `data:image/png;base64,${buffer.toString('base64')}`;
-            name = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').trim() || 'Imported Character';
-            description = '';
-            tags = [];
-            cardData = { name, description: '', personality: '', scenario: '', first_mes: '', mes_example: '' };
-          }
-        } else if (isJpeg || isWebp) {
-          // Image-only import: use as avatar, derive name from filename
-          const mime = isJpeg ? 'image/jpeg' : 'image/webp';
-          avatarUrl = `data:${mime};base64,${buffer.toString('base64')}`;
-          name = file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').trim() || 'Imported Character';
-          description = '';
-          tags = [];
-          cardData = { name, description: '', personality: '', scenario: '', first_mes: '', mes_example: '' };
-        } else {
-          failed.push({ filename: file.name, error: 'Unsupported file format (use .json, .png, .jpg or .webp)' });
-          continue;
-        }
-
-        // Create character
+        if (file.size > MAX_CHARACTER_FILE_BYTES) throw new CharacterCardImportError('FILE_TOO_LARGE');
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const parsed = await parseCharacterFile(buffer);
         const validationResult = createCharacterSchema.safeParse({
-          name: name! || 'Unnamed',
-          description: description! || '',
-          avatarUrl: avatarUrl || undefined,
-          cardData: cardData! || {},
-          tags: Array.isArray(tags!) ? tags!.slice(0, 100) : [],
+          ...parsed.character,
+          avatarUrl: parsed.format === 'png' ? `data:image/png;base64,${buffer.toString('base64')}` : parsed.character.avatarUrl,
           isNsfw: false,
         });
 
@@ -537,7 +351,11 @@ characterRoutes.post('/import/batch', authMiddleware(), async (c) => {
 
         imported.push({ id: character.id, name: character.name });
       } catch (err) {
-        failed.push({ filename: file.name, error: String(err) });
+        failed.push({
+          filename: file.name,
+          error: err instanceof CharacterCardImportError || err instanceof BadRequestError ? err.message : 'Failed to import character',
+          ...(err instanceof CharacterCardImportError ? { code: err.code } : {}),
+        });
       }
     }
 
@@ -577,7 +395,7 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
 
         const safeName = character.name.replace(/[^a-zA-Z0-9_-]/g, '_');
         const rawCardData = (character.cardData as Record<string, unknown>) || {};
-        const batchHasV3Fields = rawCardData.alternate_greetings
+        const batchHasV3Fields = rawCardData.spec === 'chara_card_v3' || rawCardData.alternate_greetings
           || rawCardData.creator_notes_multilingual
           || rawCardData.assets
           || rawCardData.source
@@ -586,7 +404,7 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
         if (format === 'png') {
           const { embedJsonInPng, avatarToBuffer } = await import('../utils/png-embed');
           const cardData: Record<string, unknown> = {
-            ...rawCardData,
+            ...characterCardExportData(rawCardData),
             name: character.name,
             description: character.description || '',
             tags: character.tags || [],
@@ -605,7 +423,7 @@ characterRoutes.post('/export/batch', authMiddleware(), zValidator('json', batch
           results.push({ name: `${safeName}.png`, data: result });
         } else {
           const cardData: Record<string, unknown> = {
-            ...rawCardData,
+            ...characterCardExportData(rawCardData),
             name: character.name,
             description: character.description || '',
             tags: character.tags || [],
@@ -739,6 +557,81 @@ characterRoutes.post('/batch-tags', authMiddleware(), async (c) => {
 });
 
 // 获取单个角色
+characterRoutes.get('/:id/story-entry', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), async context => {
+  const user = context.get('user');
+  const id = context.req.valid('param').id;
+  const character = await characterService.getById(id);
+  if (!((character.creatorId === user.id && character.tenantId === user.tenantId)
+    || (character.isPublic && character.moderationStatus === 'approved'))) throw new NotFoundError('Character');
+  await assertNsfwVisible(character, user.id);
+  const profile = await db.transaction(async transaction => {
+    const sources = await collectStorySources(transaction, [id]);
+    const content = captureStoryContent([id], user.id, sources);
+    await attachStoryAdaptation(transaction, content, sources);
+    await attachStoryPresentations(transaction, content, sources);
+    return buildStoryEntryProfile(content, sources);
+  }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
+  context.header('Cache-Control', 'no-store');
+  return context.json({ success: true, data: profile });
+});
+
+characterRoutes.get('/:id/presentation-jobs', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), async context => {
+  const user = context.get('user');
+  const data = await listPresentationJobs(context.req.valid('param').id, user.id, user.tenantId);
+  context.header('Cache-Control', 'no-store');
+  return context.json({ success: true, data });
+});
+
+characterRoutes.post('/:id/presentation-jobs/:jobId/cancel', authMiddleware(),
+  zValidator('param', z.object({ id: z.string().uuid(), jobId: z.string().uuid() })), async context => {
+    const user = context.get('user');
+    const { id, jobId } = context.req.valid('param');
+    const data = await cancelPresentationJob(id, jobId, user.id, user.tenantId);
+    context.header('Cache-Control', 'no-store');
+    return context.json({ success: true, data });
+  });
+
+characterRoutes.get('/:id/adaptations', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), async context => {
+  const user = context.get('user');
+  const data = await listAdapterJobs(context.req.valid('param').id, user.id, user.tenantId);
+  context.header('Cache-Control', 'no-store');
+  return context.json({ success: true, data });
+});
+
+characterRoutes.post('/:id/adaptations', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })),
+  zValidator('json', adapterRequestSchema), async context => {
+    const user = context.get('user');
+    const data = await createAdapterJob(context.req.valid('param').id, user.id, user.tenantId, context.req.valid('json').requestId);
+    context.header('Cache-Control', 'no-store');
+    return context.json({ success: true, data }, 202);
+  });
+
+characterRoutes.post('/:id/adaptations/:jobId/cancel', authMiddleware(),
+  zValidator('param', z.object({ id: z.string().uuid(), jobId: z.string().uuid() })), async context => {
+    const user = context.get('user');
+    const { id, jobId } = context.req.valid('param');
+    const data = await cancelAdapterJob(id, jobId, user.id, user.tenantId);
+    context.header('Cache-Control', 'no-store');
+    return context.json({ success: true, data });
+  });
+
+characterRoutes.get('/:id/compatibility', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), async context => {
+  const user = context.get('user');
+  const character = await characterService.getById(context.req.valid('param').id);
+  if (!((character.creatorId === user.id && character.tenantId === user.tenantId)
+    || (character.isPublic && character.moderationStatus === 'approved'))) throw new NotFoundError('Character');
+  await assertNsfwVisible(character, user.id);
+  const diagnostics = await db.transaction(async transaction => {
+    const sources = await collectStorySources(transaction, [character.id]);
+    const content = captureStoryContent([character.id], user.id, sources);
+    await attachStoryAdaptation(transaction, content, sources);
+    const profile = buildStoryEntryProfile(content, sources);
+    return { ...content.characters[0].diagnostics!, ...(profile.adaptation ? { adaptation: profile.adaptation } : {}) };
+  }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
+  context.header('Cache-Control', 'no-store');
+  return context.json({ success: true, data: diagnostics });
+});
+
 characterRoutes.get('/:id', authMiddleware(), async (c) => {
   const user = c.get('user');
   const characterId = c.req.param('id');
@@ -763,7 +656,7 @@ characterRoutes.get('/:id', authMiddleware(), async (c) => {
     return c.json<ApiResponse>(
       {
         success: true,
-        data: cached,
+        data: (await decorateCharacterPresentations([cached]))[0],
         meta: { timestamp: new Date().toISOString() },
       },
       200
@@ -793,7 +686,7 @@ characterRoutes.get('/:id', authMiddleware(), async (c) => {
   return c.json<ApiResponse>(
     {
       success: true,
-      data: character,
+      data: (await decorateCharacterPresentations([character]))[0],
       meta: { timestamp: new Date().toISOString() },
     },
     200
@@ -810,34 +703,17 @@ characterRoutes.patch(
     const characterId = c.req.param('id');
     const input = c.req.valid('json');
 
-    // Auto-save version before update
-    try {
-      const current = await characterService.getById(characterId);
-      if (current.cardData) {
-        await characterVersionService.saveVersion(characterId, current.cardData as Record<string, unknown>, user.id, 'Auto-save before edit');
-      }
-    } catch (e) {
-      // Don't block the update if version save fails
-      charLogger.warn('Failed to auto-save version', { characterId, error: e });
-    }
-
     // Check if user is owner; if not, check if they are an editor collaborator
     const existing = await characterService.getById(characterId);
     const isOwner = existing.creatorId === user.id;
 
+    if (existing.tenantId !== user.tenantId) {
+      return c.json<ApiResponse>(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' }, meta: { timestamp: new Date().toISOString() } },
+        403
+      );
+    }
     if (!isOwner) {
-      // Verify collaborator is in the same tenant
-      if (existing.tenantId !== user.tenantId) {
-        return c.json<ApiResponse>(
-          {
-            success: false,
-            error: { code: 'FORBIDDEN', message: 'Forbidden' },
-            meta: { timestamp: new Date().toISOString() },
-          },
-          403
-        );
-      }
-
       const collaborator = await db.select().from(characterCollaborators)
         .where(and(
           eq(characterCollaborators.characterId, characterId),
@@ -856,6 +732,14 @@ characterRoutes.patch(
           403
         );
       }
+    }
+
+    try {
+      if (existing.cardData) {
+        await characterVersionService.saveVersion(characterId, existing.cardData as Record<string, unknown>, user.id, 'Auto-save before edit');
+      }
+    } catch (error) {
+      charLogger.warn('Failed to auto-save version', { characterId, error });
     }
 
     // Owner uses the service; collaborator bypasses ownership check via direct update
@@ -987,21 +871,6 @@ characterRoutes.post('/:id/fork', authMiddleware(), async (c) => {
   // Invalidate marketplace cache as it affects download count
   await cacheService.invalidateMarketplace();
 
-  // Create world book from character_book if present in forked character's card data
-  const cardData = character.cardData as Record<string, any> | null;
-  const characterBook = cardData?.character_book;
-  if (
-    characterBook &&
-    Array.isArray(characterBook.entries) &&
-    characterBook.entries.length > 0
-  ) {
-    await createCharacterWorldBook(
-      character.id,
-      user.id,
-      character.name,
-      characterBook
-    );
-  }
 
   // Notify the original character creator about the fork
   try {
@@ -1465,14 +1334,14 @@ characterRoutes.get('/:id/export/json', authMiddleware(), async (c) => {
 
   const rawCardData = (character.cardData as Record<string, unknown>) || {};
 
-  const hasV3Fields = rawCardData.alternate_greetings
+  const hasV3Fields = rawCardData.spec === 'chara_card_v3' || rawCardData.alternate_greetings
     || rawCardData.creator_notes_multilingual
     || rawCardData.assets
     || rawCardData.source
     || rawCardData.group_only_greetings;
 
   const cardData: Record<string, unknown> = {
-    ...rawCardData,
+    ...characterCardExportData(rawCardData),
     name: character.name,
     description: character.description || '',
     tags: character.tags || [],
@@ -1514,14 +1383,14 @@ characterRoutes.get('/:id/export/png', optionalAuthMiddleware(), async (c) => {
     // Build SillyTavern format card data
     const rawCardData = (character.cardData as Record<string, unknown>) || {};
 
-    const hasV3Fields = rawCardData.alternate_greetings
+    const hasV3Fields = rawCardData.spec === 'chara_card_v3' || rawCardData.alternate_greetings
       || rawCardData.creator_notes_multilingual
       || rawCardData.assets
       || rawCardData.source
       || rawCardData.group_only_greetings;
 
     const cardData: Record<string, unknown> = {
-      ...rawCardData,
+      ...characterCardExportData(rawCardData),
       name: character.name,
       description: character.description || '',
       tags: character.tags || [],

@@ -10,14 +10,15 @@ import { errorHandler } from '../middleware/error-handler';
 
 vi.mock('../../db/index', () => ({ db: {} }));
 
-const { mockSummary, mockLedger, cfg } = vi.hoisted(() => ({
+const { mockSummary, mockLedger, mockActivity, cfg } = vi.hoisted(() => ({
   mockSummary: vi.fn(),
   mockLedger: vi.fn(),
+  mockActivity: vi.fn(),
   cfg: { billingMode: 'credits', creditTokensPerPoint: 10000 },
 }));
 
 vi.mock('../services/credit.service', () => ({
-  creditService: { getSummary: mockSummary, listLedger: mockLedger },
+  creditService: { getSummary: mockSummary, listLedger: mockLedger, getActivity: mockActivity },
 }));
 
 vi.mock('../../core/config', () => ({ config: cfg }));
@@ -175,6 +176,48 @@ describe('GET /ledger', () => {
     expect(res.status).toBe(400);
     expect(mockLedger).not.toHaveBeenCalled();
   });
+
+  it('按故事筛选时仍只查询认证租户，忽略伪造的租户参数', async () => {
+    const chatId = 'bc1393a4-846d-4dc1-8460-01c9109a1401';
+    const response = await app.request(`${BASE}/ledger?chatId=${chatId}&tenantId=another-tenant`);
+    expect(response.status).toBe(200);
+    expect(mockLedger).toHaveBeenCalledWith('tenant-1', { page: 1, limit: 20, chatId });
+  });
+
+  it('拒绝非法故事筛选', async () => {
+    expect((await app.request(`${BASE}/ledger?chatId=invalid`)).status).toBe(400);
+    expect(mockLedger).not.toHaveBeenCalled();
+  });
+});
+
+describe('period activity', () => {
+  const range = { from: '2026-10-01T00:00:00Z', to: '2026-10-26T00:00:00Z' };
+
+  it('uses authenticated tenant for both summary and filtered ledger', async () => {
+    mockActivity.mockResolvedValue({ ...range, spentPoints: 1, inputTokens: null });
+    const query = new URLSearchParams({ ...range, tenantId: 'forged', kind: 'charge' });
+    expect((await app.request(`${BASE}/activity?${query}`)).status).toBe(200);
+    expect(mockActivity).toHaveBeenCalledWith('tenant-1', range);
+    expect((await app.request(`${BASE}/ledger?${query}`)).status).toBe(200);
+    expect(mockLedger).toHaveBeenCalledWith('tenant-1', { ...range, kind: 'charge', page: 1, limit: 20 });
+  });
+
+  it.each(['', 'from=2026-10-01T00:00:00Z', 'from=invalid&to=invalid', 'from=2026-10-01T00:00:00Z&to=2026-10-01T00:00:00Z', 'from=2024-01-01T00:00:00Z&to=2026-01-01T00:00:00Z'])('rejects invalid required range %s', async query => {
+    expect((await app.request(`${BASE}/activity?${query}`)).status).toBe(400);
+    expect(mockActivity).not.toHaveBeenCalled();
+  });
+
+  it.each(['kind=other', 'from=2026-10-01T00:00:00Z', 'to=2026-10-01T00:00:00Z'])('rejects invalid ledger filter %s', async query => {
+    expect((await app.request(`${BASE}/ledger?${query}`)).status).toBe(400);
+    expect(mockLedger).not.toHaveBeenCalled();
+  });
+
+  it.each([{ inputTokens: 2 }, { inputTokens: -1, outputTokens: 0 }, { inputTokens: '3', outputTokens: 2 }, { inputTokens: 1.5, outputTokens: 2 }])('omits incomplete or invalid usage %j', async metadata => {
+    mockLedger.mockResolvedValue({ items: [{ id: 'bad', kind: 'charge', amount: -100, metadata }], total: 1 });
+    const { data } = await (await app.request(`${BASE}/ledger`)).json();
+    expect(data.items[0]).not.toHaveProperty('inputTokens');
+    expect(data.items[0]).not.toHaveProperty('outputTokens');
+  });
 });
 
 describe('没有写入口', () => {
@@ -182,6 +225,7 @@ describe('没有写入口', () => {
     const responses = await Promise.all([
       app.request(`${BASE}/balance`, { method }),
       app.request(`${BASE}/ledger`, { method }),
+      app.request(`${BASE}/activity`, { method }),
     ]);
 
     for (const res of responses) expect(res.status).toBe(404);

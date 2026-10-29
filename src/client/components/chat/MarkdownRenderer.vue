@@ -2,7 +2,7 @@
   <div class="markdown-content">
     <template v-for="(seg, i) in displaySegments" :key="i">
       <div v-if="seg.type === 'markdown'" v-html="seg.html" @click="handleContentClick"></div>
-      <SandboxedHtml v-else :html="seg.html" :variables="eraVars" />
+      <SandboxedHtml v-else :html="seg.html" :interactive="interactiveHtml" :variables="interactiveHtml ? eraVars : undefined" />
     </template>
   </div>
 </template>
@@ -10,11 +10,13 @@
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { marked, Renderer } from 'marked';
+import { Renderer } from 'marked';
+import { createStoryMarkdown } from '@client/utils/story-markdown';
 import DOMPurify from 'dompurify';
 import { applyMarkdownOnlyScripts, type RegexScript } from '@client/utils/regex-scripts';
 import SandboxedHtml from './SandboxedHtml.vue';
 import { eraVariables as eraVars } from '@client/utils/era-bridge';
+import { stripStoryControlBlocks } from '@client/utils/story-display';
 
 // Configure DOMPurify hook to sanitize dangerous CSS in style attributes
 DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
@@ -86,6 +88,7 @@ interface Props {
   content: string;
   streaming?: boolean;
   regexScripts?: RegexScript[];
+  interactiveHtml?: boolean;
 }
 
 interface ContentSegment {
@@ -95,6 +98,7 @@ interface ContentSegment {
 
 const props = withDefaults(defineProps<Props>(), {
   streaming: false,
+  interactiveHtml: false,
 });
 
 const { t } = useI18n();
@@ -117,6 +121,8 @@ renderer.code = function ({ text, lang }: { text: string; lang?: string }) {
     <pre><code class="hljs${language ? ` language-${language}` : ''}">${highlighted}</code></pre>
   </div>`;
 };
+
+const markdown = createStoryMarkdown({ renderer, breaks: true, gfm: true });
 
 function handleContentClick(event: MouseEvent): void {
   const btn = (event.target as HTMLElement).closest('.code-copy-btn') as HTMLElement | null;
@@ -157,10 +163,7 @@ function closeUnfinishedCodeBlocks(text: string): string {
 }
 
 function renderMarkdown(content: string): string {
-  let text = content;
-
-  // Strip ERA framework XML blocks that are functional, not display content
-  text = text.replace(/<(?:VariableInsert|VariableEdit|VariableDelete|era_data|variablethink)[\s>][\s\S]*?<\/(?:VariableInsert|VariableEdit|VariableDelete|era_data|variablethink)>/gi, '');
+  let text = stripStoryControlBlocks(content);
 
   // KaTeX preprocessing: replace math expressions BEFORE marked processes them
   // Block math: $$...$$
@@ -181,7 +184,7 @@ function renderMarkdown(content: string): string {
     }
   });
 
-  const html = marked.use({ renderer, breaks: true, gfm: true }).parse(text) as string;
+  const html = markdown.parse(text, { async: false });
 
   return DOMPurify.sanitize(html, {
     ADD_TAGS: ['button', 'details', 'summary'],
@@ -267,7 +270,7 @@ function extractHtmlDocuments(text: string): ContentSegment[] {
  */
 function processContent(content: string, regexScripts?: RegexScript[]): ContentSegment[] {
   // Apply markdownOnly regex_scripts
-  let text = applyMarkdownOnlyScripts(content, regexScripts);
+  const text = stripStoryControlBlocks(applyMarkdownOnlyScripts(content, regexScripts));
 
   // Check if regex_scripts produced any HTML documents
   const segments = extractHtmlDocuments(text);

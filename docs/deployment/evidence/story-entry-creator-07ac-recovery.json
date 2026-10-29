@@ -1,0 +1,150 @@
+{
+  "date": "2026-10-25T14:28:52.756Z",
+  "result": "passed",
+  "database": "disposable PostgreSQL",
+  "backend": "current built server",
+  "model": "controlled local provider; not real narrative quality",
+  "networkInterception": "real WebSocket server; drop commit acknowledgements and delay other-tab frames; no success responses fabricated",
+  "checks": [
+    {
+      "case": "EX-09 committed turn acknowledgements lost",
+      "result": "passed",
+      "dropped": [
+        "assistant_message_done",
+        "generation_finished"
+      ],
+      "sends": 1,
+      "providerStreams": 1,
+      "persisted": {
+        "version": 1,
+        "values": {
+          "seal": false,
+          "coins": 100,
+          "permit": true,
+          "source": null,
+          "location": "harbor"
+        },
+        "messages": 2,
+        "events": 1,
+        "requests": 1,
+        "charges": 1,
+        "tokens": -120
+      }
+    },
+    {
+      "case": "EX-09 explicit replay after reconnect",
+      "result": "passed",
+      "stateEventsMessagesAndChargesUnchanged": true,
+      "providerStreamsUnchanged": true
+    },
+    {
+      "case": "EX-10 stale action from a delayed second tab",
+      "result": "passed",
+      "draftPreserved": true,
+      "unsafeRetryHidden": true,
+      "rejectedBeforeGenerationOrCharge": true
+    },
+    {
+      "case": "EX-10 explicit fresh action and reload",
+      "result": "passed",
+      "newRequestAndCurrentVersion": true,
+      "otherStoryUnchanged": true,
+      "persisted": {
+        "version": 2,
+        "values": {
+          "seal": false,
+          "coins": 100,
+          "permit": true,
+          "source": null,
+          "location": "lighthouse"
+        },
+        "messages": 4,
+        "events": 2,
+        "requests": 2,
+        "charges": 2,
+        "tokens": -240
+      }
+    },
+    {
+      "case": "EX-09 reconnect while generation is still running",
+      "result": "passed",
+      "completeSavedReplyDisplayed": true,
+      "automaticResends": 0,
+      "providerStreams": 1,
+      "persisted": {
+        "version": 3,
+        "values": {
+          "seal": false,
+          "coins": 100,
+          "permit": true,
+          "source": null,
+          "location": "lighthouse"
+        },
+        "messages": 6,
+        "events": 3,
+        "requests": 3,
+        "charges": 3,
+        "tokens": -360
+      }
+    },
+    {
+      "case": "EX-08 output limit keeps an interrupted fragment without confirming a purchase",
+      "result": "passed",
+      "confirmedStateUnchanged": true,
+      "noMemoryProgress": true,
+      "noUnsafeRetry": true,
+      "chargedOnce": true,
+      "preservedAfterReload": true,
+      "providerStreams": 1,
+      "persisted": {
+        "version": 1,
+        "values": {
+          "seal": false,
+          "coins": 120,
+          "permit": false,
+          "source": null,
+          "location": "harbor"
+        },
+        "messages": 2,
+        "events": 1,
+        "requests": 1,
+        "charges": 1,
+        "tokens": -120
+      }
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/exploration-recovery-check.mjs",
+      "sha256": "8238449604670e7e90dcf077c3ff040cca77b22ff4f7a2f14e21061cb8b49797"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "b503680ddb1b2194380a375481fa8a027056805ab6d6b53ba378157dfa8ee831"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "d79b82150e87b7e090f2d09b545a82310f8444d93ad271aff7683d88cb25bc0b"
+    },
+    {
+      "path": "src/client/stores/chat.ts",
+      "sha256": "216c847bfad245a76adca2afb787a0691fcfb4ee5c7c75da2f6c23f6c9e9d611"
+    },
+    {
+      "path": "src/client/composables/useStoryState.ts",
+      "sha256": "ccd3a74e5f6a887627dc9b6ab0d0b67195a96e40cf9e758ca20035f903914887"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "7328982c64c64c3630a2582f527a29ef56306af4b5d481fd037cf158c6023310"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "5d4e29954bd8671d6c5a68af6c34c09171a6924dec4c73d848e41464bc34dd94"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "621eda5df8ec52ca6eb8c70d5162e80a750af5ed63a46db06682fd685f8d2748"
+    }
+  ]
+}

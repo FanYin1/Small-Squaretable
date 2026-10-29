@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-27",
+  "result": "passed-with-stated-scope",
+  "scope": "Offline administrative transfer state replay and original reviewed-card recovery/continuation; not new card compatibility or live-model acceptance",
+  "unitTests": { "newTransferState": 14, "existingPresentationTransfer": 3, "existingPrefixAndOriginalRitual": 41, "total": 58 },
+  "isolated": { "containers": 3, "restoredPublicTables": 76, "restoreBehaviorGroups": 22, "evidenceGuards": 14, "corruptionProbes": 2, "transferGroups": 31, "memoryGroups": 76, "reference": "backups/exploration/ritual-transfer-20261027/report.json" },
+  "sample": { "name": "kakaa.png", "sha256": "f11040eeb4ac883009ebb51cb9d3b1a2702f36da19d3b9a9600aa218d57c411e", "turnEffect": "kakaa-ritual-v1", "transferredParent": [6, 9, 12], "independentBranch": [3, 6], "liveModel": false },
+  "deployment": { "changed": false, "delivery": "workspace administrative tool", "newMigrations": 0, "candidate3081": "small-squaretable:exploration-20261027-ritual", "productionStoryImports": 0 },
+  "paidCalls": 0,
+  "pointChanges": 0,
+  "failedAttempt": { "reference": "backups/exploration/ritual-transfer-20261027/first-attempt-failure.log", "reason": "Fixture exported ritual bundle after deletion journal capture; corrected fixture ordering without relaxing journal freshness" },
+  "remaining": ["AD-3 additional source-backed mechanics", "AD-5 live-model gameplay", "four user cards sustained mechanics", "EXP-07D-LOAD", "human acceptance"],
+  "sources": [
+    {"path":"scripts/story-transfer-state.mjs","sha256":"aed8b8dde4204de9ec73266d6edb372fd7d281ec89882050ccbeceb804c241e2"},
+    {"path":"scripts/story-transfer-state.test.mjs","sha256":"cfdf36735144ba8a5fe1faf03735d6fc510af4e68927a0366711d6344c5db82a"},
+    {"path":"scripts/story-transfer-format.mjs","sha256":"d63ba270124c5aafc6f0d4467e999fa6c8bfb4289cdb38ba3f1fd574a572003e"},
+    {"path":"scripts/story-transfer-fixture.mjs","sha256":"2fde8c9ab385ff84e45fec00493e2ca6ab30658d7e09bf7e4a345a56ef7f1200"},
+    {"path":"scripts/story-ritual-transfer-check.mjs","sha256":"85186b47b6601cc2fc9c5b08ce817d357ad450d049398b3d1f8a38ce06151e1e"},
+    {"path":"scripts/story-restore-fixture.mjs","sha256":"829ccdec8bb84b586d83749f92a399361caef4b9a457571b7ef232f3e2304427"},
+    {"path":"scripts/story-nonempty-restore-check.mjs","sha256":"1a61b5df246158db69d456ab4bf1c85d1707070b5f020465a8265ede7bab0cba"}
+  ]
+}

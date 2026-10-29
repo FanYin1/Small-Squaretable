@@ -2,7 +2,7 @@
  * P3-3：reservedTokens 与「变动块不被截断」
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 
 vi.mock('../config/llm.config', () => ({
   getModelMeta: vi.fn(() => ({ id: 'm', provider: 'test', contextWindow: 1200, maxOutputTokens: 100, defaultTemperature: 0.7 })),
@@ -14,8 +14,13 @@ vi.mock('./logger.service', () => ({
 
 import { ContextManager, type LLMMessage } from './context-manager.service';
 import { countTokens } from '../utils/tokens';
+import { getModelMeta } from '../config/llm.config';
+import { ContextBudgetError, estimateContextMessages } from './context-budget';
 
 const manager = new ContextManager();
+const capacity = (available: number) => vi.mocked(getModelMeta).mockReturnValue({ id: 'm', provider: 'test',
+  contextWindow: available + 200, maxOutputTokens: 100, defaultTemperature: 0.7 });
+beforeEach(() => capacity(1000));
 
 function history(count: number): LLMMessage[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -79,5 +84,101 @@ describe('ContextManager reservedTokens (P3-3)', () => {
       { depth: 99, content: 'D99', role: 'system' },
     ]);
     expect(out.map((m) => m.content)).toEqual(['s', 'D99', 'u1', 'a1', 'D1a', 'D1b', 'u2', 'D0']);
+  });
+});
+
+describe('protected story context', () => {
+  it('refuses oversized identity/state/notes instead of sending an oversized request', () => {
+    capacity(200);
+    expect(() => manager.buildContext('状态与约定'.repeat(100), [{ role: 'user', content: '继续' }], 'm'))
+      .toThrow(ContextBudgetError);
+  });
+
+  it('never drops the latest player input to make space for older content', () => {
+    capacity(200);
+    const messages: LLMMessage[] = [{ role: 'user', content: '过去', pinned: true },
+      { role: 'assistant', content: '旧回复' }, { role: 'user', content: '当前选择'.repeat(80) }];
+    expect(() => manager.buildContext('sys', messages, 'm')).toThrow(expect.objectContaining({ details: expect.objectContaining({ reason: 'latest' }) }));
+  });
+
+  it('refuses oversized pinned turns without clipping pins or their source input', () => {
+    capacity(220);
+    const messages: LLMMessage[] = [{ role: 'user', content: '此前约定'.repeat(50) },
+      { role: 'assistant', content: '确认', pinned: true }, { role: 'user', content: '继续' }];
+    expect(() => manager.buildContext('sys', messages, 'm')).toThrow(expect.objectContaining({ details: expect.objectContaining({ reason: 'pinned' }) }));
+  });
+
+  it('reserves all injected material and its envelope before selecting history', () => {
+    const entries = [{ role: 'system' as const, content: '世界书常识与风格'.repeat(12), depth: 1 },
+      { role: 'system' as const, content: '本次会面约定'.repeat(10), depth: 0 }];
+    const messages = history(30);
+    const selected = manager.buildContext('冻结身份与状态', messages, 'm', estimateContextMessages(entries));
+    const actual = manager.injectAtDepth(selected.messages, entries);
+    expect(selected.truncated).toBe(true);
+    expect(estimateContextMessages(actual) + 2).toBeLessThanOrEqual(1000);
+    for (const entry of entries) expect(actual.some(message => message.content === entry.content)).toBe(true);
+    expect(actual.some(message => message.content === messages.at(-1)?.content)).toBe(true);
+  });
+
+  it('keeps a selected assistant reply with its user input, including grouped replies', () => {
+    capacity(260);
+    const messages: LLMMessage[] = [{ role: 'user', content: '旧问题'.repeat(100), messageId: 1 },
+      { role: 'assistant', content: '旧答案', messageId: 2 }, { role: 'user', content: '新问题', messageId: 3 },
+      { role: 'assistant', content: '角色甲回复', messageId: 4 }, { role: 'assistant', content: '角色乙回复', messageId: 5 }];
+    const result = manager.buildContext('sys', messages, 'm');
+    expect(result.messages.filter(message => message.messageId).map(message => message.messageId)).toEqual([3, 4, 5]);
+    expect(result.truncatedCount).toBe(2);
+  });
+
+  it('restores chronological order after choosing important older turns', () => {
+    capacity(360);
+    const messages: LLMMessage[] = Array.from({ length: 30 }, (_, index) => ({
+      role: index % 2 === 0 ? 'user' : 'assistant', messageId: index + 1,
+      content: index < 10 ? 'older '.repeat(16) : 'recent', importance: index >= 8 && index < 10 ? 10 : index < 4 ? 9 : 1,
+    }));
+    const result = manager.buildContext('sys', messages, 'm');
+    const identifiers = result.messages.flatMap(message => message.messageId ? [message.messageId] : []);
+    expect(result.truncated).toBe(true);
+    expect(identifiers.some(identifier => identifier <= 10)).toBe(true);
+    expect(identifiers).toEqual([...identifiers].sort((left, right) => left - right));
+    expect(identifiers.slice(-20)).toEqual(Array.from({ length: 20 }, (_, index) => index + 11));
+  });
+
+  it('retains full content when it fits and does not mutate the stored input', () => {
+    const messages: LLMMessage[] = [{ role: 'assistant', content: '开场', messageId: 1 },
+      { role: 'user', content: '约定', messageId: 2 }, { role: 'assistant', content: '风格', pinned: true, messageId: 3 }];
+    const before = structuredClone(messages);
+    const result = manager.buildContext('身份', messages, 'm');
+    expect(result.messages.slice(1)).toEqual(messages);
+    expect(result.truncated).toBe(false);
+    expect(messages).toEqual(before);
+  });
+
+  it('maintains budget, pin, turn and ordering invariants across mixed histories', () => {
+    let successes = 0;
+    let rejections = 0;
+    for (let scenario = 0; scenario < 40; scenario++) {
+      const budget = 220 + scenario * 20;
+      capacity(budget);
+      const messages: LLMMessage[] = Array.from({ length: 36 }, (_, index) => ({ role: index % 2 ? 'assistant' : 'user',
+        content: '事实'.repeat(1 + (index * 19 + scenario * 7) % 60), messageId: index + 1,
+        importance: (index * 7) % 10, pinned: index === 5 || index === 14 }));
+      const snapshot = structuredClone(messages);
+      try {
+        const result = manager.buildContext('身份与确认状态', messages, 'm', 20);
+        const identifiers = result.messages.flatMap(message => message.messageId ? [message.messageId] : []);
+        expect(estimateContextMessages(result.messages) + 2 + 20).toBeLessThanOrEqual(budget);
+        expect(identifiers).toEqual([...identifiers].sort((left, right) => left - right));
+        expect(identifiers).toEqual(expect.arrayContaining([5, 6, 15, 16, 35, 36]));
+        for (const identifier of identifiers.filter(identifier => identifier % 2 === 0)) expect(identifiers).toContain(identifier - 1);
+        successes++;
+      } catch (error) {
+        if (!(error instanceof ContextBudgetError)) throw error;
+        rejections++;
+      }
+      expect(messages).toEqual(snapshot);
+    }
+    expect(successes).toBeGreaterThan(0);
+    expect(rejections).toBeGreaterThan(0);
   });
 });

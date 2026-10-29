@@ -5,8 +5,11 @@
  */
 
 import { api } from './api';
+import type { CreditActivity, CreditLedgerFilters, CreditRange } from '../../types/credit-activity';
+export type { CreditActivity } from '../../types/credit-activity';
 
 export interface CreditBalance {
+  unlimited?: boolean;
   /** subscription 时前端不展示点数 */
   billingMode: 'subscription' | 'credits';
   tokensPerPoint: number;
@@ -45,7 +48,9 @@ export interface CreditLedgerResponse {
 export const creditsApi = {
   getBalance: () => api.get<CreditBalance>('/credits/balance'),
 
-  getLedger: (params: { page?: number; limit?: number } = {}) => {
+  getActivity: (range: CreditRange) => api.get<CreditActivity>('/credits/activity?' + new URLSearchParams(range)),
+
+  getLedger: (params: { page?: number; limit?: number } & CreditLedgerFilters = {}) => {
     const entries = Object.entries(params).filter(([, v]) => v !== undefined);
     const query = entries.length
       ? '?' + entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&')

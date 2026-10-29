@@ -1,0 +1,86 @@
+.exploration-layout {
+  --bg-base: #f6f3ec;
+  --bg-surface: #eeebe3;
+  --bg-subtle: #fffcf6;
+  --bg-hover: #e8e4d9;
+  --bg-sunken: #e8e4d9;
+  --text-primary: #2e332d;
+  --text-secondary: #5e6558;
+  --text-tertiary: #5e6558;
+  --border-default: #d2d0c3;
+  --border-interactive: #7e8372;
+  --accent: #82571e;
+  --accent-text: #82571e;
+  --accent-on: #fffaf0;
+  --accent-light: #eae1ce;
+  --accent-wash: #eae1ce;
+  --accent-hover: #704917;
+  --accent-press: #603d12;
+  --el-color-primary: var(--accent);
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-secondary);
+  --el-bg-color: var(--bg-surface);
+  --el-fill-color-blank: var(--bg-subtle);
+  --el-border-color: var(--border-interactive);
+  min-height: 100dvh;
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .exploration-layout {
+  --bg-base: #151615;
+  --bg-surface: #1c1e1c;
+  --bg-subtle: #242722;
+  --bg-hover: #2d302a;
+  --bg-sunken: #242722;
+  --text-primary: #ede9df;
+  --text-secondary: #b0b2a6;
+  --text-tertiary: #b0b2a6;
+  --border-default: #3b4037;
+  --border-interactive: #818775;
+  --accent: #e9bd78;
+  --accent-text: #e9bd78;
+  --accent-on: #241d12;
+  --accent-light: #313026;
+  --accent-wash: #313026;
+  --accent-hover: #f2cb8d;
+  --accent-press: #dfac5e;
+}
+
+.exploration-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 14px 40px; border-bottom: 1px solid var(--border-default); }
+.exploration-header .story-brand { padding: 0; }
+.exploration-layout .exploration-header .exploration-navigation { display: flex; padding: 0; gap: 10px; }
+.exploration-header .exploration-navigation a { font-size: 14px; padding: 10px 16px; }
+.exploration-header .exploration-navigation .nav-symbol { display: none; }
+.exploration-header .exploration-navigation a.selected { background: transparent; box-shadow: inset 0 -2px var(--accent); border-radius: 0; }
+.exploration-account { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.exploration-account a { min-height: 44px; display: inline-flex; align-items: center; color: var(--text-secondary); text-decoration: none; font-size: 13px; }
+.exploration-profile { max-width: 140px; overflow-wrap: anywhere; }
+.exploration-theme { width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--border-default); border-radius: 8px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 22px; }
+.exploration-content { width: min(1200px, 100%); padding: 44px 40px 64px; margin: 0 auto; }
+.exploration-content:focus { outline: none; }
+.exploration-page-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+.exploration-page-actions .search-combo { width: min(360px, 100%); }
+.story-editor-title { font-family: Georgia, 'Noto Serif SC', serif; font-size: clamp(26px, 4vw, 38px); font-weight: 500; margin: 0 0 32px; }
+.exploration-skip { position: absolute; top: 8px; left: 8px; z-index: 3000; transform: translateY(-150%); padding: 12px 20px; color: var(--accent-on); background: var(--accent); border-radius: 8px; }
+.exploration-skip:focus { transform: none; }
+.exploration-layout a:focus-visible, .exploration-layout button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.exploration-layout .el-button--primary { --el-button-bg-color: var(--accent); --el-button-border-color: var(--accent); --el-button-text-color: var(--accent-on); --el-button-hover-bg-color: var(--accent-hover); --el-button-hover-border-color: var(--accent-hover); --el-button-hover-text-color: var(--accent-on); --el-button-active-bg-color: var(--accent-press); --el-button-active-border-color: var(--accent-press); }
+
+@media (max-width: 1023px) {
+  .exploration-header { flex-wrap: wrap; padding: 16px 24px 0; gap: 12px; }
+  .exploration-layout .exploration-header .exploration-navigation { order: 3; width: 100%; justify-content: center; }
+  .exploration-header .exploration-navigation a { justify-content: center; flex: 1; }
+  .exploration-content { padding: 32px 24px 48px; }
+}
+
+@media (max-width: 479px) {
+  .exploration-header { padding: 12px 16px 0; }
+  .exploration-header .story-brand { font-size: 18px; gap: 8px; }
+  .exploration-header .story-brand small { font-size: 8px; }
+  .exploration-account { gap: 8px; }
+  .exploration-profile { max-width: 64px; }
+  .exploration-layout .exploration-header .exploration-navigation { gap: 0; }
+  .exploration-header .exploration-navigation a { padding: 10px 4px; font-size: 13px; }
+  .exploration-content { padding: 28px 16px 40px; }
+}

@@ -137,7 +137,7 @@ describe('WebSocketClient', () => {
     });
 
     it('should send user message', () => {
-      wsClient.sendMessage('chat-1', 'Hello');
+      wsClient.sendMessage('chat-1', 'Hello', undefined, undefined, 'request-1');
 
       const ws = (wsClient as any).ws;
       expect(ws.send).toHaveBeenCalled();
@@ -145,6 +145,7 @@ describe('WebSocketClient', () => {
       const sentData = JSON.parse(ws.send.mock.calls[0][0]);
       expect(sentData.type).toBe(WSMessageType.USER_MESSAGE);
       expect(sentData.data.content).toBe('Hello');
+      expect(sentData.data.clientMessageId).toBe('request-1');
     });
 
     it('should join chat', () => {
@@ -257,6 +258,42 @@ describe('WebSocketClient', () => {
   });
 
   describe('Reconnection', () => {
+    it('refreshes an expired access token before reconnecting after UNAUTHORIZED', async () => {
+      const urls: string[] = [];
+      class ExpiredTokenSocket extends MockWebSocket {
+        static attempts = 0;
+
+        constructor(url: string) {
+          super(url);
+          urls.push(url);
+          ExpiredTokenSocket.attempts += 1;
+          if (ExpiredTokenSocket.attempts === 1) {
+            setTimeout(() => {
+              this.simulateMessage({ type: WSMessageType.ERROR, data: { code: 'UNAUTHORIZED', message: 'Invalid token' } });
+              this.readyState = WebSocket.CLOSED;
+              this.onclose?.(new CloseEvent('close'));
+            }, 20);
+          }
+        }
+      }
+      global.WebSocket = ExpiredTokenSocket as any;
+      const refreshAccessToken = vi.fn().mockResolvedValue('refreshed-token');
+      wsClient = new WebSocketClient({
+        url: 'ws://localhost:3000/ws',
+        token: 'expired-token',
+        refreshAccessToken,
+        reconnectInterval: 100,
+      });
+
+      wsClient.connect();
+      await new Promise(resolve => setTimeout(resolve, 70));
+
+      expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+      expect(urls[0]).toContain('token=expired-token');
+      expect(urls[1]).toContain('token=refreshed-token');
+      expect(wsClient.getState()).toBe(WSConnectionState.CONNECTED);
+    });
+
     it('should attempt to reconnect on disconnect', async () => {
       wsClient = new WebSocketClient({
         url: 'ws://localhost:3000/ws',

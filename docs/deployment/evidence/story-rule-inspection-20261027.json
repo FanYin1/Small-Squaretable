@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "date": "2026-10-27",
+  "scope": "Read-only lexical rule clues for current private-owner adaptation results; not semantic conversion or executable third-party mechanics",
+  "result": "passed-with-stated-scope",
+  "newExecutableThirdPartyRules": 0,
+  "parentTasksRemainOpen": ["EXP-ADAPT", "AD-1", "AD-2", "AD-3", "AD-4", "AD-5"],
+  "unit": {
+    "files": 6,
+    "tests": 62,
+    "newTests": 15,
+    "typeCheck": "passed",
+    "focusedLintFiles": 7,
+    "focusedLint": "passed"
+  },
+  "isolated": {
+    "groups": 26,
+    "screenshots": 18,
+    "browserErrors": 0,
+    "paidSupplierCalls": 0,
+    "reference": "backups/exploration/rule-inspection-20261027/isolated/result.json",
+    "countMeaning": "Lexical matches in specified text scope, not mechanics counts, semantic coverage or compatibility",
+    "realCardResults": [
+      {"sample": "蔚蓝星域", "sources": 136, "numeric-change": 45, "random": 37, "periodic": 9, "conditional": 128, "external-update": 202, "runtime": "unsupported"},
+      {"sample": "t1", "sources": 306, "numeric-change": 7, "random": 12, "periodic": 71, "conditional": 18, "external-update": 24, "runtime": "unsupported"},
+      {"sample": "t2", "sources": 94, "numeric-change": 39, "random": 11, "periodic": 28, "conditional": 147, "external-update": 0, "runtime": "unsupported"},
+      {"sample": "t3", "sources": 39, "numeric-change": 6, "random": 39, "periodic": 32, "conditional": 218, "external-update": 0, "runtime": "unsupported"}
+    ]
+  },
+  "deployment": {
+    "port": 3081,
+    "imageTag": "small-squaretable:exploration-20261027-rule-inspection",
+    "image": "sha256:6e1911d40308fea5dc414c65cbff0eba9006f7f7073cbe6b832d091a448c9951",
+    "migrations": 16,
+    "publicTables": 76,
+    "newMigrations": 0,
+    "upgradeRehearsalUnchangedTables": 76,
+    "rollbackReference": "backups/exploration/upgrade-4b2ba210-2015-4827-b46d-b79357069a80",
+    "historical3080ImageUnchanged": "sha256:b65d1767ba17bfcb751e851c9c3c8dc5aac4f432e7c30cd6ac80ec06bda6fec3"
+  },
+  "actualSynthetic": {
+    "scope": "One private synthetic test card, not read-only or real gameplay",
+    "ruleClueGroups": 5,
+    "screenshots": 2,
+    "browserErrors": 0,
+    "restartPreservedCancellation": true,
+    "businessTablesUnchangedAfterCleanup": 16,
+    "reference": "backups/exploration/rule-inspection-20261027/deployed-synthetic/report.json"
+  },
+  "actualReadonly": {
+    "groups": 6,
+    "screenshots": 26,
+    "comparedBuildFiles": 242,
+    "businessTablesUnchanged": 20,
+    "browserErrors": 0,
+    "mutations": 0,
+    "healthPorts": [3080, 3081, 5188],
+    "htmlSha256": "e5b07bd6392aa27bc1e48ebc84c65707858dcb50e6a59aac4cb15f863a8b01b1",
+    "serverSha256": "da47ff213228586732244f636e472901d07efb10c60debc36517fe7c9bd3ea70",
+    "publicationPreviewsBlockedByAccountFeatureGate": 3,
+    "publicationPreviewsPassed": 0,
+    "newChecksOnRealOwnerCards": 0,
+    "reference": "backups/exploration/rule-inspection-20261027/deployed-readonly/report.json"
+  },
+  "budget": {
+    "authorization": 1450000,
+    "occupied": 673338,
+    "available": 776662,
+    "newPaidCalls": 0,
+    "personalCreditsChanged": false,
+    "standingPaidWorker": false,
+    "historicalUnknownReservationPreserved": true
+  },
+  "limitations": [
+    "No scripts executed and no rule artifact, story snapshot or state engine changed",
+    "Lexical matches can include negations, examples and disabled extension scripts; zero matches do not prove absence",
+    "Specified current text scope only, not original archive or entire library",
+    "Bound worldbook links open the book, not an exact editor line",
+    "Four original cards still lack supported continuous mechanics",
+    "Human visual and gameplay acceptance remains open"
+  ],
+  "sourceSha256": {
+    "src/types/story-rule-inspection.ts": "feb6d142e949c6660e6be87d4b82b928183ba664779de5a005a989153297f661",
+    "src/server/services/story-rule-inspection.service.ts": "def294b7eb67b06e2ea5efa5dbd9ef84859e8a83bd286783fdd54e0a2fcc9551",
+    "src/server/services/story-rule-inspection.service.spec.ts": "408b067c245205f350a8cc95f3a09d076a6e6fc7ed93daaeedd7f5a3fb4623da",
+    "src/types/story-adapter.ts": "ba6f7b0bdaf10abcd1c3c4a804531216cbd26ee7f193c707169b0e82d9e97089",
+    "src/server/services/story-adapter-jobs.service.ts": "794f05d631eed063e8e2791466b6550a6de64dd4338fe9458fc009e39f709d7e",
+    "src/client/components/character/StoryAdapterPanel.vue": "29a03527d0e5490703b2390b4dc29731e2fab10a3b6a07453c7361baac0bbb8c",
+    "src/client/components/character/StoryAdapterPanel.spec.ts": "88bcc2482018632f8bf94926ac0b038a792a390d9c3e447240a68cda0553585e",
+    "scripts/story-adapter-check.mjs": "6801e2befb08e03004ee2fb7fbefff439a61ed2a9b76469cfc16384fd99a568a",
+    "scripts/story-presentation-queue-deployed-check.mjs": "adcb56a7a958edeb0b0d2d1ffd7ee7f6cdba98cd4cd7f35758ed5d67fde8acff"
+  }
+}

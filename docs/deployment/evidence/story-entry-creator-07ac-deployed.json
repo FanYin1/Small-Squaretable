@@ -1,0 +1,170 @@
+{
+  "result": "passed",
+  "at": "2026-10-25T14:33:56.398Z",
+  "scope": "actual candidate read-only pages; no import, publish, checkout or generation executed here",
+  "screenshots": [
+    "create-390.png",
+    "edit-390.png",
+    "works-390.png",
+    "account-390.png",
+    "balance-390.png",
+    "create-1440.png",
+    "edit-1440.png",
+    "works-1440.png",
+    "account-1440.png",
+    "balance-1440.png"
+  ],
+  "hashes": {
+    "dist/server/index.js": "5d4e29954bd8671d6c5a68af6c34c09171a6924dec4c73d848e41464bc34dd94",
+    "dist/client/index.html": "621eda5df8ec52ca6eb8c70d5162e80a750af5ed63a46db06682fd685f8d2748"
+  },
+  "mutations": [],
+  "blockedTelemetry": [
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    }
+  ],
+  "jobAudit": {
+    "before": {
+      "jobs": 14,
+      "attempts": 6,
+      "running": 0,
+      "due": 0,
+      "generationRequests": 0
+    },
+    "after": {
+      "jobs": 14,
+      "attempts": 6,
+      "running": 0,
+      "due": 0,
+      "generationRequests": 0
+    }
+  },
+  "health": {
+    "3080": 200,
+    "3081": 200,
+    "5188": 200
+  },
+  "image": "sha256:39fd8d73b02b02214c0566c6a5169520181fe65366808ce1f51d285b94ede57b"
+}

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { Hono } from 'hono';
-import { rateLimit } from './rateLimit';
+import { rateLimit, authRateLimit } from './rateLimit';
 
 describe('Rate Limiting Middleware', () => {
   beforeEach(() => {
@@ -18,6 +18,41 @@ describe('Rate Limiting Middleware', () => {
   });
 
   describe('rateLimit', () => {
+    it('does not count profile reads as login attempts while retaining API and login limits', async () => {
+      const app = new Hono();
+      app.use('/api/v1/auth/*', authRateLimit);
+      app.use('/api/v1/*', rateLimit({ namespace: 'profile-api-test', limit: 110, windowMs: 60000 }));
+      app.get('/api/v1/auth/me', context => context.text('profile'));
+      app.post('/api/v1/auth/login', context => context.text('login'));
+      const headers = { 'x-real-ip': 'profile-policy-test' };
+      for (let request = 0; request < 6; request++) {
+        expect((await app.request('/api/v1/auth/me', { headers })).status).toBe(200);
+      }
+      for (let request = 0; request < 100; request++) {
+        expect((await app.request('/api/v1/auth/login', { method: 'POST', headers })).status).toBe(200);
+      }
+      expect((await app.request('/api/v1/auth/login', { method: 'POST', headers })).status).toBe(429);
+      for (let request = 0; request < 4; request++) {
+        expect((await app.request('/api/v1/auth/me', { headers })).status).toBe(200);
+      }
+      expect((await app.request('/api/v1/auth/me', { headers })).status).toBe(429);
+    });
+
+    it('keeps general API traffic separate from authentication attempts', async () => {
+      const app = new Hono();
+      const keyGenerator = () => 'policy-isolation';
+      app.use('*', rateLimit({ namespace: 'api-isolated', limit: 100, windowMs: 60000, keyGenerator }));
+      app.use('/login', rateLimit({ namespace: 'auth-isolated', limit: 1, windowMs: 60000, keyGenerator }));
+      app.get('/story', context => context.text('story'));
+      app.get('/login', context => context.text('login'));
+      for (let request = 0; request < 6; request++) expect((await app.request('/story')).status).toBe(200);
+      expect((await app.request('/login')).status).toBe(200);
+      const limited = await app.request('/login');
+      expect(limited.status).toBe(429);
+      expect((await limited.json()).retryAfter).toBe(60);
+      expect((await app.request('/story')).status).toBe(200);
+    });
+
     it('should allow requests within limit', async () => {
       const app = new Hono();
       app.use(

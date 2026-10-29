@@ -3,6 +3,15 @@
  */
 
 import { z } from 'zod';
+import { openingSelectionSchema } from './story-opening';
+
+export const chatCreationStatusSchema = z.discriminatedUnion('status', [
+  z.object({ protocol: z.literal(1), status: z.literal('created'), chatId: z.string().min(1) }),
+  z.object({ protocol: z.literal(1), status: z.literal('deleted') }),
+  z.object({ protocol: z.literal(1), status: z.literal('not_found') }),
+]);
+
+export type ChatCreationStatus = z.infer<typeof chatCreationStatusSchema>;
 
 /**
  * Sanitized metadata value type - only allows safe JSON-serializable types
@@ -24,6 +33,8 @@ export const metadataValueSchema: z.ZodType<MetadataValue> = z.lazy(() =>
 );
 
 export const createChatSchema = z.object({
+  opening: openingSelectionSchema.optional(),
+  clientRequestId: z.string().uuid().optional(),
   characterId: z.string().uuid().optional(),
   characterIds: z.array(z.string().uuid()).min(1).max(10).optional(),
   personaId: z.string().uuid().optional(),
@@ -55,6 +66,7 @@ export const createMessageSchema = z.object({
   content: z.string().min(1).max(50000).trim(),
   attachments: z.array(attachmentSchema).max(10).optional(),
   parentMessageId: z.number().optional(),
+  extra: z.record(z.unknown()).optional(),
 });
 
 export const updateMessageSchema = z.object({

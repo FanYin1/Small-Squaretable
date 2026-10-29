@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-24T16:29:40.886Z",
+  "mode": "real-provider-owned-prompts",
+  "result": "completed-pending-semantic-review",
+  "tokenBudget": 30000,
+  "tokens": 19185,
+  "calls": [
+    {
+      "scenario": "fog-harbor",
+      "turn": 1,
+      "status": "completed",
+      "reservation": 5824,
+      "promptSha256": "7cbd77a7905f19ba75648c7eba95202c5d679ce11bb78685f3614384a1736bf6",
+      "httpStatus": 200,
+      "tokens": 1522,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "fog-harbor",
+      "turn": 2,
+      "status": "completed",
+      "reservation": 6110,
+      "promptSha256": "ec3bc5ce2c8f5b0b5ff95459a11e0ea488e6e54603643f8c24873be7e234acfd",
+      "httpStatus": 200,
+      "tokens": 1705,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "fog-harbor",
+      "turn": 3,
+      "status": "completed",
+      "reservation": 7163,
+      "promptSha256": "012f32fd0cf07997597b5d74186dbeb5cbad383cdc6f115d9fc1c03247bb6b2a",
+      "httpStatus": 200,
+      "tokens": 2589,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "fog-harbor",
+      "turn": 4,
+      "status": "completed",
+      "reservation": 8244,
+      "promptSha256": "00ae5982d3dda44ff19c08e188d69058dbc071cd86ed805022f1409208c96059",
+      "httpStatus": 200,
+      "tokens": 2853,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "late-bookshop",
+      "turn": 1,
+      "status": "completed",
+      "reservation": 5370,
+      "promptSha256": "f527c67eed5bf03b4ab5fccfdfc9758e21694699959d3967d81bf924f583a125",
+      "httpStatus": 200,
+      "tokens": 1577,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "late-bookshop",
+      "turn": 2,
+      "status": "completed",
+      "reservation": 5714,
+      "promptSha256": "a5b1c3316703bb8abf9c81cebbea63546518c05a68f62a5a24daf0bdea342be9",
+      "httpStatus": 200,
+      "tokens": 2168,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "late-bookshop",
+      "turn": 3,
+      "status": "completed",
+      "reservation": 6584,
+      "promptSha256": "db9c6d8391ed6f9dc9bf14f980e2ae78ce23a56c24a83ffd81175b477a49ac74",
+      "httpStatus": 200,
+      "tokens": 1765,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "late-bookshop",
+      "turn": 4,
+      "status": "completed",
+      "reservation": 7743,
+      "promptSha256": "23e9c1adb6d298acb27dea5a17e464758f78010e2e30f5f33c1fb02b97023f01",
+      "httpStatus": 200,
+      "tokens": 2260,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "late-bookshop",
+      "turn": 5,
+      "status": "completed",
+      "reservation": 9345,
+      "promptSha256": "0a8ba5ca99870c743c26c11aae80df49a5b3bd8e6776ecd486f49d40bffb97e9",
+      "httpStatus": 200,
+      "tokens": 2746,
+      "finishReason": "stop"
+    }
+  ],
+  "inputSha256": "79e3829af785331b78e574d6cd8a00ddc9deb9fdac99262a74ef1a87c248f20b",
+  "limits": [
+    "Production context replay with earlier controlled assistant messages replaced by real replies",
+    "Real replies are not persisted in app; browser/state/restart evidence is separate",
+    "Original third-party source and author code are not sent",
+    "Short two-mechanism sample, not long-term or human acceptance"
+  ],
+  "sourceHashes": {
+    "scripts/character-journey-model-check.mjs": "17b3b7a9324b9a196429e2e290b54edd365bfa8ddd15a79104e170d9c68c79fd",
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd"
+  },
+  "semanticReview": {
+    "reviewer": "coding-agent",
+    "status": "partial",
+    "passed": [
+      "Price is consistently 20 coins and asking does not purchase",
+      "Purchase gives the permit; travel stops outside the tower; return preserves the scene",
+      "Quiet boundary and next-evening agreement are respected; questions do not fabricate romance or force personal disclosure"
+    ],
+    "failed": [
+      "Name-sharing turn asked the player to repeat the name while the structured event marked it shared"
+    ],
+    "fix": "Frozen name-only identity must be injected even without a biography; approved outcomes take precedence over mood hints; focused recheck pending"
+  }
+}

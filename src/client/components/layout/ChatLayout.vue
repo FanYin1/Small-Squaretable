@@ -38,6 +38,7 @@
       id="chat-sidebar-drawer"
       ref="sidebarRef"
       tabindex="-1"
+      @keydown.tab="trapDrawerFocus"
       :inert="sidebarHidden ? true : undefined"
       :role="isMobile ? 'dialog' : undefined"
       :aria-modal="isMobile && mobileOpen ? 'true' : undefined"
@@ -52,14 +53,15 @@
       ]"
     >
       <ChatSidebar
+        @navigate="closeMobileSidebar"
         @toggle-collapse="toggleCollapse"
-        @new-chat="emit('new-chat')"
+        @new-chat="handleNewChat"
         @select-chat="handleSelectChat"
       />
     </aside>
 
     <!-- Main content area -->
-    <div :class="['chat-main', { 'sidebar-is-collapsed': !isMobile && sidebarCollapsed }]">
+    <main :inert="isMobile && mobileOpen ? true : undefined" :class="['chat-main', { 'sidebar-is-collapsed': !isMobile && sidebarCollapsed, 'library-main': !reading }]">
       <!-- Sidebar restore button (desktop only, when collapsed) -->
       <button
         v-if="!isMobile && sidebarCollapsed"
@@ -71,10 +73,9 @@
         <el-icon :size="18"><Expand /></el-icon>
       </button>
       <slot />
-    </div>
+    </main>
 
-    <!-- Bottom tab bar (mobile only) -->
-    <BottomTabBar v-if="isMobile" />
+    <BottomTabBar v-if="!reading && !mobileOpen" />
   </div>
 </template>
 
@@ -83,9 +84,11 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Fold, Expand } from '@element-plus/icons-vue';
 import ChatSidebar from '@client/components/chat/ChatSidebar.vue';
-import BottomTabBar from '@client/components/layout/BottomTabBar.vue';
+import BottomTabBar from './BottomTabBar.vue';
 
-const MOBILE_BREAKPOINT = 768;
+withDefaults(defineProps<{ reading?: boolean }>(), { reading: true });
+
+const MOBILE_BREAKPOINT = 1024;
 const STORAGE_KEY = 'chat-sidebar-collapsed';
 
 interface Emits {
@@ -146,6 +149,21 @@ const handleSelectChat = (chatId: string) => {
     mobileOpen.value = false;
   }
 };
+
+function handleNewChat() { emit('new-chat'); closeMobileSidebar(); }
+
+function trapDrawerFocus(event: KeyboardEvent) {
+  if (!isMobile.value || !mobileOpen.value) return;
+  const controls = sidebarRef.value?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), [tabindex="0"]');
+  if (!controls?.length) { event.preventDefault(); return; }
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === sidebarRef.value)) {
+    event.preventDefault(); last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault(); first.focus();
+  }
+}
 
 // Swipe gesture state
 const touchStartX = ref(0);
@@ -220,7 +238,7 @@ onUnmounted(() => {
 
 /* ---- Sidebar wrapper ---- */
 .chat-sidebar-wrapper {
-  width: 280px;
+  width: 240px;
   flex-shrink: 0;
   transition: width 0.3s ease;
   overflow: hidden;
@@ -251,8 +269,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-primary);
@@ -292,8 +310,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   background: transparent;
   border: 1px solid var(--border-default);
@@ -324,7 +342,7 @@ onUnmounted(() => {
 }
 
 /* ---- Mobile styles ---- */
-@include below(md) {
+@include below(lg) {
   .mobile-header {
     display: flex;
     align-items: center;
@@ -374,7 +392,8 @@ onUnmounted(() => {
   }
 
   .chat-main {
-    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  .chat-main.library-main { padding-bottom:calc(80px + env(safe-area-inset-bottom, 0px)); }
 }
 </style>

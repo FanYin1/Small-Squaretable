@@ -21,6 +21,7 @@ import { characterRepository } from '../../db/repositories/character.repository'
 import { messageRepository } from '../../db/repositories/message.repository';
 import { memoryQuerySchema, extractMemoriesSchema, updateEmotionSchema } from '../../types/intelligence';
 import type { ApiResponse } from '../../types/api';
+import { assertLegacyMemoryScope, deleteOwnedLegacyMemory } from '../services/legacy-memory-access.service';
 
 export const intelligenceRoutes = new Hono();
 
@@ -34,6 +35,7 @@ intelligenceRoutes.get(
     const characterId = c.req.param('characterId');
     const query = c.req.valid('query');
     const chatId = c.req.query('chatId');  // Optional: filter by session
+    await assertLegacyMemoryScope(characterId, user.id, user.tenantId, chatId);
 
     let memories;
     if (query.query) {
@@ -68,7 +70,8 @@ intelligenceRoutes.delete(
   authMiddleware(),
   async (c) => {
     const memoryId = c.req.param('memoryId');
-    await memoryService.deleteMemory(memoryId);
+    const user = c.get('user');
+    await deleteOwnedLegacyMemory(memoryId, c.req.param('characterId'), user.id, user.tenantId);
 
     return c.json<ApiResponse>({
       success: true,
@@ -86,6 +89,7 @@ intelligenceRoutes.delete(
     const user = c.get('user');
     const characterId = c.req.param('characterId');
     const chatId = c.req.query('chatId');  // Optional: clear only for this session
+    await assertLegacyMemoryScope(characterId, user.id, user.tenantId, chatId);
     await memoryService.clearAllMemories(characterId, user.id, chatId);
 
     return c.json<ApiResponse>({
@@ -105,6 +109,7 @@ intelligenceRoutes.post(
     const user = c.get('user');
     const characterId = c.req.param('characterId');
     const { chatId } = c.req.valid('json');
+    await assertLegacyMemoryScope(characterId, user.id, user.tenantId, chatId);
 
     // Fetch recent messages from the chat
     const chatMessages = await messageRepository.findByChatId(chatId, { limit: 50 });
@@ -211,6 +216,7 @@ intelligenceRoutes.get(
 
     // Get debug state from service
     const debugState = intelligenceDebugService.getDebugState(characterId, user.id, chatId);
+    await assertLegacyMemoryScope(characterId, user.id, user.tenantId, chatId);
 
     // Get current emotion
     const currentEmotion = await emotionService.getCurrentEmotion(characterId, user.id, chatId);
@@ -261,6 +267,7 @@ intelligenceRoutes.get(
     const chatId = c.req.query('chatId');
 
     // Get character
+    await assertLegacyMemoryScope(characterId, user.id, user.tenantId, chatId);
     const character = await characterRepository.findById(characterId);
     if (!character) {
       return c.json<ApiResponse>({

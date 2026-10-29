@@ -14,6 +14,7 @@ import type { CreditLedgerEntry } from '../../db/schema/credits';
 import { AppError, NotFoundError, ValidationError } from '../../core/errors';
 import { auditService } from './audit.service';
 import { getTokensPerPoint, pointsToTokens, tokensToPoints } from './credit-units';
+import type { CreditActivity, CreditLedgerFilters, CreditRange } from '../../types/credit-activity';
 
 /** 单次充值上限（点），防止多打一个 0 */
 export const MAX_TOPUP_POINTS = 100000;
@@ -35,6 +36,7 @@ export interface TopUpInput {
 }
 
 export interface CreditSummary {
+  unlimited?: boolean;
   tokensPerPoint: number;
   balanceTokens: number;
   heldTokens: number;
@@ -57,9 +59,10 @@ export class CreditConflictError extends AppError {
   }
 }
 
-function buildSummary(availability: { balance: number; held: number; available: number }): CreditSummary {
+function buildSummary(availability: { balance: number; held: number; available: number; unlimited?: boolean }): CreditSummary {
   const perPoint = getTokensPerPoint();
   return {
+    ...(availability.unlimited === true ? { unlimited: true } : {}),
     tokensPerPoint: perPoint,
     balanceTokens: availability.balance,
     heldTokens: availability.held,
@@ -95,8 +98,16 @@ export const creditService = {
   },
 
   /** 用户自己的流水（分页，新的在前） */
-  listLedger(tenantId: string, params: { page: number; limit: number }) {
+  listLedger(tenantId: string, params: { page: number; limit: number } & CreditLedgerFilters) {
     return creditRepository.listLedger(tenantId, params);
+  },
+
+  async getActivity(tenantId: string, range: CreditRange): Promise<CreditActivity> {
+    const result = await creditRepository.getActivity(tenantId, range);
+    return { ...range, spentPoints: tokensToPoints(result.spentTokens), creditedPoints: tokensToPoints(result.creditedTokens),
+      adjustmentPoints: tokensToPoints(result.adjustmentTokens), chargeCount: result.chargeCount,
+      knownUsageCount: result.knownUsageCount, unknownUsageCount: result.unknownUsageCount,
+      inputTokens: result.inputTokens, outputTokens: result.outputTokens };
   },
 
   /** 运营者操作记录（充值 + 冲正），带账号邮箱 */

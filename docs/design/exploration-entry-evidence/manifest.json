@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-22",
+  "task": "EXP-07A",
+  "scope": "Vue production build with synthetic API fixtures; not deployed or user accepted",
+  "screenshots": [
+    {
+      "path": "docs/design/exploration-entry-evidence/discover-390-light.webp",
+      "sha256": "7d73ac23b4f4dfd95bd1dc9135912005b496e723fdf365d5064a7fbae0d1bec7"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/discover-390-dark.webp",
+      "sha256": "49f561336ace052bc68e7e5267920fd3f8df973eda94d800beed9b8cde7c0730"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/discover-1440-light.webp",
+      "sha256": "fd9c5262e6c1f3a3155099c2b233dc2c3e3a89ae7e4c141c59756988302e6316"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/discover-1440-dark.webp",
+      "sha256": "7142cfaa6c8e4318235ec88ee46192bd9af98be9fbd9977b73b4ab6e33448b67"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/detail-390-light.webp",
+      "sha256": "62cf4617293628dd0ee928987a54d83efa1b09705ad0cb98b7c985e560f4f286"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/detail-390-dark.webp",
+      "sha256": "e1e6cbf81e17a946191339b6daca37d642dc7a7dddcf91141e830df750712326"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/detail-1440-light.webp",
+      "sha256": "cf683fe5042b02c13c3c43ef6fc6e26402a8013dc76d938b19939674d8c74bd0"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/detail-1440-dark.webp",
+      "sha256": "ee3dbf3decc7b1eed1edda34e030931c0e26e3832afec90bf41f30ef869c9519"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/identity-390-light.webp",
+      "sha256": "ecb1dcec55591f68edb1f4cc4c4ce67d3c69fe2b43b7171f98c9e83f7205a506"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/identity-390-dark.webp",
+      "sha256": "26e3b2b499eb33a84cedd36e9b96d49cb65b76616a0cfc69e843037377b3c182"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/identity-1440-light.webp",
+      "sha256": "1ddf45ab669c1b7b3890d0bef93c641ad7299bb202c1af447126cd647e480603"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/identity-1440-dark.webp",
+      "sha256": "7f685d7f9cbe0a51e90f5bf1c18d1719f658340e4ea0ef7b8a682d43bf7236cc"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/library-390-light.webp",
+      "sha256": "fc450f077852e1ee602ee33373d25eda2e8db599886f63fcab6759001041249c"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/library-390-dark.webp",
+      "sha256": "1b8082f9cf9646772e6b0d4ebdc0b5341e287346222045990e15573ca5939a6a"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/library-1440-light.webp",
+      "sha256": "91cc5957fb5527f520f89f611c2e6c5198a4e28b86d2dc71b6790b4cf4ebfb5c"
+    },
+    {
+      "path": "docs/design/exploration-entry-evidence/library-1440-dark.webp",
+      "sha256": "d32dd595c05a637054cc6ff6cf685f2c028dd47651b1f555513eb0773ae1dfd9"
+    }
+  ],
+  "sources": [
+    {
+      "path": "src/client/components/layout/ExplorationLayout.vue",
+      "sha256": "8a6aadc018a4210a25793fb136875459e3dc202506e201951bac24bd979cf700"
+    },
+    {
+      "path": "src/client/components/layout/StoryNavigation.vue",
+      "sha256": "2969debba25cf6c47094d7a7ef6872b3c93983519f4b2ad9d259efafba150709"
+    },
+    {
+      "path": "src/client/components/chat/StoryIdentitySurface.vue",
+      "sha256": "dde8bd8f76003ca49db2f8e2f49844573621fc2b3947dba44e687e821bcb591c"
+    },
+    {
+      "path": "src/client/components/chat/StoryEntryPreview.vue",
+      "sha256": "3d526ef22c2958e6ec4e826077e09d9bfd1c63c3379af78d4baa414f419a69a5"
+    },
+    {
+      "path": "src/client/components/chat/StorySaveCard.vue",
+      "sha256": "5223d1aad0d6997043373c4e12c1919c68f936bb3d7fa01754a8f6b6887b5d86"
+    },
+    {
+      "path": "src/client/components/chat/PersonaSelector.vue",
+      "sha256": "e064365ab326d293f866aac8014d965c9ffe8bab29bc287ec60229bde674c8e2"
+    },
+    {
+      "path": "src/client/components/chat/WelcomePage.vue",
+      "sha256": "d7fc8eab86184595e9bfe7417fa3cfd252d3d0b7674746c6122ceda4e741aa30"
+    },
+    {
+      "path": "src/client/components/market/StoryCard.vue",
+      "sha256": "ab7e23c2fb3cb7c399d42ea74ba74a9d30b72adcccd0a8dab39b12539073f010"
+    },
+    {
+      "path": "src/client/pages/Chat.vue",
+      "sha256": "3fac63aac84d34e93f044169d17ed15ef823814a2e34ec948cfc49d324e05f85"
+    },
+    {
+      "path": "src/client/pages/CharacterDetail.vue",
+      "sha256": "9b37e7e50e63b2664313aa5cf59dc329aa628480699dba40fef0ad5450964ee8"
+    },
+    {
+      "path": "src/client/pages/Market.vue",
+      "sha256": "0121e085be3b23b82c825960ab64c2f6b38de78711efdeac33820e132e649340"
+    },
+    {
+      "path": "src/client/styles/exploration-entry.css",
+      "sha256": "306cecaa5a640b8621f43330ade1c36152b04d4d112cd171bb4e815274070d4f"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "d7a9a0762c7021779128e7335f7fb3ddf632b46208d3964a88b953615fbff1df"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "896e51c2285abb8855c77bea4b24f092b75948f91a2beedc656848a981c3fa82"
+    },
+    {
+      "path": "e2e/frontend-redesign.spec.ts",
+      "sha256": "d21932b34f863a18b32abc9fc4dee694da59661d1bfabff42b3f36172b12d7d6"
+    },
+    {
+      "path": "e2e/story-entry.spec.ts",
+      "sha256": "977a08f30e6e177bcd8be4ccb45b9303dfdd76de2d7f651bd4b015e8a390931f"
+    },
+    {
+      "path": "e2e/story-discovery.spec.ts",
+      "sha256": "e446683bf3d44f4d2fcfd02cbe72aaf155d897c66072bd8500b5ca7a885d0a97"
+    },
+    {
+      "path": "e2e/utils/redesign-fixtures.ts",
+      "sha256": "3024adf2810c668959769e8d8d2eed90ef79c0fd1d6c35601bba1ec6b02c2078"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "967301922cce3829c206925e09c69e8a414ccfbcbe37f1ae58478a5d6d505365"
+    }
+  ]
+}

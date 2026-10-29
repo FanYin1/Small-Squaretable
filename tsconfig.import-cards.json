@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": ["scripts/import-cards.ts", "scripts/character-import-audit.ts", "scripts/character-import-repair.ts", "scripts/character-legacy-reconcile.ts"]
+}

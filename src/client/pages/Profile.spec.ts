@@ -26,9 +26,9 @@ vi.mock('@client/services', () => ({
   csrfTokenManager: { clearToken: vi.fn() },
 }));
 
-vi.mock('@client/components/layout/DashboardLayout.vue', () => ({
+vi.mock('@client/components/layout/ExplorationLayout.vue', () => ({
   default: {
-    name: 'DashboardLayout',
+    name: 'ExplorationLayout',
     template: '<div class="mock-layout"><slot /><slot name="title" /></div>',
   },
 }));
@@ -85,6 +85,7 @@ function createWrapper() {
     global: {
       plugins: [pinia, i18n],
       stubs: {
+        AccountActivity: true,
         ElForm: {
           template: '<form class="el-form"><slot /></form>',
           props: ['labelPosition', 'model', 'rules'],
@@ -124,7 +125,7 @@ describe('Profile Page', () => {
     expect(img.attributes('src')).toBe('https://example.com/avatar.png');
 
     // Check the title slot renders
-    expect(wrapper.text()).toContain('Edit Profile');
+    expect(wrapper.get('.story-page-intro h1').text()).toBe('storyShell.accountHeading');
   });
 
   it('calls updateProfile API on save', async () => {
@@ -144,5 +145,27 @@ describe('Profile Page', () => {
       bio: 'Hello world',
       avatarUrl: 'https://example.com/avatar.png',
     });
+  });
+
+  it('persists an explicitly cleared biography', async () => {
+    const wrapper = createWrapper();
+    await flushPromises();
+    (wrapper.vm as any).form.bio = '';
+    await (wrapper.vm as any).handleSave();
+    expect(mockUpdateProfile.mock.calls[0][0].bio).toBe('');
+    wrapper.unmount();
+  });
+
+  it('retries only the refresh after a saved profile cannot be reloaded', async () => {
+    const wrapper = createWrapper();
+    await flushPromises();
+    const store = useUserStore();
+    vi.spyOn(store, 'fetchProfile').mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce();
+    await (wrapper.vm as any).handleSave();
+    expect((wrapper.vm as any).savedNeedsRefresh).toBe(true);
+    await (wrapper.vm as any).refreshSavedProfile();
+    expect((wrapper.vm as any).savedNeedsRefresh).toBe(false);
+    expect(mockUpdateProfile).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
   });
 });

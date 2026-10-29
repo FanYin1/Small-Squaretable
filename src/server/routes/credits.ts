@@ -7,23 +7,27 @@
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth';
 import { creditService } from '../services/credit.service';
 import { tokensToPoints } from '../services/credit-units';
 import { config } from '../../core/config';
 import { paginationSchema, type ApiResponse } from '../../types/api';
 import type { CreditLedgerEntry } from '../../db/schema/credits';
+import { creditActivityQuerySchema, creditKindSchema, creditRangeShape, recordedCreditUsage, validateCreditRange } from '../../types/credit-activity';
 
 export const creditRoutes = new Hono();
 
-const listQuerySchema = paginationSchema.pick({ page: true, limit: true });
+const listQuerySchema = paginationSchema.pick({ page: true, limit: true }).extend({ chatId: z.string().uuid().optional(),
+  kind: creditKindSchema.optional(), from: creditRangeShape.from.optional(), to: creditRangeShape.to.optional(),
+}).superRefine(validateCreditRange);
 
 /**
  * 只暴露用户需要看的字段：运营者 id、幂等键、运营备注是内部信息，不返回。
  * 充值 / 冲正的备注同样不返回，避免运营者的内部说明泄露给用户。
  */
 function toPublicEntry(entry: CreditLedgerEntry) {
-  const meta = (entry.metadata ?? {}) as Record<string, unknown>;
+  const usage = recordedCreditUsage(entry.metadata);
   return {
     id: entry.id,
     kind: entry.kind,
@@ -31,8 +35,7 @@ function toPublicEntry(entry: CreditLedgerEntry) {
     points: tokensToPoints(entry.amount),
     chatId: entry.chatId,
     messageId: entry.messageId,
-    inputTokens: typeof meta.inputTokens === 'number' ? meta.inputTokens : undefined,
-    outputTokens: typeof meta.outputTokens === 'number' ? meta.outputTokens : undefined,
+    ...(usage ?? {}),
     createdAt: entry.createdAt,
   };
 }
@@ -52,9 +55,9 @@ creditRoutes.get('/balance', authMiddleware(), async (c) => {
 // GET /ledger — 流水（新的在前）
 creditRoutes.get('/ledger', authMiddleware(), zValidator('query', listQuerySchema), async (c) => {
   const user = c.get('user');
-  const { page, limit } = c.req.valid('query');
+  const { page, limit, ...filters } = c.req.valid('query');
 
-  const result = await creditService.listLedger(user.tenantId, { page, limit });
+  const result = await creditService.listLedger(user.tenantId, { page, limit, ...filters });
   const totalPages = Math.ceil(result.total / limit);
 
   return c.json<ApiResponse>({
@@ -72,4 +75,9 @@ creditRoutes.get('/ledger', authMiddleware(), zValidator('query', listQuerySchem
     },
     meta: { timestamp: new Date().toISOString() },
   });
+});
+
+creditRoutes.get('/activity', authMiddleware(), zValidator('query', creditActivityQuerySchema), async (c) => {
+  const result = await creditService.getActivity(c.get('user').tenantId, c.req.valid('query'));
+  return c.json<ApiResponse>({ success: true, data: result, meta: { timestamp: new Date().toISOString() } });
 });

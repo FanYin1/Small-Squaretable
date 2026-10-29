@@ -243,8 +243,8 @@ describe('User Store', () => {
       expect(store.user).toEqual(mockUser);
     });
 
-    it('should clear auth on fetch failure', async () => {
-      vi.mocked(authApi.getMe).mockRejectedValue(new Error('Invalid token'));
+    it('should clear auth when the server rejects authentication', async () => {
+      vi.mocked(authApi.getMe).mockRejectedValue(new ApiError(401, 'UNAUTHORIZED', 'Invalid token'));
 
       localStorage.setItem('token', 'invalid-token');
 
@@ -253,6 +253,31 @@ describe('User Store', () => {
 
       expect(store.user).toBeNull();
       expect(store.token).toBeNull();
+    });
+
+    it.each([
+      new ApiError(429, 'RATE_LIMITED', 'Try again later'),
+      new ApiError(503, 'UNAVAILABLE', 'Service unavailable'),
+      new Error('Network unavailable'),
+    ])('preserves credentials after temporary profile failure: %s', async (failure) => {
+      localStorage.setItem('token', 'valid-token');
+      localStorage.setItem('refreshToken', 'refresh-token');
+      localStorage.setItem('tenantId', 'tenant-id');
+      vi.mocked(authApi.getMe).mockRejectedValueOnce(failure);
+      const store = useUserStore();
+
+      await store.initialize();
+
+      expect(store.token).toBe('valid-token');
+      expect(store.refreshToken).toBe('refresh-token');
+      expect(localStorage.getItem('tenantId')).toBe('tenant-id');
+      expect(localStorage.getItem('token')).toBe('valid-token');
+      expect(store.error).toBe(failure.message);
+      const mockUser = { id: '1', email: 'test@example.com', name: 'Test', createdAt: '2024-01-01' };
+      vi.mocked(authApi.getMe).mockResolvedValueOnce({ user: mockUser });
+      await store.initialize();
+      expect(store.user).toEqual(mockUser);
+      expect(store.error).toBeNull();
     });
 
     it('should not fetch if no token', async () => {

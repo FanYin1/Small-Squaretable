@@ -78,6 +78,9 @@ vi.mock('../services/credit-billing.service', () => ({
 }));
 
 import { creditBilling } from '../services/credit-billing.service';
+import { runStoryMemory } from './story-memory.job';
+
+vi.mock('./story-memory.job', () => ({ runStoryMemory: vi.fn().mockResolvedValue(undefined) }));
 import { gdprService } from '../services/gdpr.service';
 import { auditService } from '../services/audit.service';
 import { passwordResetRepository } from '../../db/repositories/password-reset.repository';
@@ -90,10 +93,10 @@ describe('registerJobs', () => {
     scheduler = new SchedulerService();
   });
 
-  it('should register all 10 jobs', () => {
+  it('should register all 11 jobs', () => {
     registerJobs(scheduler);
     const jobs = scheduler.listJobs();
-    expect(jobs).toHaveLength(10);
+    expect(jobs).toHaveLength(11);
     const names = jobs.map((j) => j.name);
     expect(names).toContain('gdpr-deletion');
     expect(names).toContain('audit-retention');
@@ -105,6 +108,14 @@ describe('registerJobs', () => {
     expect(names).toContain('notification-digest-weekly');
     expect(names).toContain('notification-cleanup');
     expect(names).toContain('credit-reservation-sweep');
+    expect(names).toContain('story-memory');
+  });
+
+  it('dispatches durable story memory work every 15 seconds', async () => {
+    registerJobs(scheduler);
+    await scheduler.runNow('story-memory');
+    expect(runStoryMemory).toHaveBeenCalledOnce();
+    expect(scheduler.getJobStatus('story-memory')?.intervalMs).toBe(15000);
   });
 
   it('credit-reservation-sweep job calls sweepExpired every 5 minutes', async () => {

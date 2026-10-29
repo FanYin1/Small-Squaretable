@@ -1,0 +1,36 @@
+{
+  "result": "passed",
+  "date": "2026-10-25T14:05:35.640Z",
+  "checks": [
+    "Two distinct native mechanisms import through the real file picker, persist privately and preserve unknown extensions",
+    "Preview is local, canceling navigation retains edits, clearing description really persists and unknown extensions survive editing",
+    "Publish uses the real service, shows pending review and does not make an unapproved work visible in discovery",
+    "Failed editor reads retain a retry path and cannot overwrite server data with an empty form",
+    "Profile editing and explicitly clearing the biography persist through the real API and browser reload",
+    "Balance failures never become zero balance, retry loads the real ledger and a forged success query does not report payment success",
+    "Both imported mechanisms create reloadable stories whose frozen content survives subsequent author edits",
+    "Denied same-tenant and cross-tenant edits write neither character changes nor private history versions"
+  ],
+  "screenshots": [
+    "editor-mobile-unsaved.png",
+    "publish-mobile.png",
+    "account-mobile.png",
+    "balance-mobile-recovered.png"
+  ],
+  "sources": [
+    {
+      "path": "scripts/creator-account-check.mjs",
+      "sha256": "e196f66422419f710fb0fc250a675fb00af94a9706dcf165f76bce1293b26e88"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "621eda5df8ec52ca6eb8c70d5162e80a750af5ed63a46db06682fd685f8d2748"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "5d4e29954bd8671d6c5a68af6c34c09171a6924dec4c73d848e41464bc34dd94"
+    }
+  ],
+  "model": "isolated provider; no generation in these checks",
+  "scope": "engineering behavior; not user visual or narrative acceptance"
+}

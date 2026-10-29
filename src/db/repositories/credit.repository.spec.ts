@@ -47,6 +47,28 @@ function makeUpdateExecutor(returnRows: unknown[]) {
 
 const repo = new CreditRepository({} as any);
 
+describe('CreditRepository activity precision', () => {
+  const range = { from: '2026-10-01T00:00:00Z', to: '2026-10-26T00:00:00Z' };
+  it('binds timestamp strings with explicit types for the raw postgres driver', async () => {
+    const { executor, executed } = makeExecutor([{ spent: '0', credited: '0', adjustment: '0', charges: 0, known: 0, input: null, output: null }]);
+    await new CreditRepository(executor).getActivity('tenant-1', range);
+    const query = dialect.sqlToQuery(executed[0] as any);
+    expect(query.params).toEqual(['tenant-1', range.from, range.to]);
+    expect(query.sql).toContain('created_at >= $2::timestamptz');
+    expect(query.sql).toContain('created_at < $3::timestamptz');
+  });
+  it('rejects aggregate overflow instead of silently rounding recorded usage', async () => {
+    const { executor } = makeExecutor([{ spent: '0', credited: '0', adjustment: '0', charges: 2, known: 2, input: '9007199254740992', output: '0' }]);
+    await expect(new CreditRepository(executor).getActivity('tenant-1', range)).rejects.toThrow('outside the supported range');
+  });
+  it('keeps no recorded usage null while preserving real recorded zeros', async () => {
+    for (const [input, expected] of [[null, null], ['0', 0]] as const) {
+      const { executor } = makeExecutor([{ spent: '0', credited: '0', adjustment: '0', charges: 1, known: input === null ? 0 : 1, input, output: input }]);
+      expect(await new CreditRepository(executor).getActivity('tenant-1', range)).toMatchObject({ inputTokens: expected, outputTokens: expected, unknownUsageCount: input === null ? 1 : 0 });
+    }
+  });
+});
+
 describe('CreditRepository.lockTenant', () => {
   it('takes a transaction-scoped advisory lock keyed by the tenant', async () => {
     const { executor, executed } = makeExecutor();
@@ -83,7 +105,10 @@ describe('CreditRepository.getAvailability', () => {
     expect(text).toContain('SUM(amount) FROM credit_ledger');
     expect(text).toContain('SUM(tokens) FROM credit_reservations');
     expect(text).toContain("status = 'active'");
-    expect(params).toEqual(['tenant-1', 'tenant-1']);
+    expect(params).toEqual(['tenant-1', 'tenant-1', 'tenant-1']);
+    expect(text).toContain("settings->>'creditUnlimitedUserId' = account.id::text");
+    expect(text).toContain('other_account.id <> account.id');
+    expect(text).toContain("metadata->'creditExempt' IS DISTINCT FROM 'true'::jsonb");
   });
 
   it('parses bigint strings and derives available = balance - held', async () => {
@@ -102,6 +127,11 @@ describe('CreditRepository.getAvailability', () => {
     expect((await repo.getAvailability('t', executor)).available).toBe(-3000);
   });
 
+  it('only exposes an explicitly granted exemption without inventing a balance', async () => {
+    const { executor } = makeExecutor([{ balance: '0', held: '0', unlimited: true }]);
+    await expect(repo.getAvailability('tenant-1', executor)).resolves.toEqual({ balance: 0, held: 0, available: 0, unlimited: true });
+  });
+
   it('treats a missing row as an empty account', async () => {
     const { executor } = makeExecutor([]);
 
@@ -110,6 +140,13 @@ describe('CreditRepository.getAvailability', () => {
 });
 
 describe('CreditRepository.closeReservation', () => {
+  it('settles exempt usage exactly once and stores actual usage without a charge', async () => {
+    const { executor, captured } = makeUpdateExecutor([{ id: 'r1', status: 'settled' }]);
+    await repo.closeExemptReservation('r1', { inputTokens: 1200, outputTokens: 300, messageId: 5 }, executor);
+    expect(captured.set).toMatchObject({ status: 'settled', chargedTokens: 0 });
+    expect(dialect.sqlToQuery(captured.set.metadata).params).toEqual([JSON.stringify({ inputTokens: 1200, outputTokens: 300, messageId: 5 })]);
+    expect(dialect.sqlToQuery(captured.where).params).toEqual(['r1', 'active', 'expired']);
+  });
   it('flips the status with a conditional UPDATE ... RETURNING', async () => {
     const { executor, captured } = makeUpdateExecutor([{ id: 'r1', status: 'settled' }]);
 

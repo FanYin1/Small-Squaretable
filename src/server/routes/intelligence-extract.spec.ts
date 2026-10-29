@@ -5,6 +5,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Hono } from 'hono';
 import { intelligenceRoutes } from './intelligence';
+import { AppError, NotFoundError } from '../../core/errors';
+import { assertLegacyMemoryScope, deleteOwnedLegacyMemory } from '../services/legacy-memory-access.service';
+
+vi.mock('../services/legacy-memory-access.service', () => ({
+  assertLegacyMemoryScope: vi.fn(), deleteOwnedLegacyMemory: vi.fn(),
+}));
 
 vi.mock('../services/memory.service', () => ({
   memoryService: {
@@ -91,8 +97,11 @@ describe('Intelligence Extract-Memories Endpoint', () => {
 
   beforeEach(() => {
     app = new Hono();
+    app.onError((error, context) => context.json({ error: error.message }, error instanceof AppError ? error.statusCode as 404 | 409 : 500));
     app.route('/api/v1', intelligenceRoutes);
     vi.clearAllMocks();
+    vi.mocked(assertLegacyMemoryScope).mockReset().mockResolvedValue(undefined);
+    vi.mocked(deleteOwnedLegacyMemory).mockReset().mockResolvedValue(undefined);
   });
 
   describe('POST /characters/:characterId/intelligence/extract-memories', () => {
@@ -135,6 +144,7 @@ describe('Intelligence Extract-Memories Endpoint', () => {
       expect(memoryService.extractMemories).toHaveBeenCalledWith(
         CHAR_ID, 'user-123', mockMessages
       );
+      expect(assertLegacyMemoryScope).toHaveBeenCalledWith(CHAR_ID, 'user-123', 'tenant-123', CHAT_ID);
     });
 
     it('should return 0 when chat has no messages', async () => {
@@ -212,5 +222,36 @@ describe('Intelligence Extract-Memories Endpoint', () => {
         CHAR_ID, 'user-123', mockFacts[2], CHAT_ID
       );
     });
+  });
+
+  it.each([
+    ['POST', 'extract-memories', 404], ['POST', 'extract-memories', 409],
+    ['GET', 'memories', 404], ['GET', 'memories', 409],
+    ['DELETE', 'memories', 404], ['DELETE', 'memories', 409],
+  ] as const)('rejects %s %s with %s before touching messages or memories', async (method, endpoint, status) => {
+    await setupAuth();
+    vi.mocked(assertLegacyMemoryScope).mockRejectedValue(status === 404 ? new NotFoundError('Chat') : new AppError('Managed story', 409, 'STORY_MEMORY_MANAGED'));
+    const { memoryService } = await import('../services/memory.service');
+    const { messageRepository } = await import('../../db/repositories/message.repository');
+    const response = await app.request(`/api/v1/characters/${CHAR_ID}/intelligence/${endpoint}?chatId=${CHAT_ID}`, {
+      method, headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' },
+      ...(method === 'POST' ? { body: JSON.stringify({ chatId: CHAT_ID }) } : {}),
+    });
+    expect(response.status).toBe(status);
+    expect(messageRepository.findByChatId).not.toHaveBeenCalled();
+    expect(memoryService.extractMemories).not.toHaveBeenCalled();
+    expect(memoryService.storeMemory).not.toHaveBeenCalled();
+    expect(memoryService.getMemories).not.toHaveBeenCalled();
+    expect(memoryService.clearAllMemories).not.toHaveBeenCalled();
+  });
+
+  it('uses account, tenant and character scope for single-memory deletion', async () => {
+    await setupAuth();
+    vi.mocked(deleteOwnedLegacyMemory).mockRejectedValue(new NotFoundError('Memory'));
+    const response = await app.request(`/api/v1/characters/${CHAR_ID}/intelligence/memories/${CHAT_ID}`, {
+      method: 'DELETE', headers: { Authorization: 'Bearer token' },
+    });
+    expect(response.status).toBe(404);
+    expect(deleteOwnedLegacyMemory).toHaveBeenCalledWith(CHAT_ID, CHAR_ID, 'user-123', 'tenant-123');
   });
 });

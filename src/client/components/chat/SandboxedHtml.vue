@@ -1,9 +1,11 @@
 <template>
   <div class="sandboxed-html-container" :style="containerStyle">
+    <p v-if="!interactive" class="sandbox-notice">作者面板静态预览 · 脚本和外部资源未运行，数值请以故事状态为准</p>
     <iframe
       ref="iframeRef"
+      title="作者内容面板"
       :srcdoc="srcdocContent"
-      sandbox="allow-scripts allow-same-origin"
+      :sandbox="interactive ? 'allow-scripts' : ''"
       class="sandboxed-iframe"
       :style="iframeStyle"
       @load="onIframeLoad"
@@ -13,16 +15,19 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { buildCardSandboxDocument, unflattenCardVariables } from '../../utils/card-sandbox';
 
 interface Props {
   html: string;
   chatId?: string;
   variables?: Record<string, string>;
   height?: string;
+  interactive?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   height: '400px',
+  interactive: false,
 });
 
 const iframeRef = ref<HTMLIFrameElement | null>(null);
@@ -76,6 +81,7 @@ const BRIDGE_SHIM = `
     window.parent.postMessage({ type: 'era-event', event: name, payload: data }, '*');
   };
   window.addEventListener('message', function(e) {
+    if (e.source !== window.parent) return;
     if (e.data && e.data.type === 'era-event' && _handlers[e.data.event]) {
       _handlers[e.data.event].forEach(function(fn) { fn(e.data.payload); });
     }
@@ -103,14 +109,7 @@ const srcdocContent = computed(() => {
   // Strip markdown code fence wrapper if present
   html = html.replace(/^```html\s*\n/i, '').replace(/\n```\s*$/i, '');
 
-  // Inject bridge shim after <head> tag
-  const headMatch = html.match(/<head[^>]*>/i);
-  if (headMatch) {
-    const idx = html.indexOf(headMatch[0]) + headMatch[0].length;
-    return html.slice(0, idx) + BRIDGE_SHIM + html.slice(idx);
-  }
-  // Fallback: inject at start
-  return BRIDGE_SHIM + html;
+  return buildCardSandboxDocument(html, props.interactive, BRIDGE_SHIM);
 });
 
 const containerStyle = computed(() => ({
@@ -127,12 +126,13 @@ const iframeStyle = computed(() => ({
 }));
 
 function onMessage(event: MessageEvent) {
+  if (!props.interactive || event.origin !== 'null') return;
   if (!iframeRef.value) return;
   // Only accept messages from our iframe
   if (event.source !== iframeRef.value.contentWindow) return;
 
   if (event.data?.type === 'era-resize') {
-    dynamicHeight.value = Math.min(event.data.height, 800);
+    if (typeof event.data.height === 'number' && Number.isFinite(event.data.height)) dynamicHeight.value = Math.max(0, Math.min(event.data.height, 800));
   } else if (event.data?.type === 'era-event') {
     // Handle era:requestWriteDone — send current variables to iframe
     if (event.data.event === 'era:requestWriteDone' && props.variables) {
@@ -142,9 +142,10 @@ function onMessage(event: MessageEvent) {
 }
 
 function sendVariablesToIframe(vars: Record<string, string>) {
+  if (!props.interactive) return;
   if (!iframeRef.value?.contentWindow) return;
   // Build a statWithoutMeta object from flat key-value pairs
-  const stat = unflattenVars(vars);
+  const stat = unflattenCardVariables(vars);
   iframeRef.value.contentWindow.postMessage({
     type: 'era-event',
     event: 'era:writeDone',
@@ -156,37 +157,8 @@ function sendVariablesToIframe(vars: Record<string, string>) {
   }, '*');
 }
 
-/**
- * Convert flat dot-notation keys to nested object.
- * e.g. { "player.hp": "100", "player.name": "Alice" } → { player: { hp: "100", name: "Alice" } }
- */
-function unflattenVars(vars: Record<string, string>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(vars)) {
-    const parts = key.split('.');
-    let current: Record<string, unknown> = result;
-    for (let i = 0; i < parts.length - 1; i++) {
-      if (!current[parts[i]] || typeof current[parts[i]] !== 'object') {
-        current[parts[i]] = {};
-      }
-      current = current[parts[i]] as Record<string, unknown>;
-    }
-    // Try to parse JSON values back to their original types
-    try {
-      current[parts[parts.length - 1]] = JSON.parse(value);
-    } catch {
-      current[parts[parts.length - 1]] = value;
-    }
-  }
-  return result;
-}
-
 function onIframeLoad() {
-  // Send initial variables when iframe loads
-  if (props.variables && Object.keys(props.variables).length > 0) {
-    // Small delay to let the iframe's bridge shim initialize
-    setTimeout(() => sendVariablesToIframe(props.variables!), 100);
-  }
+  if (props.variables) sendVariablesToIframe(props.variables);
 }
 
 // Watch for variable changes and push to iframe
@@ -214,5 +186,11 @@ onBeforeUnmount(() => {
 
 .sandboxed-iframe {
   display: block;
+}
+
+.sandbox-notice {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary, #aeb1c1);
 }
 </style>

@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-23T19:30:41.768Z",
+  "result": "local_candidate_ready_for_manual_review",
+  "image": "sha256:acd8f3b03eac8619726e8e34f2a942f807f5f9f78b4574546badbc31b347e36d",
+  "clientHtmlMatchesBuild": true,
+  "sourceHashesMatchIntegration": true,
+  "typeCheck": "passed",
+  "build": "server/client/docker passed; explicit production frontend mode",
+  "unit": {
+    "passed": 3364,
+    "skipped": 17,
+    "passedFiles": 310,
+    "skippedFiles": 1,
+    "workers": 4
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 257
+  },
+  "databaseChecks": 77,
+  "realApiControlledModelGroups": 12,
+  "browserFixtureChecks": 29,
+  "screenshots": {
+    "integration": 54,
+    "deployed": 4
+  },
+  "restore": "passed including identities/messages/memories/snapshots/state/events/notes",
+  "existingServices": [
+    {
+      "port": 3080,
+      "status": 200
+    },
+    {
+      "port": 3081,
+      "status": 200
+    },
+    {
+      "port": 5188,
+      "status": 200
+    }
+  ],
+  "integrationDate": "2026-10-23T19:30:11.604Z",
+  "deployedDate": "2026-10-23T19:12:38.764Z",
+  "deliverySources": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "526bd77a5ebbd871f857c544c5909e1c058dd5c8d34123d705815c04c761760a"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "5f5e3000a07dd34ff7d1a79287c8ac66a9c7afd1a5fc6ce73f77a9321ffc2935"
+    },
+    {
+      "path": ".dockerignore",
+      "sha256": "ce2995e895c96c967f641269a861461ffcfa4334350ee41354e23e3725d83074"
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "5d99608863fb91b968866948274ea632a1da07aa254fa1ca8a24eaca13fae6ea"
+    },
+    {
+      "path": "compose.beta.yml",
+      "sha256": "09eb53be1be9d87cb110c4111ec4ebc4e8f972bd061af3318bddde011da866bf"
+    },
+    {
+      "path": "scripts/exploration-candidate.mjs",
+      "sha256": "d43faf6fdde56fe0930d278cd3d29f28c997ed81c9e5718baee55913bb6e2946"
+    },
+    {
+      "path": "scripts/exploration-deployed-check.mjs",
+      "sha256": "c9e0e3ec760d28ec60a0acc65a2433aa92883d035d4fe59b812f5b1d120556a3"
+    },
+    {
+      "path": "scripts/exploration-restore-check.mjs",
+      "sha256": "7021c38666fe134516968e476d3ec8d49de71df994fd74b14bf924f7d7b4fecc"
+    },
+    {
+      "path": "scripts/seed-exploration.mjs",
+      "sha256": "990ad064c8efa8be74dc17be766f6d4508c3e76326a46033aebb6f048bebe7bf"
+    },
+    {
+      "path": "e2e/frontend-redesign.spec.ts",
+      "sha256": "08518b6fb4ba6787872f9c0920eea3a05a4aa3c38ae5afe35c9d5fcf40d64508"
+    },
+    {
+      "path": "src/client/pages/Chat.spec.ts",
+      "sha256": "25661555f920e5ce7cf63cd0f7ea1c43c8e12f0b67584653fdbc8cffbc149b97"
+    }
+  ],
+  "outstanding": [
+    "real provider probe returned HTTP429; narrative generation and quality not accepted",
+    "manual visual and physical-device review",
+    "OPEN-01 correction/branch policy",
+    "OPEN-02 default recommendation interaction",
+    "representative third-party script compatibility",
+    "user-level portable full-story import/export"
+  ]
+}

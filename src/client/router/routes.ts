@@ -1,7 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 // Define preload/prefetch hints for performance
-const loadHome = () => import(/* webpackPrefetch: true */ '../pages/Home.vue');
 const loadLogin = () => import(/* webpackPrefetch: true */ '../pages/auth/Login.vue');
 const loadRegister = () => import(/* webpackPrefetch: true */ '../pages/auth/Register.vue');
 const loadForgotPassword = () => import('../pages/auth/ForgotPassword.vue');
@@ -50,10 +49,10 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Home',
-    component: loadHome,
+    redirect: { name: 'Market' },
     meta: {
       requiresAuth: false,
-      guestOnly: true,
+      guestOnly: false,
     },
   },
   {

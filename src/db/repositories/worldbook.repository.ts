@@ -17,13 +17,14 @@ export class WorldBookRepository extends BaseRepository {
     name: string;
     scope: string;
     ownerId: string;
+    tenantId: string;
     characterId?: string;
     settings?: Record<string, unknown>;
   }) {
     const [row] = await this.db
       .insert(worldbooks)
       .values({
-        tenantId: data.ownerId,
+        tenantId: data.tenantId,
         userId: data.ownerId,
         characterId: data.characterId ?? null,
         name: data.name,

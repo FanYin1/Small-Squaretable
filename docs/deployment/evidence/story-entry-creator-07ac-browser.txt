@@ -1,0 +1,39 @@
+  ➜  Local:   http://127.0.0.1:5186/
+
+Running 29 tests using 1 worker
+
+(node:16717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16717) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 390 light (6.9s)
+  ✓   2 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 390 dark (7.2s)
+  ✓   3 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 768 light (7.8s)
+  ✓   4 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 768 dark (7.9s)
+  ✓   5 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 1440 light (11.8s)
+  ✓   6 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 1440 dark (10.8s)
+  ✓   7 [chromium] › e2e/frontend-redesign.spec.ts:68:1 › anonymous routes use the same brand without legacy marketing statistics (7.9s)
+  ✓   8 [chromium] › e2e/frontend-redesign.spec.ts:96:3 › account navigation preserves user permissions and hides disabled modules (2.8s)
+  ✓   9 [chromium] › e2e/frontend-redesign.spec.ts:96:3 › account navigation preserves moderator permissions and hides disabled modules (2.6s)
+  ✓  10 [chromium] › e2e/frontend-redesign.spec.ts:96:3 › account navigation preserves admin permissions and hides disabled modules (2.6s)
+  ✓  11 [chromium] › e2e/story-discovery.spec.ts:48:3 › Story discovery › keeps keyboard favorite actions separate from the native detail link (1.6s)
+  ✓  12 [chromium] › e2e/story-discovery.spec.ts:67:3 › Story discovery › restores search, filters and scroll after opening a detail and going back (3.4s)
+  ✓  13 [chromium] › e2e/story-discovery.spec.ts:93:3 › Story discovery › offers a verified existing story and resumes without creating one (1.7s)
+  ✓  14 [chromium] › e2e/story-discovery.spec.ts:104:3 › Story discovery › shows a retryable error instead of an empty list (1.7s)
+  ✓  15 [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (light) (1.8s)
+  ✓  16 [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (dark) (1.8s)
+  ✓  17 [chromium] › e2e/story-entry.spec.ts:104:3 › Story entry identity confirmation › quick start uses the default persona and survives refresh without another creation (3.3s)
+  ✓  18 [chromium] › e2e/story-entry.spec.ts:122:3 › Story entry identity confirmation › offers optional setup without creating a story just by viewing it (1.9s)
+  ✓  19 [chromium] › e2e/story-entry.spec.ts:138:3 › Story entry identity confirmation › recovers a lost creation response after reload without another POST (2.6s)
+  ✓  20 [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns not_found (2.1s)
+  ✓  21 [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns old_server (2.2s)
+  ✓  22 [chromium] › e2e/story-entry.spec.ts:211:3 › Story entry identity confirmation › uses the confirmed identity in the opening and restores it after refresh (2.9s)
+  ✓  23 [chromium] › e2e/story-entry.spec.ts:223:3 › Story entry identity confirmation › retries a rejected creation with the same request key and identity (2.1s)
+  ✓  24 [chromium] › e2e/story-entry.spec.ts:247:3 › Story entry identity confirmation › keeps an unknown creation blocked after closing and reopening the dialog (2.6s)
+  ✓  25 [chromium] › e2e/story-entry.spec.ts:275:3 › Story entry identity confirmation › offers a safe retry when the selected identity cannot be loaded (2.4s)
+  ✓  26 [chromium] › e2e/story-entry.spec.ts:297:3 › Story entry identity confirmation › starts without an identity and shows the character opening (1.7s)
+  ✓  27 [chromium] › e2e/story-entry.spec.ts:310:3 › Story entry identity confirmation › cancels optional setup and clears the pending story URL (1.5s)
+  ✓  28 [chromium] › e2e/story-entry.spec.ts:326:3 › Story entry identity confirmation › fits optional identity setup on a 390px viewport (1.2s)
+  ✓  29 [chromium] › e2e/story-entry.spec.ts:341:3 › Story entry identity confirmation › returns focus to the character card after Escape (1.8s)
+
+  29 passed (1.9m)

@@ -1,0 +1,218 @@
+{
+  "date": "2026-10-24T05:13:43.323Z",
+  "result": "passed",
+  "database": "two disposable PostgreSQL/pgvector containers with full beta migrations",
+  "scope": "whole-database dump/restore and current service/repository behavior; not HTTP/browser or model-quality validation",
+  "memoryFixture": "synthetic memory and fixed nonzero vector, explicitly linked to a confirmed synthetic reply; no model or embedding provider called",
+  "fingerprints": {
+    "tables": {
+      "books": {
+        "rows": 1,
+        "digest": "1fabef9d5d17a10f25934830676d199f"
+      },
+      "chats": {
+        "rows": 2,
+        "digest": "7994a4725361fbb465f3718af5a34605"
+      },
+      "notes": {
+        "rows": 1,
+        "digest": "b612ccdb55c5e55bc0282b1479859ad8"
+      },
+      "state": {
+        "rows": 2,
+        "digest": "9b3c96ffc340bd8429a0bef64186bf8f"
+      },
+      "users": {
+        "rows": 2,
+        "digest": "f94c92a4052ff02381cbdc1c2950711d"
+      },
+      "events": {
+        "rows": 3,
+        "digest": "cb50a389981afc77270bec421acbd828"
+      },
+      "content": {
+        "rows": 2,
+        "digest": "5cab8f76b88e4a1d9be31644bb399612"
+      },
+      "entries": {
+        "rows": 1,
+        "digest": "fce8cc28a61366881fdc32f2f8bf740d"
+      },
+      "tenants": {
+        "rows": 1,
+        "digest": "767bf6a920ed1152a6427b5e150d68f4"
+      },
+      "vectors": {
+        "rows": 2,
+        "digest": "a761d3d47e52c77fbce2f3a2890d6bda"
+      },
+      "memories": {
+        "rows": 2,
+        "digest": "46aaeb0ac1577ffef6ee6cdd2e6f1180"
+      },
+      "messages": {
+        "rows": 6,
+        "digest": "0e0a645296142ff2d371fef9896d83ef"
+      },
+      "personas": {
+        "rows": 1,
+        "digest": "9dc17c828abcfb16b617ada393db8370"
+      },
+      "characters": {
+        "rows": 1,
+        "digest": "8f4b7299c2928f8efed2c08075b7a29e"
+      },
+      "migrations": {
+        "rows": 7,
+        "digest": "aa866ed1879e7f2284a8cd02b377a50a"
+      },
+      "worldbooks": {
+        "rows": 2,
+        "digest": "e5b55a3175ed5cb8a092d9406de5680a"
+      },
+      "participants": {
+        "rows": 2,
+        "digest": "8984966cb93a3a6ea8c775f5d0aa3d1d"
+      },
+      "creationRequests": {
+        "rows": 3,
+        "digest": "350bc0a718bd02143dbbabb8070bbba6"
+      }
+    },
+    "coverage": {
+      "identities": 2,
+      "boundEntries": 2,
+      "confirmedEvents": 2,
+      "sourcedMemories": 2,
+      "interruptedEvents": 1,
+      "invalidEventSources": 0,
+      "invalidStateSources": 0,
+      "invalidMemorySources": 0
+    },
+    "protocol": 2
+  },
+  "guardTests": 13,
+  "corruptionProbes": [
+    "changed vector with same row count rejected",
+    "wrong-story message provenance rejected"
+  ],
+  "sourceUnchangedAfterTargetDeletion": true,
+  "checks": [
+    "Restored panel, available actions, event sources and style notes match the saved story",
+    "Identity remains frozen after its source changes",
+    "Character content snapshot remains readable",
+    "Bound worldbook uses the frozen entry after its source changes",
+    "Real pgvector retrieval recovers only this story memory",
+    "Another story with the same query vector stays isolated",
+    "Retrieved memory still links to its original confirmed text",
+    "Restored story still rejects a different owner",
+    "A pre-backup committed action replays without a second event",
+    "Resumed generation preparation includes confirmed state and saved style notes",
+    "A new action after restore advances once and preserves resources",
+    "Restored message sequence allocates fresh source IDs",
+    "Continuing the restored story does not alter another save",
+    "A story deleted before backup stays deleted after restore",
+    "Replaying the deleted creation request cannot recreate its story",
+    "Deleting a restored story cascades its messages, snapshots, state, notes, events, memories and vectors",
+    "Deleted story memory is absent from scoped and global retrieval",
+    "Late memory insertion and late turn commit cannot resurrect the deleted story",
+    "Deletion and rejected late writes leave the other save intact"
+  ],
+  "continuation": {
+    "version": 3,
+    "coins": 100,
+    "location": "lighthouse"
+  },
+  "deletion": {
+    "messages": 0,
+    "events": 0,
+    "state": 0,
+    "notes": 0,
+    "content": 0,
+    "worldbooks": 0,
+    "memories": 0,
+    "vectors": 0
+  },
+  "sources": [
+    {
+      "path": "scripts/story-nonempty-restore-check.mjs",
+      "sha256": "f3cd3cfaefb667886d80b15949bd1bd2f22a338aebe2f94038d0b8ebb5d23f57"
+    },
+    {
+      "path": "scripts/story-restore-fixture.mjs",
+      "sha256": "7dbfc79dd2602c4da34c02a8fbba8978cd18ea34f79912aacbb29991c0270d40"
+    },
+    {
+      "path": "scripts/story-restore-evidence.mjs",
+      "sha256": "46a3d86054baa0ea895ca4de5d212edf6e5a09075cf502387b7e84f1c3b19b36"
+    },
+    {
+      "path": "scripts/story-restore-evidence.test.mjs",
+      "sha256": "245fb179de23ccedfa3e877c91a6ca5e5cd45e6d055b0e841608bb0cd7898311"
+    },
+    {
+      "path": "scripts/exploration-restore-check.mjs",
+      "sha256": "855e39688fb02853057ddeb5cc8ff8d218cb2b0a09251cb934c316e01174413f"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "ad99964a6a3dcbf21fcadd56928f753d077c13a388768b5e759b9acd376c3b67"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "6ffbbfe888f84e3cc7de83f0d2be61d03c47436fbe0801562fa5cee7d553efe6"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "431f6534b44658e2927a6264dd90f03f2c9ba280f05745a56cf03cf970d5a12d"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+    },
+    {
+      "path": "src/db/migrate.ts",
+      "sha256": "91bbac98d250f3c2f89edf6511b80f674fa0db55ec428abbd2f4c6daedb93e57"
+    },
+    {
+      "path": "src/db/beta-migrations/0000_beta_schema.sql",
+      "sha256": "1d21eaef4b6c561bd431924a45533480ce328510a7e3ef2ac4a2d4d2be7c163a"
+    },
+    {
+      "path": "src/db/beta-migrations/0001_beta_invariants.sql",
+      "sha256": "b77d1ccea176602d34da511f7e1242fdedd9c71963b8a3b4902d6b307d6a8c16"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/db/beta-migrations/0004_story_content.sql",
+      "sha256": "3c09875fe35c43e68d2f0bd4e03044253b9bf879c16c1c564dfa6898f5e1648b"
+    },
+    {
+      "path": "src/db/beta-migrations/0005_story_state.sql",
+      "sha256": "09cae5255133b9fe58a981ee3cadda43210de96a5abfd70a233aead9350b1b89"
+    },
+    {
+      "path": "src/db/beta-migrations/0006_story_memory_scope.sql",
+      "sha256": "4d9519301750da6ad4bb4bba825feee3be843d47dfb9313d6a06d9b2455974e3"
+    },
+    {
+      "path": "src/db/beta-migrations/meta/_journal.json",
+      "sha256": "9c458c2fe7553c57bab89b678a7fb74ebbffb9e588e54d9fcb4b8c86db0c9681"
+    }
+  ]
+}

@@ -23,7 +23,7 @@ export async function mockCommonEndpoints(page: Page) {
   await mockApiResponse(page, '**/api/v1/auth/ws-ticket', { success: true, data: { ticket: 'fake' } });
   await mockApiResponse(page, '**/api/v1/subscriptions/status', { success: true, data: { subscription: { plan: 'free', status: 'active' } } });
   await mockApiResponse(page, '**/api/v1/subscriptions/config', { success: true, data: { publishableKey: 'pk_test', prices: { proMonthly: 'price_1', proYearly: 'price_2', teamMonthly: 'price_3' } } });
-  await mockApiResponse(page, '**/api/v1/csrf-token', { csrfToken: 'fake-csrf-token' });
+  await mockApiResponse(page, '**/api/v1/csrf-token', { csrfToken: 'a'.repeat(64) });
 }
 
 /**

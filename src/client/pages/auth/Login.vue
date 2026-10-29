@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
+import { safeReturnPath } from '@client/utils/safeReturnPath';
 import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@client/stores/user';
@@ -7,6 +8,7 @@ import { useToast } from '@client/composables/useToast';
 import { User, Lock, View, Hide } from '@element-plus/icons-vue';
 import type { FormInstance, FormRules } from 'element-plus';
 import MfaChallenge from '@client/components/MfaChallenge.vue';
+import AuthStoryIntro from '@client/components/layout/AuthStoryIntro.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -71,7 +73,7 @@ const handleLogin = async (formEl: FormInstance | undefined) => {
     toast.success(t('auth.loginSuccess'));
 
     // Redirect to the original page or chat
-    const redirect = (route.query.redirect as string) || '/chat';
+    const redirect = safeReturnPath(route.query.redirect);
     router.push(redirect);
   } catch (error) {
     toast.error(t('auth.loginFailed'), {
@@ -90,7 +92,7 @@ const handleMfaSubmit = async (code: string) => {
     await userStore.completeMfaChallenge(code);
     showMfaDialog.value = false;
     toast.success(t('auth.loginSuccess'));
-    const redirect = (route.query.redirect as string) || '/chat';
+    const redirect = safeReturnPath(route.query.redirect);
     router.push(redirect);
   } catch {
     mfaError.value = userStore.error || t('mfa.invalidCode');
@@ -118,7 +120,8 @@ const loginWithOAuth = (provider: string) => {
 </script>
 
 <template>
-  <div class="login-page">
+  <div class="login-page story-shell">
+    <AuthStoryIntro />
     <div class="login-container">
       <el-card class="login-card" shadow="always">
         <template #header>
@@ -314,7 +317,7 @@ const loginWithOAuth = (provider: string) => {
   transition: all 0.2s ease;
   background-color: var(--accent);
   border: none;
-  color: white;
+  color: var(--accent-on);
 }
 
 .login-button:hover {
@@ -382,6 +385,8 @@ const loginWithOAuth = (provider: string) => {
 
 /* Responsive Design */
 @include below(md) {
+  .social-login { flex-direction: column; }
+  :deep(.el-divider__text) { white-space: nowrap; font-size: 13px; }
   .login-page {
     padding: 16px;
   }

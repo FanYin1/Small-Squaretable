@@ -1,0 +1,32 @@
+{
+  "at": "2026-10-25T15:01:00.956Z",
+  "result": "passed",
+  "tests": 66,
+  "files": [
+    {
+      "path": "src/db/character-import-audit.spec.ts",
+      "tests": 25,
+      "status": "passed"
+    },
+    {
+      "path": "src/db/character-import-repair.spec.ts",
+      "tests": 3,
+      "status": "passed"
+    },
+    {
+      "path": "src/db/character-legacy-reconciliation.spec.ts",
+      "tests": 13,
+      "status": "passed"
+    },
+    {
+      "path": "src/types/character-worldbook.spec.ts",
+      "tests": 16,
+      "status": "passed"
+    },
+    {
+      "path": "src/types/worldbook-import.spec.ts",
+      "tests": 9,
+      "status": "passed"
+    }
+  ]
+}

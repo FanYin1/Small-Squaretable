@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-26",
+  "target": "3081",
+  "characterId": "51cbc465-8e6d-4b3c-acc7-d5d4ba02da96",
+  "name": "蔚蓝星域二创（真实的宇宙）",
+  "private": true,
+  "sourceSha256": "68b4c886ce67b078d58f4cd4b04ce4c19ff576d397bde0cc3f6503b518e6260f",
+  "bytes": 5612572,
+  "worldbooks": 1,
+  "entries": 122,
+  "enabledEntries": 122,
+  "alternateGreetings": 9,
+  "diagnostics": {
+    "protocol": 1,
+    "capabilities": {
+      "native": false,
+      "map": false,
+      "scripted": true,
+      "invalid": false,
+      "issues": [
+        "author_scripts",
+        "regex_rules",
+        "variable_framework"
+      ]
+    },
+    "books": {
+      "bound": 1,
+      "active": 1,
+      "disabled": 0,
+      "empty": 0,
+      "dependencies": [
+        "bound"
+      ],
+      "purposes": [],
+      "undeclaredPurpose": true
+    },
+    "identity": {
+      "status": "unverified"
+    },
+    "multipleCharacters": false
+  },
+  "checks": [
+    "shared importer dry run passed",
+    "character and embedded book imported through shared transaction",
+    "card data and PNG avatar equal source mapping",
+    "all worldbook entries equal shared field mapping",
+    "owner and private visibility verified",
+    "generation requests, chats, events and memory tasks/attempts unchanged"
+  ],
+  "before": {
+    "generation_requests": 0,
+    "memory_jobs": 14,
+    "memory_attempts": 6,
+    "chats": 15,
+    "story_events": 72
+  },
+  "after": {
+    "generation_requests": 0,
+    "memory_jobs": 14,
+    "memory_attempts": 6,
+    "chats": 15,
+    "story_events": 72
+  },
+  "backup": "backups/exploration/azure-import-20261026-3da16451-c678-4456-9acd-e6db88e36077",
+  "modelCallsInitiated": 0
+}

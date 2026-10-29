@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-24T16:57:25.440Z",
+  "timezone": "Asia/Hong_Kong",
+  "task": "EXP-03B",
+  "result": "passed-within-six-declared-criteria",
+  "criteria": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6"
+  ],
+  "validation": {
+    "unitTests": 216,
+    "testFiles": 20,
+    "libraryGroups": 27,
+    "recoveryGroups": 6,
+    "sandboxBrowserGroups": 4,
+    "typeCheck": "passed",
+    "build": "passed",
+    "lint": {
+      "errors": 0,
+      "warnings": 248
+    },
+    "sourceFingerprintCheck": {
+      "libraryFiles": 47,
+      "sandboxFiles": 6,
+      "mismatches": 0
+    },
+    "modelGuard": "duplicate-process and one-case behavior passed with seven local controlled requests; paid usage zero"
+  },
+  "models": {
+    "firstFailedRun": 6015,
+    "fullNineTurnRecheck": 19185,
+    "terminatedDuplicateKnown": 11479,
+    "targetedIdentityRecheck": 2047,
+    "knownTurnUsage": 38726,
+    "priorAuthorizedUsage": 398002,
+    "cumulativeKnown": 436728,
+    "unreturnedReservation": 6591,
+    "cumulativeAccounted": 443319,
+    "authorizedTotal": 450000,
+    "remainingAuthorizedTestTokens": 6681
+  },
+  "deployment": {
+    "updated": false,
+    "port3081Image": "sha256:acd8f3b03eac8619726e8e34f2a942f807f5f9f78b4574546badbc31b347e36d",
+    "port3080Image": "sha256:b65d1767ba17bfcb751e851c9c3c8dc5aac4f432e7c30cd6ac80ec06bda6fec3",
+    "hostCodeMountedIntoCandidates": false,
+    "prototype5188": "unchanged"
+  },
+  "limits": [
+    "Owned native mechanisms have end-to-end production API/browser checks with a controlled provider",
+    "Real provider uses captured production contexts replayed separately; replies are not persisted by this checker",
+    "Original three library cards have explicit degraded-mode checks, not complete author-mechanism acceptance",
+    "No original third-party code executed or original source sent to the paid provider",
+    "Historical difference repair, wider framework/sample matrix, OPEN decisions and candidate/user acceptance remain open"
+  ],
+  "evidenceFiles": [
+    "character-runtime-library.json",
+    "character-runtime-sandbox.json",
+    "character-runtime-recovery.json",
+    "character-runtime-model-first-check.json",
+    "character-runtime-model-full-check.json",
+    "character-runtime-model-duplicate-accounting.json",
+    "character-runtime-model-identity-check.json"
+  ],
+  "verificationScripts": {
+    "scripts/character-journey-model-check.mjs": "eea2e5eab71346d7d2c7156920cbf856ae175dccf79cffffa81cd23f7b66a035",
+    "scripts/character-journey-model-guard-check.mjs": "0b045307f025faa6a29de9a4ae1545093f28d55fcfb2a3094d3a67ee8081d275"
+  },
+  "screenshots": {
+    "character-runtime-pages/fog-harbor-desktop.png": "24a641a067686e47c348f89ec46c8ceddef2aff4351d36d5e633cf4058d8ae55",
+    "character-runtime-pages/fog-harbor-mobile.png": "5bf2480f0c2bcf29874bc0f2c9ea822caa8b63e4f0a8899729e383bf491128dd",
+    "character-runtime-pages/late-bookshop-desktop.png": "bab67c19f8714d24505461a21d64d19d9ad5171f6099139a4430772096992c26",
+    "character-runtime-pages/late-bookshop-mobile.png": "0c48886627965d296da17c15a3ca124c79ab2e48db1e5f4f510ef85fc35a2a6a"
+  }
+}

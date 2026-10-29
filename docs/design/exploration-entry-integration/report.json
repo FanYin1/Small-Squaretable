@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-22T16:30:53.736Z",
+  "result": "passed",
+  "database": "disposable PostgreSQL",
+  "backend": "current built server",
+  "model": "local deterministic beta-smoke provider; not narrative-quality validation",
+  "networkInterception": "only drop one real committed creation response; no successful API responses fabricated",
+  "fixtures": [
+    "雾海之外",
+    "晚一点开门"
+  ],
+  "checks": [
+    "same-content four-page comparison: 390/1440, dark/light; view-only creates no chats or charges",
+    "market quick start: stored default persona, distinct save, matching opening, refresh without another POST",
+    "real WebSocket generation and one ledger charge; resume and reload retain exactly the selected opening and one user/assistant turn",
+    "same-card new run creates a distinct chat without copying or deleting the original messages",
+    "optional identity setup cancellation does not create a chat",
+    "after a real committed POST response is dropped, reload queries its request ID and opens the original chat without another POST"
+  ],
+  "screenshots": [
+    "production-discover-390-dark.png",
+    "reference-discover-390-dark.png",
+    "production-detail-390-dark.png",
+    "reference-detail-390-dark.png",
+    "production-identity-390-dark.png",
+    "reference-identity-390-dark.png",
+    "production-library-390-dark.png",
+    "reference-library-390-dark.png",
+    "production-discover-390-light.png",
+    "reference-discover-390-light.png",
+    "production-detail-390-light.png",
+    "reference-detail-390-light.png",
+    "production-identity-390-light.png",
+    "reference-identity-390-light.png",
+    "production-library-390-light.png",
+    "reference-library-390-light.png",
+    "production-discover-1440-dark.png",
+    "reference-discover-1440-dark.png",
+    "production-detail-1440-dark.png",
+    "reference-detail-1440-dark.png",
+    "production-identity-1440-dark.png",
+    "reference-identity-1440-dark.png",
+    "production-library-1440-dark.png",
+    "reference-library-1440-dark.png",
+    "production-discover-1440-light.png",
+    "reference-discover-1440-light.png",
+    "production-detail-1440-light.png",
+    "reference-detail-1440-light.png",
+    "production-identity-1440-light.png",
+    "reference-identity-1440-light.png",
+    "production-library-1440-light.png",
+    "reference-library-1440-light.png"
+  ],
+  "sources": [
+    {
+      "path": "docs/design/exploration-demo/app.js",
+      "sha256": "b7f220fbcb51edacee24ff6169f99a990a5330dfbf5156d175ece5b2a569202f"
+    },
+    {
+      "path": "src/client/pages/Chat.vue",
+      "sha256": "3fac63aac84d34e93f044169d17ed15ef823814a2e34ec948cfc49d324e05f85"
+    },
+    {
+      "path": "src/client/pages/Market.vue",
+      "sha256": "0121e085be3b23b82c825960ab64c2f6b38de78711efdeac33820e132e649340"
+    },
+    {
+      "path": "src/client/pages/CharacterDetail.vue",
+      "sha256": "9b37e7e50e63b2664313aa5cf59dc329aa628480699dba40fef0ad5450964ee8"
+    },
+    {
+      "path": "src/client/components/layout/ExplorationLayout.vue",
+      "sha256": "8a6aadc018a4210a25793fb136875459e3dc202506e201951bac24bd979cf700"
+    },
+    {
+      "path": "src/client/components/chat/PersonaSelector.vue",
+      "sha256": "e064365ab326d293f866aac8014d965c9ffe8bab29bc287ec60229bde674c8e2"
+    },
+    {
+      "path": "src/client/components/chat/StorySaveCard.vue",
+      "sha256": "5223d1aad0d6997043373c4e12c1919c68f936bb3d7fa01754a8f6b6887b5d86"
+    },
+    {
+      "path": "src/client/styles/exploration-entry.css",
+      "sha256": "306cecaa5a640b8621f43330ade1c36152b04d4d112cd171bb4e815274070d4f"
+    },
+    {
+      "path": "src/client/main.ts",
+      "sha256": "9192d3fe1b216967567c1a577f6bf05b546e744be4b219ce390492fc2004a607"
+    },
+    {
+      "path": "src/client/router/index.ts",
+      "sha256": "939642490bc4f5b792ee99ffeb10baaf7608525fc967e11547c7adad229173ae"
+    },
+    {
+      "path": "src/client/stores/user.ts",
+      "sha256": "db63131b9e75da3464e26ba3c3dc1d1e4fabcde8e440a82d8420d762be5ac023"
+    },
+    {
+      "path": "src/server/middleware/rateLimit.ts",
+      "sha256": "c09c8602cc4409f5812140c8b9ba3c20e72bf4b5fafdbd23ca30973efd8000a3"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "fc4e62d77a935dfeb954f20a8eb1d3b1acc7eb812fc3d51eff4313b580f7f59e"
+    },
+    {
+      "path": "scripts/exploration-entry-browser-check.mjs",
+      "sha256": "f363baeea9b9e142e6e0a6e8789798934a187c39faae532791f9192884aa1197"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "6030c474edb73ebb2b0c9b58e74a5823ec3bf0154a7e3057bb591f3a9885efe6"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "47b3e6e176ee22d05a70676d4f6b1470de3192e9cb7a372812dbeb8d934a5d9e"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "42cb6d423bea5035b2bdcd6bc8231bb636e549ba3825097547959c5c1ac0693e"
+    }
+  ]
+}

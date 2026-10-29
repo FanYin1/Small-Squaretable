@@ -5,13 +5,19 @@
  */
 
 import { Hono } from 'hono';
+import { randomUUID } from 'node:crypto';
+import { storyIdentitySnapshotSchema } from '../../types/story-identity';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { chatService } from '../services/chat.service';
+import { chatCreationService } from '../services/chat-creation.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
-import { chatCharacterRepository } from '../../db/repositories/chat-character.repository';
-import { characterRepository } from '../../db/repositories/character.repository';
+import { resolveStoryCharacter } from '../services/story-content.service';
+import { getStoryState, getStoryEvents, getStoryEvent, addStoryNote, deleteStoryNote, saveStoryOpening } from '../services/story-state.service';
+import { storyNoteSchema } from '../../types/story-state';
+import { getStoryMemoryView } from '../services/story-memory-view.service';
+import { exportStoryReading, renderStoryReading } from '../services/story-export.service';
 import { userPersonaRepository } from '../../db/repositories/user-persona.repository';
 import { groupChatService } from '../services/group-chat.service';
 import { authMiddleware } from '../middleware/auth';
@@ -31,14 +37,104 @@ import { characterGrowthRepository } from '../../db/repositories/character-growt
 import { getAvailableModels } from '../config/llm.config';
 import { AppError } from '../../core/errors';
 import { createLogger } from '../services/logger.service';
-import { extractVariableInserts, extractVariableEdits, extractVariableDeletes } from '../utils/variable-insert';
 import { chatVariableStore } from '../services/chat-variable.service';
+import { saveLegacyAssistantMessage } from '../services/legacy-variables.service';
 import { applyMacros, createMacroContextWithVars } from '../services/macro.service';
 import { meterUsage } from '../services/usage-meter';
+import { featureService } from '../services/feature.service';
+import { openingContent } from '../../types/story-opening';
+import { storyCorrectionsService } from '../services/story-corrections.service';
+import { branchInputSchema, branchCommitSchema, readingInputSchema } from '../../types/story-corrections';
 
 const logger = createLogger({ service: 'chats-route' });
 
 export const chatRoutes = new Hono();
+
+chatRoutes.get('/:id/story-branches', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), async (c) => {
+  const user = c.get('user');
+  c.header('Cache-Control', 'no-store');
+  return c.json({ success: true, data: await storyCorrectionsService.family(c.req.param('id'), user.id, user.tenantId) });
+});
+chatRoutes.post('/:id/story-branches/preview', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), zValidator('json', branchInputSchema), async (c) => {
+  const user = c.get('user');
+  c.header('Cache-Control', 'no-store');
+  return c.json({ success: true, data: await storyCorrectionsService.preview(c.req.param('id'), user.id, user.tenantId, c.req.valid('json')) });
+});
+chatRoutes.post('/:id/story-branches', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), zValidator('json', branchCommitSchema), async (c) => {
+  const user = c.get('user');
+  const { input, previewDigest } = c.req.valid('json');
+  const result = await storyCorrectionsService.fork(c.req.param('id'), user.id, user.tenantId, input, previewDigest);
+  return c.json({ success: true, data: { chatId: result.chat.id, created: result.created } }, result.created ? 201 : 200);
+});
+chatRoutes.get('/:id/story-readings', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), async (c) => {
+  const user = c.get('user');
+  c.header('Cache-Control', 'no-store');
+  return c.json({ success: true, data: await storyCorrectionsService.readings(c.req.param('id'), user.id, user.tenantId) });
+});
+chatRoutes.post('/:id/story-readings', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), zValidator('json', readingInputSchema), async (c) => {
+  const user = c.get('user');
+  return c.json({ success: true, data: await storyCorrectionsService.saveReading(c.req.param('id'), user.id, user.tenantId, c.req.valid('json')) }, 201);
+});
+chatRoutes.delete('/:id/story-readings/:readingId', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid(), readingId: z.string().uuid() })), async (c) => {
+  const user = c.get('user');
+  const { id, readingId } = c.req.valid('param');
+  await storyCorrectionsService.removeReading(id, user.id, user.tenantId, readingId);
+  return c.json({ success: true });
+});
+
+chatRoutes.get('/:id/story-memory', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })),
+  zValidator('query', z.object({ before: z.string().uuid().optional() })), async (c) => {
+    const user = c.get('user');
+    c.header('Cache-Control', 'no-store');
+    return c.json({ success: true, data: await getStoryMemoryView(c.req.valid('param').id, user.id, user.tenantId, c.req.valid('query').before) });
+  });
+
+chatRoutes.get('/:id/story-state', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  await chatService.getById(c.req.param('id'), user.id, user.tenantId);
+  c.header('Cache-Control', 'no-store');
+  return c.json({ success: true, data: await getStoryState(c.req.param('id'), user.id) });
+});
+
+chatRoutes.get('/:id/story-events', authMiddleware(), zValidator('query', z.object({ beforeVersion: z.coerce.number().int().positive().optional() })), async (c) => {
+  const user = c.get('user');
+  await chatService.getById(c.req.param('id'), user.id, user.tenantId);
+  c.header('Cache-Control', 'no-store');
+  return c.json({ success: true, data: await getStoryEvents(c.req.param('id'), user.id, c.req.valid('query').beforeVersion) });
+});
+
+chatRoutes.get('/:id/story-events/:eventId', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid(), eventId: z.string().uuid() })), async (c) => {
+  const user = c.get('user');
+  const { id, eventId } = c.req.valid('param');
+  await chatService.getById(id, user.id, user.tenantId);
+  c.header('Cache-Control', 'no-store');
+  return c.json({ success: true, data: await getStoryEvent(id, user.id, eventId) });
+});
+
+chatRoutes.post('/:id/story-notes', authMiddleware(), zValidator('json', storyNoteSchema), async (c) => {
+  const user = c.get('user');
+  await chatService.getById(c.req.param('id'), user.id, user.tenantId);
+  return c.json({ success: true, data: await addStoryNote(c.req.param('id'), user.id, c.req.valid('json')) }, 201);
+});
+
+chatRoutes.delete('/:id/story-notes/:noteId', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  await chatService.getById(c.req.param('id'), user.id, user.tenantId);
+  await deleteStoryNote(c.req.param('id'), user.id, c.req.param('noteId'));
+  return c.json({ success: true });
+});
+
+chatRoutes.get('/creation-requests/:requestId', authMiddleware(),
+  zValidator('param', z.object({ requestId: z.string().uuid() })), async (c) => {
+    const user = c.get('user');
+    const { requestId } = c.req.valid('param');
+    c.header('Cache-Control', 'no-store');
+    return c.json<ApiResponse>({
+      success: true,
+      data: await chatCreationService.lookup(user.id, user.tenantId, requestId),
+      meta: { timestamp: new Date().toISOString() },
+    });
+  });
 
 // 创建聊天
 chatRoutes.post(
@@ -58,22 +154,21 @@ chatRoutes.post(
 
     // Set characterId to the first character for backwards compatibility
     const primaryCharacterId = allCharacterIds[0];
-    const chat = await chatService.create(user.id, user.tenantId, {
-      characterId: primaryCharacterId,
-      personaId: input.personaId,
-      title: input.title,
-      metadata: input.metadata,
+    const { chat, created } = await chatCreationService.create(user.id, user.tenantId, {
+      ...input, clientRequestId: input.clientRequestId ?? randomUUID(),
+    }, async () => {
+      const quota = await featureService.checkQuota(user.tenantId, 'messages');
+      if (!quota.allowed) throw new AppError('You have exceeded your messages quota', 403, 'QUOTA_EXCEEDED');
     });
 
-    // Batch insert into chat_characters for all characters
-    if (allCharacterIds.length > 0) {
-      await chatCharacterRepository.batchInsert(chat.id, allCharacterIds);
+    if (created && input.opening && input.opening.reference.source !== 'none') {
+      await meterUsage(user.tenantId, 'messages', 1, { transport: 'http', chatId: chat.id, role: 'assistant' });
     }
 
-    eventBus.emit('chat.created', { chatId: chat.id, userId: user.id, characterId: primaryCharacterId });
+    if (created) eventBus.emit('chat.created', { chatId: chat.id, userId: user.id, characterId: primaryCharacterId });
 
     // Fire-and-forget: increment character growth for new chat
-    if (primaryCharacterId) {
+    if (created && primaryCharacterId) {
       characterGrowthRepository.getOrCreate(primaryCharacterId, user.id)
         .then((growth) => characterGrowthRepository.incrementChats(growth.id))
         .catch((err) => logger.warn('Failed to increment chat growth', { error: err }));
@@ -82,7 +177,11 @@ chatRoutes.post(
     // Enrich with character info
     let characterName: string | null = null;
     let characterAvatar: string | null = null;
-    if (primaryCharacterId) {
+    if (chat.contentSnapshotVersion != null) {
+      const saved = await resolveStoryCharacter(chat, primaryCharacterId);
+      characterName = saved?.name ?? null;
+      characterAvatar = saved?.avatarUrl ?? null;
+    } else if (primaryCharacterId) {
       const charRow = await db
         .select({ name: characters.name, avatarUrl: characters.avatarUrl })
         .from(characters)
@@ -99,7 +198,7 @@ chatRoutes.post(
         data: { ...chat, characterName, characterAvatar },
         meta: { timestamp: new Date().toISOString() },
       },
-      201
+      created ? 201 : 200
     );
   }
 );
@@ -126,10 +225,10 @@ chatRoutes.get(
         charMap.set(row.id, { name: row.name, avatarUrl: row.avatarUrl });
       }
     }
-    const enrichedItems = result.items.map(ch => ({
-      ...ch,
-      characterName: ch.characterId ? charMap.get(ch.characterId)?.name || null : null,
-      characterAvatar: ch.characterId ? charMap.get(ch.characterId)?.avatarUrl || null : null,
+    const enrichedItems = await Promise.all(result.items.map(async ch => {
+      const character = ch.contentSnapshotVersion != null ? await resolveStoryCharacter(ch, ch.characterId)
+        : ch.characterId ? charMap.get(ch.characterId) : null;
+      return { ...ch, characterName: character?.name ?? null, characterAvatar: character?.avatarUrl ?? null };
     }));
 
     return c.json<ApiResponse<PaginatedResponse<Chat>>>(
@@ -145,67 +244,26 @@ chatRoutes.get(
 
 // GET /:id/export — Export chat history
 const exportChatSchema = z.object({
-  format: z.enum(['json', 'txt']).default('json'),
+  format: z.enum(['json', 'txt', 'markdown']).default('json'),
 });
 
 chatRoutes.get('/:id/export', authMiddleware(), zValidator('query', exportChatSchema), async (c) => {
   const user = c.get('user') as { id: string; tenantId: string };
   const { id } = c.req.param();
   const { format } = c.req.valid('query');
+  c.header('Cache-Control', 'no-store');
 
   try {
-    // Verify chat ownership
-    const chat = await chatRepository.findById(id);
-    if (!chat || chat.userId !== user.id) {
-      return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Chat not found' } }, 404);
-    }
-
-    // Get all messages (no pagination limit for export)
-    const allMessages = await messageRepository.findByChatId(id);
-
-    const safeName = (chat.title || 'chat').replace(/[^a-zA-Z0-9_-]/g, '_');
-
-    if (format === 'txt') {
-      // Plain text format
-      let text = `# ${chat.title || 'Untitled Chat'}\n`;
-      text += `# Exported: ${new Date().toISOString()}\n\n`;
-
-      for (const msg of allMessages) {
-        const role = msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'Character' : 'System';
-        const time = new Date(msg.sentAt).toLocaleString();
-        text += `[${time}] ${role}:\n${msg.content}\n\n`;
-      }
-
-      c.header('Content-Type', 'text/plain; charset=utf-8');
-      c.header('Content-Disposition', `attachment; filename="${safeName}.txt"`);
-      return c.body(text);
-    }
-
-    // JSON format
-    const exportData = {
-      chat: {
-        id: chat.id,
-        title: chat.title,
-        characterId: chat.characterId,
-        createdAt: chat.createdAt,
-        updatedAt: chat.updatedAt,
-      },
-      messages: allMessages.map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        characterId: msg.characterId,
-        sentAt: msg.sentAt,
-        attachments: msg.attachments,
-      })),
-      exportedAt: new Date().toISOString(),
-      messageCount: allMessages.length,
-    };
-
-    c.header('Content-Type', 'application/json; charset=utf-8');
-    c.header('Content-Disposition', `attachment; filename="${safeName}.json"`);
-    return c.body(JSON.stringify(exportData, null, 2));
+    const record = await exportStoryReading(id, user.id, user.tenantId);
+    const safeName = (record.chat.title || 'story').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100);
+    const extension = format === 'markdown' ? 'md' : format;
+    const contentType = format === 'json' ? 'application/json' : format === 'markdown' ? 'text/markdown' : 'text/plain';
+    c.header('Content-Type', `${contentType}; charset=utf-8`);
+    c.header('Content-Disposition', `attachment; filename="${safeName}.${extension}"`);
+    c.header('X-Content-Type-Options', 'nosniff');
+    return c.body(format === 'json' ? JSON.stringify(record, null, 2) : renderStoryReading(record, format));
   } catch (error) {
+    if (error instanceof AppError) throw error;
     logger.error('Failed to export chat', { error: String(error), chatId: id });
     return c.json({ success: false, error: { code: 'EXPORT_ERROR', message: 'Failed to export chat' } }, 500);
   }
@@ -316,7 +374,11 @@ chatRoutes.get('/:id', authMiddleware(), async (c) => {
   // Enrich with character info
   let characterName: string | null = null;
   let characterAvatar: string | null = null;
-  if (chat.characterId) {
+  if (chat.contentSnapshotVersion != null) {
+    const saved = await resolveStoryCharacter(chat, chat.characterId);
+    characterName = saved?.name ?? null;
+    characterAvatar = saved?.avatarUrl ?? null;
+  } else if (chat.characterId) {
     const charRow = await db
       .select({ name: characters.name, avatarUrl: characters.avatarUrl })
       .from(characters)
@@ -467,13 +529,27 @@ chatRoutes.post(
       );
     }
 
+    if (chat.contentSnapshotVersion != null) {
+      const character = await resolveStoryCharacter(chat, chat.characterId);
+      const card = character?.cardData as Record<string, unknown> | undefined;
+      const savedOpening = character && 'opening' in character ? character.opening : undefined;
+      const greetings = savedOpening && card ? [openingContent(card, savedOpening.reference)]
+        : [card?.first_mes, ...(Array.isArray(card?.alternate_greetings) ? card.alternate_greetings : [])];
+      if (input.role !== 'assistant' || input.parentMessageId || !greetings.includes(input.content)) {
+        throw new AppError('Continue this story through the live connection. Historical corrections are not enabled.', 409, 'STORY_HISTORY_FIXED');
+      }
+      input.extra = undefined;
+    }
+
     // Apply macro expansion on assistant messages (e.g. first_mes greetings with {{char}}, {{user}})
-    if (input.role === 'assistant' && chat.characterId) {
-      const character = await characterRepository.findById(chat.characterId);
+    if (input.role === 'assistant' && (chat.characterId || chat.contentSnapshotVersion != null)) {
+      const character = await resolveStoryCharacter(chat, chat.characterId);
       if (character) {
         // Fetch persona if personaId exists
         let userName = user.displayName || 'User';
-        if (chat.personaId) {
+        if (chat.identitySnapshot != null) {
+          userName = storyIdentitySnapshotSchema.parse(chat.identitySnapshot).name;
+        } else if (chat.personaId) {
           const persona = await userPersonaRepository.findById(chat.personaId);
           if (persona && persona.userId === user.id) {
             userName = persona.name;
@@ -497,7 +573,11 @@ chatRoutes.post(
       }
     }
 
-    const message = input.parentMessageId
+    const opening = chat.contentSnapshotVersion != null ? await saveStoryOpening(chatId, user.id, input.content) : null;
+    if (opening && !opening.created) return c.json({ success: true, data: opening.message }, 201);
+    const message = opening?.message ?? (input.role === 'assistant' && chat.contentSnapshotVersion == null
+      ? await saveLegacyAssistantMessage({ chatId, ...input })
+      : input.parentMessageId
       ? await messageRepository.createWithParent({
           chatId,
           role: input.role,
@@ -505,7 +585,7 @@ chatRoutes.post(
           attachments: input.attachments,
           parentMessageId: input.parentMessageId,
         })
-      : await chatService.addMessage(chatId, input);
+      : await chatService.addMessage(chatId, input));
 
     // 计量放在消息确实落库之后：先记账再写库的话，写库失败会留下幻影用量。
     // 上面的 requireQuota 只是读累计值，不写；两者必须成对出现，否则
@@ -518,22 +598,6 @@ chatRoutes.post(
     });
 
     eventBus.emit('chat.message.sent', { chatId, messageId: message.id, userId: user.id, role: input.role });
-
-    // Extract ERA variable blocks from assistant messages (e.g. first_mes greetings)
-    if (input.role === 'assistant') {
-      const vars = extractVariableInserts(input.content);
-      for (const v of vars) {
-        await chatVariableStore.setChatVar(chatId, v.key, v.value);
-      }
-      const edits = extractVariableEdits(input.content);
-      for (const v of edits) {
-        await chatVariableStore.setChatVar(chatId, v.key, v.value);
-      }
-      const deletes = extractVariableDeletes(input.content);
-      for (const key of deletes) {
-        await chatVariableStore.deleteChatVar(chatId, key);
-      }
-    }
 
     // Fire-and-forget: increment character growth for new message
     if (chat.characterId) {
@@ -660,7 +724,7 @@ chatRoutes.get(
 const messagesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   before: z.coerce.number().int().optional(),
-  after: z.coerce.number().int().optional(),
+  after: z.coerce.number().int().nonnegative().optional(),
 });
 
 // 获取聊天消息列表（游标分页）
@@ -715,6 +779,9 @@ chatRoutes.post(
     const user = c.get('user');
     const chatId = c.req.param('id');
     const { messageId } = c.req.valid('json');
+
+    const ownedStory = await chatService.getById(chatId, user.id, user.tenantId);
+    if (ownedStory.contentSnapshotVersion != null) throw new AppError('History rollback requires a matching state checkpoint and is not enabled for this story.', 409, 'STORY_HISTORY_FIXED');
 
     const chat = await chatRepository.findById(chatId);
     if (!chat || chat.userId !== user.id) {
@@ -1265,7 +1332,11 @@ chatRoutes.post(
       // Get character info
       let characterName: string | null = null;
       let characterAvatar: string | null = null;
-      if (chat.characterId) {
+      if (chat.contentSnapshotVersion != null) {
+        const saved = await resolveStoryCharacter(chat, chat.characterId);
+        characterName = saved?.name ?? null;
+        characterAvatar = saved?.avatarUrl ?? null;
+      } else if (chat.characterId) {
         const charResult = await db
           .select({ name: characters.name, avatarUrl: characters.avatarUrl })
           .from(characters)

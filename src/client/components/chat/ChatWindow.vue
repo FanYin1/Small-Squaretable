@@ -1,7 +1,8 @@
 <template>
-  <div class="chat-window">
+  <div class="chat-window is-exploration">
     <div class="chat-header" v-if="currentChat">
       <div class="chat-info">
+        <RouterLink class="story-back" to="/chat" aria-label="返回我的故事">← 我的故事</RouterLink>
         <!-- Group chat: stacked avatars + character count -->
         <template v-if="isGroupChat">
           <div class="stacked-avatars">
@@ -22,16 +23,54 @@
         <!-- Single chat: original display -->
         <template v-else>
           <div class="chat-details">
-            <h3 class="chat-title">{{ currentChat.characterName }}</h3>
-            <span class="chat-subtitle">{{ emotionEmoji }} {{ intelligenceStore.emotionLabel }}</span>
+            <h3 class="chat-title">{{ currentChat.title || currentChat.characterName }}</h3>
+            <span class="chat-subtitle">{{ currentChat.characterName }} · {{ storyUserName }}<template v-if="storyState?.map?.location"> · {{ storyState.map.nodes.find(node => node.id === storyState?.map?.location)?.label }}</template></span>
           </div>
         </template>
       </div>
+      <StoryCorrections v-if="userStore.user" :key="`${userStore.user.id}:${currentChat.id}`" ref="correctionsPanel" :chat-id="currentChat.id" :owner-id="userStore.user.id" :messages="messages" @readings="storyReadings = $event" />
+      <el-dropdown trigger="click" @command="handleMenuCommand">
+        <el-button link :icon="More" :aria-label="t('storyShell.storyActions')">{{ t('storyShell.storyActions') }}</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="search">{{ t('chat.searchMessages') }}</el-dropdown-item>
+            <el-dropdown-item command="export-json">{{ t('chat.exportJson') }}</el-dropdown-item>
+            <el-dropdown-item command="export-md">{{ t('chat.exportMarkdown') }}</el-dropdown-item>
+            <el-dropdown-item command="export-txt">{{ t('chat.exportText') }}</el-dropdown-item>
+            <el-dropdown-item command="rename" divided>{{ t('chat.renameTitle') }}</el-dropdown-item>
+            <el-dropdown-item command="delete" divided>{{ t('chat.deleteTitle') }}</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <details class="reading-settings">
+        <summary>{{ t('storyShell.readingSettings') }}</summary>
+        <div class="reading-settings-body">
+          <p>{{ t(currentChat?.identitySnapshot ? 'personas.storyIdentityFixed' : 'personas.storyIdentityLegacy') }}</p>
+          <p v-if="currentChat?.worldbookSnapshotVersion === 1">{{ t('chat.savedWorldbooks') }}</p>
+          <p v-if="currentChat?.contentSnapshotVersion === 1">{{ t('chat.savedContent') }}</p>
+          <ul v-if="chatStore.currentCharacter?.compatibility?.issues.length" aria-label="当前故事兼容范围">
+            <li v-for="issue in chatStore.currentCharacter.compatibility.issues" :key="issue">{{ storyCapabilityMessages[issue] }}</li>
+          </ul>
+          <template v-for="participant in chatStore.chatCharacters" :key="participant.id">
+            <section v-if="participant.diagnostics" :aria-label="`${participant.name}的冻结诊断`">
+              <strong>{{ participant.name }}</strong>
+              <StoryDiagnosticsView :report="participant.diagnostics" frozen />
+              <ul v-if="participant.id !== chatStore.currentCharacter?.id && participant.diagnostics.capabilities.issues.length">
+                <li v-for="issue in participant.diagnostics.capabilities.issues" :key="issue">{{ storyCapabilityMessages[issue] }}</li>
+              </ul>
+            </section>
+          </template>
+          <p v-if="currentChat?.contentSnapshotVersion === 1 && !chatStore.currentCharacter?.diagnostics">此旧档未保存开局绑定诊断，不用当前资料补造当时的检查结果。</p>
+          <p v-if="currentChat?.contentSnapshotVersion == null">历史故事保留原有正文与设定方式，不补造状态或地图。旧脚本桥接仅提供有限兼容，临时变量写入不会保存为故事状态；外部脚本资源与未实现的接口不可用。</p>
+          <div class="reading-font-controls" role="group" :aria-label="t('storyShell.fontSize')">
+            <button v-for="(font, index) in readingSizes" :key="font" type="button" :aria-pressed="readingSize === font" @click="setReadingSize(font)">{{ [15, 17, 19][index] }}px</button>
+          </div>
+          <p v-if="currentChat?.contentSnapshotVersion == null" class="reading-emotion">{{ emotionEmoji }} {{ intelligenceStore.emotionLabel }}</p>
       <div class="chat-actions">
         <!-- Token Counter -->
         <ChatTokenCounter @show-context-viewer="showContextViewerDialog" />
 
-        <el-tooltip v-if="isGroupChat" :content="t('groupChat.manageCharacters')" placement="bottom">
+        <el-tooltip v-if="isGroupChat && currentChat?.contentSnapshotVersion == null" :content="t('groupChat.manageCharacters')" placement="bottom">
           <el-button size="small" text @click="showManageDialog = true">{{ t('groupChat.manageCharacters') }}</el-button>
         </el-tooltip>
         <el-segmented
@@ -46,6 +85,7 @@
           :model-value="chatStore.currentModel"
           size="small"
           class="model-select"
+          :aria-label="t('storyShell.modelOptions')"
           @change="handleModelChange"
         >
           <el-option
@@ -61,12 +101,12 @@
           </el-option>
         </el-select>
         <el-dropdown trigger="click" @command="handleToolsDropdown">
-          <el-button text size="small" class="tools-btn" :aria-label="t('chat.tools')" :title="t('chat.tools')">⚙</el-button>
+          <el-button text size="small" class="tools-btn" :aria-label="t('chat.tools')" :title="t('chat.tools')">{{ t('chat.tools') }}</el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="tuner">{{ t('chat.parameterTuning') }}</el-dropdown-item>
               <el-dropdown-item command="memory">{{ t('chat.memory') }}</el-dropdown-item>
-              <el-dropdown-item command="debug">
+              <el-dropdown-item v-if="currentChat?.contentSnapshotVersion == null" command="debug">
                 {{ t('chat.debug') }}
                 <el-badge v-if="intelligenceStore.debugEventCount > 0" :value="intelligenceStore.debugEventCount" :max="99" style="margin-left: 8px" />
               </el-dropdown-item>
@@ -77,8 +117,9 @@
           </template>
         </el-dropdown>
         <el-dropdown trigger="click" @command="handleExportDropdown">
-          <el-button text>
+          <el-button text :aria-label="t('common.export')" :title="t('common.export')">
             <el-icon><Download /></el-icon>
+            {{ t('common.export') }}
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -88,20 +129,9 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <el-dropdown trigger="click" @command="handleMenuCommand">
-          <el-button link :icon="More" />
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="search">{{ t('chat.searchMessages') }}</el-dropdown-item>
-              <el-dropdown-item command="export-json">{{ t('chat.exportJson') }}</el-dropdown-item>
-              <el-dropdown-item command="export-md">{{ t('chat.exportMarkdown') }}</el-dropdown-item>
-              <el-dropdown-item command="export-txt">{{ t('chat.exportText') }}</el-dropdown-item>
-              <el-dropdown-item command="rename" divided>{{ t('chat.renameTitle') }}</el-dropdown-item>
-              <el-dropdown-item command="delete" divided>{{ t('chat.deleteTitle') }}</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
       </div>
+        </div>
+      </details>
     </div>
 
     <div v-if="showSearch" class="chat-search-bar">
@@ -122,6 +152,13 @@
       </span>
     </div>
 
+    <div class="story-play-layout">
+    <StoryBranchNavigator v-if="currentChat && userStore.user" :key="`${userStore.user.id}:${currentChat.id}`" :chat-id="currentChat.id" :owner-id="userStore.user.id" />
+    <main class="story-reading">
+    <div v-if="readingPosition.restoring.value || readingPosition.notice.value" class="reading-position-status" role="status">
+      <span>{{ readingPosition.restoring.value ? '正在找回上次阅读的位置…' : readingPosition.notice.value }}</span>
+      <button type="button" @click="readingPosition.returnToLatest">返回最新</button>
+    </div>
     <div class="chat-messages" ref="messagesContainer" @scroll="handleScroll" aria-live="polite"
       @touchstart.passive="handleTouchStart"
       @touchmove.passive="handleTouchMove"
@@ -149,13 +186,20 @@
           :emotion-label="intelligenceStore.emotionLabel || 'neutral'"
         />
 
-        <div v-if="messages.length === 0 && currentGreeting" class="greeting-container"
+        <div v-if="greetingIdentityBlocked" class="greeting-container">
+          <p v-if="identityLoading" role="status">{{ t('personas.loadingStoryIdentity') }}</p>
+          <div v-else role="alert">
+            <p>{{ t('personas.storyIdentityLoadFailed') }}</p>
+            <el-button @click="reloadIdentity">{{ t('personas.retryStoryIdentity') }}</el-button>
+          </div>
+        </div>
+        <div v-else-if="messages.length === 0 && currentGreeting" class="greeting-container"
           @touchstart="onGreetingTouchStart"
           @touchend="onGreetingTouchEnd"
         >
         <div class="message-bubble message-assistant greeting-bubble">
           <div class="message-content">
-            <MarkdownRenderer :content="currentGreeting" />
+            <MarkdownRenderer :content="currentGreeting" :interactive-html="currentChat?.contentSnapshotVersion == null" />
           </div>
         </div>
         <div v-if="hasAlternateGreetings" class="greeting-swipe">
@@ -200,6 +244,10 @@
           >
             <MessageBubble
               :message="message"
+              :reading-content="storyReadings.filter(reading => reading.kind === 'layout' && reading.messageId === Number(message.id)).at(-1)?.content"
+              :history-fixed="currentChat?.contentSnapshotVersion != null"
+              :can-correct="!!userStore.user"
+              :audience-names="Array.isArray(message.extra?.storyAudience) ? message.extra.storyAudience.map((id: string) => chatStore.chatCharacters.find(character => character.id === id)?.name || '未知人物') : undefined"
               :character-avatar="getMessageCharacterAvatar(message)"
               :character-name="getMessageCharacterName(message)"
               :user-avatar="userStore.user?.avatar"
@@ -207,7 +255,7 @@
               :editing="editingMessageId === message.id"
               :voice-config="characterVoiceConfig"
               :branch-info="chatStore.getBranchInfo(Number(message.id))"
-              :regex-scripts="message.role === 'assistant' ? getMessageRegexScripts(message) : undefined"
+              :regex-scripts="message.role === 'assistant' && message.extra?.stateStatus !== 'proposed' && !message.extra?.storyIntentInvalid ? getMessageRegexScripts(message) : undefined"
               @delete="handleDeleteMessage"
               @edit="handleEditMessage"
               @regenerate="handleRegenerateMessage"
@@ -218,7 +266,15 @@
               @reply="chatStore.setReplyTo($event)"
               @toggle-pin="handleTogglePin($event)"
               @set-importance="handleSetImportance($event)"
+              @correct="correctionsPanel?.openFor(Number($event))"
             />
+            <div v-if="storyReadings.some(item => item.messageId === Number(message.id))" class="story-reading-actions">
+              <aside v-for="reading in storyReadings.filter(item => item.messageId === Number(message.id))" :key="reading.id" :aria-label="reading.kind === 'annotation' ? '阅读标注' : '已采用排版'">
+                <span>{{ reading.kind === 'annotation' ? `阅读标注：${reading.content}` : '已采用段落排版，模型仍使用原文。' }}</span>
+                <button type="button" @click="undoReading(reading.id)">撤销</button>
+              </aside>
+            </div>
+            <StoryIntentReview v-if="latestStoryIntent?.messageId === Number(message.id)" :candidate="latestStoryIntent.candidate" :busy="actionBlocked" :stale="storyState?.version !== latestStoryIntent.candidate.expectedVersion" :actions="storyState?.actions ?? []" @confirm="confirmStoryIntent" />
           </div>
         </template>
 
@@ -237,7 +293,7 @@
               <span class="streaming-author">{{ chatStore.streamingCharacterName }}</span>
             </div>
             <div class="message-content">
-              <MarkdownRenderer :content="streamingMessage" :streaming="true" :regex-scripts="streamingRegexScripts" />
+              <MarkdownRenderer :content="streamingMessage" :streaming="true" :regex-scripts="streamingRegexScripts" :interactive-html="currentChat?.contentSnapshotVersion == null" />
               <span class="typing-cursor"></span>
             </div>
           </div>
@@ -257,11 +313,50 @@
 
       <ScrollToBottom
         :visible="showScrollButton"
-        @click="scrollToBottom(true)"
+        :label="hasNewContent ? t('chat.newContent') : t('chat.scrollToBottom')"
+        @click="readingPosition.returnToLatest"
       />
     </div>
 
     <div class="chat-input-container">
+      <div v-if="isGroupChat && currentChat?.contentSnapshotVersion === 1" class="story-audience">
+        <label for="story-audience">这次对谁说</label>
+        <select id="story-audience" v-model="privateListener" :disabled="sending || isStreaming || preparingMessage">
+          <option value="">在场所有人</option>
+          <option v-for="character in chatStore.chatCharacters" :key="character.id" :value="character.id">单独对 {{ character.name }}</option>
+        </select>
+        <p>{{ privateListener ? '此次交谈只供所选人物续接。切回公开交谈时不会自动带出私下内容。' : '公开交谈。@只选择回应者，不代表私下交谈。' }}</p>
+        <p v-if="!audienceStorageAvailable" role="alert">浏览器不能保存交谈范围，刷新后请重新确认听众。</p>
+      </div>
+      <section v-if="storyState?.actions.length" class="story-actions" aria-label="接下来">
+        <div class="story-action-heading"><h2>接下来</h2><span>也可以自由描述你的行动</span></div>
+        <ul><li v-for="action in storyState.actions" :key="action.id"><button type="button" class="story-action-choice" :disabled="actionBlocked" @click="executeStoryAction(action)"><span class="story-action-intent">{{ actionIntents[action.intent] }}</span><span class="story-action-label">{{ action.label }}</span><span aria-hidden="true">→</span></button></li></ul>
+      </section>
+      <section v-if="turnRecommendations" class="story-actions turn-recommendations" :class="{ 'opening-suggestions': !chatStore.messages.some(message => message.role === 'user') }" aria-label="本轮推荐行动">
+        <div class="story-action-heading"><h2>接下来</h2><span>{{ turnRecommendations.storyRecommendationsSource === 'generated' ? '根据本轮剧情生成' : turnRecommendations.storyRecommendationsSource === 'excerpt' ? '基于原文的探索提示' : '通用探索提示' }} · 不是原卡规则选项</span></div>
+        <ul><li v-for="suggestion in turnRecommendations.storyRecommendations" :key="suggestion.label"><button type="button" class="story-action-choice" :disabled="recommendationBlocked || greetingIdentityBlocked" @click="sendStorySuggestion(suggestion.input)"><span class="story-action-label">{{ suggestion.label }}</span></button></li></ul>
+        <p>点击作为自由输入发送，不保证结果或奖励；也可自行输入。</p>
+      </section>
+      <p v-if="storyStateError" class="generation-error" role="alert">{{ storyStateError }} <button type="button" @click="refreshStoryState">重试</button></p>
+      <div v-if="chatStore.error" class="generation-error" role="alert">
+        <span>{{ chatStore.error }}</span>
+        <el-button
+          v-if="chatStore.contextRecovery?.chatId === currentChat?.id && chatStore.contextRecovery?.content"
+          link size="small" class="context-recover-input"
+          :disabled="sending || isStreaming || preparingMessage"
+          @click="recoverContextInput"
+        >{{ t('chat.contextRecoverInput') }}</el-button>
+        <el-button
+          v-if="chatStore.canRetryGeneration"
+          link
+          size="small"
+          class="generation-retry"
+          @click="handleRetryGeneration"
+        >
+          {{ t('chat.retryGeneration') }}
+        </el-button>
+      </div>
+      <p v-if="chatStore.stopping" class="generation-status" role="status">{{ t('chat.stopping') }}</p>
       <!-- Next responder indicator (round_robin group chat) -->
       <div v-if="nextResponder && !isStreaming" class="next-responder-indicator">
         <el-avatar :size="20" :src="nextResponder.avatar" class="next-responder-avatar">
@@ -274,15 +369,33 @@
         <span class="remote-typing-dots"><span></span><span></span><span></span></span>
         <span class="remote-typing-text">{{ t('chat.remoteTyping', { names: remoteTypingNames.join(', ') }, remoteTypingNames.length) }}</span>
       </div>
+      <section v-if="creditBalance?.billingMode === 'credits' || creditsFailed" class="story-credits" :aria-label="t('credits.title')" :aria-busy="creditsLoading">
+        <template v-if="creditBalance?.billingMode === 'credits'">
+          <span>{{ t('credits.available') }} <strong>{{ creditBalance.unlimited ? t('credits.unlimited') : creditBalance.availablePoints }}</strong></span>
+          <span v-if="creditBalance.heldTokens > 0">{{ t('credits.held') }} {{ (creditBalance.heldTokens / creditBalance.tokensPerPoint).toLocaleString(undefined, { maximumFractionDigits: 4 }) }}</span>
+          <span v-if="latestCharge && !creditsFailed">{{ t('credits.latestStoryCharge', { points: Math.abs(latestCharge.points) }) }}</span>
+          <span v-if="creditsBlocked" role="status">{{ t('credits.insufficient') }}</span>
+        </template>
+        <span v-if="creditsFailed" role="alert">{{ t('credits.refreshFailed') }}</span>
+        <button type="button" :disabled="creditsLoading" @click="refreshCredits">{{ t('credits.refresh') }}</button>
+        <RouterLink :to="{ name: 'Subscription', query: { returnTo: `/chat/${currentChat?.id}` } }">{{ t('credits.viewBalance') }}</RouterLink>
+      </section>
       <MessageInput
-        :disabled="!currentChat"
-        :sending="sending"
+        ref="messageInput"
+        :disabled="!currentChat || greetingIdentityBlocked || (creditsBlocked && !sending && !isStreaming)"
+        :sending="sending || preparingMessage"
         :is-streaming="isStreaming"
+        :stopping="chatStore.stopping"
+        :draft-audience="privateListener"
         :characters="isGroupChat ? chatStore.chatCharacters.map(c => ({ id: c.id, name: c.name, avatar: c.avatar })) : []"
         @send="handleSendMessage"
         @stop-generation="chatStore.abortGeneration()"
       />
     </div>
+    </main>
+    <StoryDossier v-if="currentChat?.contentSnapshotVersion != null" :key="currentChat.id" :chat-id="currentChat.id" :state="storyState" :busy="sending || isStreaming" :loading="storyStateLoading" :error="storyStateError" @refresh="refreshStoryState" @source="showStorySource" />
+    </div>
+    <el-dialog v-if="sourceVisible" v-model="sourceVisible" title="历程原文" width="min(680px, 94vw)" append-to-body><p v-if="sourceLoading" role="status">正在读取原文…</p><MarkdownRenderer v-else :content="sourceText" /></el-dialog>
 
     <!-- Manage Characters Dialog (Group Chat) -->
     <el-dialog
@@ -366,14 +479,15 @@
       class="intelligence-drawer"
     >
       <el-tabs v-model="activeIntelligenceTab">
-        <el-tab-pane :label="t('chat.emotion')" name="emotion">
+        <el-tab-pane v-if="currentChat?.contentSnapshotVersion == null" :label="t('chat.emotion')" name="emotion">
           <EmotionIndicator />
         </el-tab-pane>
         <el-tab-pane :label="t('chat.memory')" name="memory">
-          <MemoryPanel v-if="currentChat?.characterId" :character-id="currentChat.characterId" :chat-id="currentChat.id" />
+          <StoryMemoryStatus v-if="currentChat?.contentSnapshotVersion != null" :key="currentChat.id" :chat-id="currentChat.id" :busy="sending || isStreaming" :version="storyState?.version ?? 0" @source="showStorySource" />
+          <MemoryPanel v-else-if="currentChat?.characterId" :character-id="currentChat.characterId" :chat-id="currentChat.id" />
         </el-tab-pane>
-        <el-tab-pane :label="t('chat.debug')" name="debug">
-          <IntelligenceDebugPanel :chat-id="currentChat?.id" :character-id="currentChat?.characterId" />
+        <el-tab-pane v-if="currentChat?.contentSnapshotVersion == null" :label="t('chat.debug')" name="debug">
+          <IntelligenceDebugPanel v-if="showIntelligenceDrawer && activeIntelligenceTab === 'debug'" :chat-id="currentChat?.id" :character-id="currentChat?.characterId" />
         </el-tab-pane>
       </el-tabs>
     </el-drawer>
@@ -420,7 +534,7 @@
     </el-dialog>
     <!-- ERA Script Runner (hidden iframe for tavern_helper scripts) -->
     <EraScriptRunner
-      v-if="eraTavernHelperScripts.length > 0 && currentChat"
+      v-if="eraTavernHelperScripts.length > 0 && currentChat && currentChat.contentSnapshotVersion == null"
       :scripts="eraTavernHelperScripts"
       :char-name="currentChat.characterName || ''"
       :user-name="userStore.user?.name || 'User'"
@@ -439,12 +553,17 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { storyDisplayText } from '@client/utils/story-display';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { More, Loading, Search, Download } from '@element-plus/icons-vue';
 import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
 import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
 import { useDateTime } from '@client/composables';
+import { useStoryIdentity } from '@client/composables/useStoryIdentity';
+import { useStoryCredits } from '@client/composables/useStoryCredits';
+import { useStoryReadingPosition } from '@client/composables/useStoryReadingPosition';
+import { useChatFontSize } from '@client/composables/useChatFontSize';
 import { chatApi } from '@client/services/chat.api';
 import { exportApi } from '@client/services/export.api';
 import { shareApi } from '@client/services/share.api';
@@ -452,6 +571,17 @@ import { characterApi } from '@client/services/character.api';
 import { useTextToSpeech, type VoiceConfig } from '@client/composables/useTextToSpeech';
 import MessageBubble from './MessageBubble.vue';
 import MessageInput from './MessageInput.vue';
+import StoryDossier from './StoryDossier.vue';
+import StoryMemoryStatus from './StoryMemoryStatus.vue';
+import StoryIntentReview from './StoryIntentReview.vue';
+import StoryCorrections from './StoryCorrections.vue';
+import StoryBranchNavigator from './StoryBranchNavigator.vue';
+import { storyApi } from '@client/services/story.api';
+import type { StoryReading } from '../../../types/story-corrections';
+import type { StoredStoryIntent } from '../../../types/story-intent';
+import { useStoryState } from '../../composables/useStoryState';
+import { useStoryDraft } from '../../composables/useStoryDraft';
+import type { StoryStateView, StoryActionRequest } from '../../../types/story-state';
 import ScrollToBottom from './ScrollToBottom.vue';
 import DateDivider from './DateDivider.vue';
 import MarkdownRenderer from './MarkdownRenderer.vue';
@@ -459,6 +589,8 @@ import ChatTokenCounter from './ChatTokenCounter.vue';
 import ContextViewer from './ContextViewer.vue';
 import ExpressionSprite from './ExpressionSprite.vue';
 import EraScriptRunner from './EraScriptRunner.vue';
+import { storyCapabilityMessages } from '../../../types/story-capabilities';
+import StoryDiagnosticsView from '../character/StoryDiagnosticsView.vue';
 import CharacterTuner from './CharacterTuner.vue';
 import EmotionIndicator from '@client/components/EmotionIndicator.vue';
 import MemoryPanel from '@client/components/MemoryPanel.vue';
@@ -469,6 +601,7 @@ import { createLogger } from '@client/utils/logger';
 import { getRegexScripts, type RegexScript } from '@client/utils/regex-scripts';
 import { initEraBridge, destroyEraBridge, fetchVariables, updateVariables } from '@client/utils/era-bridge';
 import type { Chat, Message, MessageAttachment, Character } from '@client/types';
+import { sourcedStoryRecommendations, storyRecommendationsSchema } from '../../../types/story-recommendations';
 
 const logger = createLogger('ChatWindow');
 
@@ -479,20 +612,102 @@ interface Props {
 const props = defineProps<Props>();
 
 const { t } = useI18n();
+const { size: readingSize, sizes: readingSizes, setSize: setReadingSize } = useChatFontSize();
 const chatStore = useChatStore();
 const userStore = useUserStore();
+const messageInput = ref<InstanceType<typeof MessageInput> | null>(null);
+const { state: storyState, error: storyStateError, loading: storyStateLoading, refresh: refreshStoryState } = useStoryState(
+  () => userStore.user ? `${userStore.user.tenantId}:${userStore.user.id}` : null,
+  () => props.currentChat?.contentSnapshotVersion != null ? props.currentChat.id : undefined,
+  () => chatStore.sending || chatStore.isStreaming,
+  () => chatStore.billingRevision,
+);
+const actionIntents = { observe: '观察', talk: '交谈', act: '行动', travel: '前往' };
+const latestStoryIntent = computed(() => {
+  const latest = chatStore.messages.at(-1);
+  const candidate = latest?.extra?.storyIntent as StoredStoryIntent | undefined;
+  return latest?.role === 'assistant' && candidate ? { messageId: Number(latest.id), candidate } : null;
+});
+async function confirmStoryIntent() {
+  if (actionBlocked.value) return;
+  const selected = latestStoryIntent.value;
+  if (!selected || storyState.value?.version !== selected.candidate.expectedVersion) return;
+  await handleSendMessage(selected.candidate.input, undefined, undefined, undefined,
+    { proposalMessageId: selected.messageId, expectedVersion: selected.candidate.expectedVersion });
+}
+const actionBlocked = computed(() => chatStore.sending || chatStore.isStreaming || preparingMessage.value || Boolean(storyStateError.value) || storyStateLoading.value || creditsBlocked.value);
+const recommendationBlocked = computed(() => chatStore.sending || chatStore.isStreaming || preparingMessage.value || creditsBlocked.value);
+const sourceVisible = ref(false);
+const sourceLoading = ref(false);
+const sourceText = ref('');
+async function showStorySource(messageId: number) {
+  const target = props.currentChat?.id;
+  if (!target) return;
+  sourceVisible.value = true; sourceLoading.value = true; sourceText.value = '';
+  try {
+    const result = await chatApi.getMessages(target, { before: messageId + 1, limit: 1 });
+    if (target === props.currentChat?.id) sourceText.value = result.messages.find(message => Number(message.id) === messageId)?.content ?? '原文暂不可用，请重试。';
+  } catch { if (target === props.currentChat?.id) sourceText.value = '读取失败，请重试。'; }
+  finally { sourceLoading.value = false; }
+}
+watch(() => props.currentChat?.id, () => { sourceVisible.value = false; sourceText.value = ''; });
+async function executeStoryAction(action: StoryStateView['actions'][number]) {
+  if (actionBlocked.value) return;
+  await handleSendMessage(action.label, undefined, undefined, undefined, { actionId: action.id, expectedVersion: action.version });
+}
+const turnRecommendations = computed(() => {
+  if (props.currentChat?.contentSnapshotVersion == null || isGroupChat.value || chatStore.sending || chatStore.isStreaming) return null;
+  const latest = [...chatStore.messages].reverse().find(message =>
+    message.chatId === props.currentChat?.id && message.role === 'assistant',
+  );
+  if (!latest) return currentGreeting.value ? sourcedStoryRecommendations(currentGreeting.value) : sourcedStoryRecommendations('');
+  if (latest.extra?.stateStatus === 'interrupted') return null;
+  const parsed = storyRecommendationsSchema.safeParse(latest.extra?.storyRecommendations);
+  return parsed.success ? { storyRecommendations: parsed.data, storyRecommendationsSource: latest.extra?.storyRecommendationsSource }
+    : sourcedStoryRecommendations(latest.content);
+});
+async function sendStorySuggestion(input: string) {
+  if (!turnRecommendations.value?.storyRecommendations.some(suggestion => suggestion.input === input) || recommendationBlocked.value || greetingIdentityBlocked.value) return;
+  await handleSendMessage(input);
+}
+const { balance: creditBalance, latest: latestCharge, failed: creditsFailed, loading: creditsLoading, blocked: creditsBlocked, refresh: refreshCredits } = useStoryCredits(
+  () => userStore.user ? `${userStore.user.tenantId}:${userStore.user.id}` : null,
+  () => props.currentChat?.id,
+  () => chatStore.sending || chatStore.isStreaming,
+  () => chatStore.billingRevision,
+);
+const { name: storyUserName, loading: identityLoading, failed: identityFailed, reload: reloadIdentity } = useStoryIdentity(
+  () => props.currentChat,
+  () => userStore.user,
+);
 const intelligenceStore = useCharacterIntelligenceStore();
 const messagesContainer = ref<HTMLElement | null>(null);
+const correctionsPanel = ref<InstanceType<typeof StoryCorrections> | null>(null);
+const storyReadings = ref<StoryReading[]>([]);
+async function undoReading(id: string) {
+  const chatId = props.currentChat?.id;
+  if (!chatId) return;
+  try {
+    await storyApi.removeReading(chatId, id);
+    if (props.currentChat?.id === chatId) await correctionsPanel.value?.refreshReadings();
+  } catch (caught) { ElMessage.error(caught instanceof Error ? caught.message : '撤销失败，请重试。'); }
+}
 const messagesEnd = ref<HTMLElement | null>(null);
 
 const { formatRelativeTime } = useDateTime();
-const showScrollButton = ref(false);
+const followingLatest = ref(true);
+const hasNewContent = ref(false);
+const showScrollButton = computed(() => !followingLatest.value);
 const editingMessageId = ref<string | null>(null);
+const preparingMessage = ref(false);
 const showSearch = ref(false);
 const showContextViewer = ref(false);
 
 // Group chat state
 const isGroupChat = computed(() => chatStore.chatCharacters.length > 1);
+const audienceStorageKey = computed(() => userStore.user && props.currentChat?.id
+  ? `story-audience:${JSON.stringify([userStore.user.tenantId, userStore.user.id, props.currentChat.id])}` : null);
+const { text: privateListener, storageAvailable: audienceStorageAvailable } = useStoryDraft(audienceStorageKey);
 const showManageDialog = ref(false);
 const showAddCharacterDialog = ref(false);
 const addCharacterSearch = ref('');
@@ -626,9 +841,12 @@ const eraTavernHelperScripts = computed(() => {
   const cardData = chatStore.currentCharacter?.cardData;
   if (!cardData?.extensions?.tavern_helper) return [];
   const th = cardData.extensions.tavern_helper as Array<[string, unknown]>;
-  const scriptsEntry = th.find(([key]) => key === 'scripts');
+  if (!Array.isArray(th)) return [];
+  const scriptsEntry = th.find(entry => Array.isArray(entry) && entry[0] === 'scripts');
   if (!scriptsEntry || !Array.isArray(scriptsEntry[1])) return [];
-  return scriptsEntry[1] as Array<{ name: string; type: string; enabled: boolean; content: string }>;
+  return scriptsEntry[1].filter((script): script is { name: string; type: string; enabled: boolean; content: string } => Boolean(script)
+    && typeof script === 'object' && typeof script.name === 'string' && typeof script.type === 'string'
+    && typeof script.enabled === 'boolean' && typeof script.content === 'string');
 });
 
 // Voice config from character's cardData extensions
@@ -733,6 +951,10 @@ let scrollRafId: number | null = null;
 
 const handleScroll = () => {
   if (!messagesContainer.value) return;
+  if (readingPosition.restoring.value) return;
+  const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
+  followingLatest.value = scrollHeight - scrollTop - clientHeight <= 100;
+  if (followingLatest.value) hasNewContent.value = false;
 
   if (scrollRafId !== null) {
     cancelAnimationFrame(scrollRafId);
@@ -740,12 +962,10 @@ const handleScroll = () => {
 
   scrollRafId = requestAnimationFrame(() => {
     if (!messagesContainer.value) return;
-    const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value;
+    const { scrollTop } = messagesContainer.value;
 
     currentScrollTop.value = scrollTop;
-
-    // Show scroll-to-bottom button
-    showScrollButton.value = scrollHeight - scrollTop - clientHeight > 200;
+    readingPosition.remember();
 
     // Load older messages when near top
     if (scrollTop < 100 && chatStore.hasMoreMessages && !chatStore.loadingOlder) {
@@ -758,21 +978,24 @@ const handleScroll = () => {
 
 const loadOlderMessages = async () => {
   if (!messagesContainer.value) return;
-
-  const previousMessageCount = messages.value.length;
+  const container = messagesContainer.value;
+  const chatId = props.currentChat?.id;
+  const firstMessageId = messages.value[0]?.id;
 
   await chatStore.fetchOlderMessages();
-  await nextTick();
-
-  // Preserve scroll position: offset by estimated height of newly prepended messages
-  const newMessageCount = messages.value.length - previousMessageCount;
-  if (newMessageCount > 0 && messagesContainer.value) {
+  if (props.currentChat?.id !== chatId || messagesContainer.value !== container) return;
+  const newMessageCount = messages.value.findIndex(message => message.id === firstMessageId);
+  if (newMessageCount > 0) {
     let addedHeight = 0;
     for (let i = 0; i < newMessageCount; i++) {
       addedHeight += getMsgHeight(messages.value[i].id);
     }
-    messagesContainer.value.scrollTop = addedHeight;
-    currentScrollTop.value = addedHeight;
+    const target = container.scrollTop + addedHeight;
+    currentScrollTop.value = target;
+    await nextTick();
+    if (props.currentChat?.id === chatId && messagesContainer.value === container) {
+      container.scrollTop = target;
+    }
   }
 };
 
@@ -896,7 +1119,7 @@ const bottomSpacerHeight = computed(() => {
 // Greeting swipe state
 const greetingIndex = ref(0);
 
-const allGreetings = computed<string[]>(() => {
+const rawGreetings = computed<string[]>(() => {
   const character = chatStore.currentCharacter;
   if (!character) return [];
   const cardData = character.cardData || {};
@@ -907,13 +1130,18 @@ const allGreetings = computed<string[]>(() => {
   if (cardData.alternate_greetings && Array.isArray(cardData.alternate_greetings)) {
     greetings.push(...cardData.alternate_greetings);
   }
-  // Client-side macro expansion for greeting preview
-  const charName = character.name || '';
-  const userName = userStore.user?.name || 'User';
-  return greetings.map(g =>
-    g.replace(/\{\{char\}\}/gi, charName)
-     .replace(/\{\{user\}\}/gi, userName)
-  );
+  return greetings;
+});
+
+const greetingIdentityBlocked = computed(() => messages.value.length === 0
+  && rawGreetings.value.length > 0 && (identityLoading.value || identityFailed.value));
+
+const allGreetings = computed(() => {
+  const userName = storyUserName.value;
+  if (userName === null) return [];
+  const charName = chatStore.currentCharacter?.name || '';
+  return rawGreetings.value.map(greeting => greeting.replace(/\{\{(char|user)\}\}/gi,
+    (_match, macro: string) => macro.toLowerCase() === 'char' ? charName : userName));
 });
 
 const totalGreetings = computed(() => allGreetings.value.length);
@@ -938,18 +1166,19 @@ const nextGreeting = () => {
   }
 };
 
-// Preview: strip markdown/HTML and show first 80 chars of adjacent greetings
 const greetingPreview = computed(() => {
   const nextIdx = greetingIndex.value + 1;
-  if (nextIdx >= allGreetings.value.length) {
-    // Show previous if at end
-    const prevIdx = greetingIndex.value - 1;
-    if (prevIdx < 0) return '';
-    const raw = allGreetings.value[prevIdx].replace(/[*_#`<>[\]]/g, '').trim();
-    return `← ${raw.slice(0, 80)}${raw.length > 80 ? '...' : ''}`;
-  }
-  const raw = allGreetings.value[nextIdx].replace(/[*_#`<>[\]]/g, '').trim();
-  return `${raw.slice(0, 80)}${raw.length > 80 ? '...' : ''} →`;
+  const previous = nextIdx >= allGreetings.value.length;
+  const index = previous ? greetingIndex.value - 1 : nextIdx;
+  if (index < 0) return '';
+  const preview = storyDisplayText(rawGreetings.value[index], {
+    characterName: chatStore.currentCharacter?.name, userName: storyUserName.value ?? '', limit: 80,
+  });
+  return preview ? previous ? `← ${preview}` : `${preview} →` : '';
+});
+
+watch(greetingIndex, () => {
+  if (messages.value.length === 0) scrollToBottom(false);
 });
 
 // Touch swipe gesture for greeting navigation
@@ -985,13 +1214,19 @@ const shouldShowDateDivider = (index: number): boolean => {
 };
 
 const scrollToBottom = (smooth = true) => {
+  if (readingPosition.restoring.value) return;
+  followingLatest.value = true;
+  hasNewContent.value = false;
+  const chatId = props.currentChat?.id;
   // Ensure the last messages are in the visible range before scrolling
   currentScrollTop.value = totalEstimatedHeight.value;
 
   nextTick(() => {
-    if (messagesContainer.value) {
+    if (messagesContainer.value && followingLatest.value && props.currentChat?.id === chatId) {
       const container = messagesContainer.value;
-      if (smooth) {
+      if (messages.value.length === 0) {
+        container.scrollTop = 0;
+      } else if (smooth) {
         container.scrollTo({
           top: container.scrollHeight,
           behavior: 'smooth',
@@ -1004,17 +1239,42 @@ const scrollToBottom = (smooth = true) => {
   });
 };
 
-const handleSendMessage = async (content: string, attachments?: MessageAttachment[], mentionedCharacterIds?: string[]) => {
+const handleSendMessage = async (content: string, attachments?: MessageAttachment[], mentionedCharacterIds?: string[], onAccepted?: () => void, storyAction?: StoryActionRequest) => {
+  if (preparingMessage.value || sending.value || isStreaming.value || greetingIdentityBlocked.value || creditsBlocked.value) return;
+  const chatId = props.currentChat?.id;
+  if (!chatId) return;
+  preparingMessage.value = true;
+  readingPosition.returnToLatest();
   try {
     // Persist the selected greeting as the first assistant message before sending
     if (messages.value.length === 0 && currentGreeting.value) {
       await persistGreeting();
     }
-    await chatStore.sendMessage(content, attachments, mentionedCharacterIds);
-    scrollToBottom();
+    if (props.currentChat?.id !== chatId) return;
+    preparingMessage.value = false;
+    await chatStore.sendMessage(content, attachments, mentionedCharacterIds, onAccepted, undefined, storyAction,
+      privateListener.value ? [privateListener.value] : undefined);
   } catch (error: unknown) {
     logger.error('Failed to send message', error);
+    ElMessage.error(error instanceof Error ? error.message : '发送失败，输入已保留。');
+  } finally {
+    preparingMessage.value = false;
   }
+};
+
+const handleRetryGeneration = async () => {
+  try {
+    await chatStore.retryLastGeneration();
+    scrollToBottom();
+  } catch (error: unknown) {
+    logger.error('Failed to retry generation', error);
+  }
+};
+
+const recoverContextInput = () => {
+  if (!messageInput.value) return;
+  const content = chatStore.takeContextInput();
+  if (content) messageInput.value.fillAction(content);
 };
 
 async function persistGreeting() {
@@ -1022,7 +1282,8 @@ async function persistGreeting() {
   if (!currentGreeting.value) return;
   const chatId = chatStore.currentChatId;
   if (!chatId) return;
-  await chatStore.addGreetingMessage(chatId, currentGreeting.value);
+  const index = Math.min(greetingIndex.value, rawGreetings.value.length - 1);
+  await chatStore.addGreetingMessage(chatId, rawGreetings.value[index]);
 }
 
 // Context Viewer
@@ -1241,7 +1502,7 @@ const handleSwitchBranch = async (messageId: number, direction: 'prev' | 'next')
 };
 
 const openIntelligenceTab = (tab: string) => {
-  activeIntelligenceTab.value = tab;
+  activeIntelligenceTab.value = props.currentChat?.contentSnapshotVersion != null ? 'memory' : tab;
   showIntelligenceDrawer.value = true;
   intelligenceStore.resetDebugEventCount();
 };
@@ -1260,12 +1521,24 @@ const handleModelChange = async (model: string) => {
   }
 };
 
+const positionKey = computed(() => userStore.user && props.currentChat?.id
+  ? `story-position:${JSON.stringify([userStore.user.tenantId, userStore.user.id, props.currentChat.id])}` : null);
+const readingPosition = useStoryReadingPosition({ key: positionKey, loading, container: messagesContainer, messages,
+  hasMore: () => chatStore.hasMoreMessages, loadOlder: () => chatStore.fetchOlderMessages(), height: getMsgHeight,
+  setTop: top => { currentScrollTop.value = top; }, setFollowing: following => { followingLatest.value = following; },
+  latest: () => scrollToBottom(false),
+});
+
 // Watch for chat changes to fetch intelligence data
 watch(() => props.currentChat, async (newChat, oldChat) => {
-  // Reset greeting index when switching chats
-  greetingIndex.value = 0;
+  if (newChat?.id !== oldChat?.id) {
+    showIntelligenceDrawer.value = false;
+    activeIntelligenceTab.value = newChat?.contentSnapshotVersion != null ? 'memory' : 'emotion';
+    hasNewContent.value = false;
+  }
+  if (newChat?.id !== oldChat?.id) greetingIndex.value = 0;
 
-  if (newChat && newChat.characterId) {
+  if (newChat && newChat.characterId && newChat.contentSnapshotVersion == null) {
     // Fetch memories and emotion for the new chat session
     try {
       await intelligenceStore.fetchMemories(newChat.characterId, newChat.id);
@@ -1284,16 +1557,15 @@ watch(() => props.currentChat, async (newChat, oldChat) => {
     });
     // Load initial ERA variables
     fetchVariables(newChat.id).then(vars => {
-      if (Object.keys(vars).length > 0) updateVariables(vars);
+      if (chatStore.currentChat?.id === newChat.id) updateVariables(vars);
+    }).catch(() => {
+      if (chatStore.currentChat?.id === newChat.id) updateVariables({});
     });
   }
-  // Scroll to bottom when chat changes
-  scrollToBottom(false);
 }, { immediate: true });
 
 // Watch for new messages and scroll to bottom + pre-fetch branches
 watch(messages, (newMessages) => {
-  scrollToBottom();
   // Pre-fetch branch info for messages that have parentMessageId (potential siblings)
   if (newMessages.length > 0) {
     for (const msg of newMessages) {
@@ -1307,9 +1579,20 @@ watch(messages, (newMessages) => {
   }
 }, { deep: true });
 
+watch(() => messages.value.at(-1)?.id, (lastId, previousId) => {
+  if (!lastId || chatStore.loadingOlder) return;
+  if (followingLatest.value) scrollToBottom(false);
+  else if (previousId) hasNewContent.value = true;
+});
+
+watch(loading, (isLoading) => {
+  if (!isLoading && followingLatest.value) scrollToBottom(false);
+});
+
 // Watch for streaming updates — use instant scroll to avoid jank
-watch(streamingMessage, () => {
-  scrollToBottom(false);
+watch(streamingMessage, (content) => {
+  if (followingLatest.value) scrollToBottom(false);
+  else if (content) hasNewContent.value = true;
 });
 
 // Pull-to-refresh state
@@ -1397,6 +1680,7 @@ onMounted(() => {
     }
     if (changed) {
       heightsVersion.value++;
+      if (followingLatest.value) scrollToBottom(false);
     }
   });
 
@@ -1406,7 +1690,7 @@ onMounted(() => {
 
 // Handle scroll on window resize
 const handleResize = () => {
-  scrollToBottom(false);
+  if (followingLatest.value) scrollToBottom(false);
 };
 
 onMounted(() => {
@@ -1425,25 +1709,103 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
+.reading-position-status { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px; color: var(--text-secondary); background: var(--bg-subtle); border-bottom: 1px solid var(--border-default); font-size: 13px; line-height: 1.7; }
+.reading-position-status button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); background: var(--bg-surface); font: inherit; cursor: pointer; }
+.reading-position-status button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.story-reading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 4px 0 16px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  button { background: transparent; border: 1px solid var(--el-border-color); color: inherit; border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+  span { overflow-wrap: anywhere; white-space: pre-wrap; }
+  button:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+}
+.story-credits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+
+  button,
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 8px;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}
+
 .chat-window {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--bg-surface);
+  min-height: 0;
+  background-color: var(--bg-base);
 }
+
+.story-play-layout { display: flex; flex: 1; min-height: 0; }
+.story-back { color: var(--text-secondary); text-decoration: none; font-size: 13px; padding: 12px 12px 12px 0; margin-right: 16px; border-right: 1px solid var(--border-default); white-space: nowrap; }
+.is-exploration .chat-messages { padding: 36px clamp(20px, 6vw, 88px) 24px; }
+.is-exploration :deep(.avatar-col) { display: none; }
+.is-exploration :deep(.message-assistant .bubble-col) { width: 100%; max-width: 100%; }
+.is-exploration :deep(.message-user .message-row) { justify-content: flex-start; }
+.is-exploration :deep(.message-user .bubble-col) { align-items: flex-start; max-width: 100%; }
+.is-exploration :deep(.message-user .bubble) { border-left: 2px solid var(--accent); border-radius: 0; background: var(--bg-subtle); }
+.is-exploration :deep(.message-author) { letter-spacing: .08em; font-size: 12px; color: var(--accent); }
+.is-exploration .greeting-container, .is-exploration .messages-list { width: min(100%, 760px); margin-left: auto; margin-right: auto; }
+.story-reading { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.story-actions { max-width: 760px; margin: 0 auto 14px; }
+.story-audience { max-width: 760px; margin: 0 auto 12px; color: var(--text-secondary); font-size: 13px; }
+.story-audience select { margin-left: 12px; padding: 8px; max-width: 65%; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-interactive); border-radius: 6px; }
+.story-audience p { margin: 6px 0 0; line-height: 1.5; }
+.story-action-heading { display: flex; gap: 12px; align-items: baseline; }
+.story-action-heading h2 { font-size: 15px; font-weight: 500; margin: 0; }
+.story-action-heading>span { color: var(--text-secondary); font-size: 12px; }
+.story-actions ul { list-style: none; padding: 0; margin: 8px 0 0; max-height: 150px; overflow-y: auto; }
+.story-actions li { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border-default); }
+.story-action-intent { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
+.story-action-label { flex: 1; font-size: 13px; overflow-wrap: anywhere; }
+.story-actions button { min-height: 40px; flex-shrink: 0; padding: 6px 9px; border: 1px solid var(--border-default); background: var(--bg-subtle); color: var(--accent); border-radius: 6px; font-size: 12px; cursor: pointer; }
+.story-actions button:disabled { opacity: .5; cursor: default; }
+.turn-recommendations ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; max-height: none; overflow: visible; }
+.turn-recommendations li { display: block; padding: 0; border: 0; min-width: 0; }
+.turn-recommendations .story-action-choice { justify-content: center; min-height: 44px; padding: 8px 4px; text-align: center; }
+.turn-recommendations .story-action-label { flex-basis: auto; overflow-wrap: anywhere; }
+.turn-recommendations p { margin: 6px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-secondary); }
+.story-actions .story-action-choice { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px; }
+@include below(lg) { .story-play-layout { flex-direction: column; } }
+@include below(md) { .story-actions li { flex-wrap: wrap; } .story-action-label { flex-basis: 75%; } .story-actions ul { max-height: 128px; } .story-back { margin-right: 6px; padding-right: 8px; } .is-exploration .chat-messages { padding: 24px 18px; } }
 
 .chat-header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
+  min-height: 64px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--border-default);
-  background-color: var(--bg-surface);
+  background-color: var(--bg-base);
   flex-shrink: 0;
 }
 
 .chat-info {
   display: flex;
+  flex: 1 1 180px;
   align-items: center;
   gap: 12px;
   min-width: 0;
@@ -1474,6 +1836,10 @@ onUnmounted(() => {
 
 .chat-actions {
   display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
   align-items: center;
   gap: 6px;
 }
@@ -1502,8 +1868,9 @@ onUnmounted(() => {
 
 .chat-messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 16px 0;
+  padding: 32px 24px 24px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -1526,14 +1893,16 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  padding: 0 16px;
+  padding: 24px 16px;
+  max-width: 700px;
+  margin-inline: auto;
 }
 
 .greeting-container .message-bubble {
   display: flex;
   flex-direction: column;
   margin-bottom: 16px;
-  max-width: 80%;
+  max-width: 100%;
   animation: fadeIn 0.3s ease-in;
 }
 
@@ -1546,7 +1915,7 @@ onUnmounted(() => {
   border-radius: 12px;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  background-color: var(--bg-surface);
+  background-color: transparent;
   color: var(--text-primary);
   border-bottom-left-radius: 4px;
 }
@@ -1556,7 +1925,8 @@ onUnmounted(() => {
 }
 
 .greeting-container .markdown-content {
-  line-height: 1.6;
+  line-height: var(--chat-line-height);
+  font-size: var(--chat-font-size);
 }
 
 .greeting-container .markdown-content :deep(p) {
@@ -1624,6 +1994,8 @@ onUnmounted(() => {
 .messages-list {
   display: flex;
   flex-direction: column;
+  width: min(100%, 720px);
+  margin-inline: auto;
 }
 
 .message-wrapper {
@@ -1641,6 +2013,8 @@ onUnmounted(() => {
   gap: 10px;
   max-width: 720px;
   padding: 0 20px;
+  width: 100%;
+  margin-inline: auto;
 }
 
 .streaming .avatar-col {
@@ -1679,12 +2053,13 @@ onUnmounted(() => {
 .streaming .message-content {
   position: relative;
   padding: 12px 16px;
-  background: var(--bg-surface);
+  background: transparent;
   border-radius: 12px;
-  line-height: 1.6;
+  font-family: var(--font-reading);
+  font-size: var(--chat-font-size);
+  line-height: var(--chat-line-height);
   word-wrap: break-word;
   min-height: 44px; /* Ensure container is visible even when empty */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .typing-cursor {
@@ -1743,6 +2118,29 @@ onUnmounted(() => {
 
 .chat-input-container {
   flex-shrink: 0;
+  width: min(100%, 768px);
+  margin-inline: auto;
+  padding: 12px 24px max(16px, env(safe-area-inset-bottom));
+  background: var(--bg-base);
+}
+
+.generation-error,
+.generation-status {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.generation-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-danger-text);
+}
+
+.generation-retry {
+  flex-shrink: 0;
+  color: var(--color-danger-text);
 }
 
 .next-responder-indicator {
@@ -1944,7 +2342,16 @@ onUnmounted(() => {
     gap: 4px 8px;
   }
   .chat-info {
-    flex: 1 1 0;
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .chat-details {
+    flex: 1;
+  }
+  .chat-subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .chat-header .chat-title {
     font-size: 14px;
@@ -2021,5 +2428,21 @@ onUnmounted(() => {
   color: var(--text-primary);
   line-height: 1.5;
   word-break: break-word;
+}
+
+@include below(md) {
+  .chat-header {
+    min-height: 56px;
+    padding: 10px 16px;
+  }
+
+  .chat-messages {
+    padding: 24px 16px 16px;
+  }
+
+  .chat-input-container {
+    padding-inline: 12px;
+  }
+
 }
 </style>

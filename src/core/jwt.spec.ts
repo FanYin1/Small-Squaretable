@@ -10,6 +10,14 @@ describe('JWT Module', () => {
   };
 
   describe('generateAccessToken', () => {
+    it('issues distinct access credentials for the same account in the same second', async () => {
+      vi.useFakeTimers();
+      try {
+        const tokens = await Promise.all([generateAccessToken(mockPayload), generateAccessToken(mockPayload)]);
+        expect(tokens[0]).not.toBe(tokens[1]);
+        expect(await verifyAccessToken(tokens[0])).toEqual(await verifyAccessToken(tokens[1]));
+      } finally { vi.useRealTimers(); }
+    });
     it('should generate a valid access token', async () => {
       const token = await generateAccessToken(mockPayload);
       expect(token).toBeDefined();

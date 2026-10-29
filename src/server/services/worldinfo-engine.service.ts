@@ -10,6 +10,7 @@ import { worldBookRepository } from '../../db/repositories/worldbook.repository'
 import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.repository';
 import { logger } from './logger.service';
 import { applyMacros, type MacroContext } from './macro.service';
+import type { StoryWorldbookEntry } from '../../types/story-worldbooks';
 
 const wiLogger = logger.child({ module: 'worldinfo-engine' });
 
@@ -54,6 +55,7 @@ export interface WorldInfoScanParams {
   chatId: string;
   maxContext: number;
   macroCtx?: MacroContext;
+  entries?: StoryWorldbookEntry[];
 }
 
 const DEFAULT_BUDGET = 2048;
@@ -178,20 +180,17 @@ class WorldInfoEngine {
     const recentMessages = chat.slice(-msgLimit);
     const scanText = recentMessages.map((m) => m.content).join('\n');
 
-    // 2. Fetch world books: character-scoped + global for user
-    const [charBooks, userBooks] = await Promise.all([
-      worldBookRepository.findByCharacter(characterId),
-      worldBookRepository.findByUser(userId),
-    ]);
-    const globalBooks = userBooks.filter((b) => b.scope === 'global');
-    const allBooks = [...charBooks, ...globalBooks];
-    const enabledBooks = allBooks.filter((b) => b.isEnabled);
-
-    // 3. Fetch all entries from enabled books
-    const entryArrays = await Promise.all(
-      enabledBooks.map((book) => worldBookEntryRepository.findByWorldBook(book.id)),
-    );
-    const allEntries = entryArrays.flat().filter((e) => e.isEnabled);
+    let entries = params.entries;
+    if (entries === undefined) {
+      const [charBooks, userBooks] = await Promise.all([
+        worldBookRepository.findByCharacter(characterId), worldBookRepository.findByUser(userId),
+      ]);
+      const enabledBooks = [...charBooks, ...userBooks.filter(book => book.scope === 'global')]
+        .filter(book => book.isEnabled);
+      entries = (await Promise.all(enabledBooks.map(book => worldBookEntryRepository.findByWorldBook(book.id))))
+        .flat() as StoryWorldbookEntry[];
+    }
+    const allEntries = entries.filter(entry => entry.isEnabled);
 
     // 4. Sort by insertion_order (position) ascending, then priority descending
     allEntries.sort((a, b) => {

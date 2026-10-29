@@ -5,6 +5,7 @@
  */
 
 import * as jose from 'jose';
+import { randomUUID } from 'node:crypto';
 import { config } from './config';
 
 const ACCESS_TOKEN_EXPIRY = '6h';
@@ -34,6 +35,7 @@ export async function generateAccessToken(payload: AccessTokenPayload): Promise<
     type: 'access',
   })
     .setProtectedHeader({ alg: 'HS256' })
+    .setJti(randomUUID())
     .setIssuedAt()
     .setExpirationTime(ACCESS_TOKEN_EXPIRY)
     .sign(getAccessSecretKey());

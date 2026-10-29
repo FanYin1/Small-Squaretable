@@ -134,6 +134,7 @@ describe('Intelligence Integration', () => {
       expect(memoryRepository.hybridSearch).toHaveBeenCalledWith({
         characterId: 'char-1',
         userId: 'user-1',
+        chatId: null,
         embedding: expect.any(Array),
         limit: 5,
       });

@@ -2,6 +2,7 @@ import { eq, and, desc, asc, sql, gt, lt, inArray } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { characters, type Character, type NewCharacter } from '../schema/characters';
+import { createCharacterWithWorldbook } from '../character-import';
 import { nsfwVisibilityCondition } from './nsfw-visibility';
 import type { ModerationStatus, ViolationCategory } from '../schema/moderation-enums';
 import type { PaginationParams, PaginatedResponse } from '../../types/api';
@@ -168,8 +169,7 @@ export class CharacterRepository extends BaseRepository {
   }
 
   async create(data: NewCharacter): Promise<Character> {
-    const result = await this.db.insert(characters).values(data).returning();
-    return result[0];
+    return createCharacterWithWorldbook(this.db, data);
   }
 
   async update(id: string, tenantId: string, data: Partial<NewCharacter>): Promise<Character | null> {

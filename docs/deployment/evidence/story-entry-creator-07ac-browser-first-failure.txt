@@ -1,0 +1,565 @@
+
+Running 29 tests using 1 worker
+
+(node:3894) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3894) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 390 light (11.1s)
+  ✓   2 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 390 dark (12.1s)
+  ✓   3 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 768 light (11.2s)
+  ✓   4 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 768 dark (9.0s)
+  ✓   5 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 1440 light (9.4s)
+  ✓   6 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 1440 dark (11.5s)
+  ✓   7 [chromium] › e2e/frontend-redesign.spec.ts:68:1 › anonymous routes use the same brand without legacy marketing statistics (8.6s)
+  ✓   8 [chromium] › e2e/frontend-redesign.spec.ts:96:3 › account navigation preserves user permissions and hides disabled modules (2.4s)
+  ✓   9 [chromium] › e2e/frontend-redesign.spec.ts:96:3 › account navigation preserves moderator permissions and hides disabled modules (2.6s)
+  ✓  10 [chromium] › e2e/frontend-redesign.spec.ts:96:3 › account navigation preserves admin permissions and hides disabled modules (2.4s)
+  ✘  11 [chromium] › e2e/story-discovery.spec.ts:48:3 › Story discovery › keeps keyboard favorite actions separate from the native detail link (11.6s)
+(node:6580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  12 [chromium] › e2e/story-discovery.spec.ts:67:3 › Story discovery › restores search, filters and scroll after opening a detail and going back (3.3s)
+  ✓  13 [chromium] › e2e/story-discovery.spec.ts:93:3 › Story discovery › offers a verified existing story and resumes without creating one (1.5s)
+  ✓  14 [chromium] › e2e/story-discovery.spec.ts:104:3 › Story discovery › shows a retryable error instead of an empty list (1.4s)
+  ✘  15 [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (light) (11.6s)
+(node:7269) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7269) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  16 [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (dark) (11.9s)
+(node:7696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  17 [chromium] › e2e/story-entry.spec.ts:104:3 › Story entry identity confirmation › quick start uses the default persona and survives refresh without another creation (30.3s)
+(node:8648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  18 [chromium] › e2e/story-entry.spec.ts:122:3 › Story entry identity confirmation › offers optional setup without creating a story just by viewing it (2.2s)
+(node:8890) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8890) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  19 [chromium] › e2e/story-entry.spec.ts:138:3 › Story entry identity confirmation › recovers a lost creation response after reload without another POST (2.5s)
+(node:9093) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9093) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  20 [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns not_found (2.6s)
+(node:9322) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9322) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  21 [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns old_server (2.4s)
+(node:9529) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9529) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  22 [chromium] › e2e/story-entry.spec.ts:211:3 › Story entry identity confirmation › uses the confirmed identity in the opening and restores it after refresh (11.7s)
+(node:10012) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10012) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  23 [chromium] › e2e/story-entry.spec.ts:223:3 › Story entry identity confirmation › retries a rejected creation with the same request key and identity (30.2s)
+(node:10912) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10912) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  24 [chromium] › e2e/story-entry.spec.ts:247:3 › Story entry identity confirmation › keeps an unknown creation blocked after closing and reopening the dialog (2.2s)
+(node:11103) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11103) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  25 [chromium] › e2e/story-entry.spec.ts:275:3 › Story entry identity confirmation › offers a safe retry when the selected identity cannot be loaded (11.4s)
+(node:11464) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11464) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  26 [chromium] › e2e/story-entry.spec.ts:297:3 › Story entry identity confirmation › starts without an identity and shows the character opening (30.2s)
+(node:12414) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12414) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  27 [chromium] › e2e/story-entry.spec.ts:310:3 › Story entry identity confirmation › cancels optional setup and clears the pending story URL (1.3s)
+  ✓  28 [chromium] › e2e/story-entry.spec.ts:326:3 › Story entry identity confirmation › fits optional identity setup on a 390px viewport (1.1s)
+  ✓  29 [chromium] › e2e/story-entry.spec.ts:341:3 › Story entry identity confirmation › returns focus to the character card after Escape (1.3s)
+
+
+  1) [chromium] › e2e/story-discovery.spec.ts:48:3 › Story discovery › keeps keyboard favorite actions separate from the native detail link 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveAttribute[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  locator('.story-card').first().getByRole('button')
+    Expected: [32m"[7mtru[27me"[39m
+    Received: [31m"[7mfals[27me"[39m
+    Timeout:  10000ms
+
+    Call log:
+    [2m  - Expect "toHaveAttribute" with timeout 10000ms[22m
+    [2m  - waiting for locator('.story-card').first().getByRole('button')[22m
+    [2m    14 × locator resolved to <button type="button" title="Favorite" data-v-f7c2ad92="" data-v-c1cf0393="" aria-pressed="false" aria-disabled="false" class="el-button favorite-button" aria-label="Favorite Mara and the Lantern Room">…</button>[22m
+    [2m       - unexpected value "false"[22m
+
+
+      57 |     await favorite.focus();
+      58 |     await page.keyboard.press('Enter');
+    > 59 |     await expect(card.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
+         |                                            ^
+      60 |     await expect(page).toHaveURL(/\/market$/);
+      61 |     await card.getByRole('button').focus();
+      62 |     await page.keyboard.press('Space');
+        at /var/aichat/Small-Squaretable/e2e/story-discovery.spec.ts:59:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-discovery-Story-disc-b9207-from-the-native-detail-link-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-discovery-Story-disc-b9207-from-the-native-detail-link-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-discovery-Story-disc-b9207-from-the-native-detail-link-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-discovery-Story-disc-b9207-from-the-native-detail-link-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (light) 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveAttribute[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  locator('.story-card').first().getByRole('button')
+    Expected: [32m"[7mtru[27me"[39m
+    Received: [31m"[7mfals[27me"[39m
+    Timeout:  10000ms
+
+    Call log:
+    [2m  - Expect "toHaveAttribute" with timeout 10000ms[22m
+    [2m  - waiting for locator('.story-card').first().getByRole('button')[22m
+    [2m    14 × locator resolved to <button type="button" title="Favorite" data-v-f7c2ad92="" data-v-c1cf0393="" aria-pressed="false" aria-disabled="false" class="el-button favorite-button" aria-label="Favorite Mara and the Lantern Room">…</button>[22m
+    [2m       - unexpected value "false"[22m
+
+
+      135 |       expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+      136 |       await card.getByRole('button').click();
+    > 137 |       await expect(card.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
+          |                                              ^
+      138 |       await page.screenshot({ path: test.info().outputPath('discovery.png') });
+      139 |     });
+      140 |   }
+        at /var/aichat/Small-Squaretable/e2e/story-discovery.spec.ts:137:46
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-discovery-Story-disc-a2bc7-ble-without-overflow-light--chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-discovery-Story-disc-a2bc7-ble-without-overflow-light--chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-discovery-Story-disc-a2bc7-ble-without-overflow-light--chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-discovery-Story-disc-a2bc7-ble-without-overflow-light--chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (dark) 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveAttribute[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  locator('.story-card').first().getByRole('button')
+    Expected: [32m"[7mtru[27me"[39m
+    Received: [31m"[7mfals[27me"[39m
+    Timeout:  10000ms
+
+    Call log:
+    [2m  - Expect "toHaveAttribute" with timeout 10000ms[22m
+    [2m  - waiting for locator('.story-card').first().getByRole('button')[22m
+    [2m    14 × locator resolved to <button type="button" title="Favorite" data-v-f7c2ad92="" data-v-c1cf0393="" aria-pressed="false" aria-disabled="false" class="el-button favorite-button" aria-label="Favorite Mara and the Lantern Room">…</button>[22m
+    [2m       - unexpected value "false"[22m
+
+
+      135 |       expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+      136 |       await card.getByRole('button').click();
+    > 137 |       await expect(card.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
+          |                                              ^
+      138 |       await page.screenshot({ path: test.info().outputPath('discovery.png') });
+      139 |     });
+      140 |   }
+        at /var/aichat/Small-Squaretable/e2e/story-discovery.spec.ts:137:46
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-discovery-Story-disc-4f91c-ible-without-overflow-dark--chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-discovery-Story-disc-4f91c-ible-without-overflow-dark--chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-discovery-Story-disc-4f91c-ible-without-overflow-dark--chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-discovery-Story-disc-4f91c-ible-without-overflow-dark--chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › e2e/story-entry.spec.ts:104:3 › Story entry identity confirmation › quick start uses the default persona and survives refresh without another creation 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.waitForURL: Test timeout of 30000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation to "**/chat/chat-story" until "load"
+      navigated to "http://127.0.0.1:55441/characters/char-story"
+      navigated to "http://127.0.0.1:55441/chat?characterId=char-story&storyEntry=quick"
+    ============================================================
+
+      110 |     await page.goto('/characters/char-story');
+      111 |     await page.getByTestId('enter-story').click();
+    > 112 |     await page.waitForURL('**/chat/chat-story');
+          |                ^
+      113 |     await expect(page.locator('.greeting-bubble')).toContainText('Mara welcomes Alex.');
+      114 |     await expect(page.locator('.story-identity-page')).toHaveCount(0);
+      115 |     expect(requests).toHaveLength(1);
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:112:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-83532-sh-without-another-creation-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-83532-sh-without-another-creation-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-83532-sh-without-another-creation-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-83532-sh-without-another-creation-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › e2e/story-entry.spec.ts:122:3 › Story entry identity confirmation › offers optional setup without creating a story just by viewing it 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: locator('.entry-preview h2')
+    Expected: [32m"Mara"[39m
+    Error: strict mode violation: locator('.entry-preview h2') resolved to 2 elements:
+        1) <h2 data-v-d40e78b8="">Mara</h2> aka getByRole('heading', { name: 'Mara' })
+        2) <h2 data-v-1124d8e1="">这张卡如何游玩</h2> aka getByRole('heading', { name: '这张卡如何游玩' })
+
+    Call log:
+    [2m  - Expect "toHaveText" with timeout 10000ms[22m
+    [2m  - waiting for locator('.entry-preview h2')[22m
+
+
+      129 |     await page.getByRole('button', { name: 'Adjust your identity first' }).click();
+      130 |     await expect(page.locator('.story-identity-page')).toBeVisible();
+    > 131 |     await expect(page.locator('.entry-preview h2')).toHaveText(STORY_CHARACTER.name);
+          |                                                     ^
+      132 |     expect(requests).toEqual([]);
+      133 |     await page.locator('.story-identity-page').getByRole('button', { name: 'Cancel', exact: true }).click();
+      134 |     await expect(page).toHaveURL(/\/chat$/);
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:131:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-b72b3--a-story-just-by-viewing-it-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-b72b3--a-story-just-by-viewing-it-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-b72b3--a-story-just-by-viewing-it-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-b72b3--a-story-just-by-viewing-it-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › e2e/story-entry.spec.ts:138:3 › Story entry identity confirmation › recovers a lost creation response after reload without another POST 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m1[39m
+    Received: [31m0[39m
+
+      164 |     await expect(recovery.getByRole('button', { name: 'Open original story' })).toBeVisible();
+      165 |     await expect(page).toHaveURL(/\/chat\?characterId=char-story&storyEntry=1$/);
+    > 166 |     expect(submissions).toBe(1);
+          |                         ^
+      167 |     expect(lookups).toBe(1);
+      168 |     await recovery.getByRole('button', { name: 'Open original story' }).click();
+      169 |     await page.waitForURL('**/chat/chat-story');
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:166:25
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-356c5-reload-without-another-POST-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-356c5-reload-without-another-POST-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-356c5-reload-without-another-POST-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-356c5-reload-without-another-POST-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns not_found 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m1[39m
+    Received: [31m0[39m
+
+      204 |       await expect.poll(() => lookups).toBe(2);
+      205 |       await expect(page.locator('.el-dialog, .story-identity-page')).toBeHidden();
+    > 206 |       expect(submissions).toBe(1);
+          |                           ^
+      207 |       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      208 |     });
+      209 |   }
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:206:27
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-f8b97--recovery-returns-not-found-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-f8b97--recovery-returns-not-found-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-f8b97--recovery-returns-not-found-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-f8b97--recovery-returns-not-found-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns old_server 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m1[39m
+    Received: [31m0[39m
+
+      204 |       await expect.poll(() => lookups).toBe(2);
+      205 |       await expect(page.locator('.el-dialog, .story-identity-page')).toBeHidden();
+    > 206 |       expect(submissions).toBe(1);
+          |                           ^
+      207 |       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      208 |     });
+      209 |   }
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:206:27
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-d2e59-recovery-returns-old-server-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-d2e59-recovery-returns-old-server-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-d2e59-recovery-returns-old-server-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-d2e59-recovery-returns-old-server-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  9) [chromium] › e2e/story-entry.spec.ts:211:3 › Story entry identity confirmation › uses the confirmed identity in the opening and restores it after refresh 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: [32m/\/chat\/chat-story$/[39m
+    Received string:  [31m"http://127.0.0.1:55441/chat?characterId=char-story&storyEntry=1"[39m
+    Timeout: 10000ms
+
+    Call log:
+    [2m  - Expect "toHaveURL" with timeout 10000ms[22m
+    [2m    14 × unexpected value "http://127.0.0.1:55441/chat?characterId=char-story&storyEntry=1"[22m
+
+
+      214 |     await expect(page.locator('.persona-item[aria-pressed="true"]')).toContainText('Alex');
+      215 |     await page.locator('.el-dialog, .story-identity-page').getByRole('button', { name: 'Confirm', exact: true }).click();
+    > 216 |     await expect(page).toHaveURL(/\/chat\/chat-story$/);
+          |                        ^
+      217 |     await expect(page.locator('.greeting-bubble')).toContainText('Mara welcomes Alex.');
+      218 |     await page.reload();
+      219 |     await expect(page.locator('.greeting-bubble')).toContainText('Mara welcomes Alex.');
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:216:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-89ecf-d-restores-it-after-refresh-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-89ecf-d-restores-it-after-refresh-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-89ecf-d-restores-it-after-refresh-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-89ecf-d-restores-it-after-refresh-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10) [chromium] › e2e/story-entry.spec.ts:223:3 › Story entry identity confirmation › retries a rejected creation with the same request key and identity 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('.el-dialog, .story-identity-page').getByRole('button', { name: 'Confirm', exact: true })[22m
+    [2m    - locator resolved to <button disabled type="button" data-v-542787d0="" aria-disabled="true" class="el-button el-button--primary is-disabled">…</button>[22m
+    [2m  - attempting click action[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m    - waiting 20ms[22m
+    [2m    2 × waiting for element to be visible, enabled and stable[22m
+    [2m      - element is not enabled[22m
+    [2m    - retrying click action[22m
+    [2m      - waiting 100ms[22m
+    [2m    56 × waiting for element to be visible, enabled and stable[22m
+    [2m       - element is not enabled[22m
+    [2m     - retrying click action[22m
+    [2m       - waiting 500ms[22m
+
+
+      237 |     await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
+      238 |     await expect(dialog.locator('[role="alert"]')).toBeVisible();
+    > 239 |     await dialog.getByRole('button', { name: 'Confirm', exact: true }).click();
+          |                                                                        ^
+      240 |     await expect(page).toHaveURL(/\/chat\/chat-story$/);
+      241 |     expect(requests).toHaveLength(2);
+      242 |     expect(requests[0].clientRequestId).toMatch(/^[0-9a-f-]{36}$/);
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:239:72
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-06e6d-me-request-key-and-identity-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-06e6d-me-request-key-and-identity-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-06e6d-me-request-key-and-identity-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-06e6d-me-request-key-and-identity-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  11) [chromium] › e2e/story-entry.spec.ts:247:3 › Story entry identity confirmation › keeps an unknown creation blocked after closing and reopening the dialog 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m1[39m
+    Received: [31m0[39m
+
+      270 |     await expect(dialog.getByRole('button', { name: 'Confirm', exact: true })).toBeDisabled();
+      271 |     await expect(dialog.getByRole('button', { name: 'Use a new identity', exact: true })).toBeDisabled();
+    > 272 |     expect(creations).toBe(1);
+          |                       ^
+      273 |   });
+      274 |
+      275 |   test('offers a safe retry when the selected identity cannot be loaded', async ({ page }) => {
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:272:23
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-a656e-ng-and-reopening-the-dialog-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-a656e-ng-and-reopening-the-dialog-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-a656e-ng-and-reopening-the-dialog-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-a656e-ng-and-reopening-the-dialog-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  12) [chromium] › e2e/story-entry.spec.ts:275:3 › Story entry identity confirmation › offers a safe retry when the selected identity cannot be loaded 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('.greeting-container [role="alert"]')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('.greeting-container [role="alert"]')[22m
+
+
+      289 |     await expect(page.locator('.persona-item[aria-pressed="true"]')).toContainText('Alex');
+      290 |     await page.locator('.el-dialog, .story-identity-page').getByRole('button', { name: 'Confirm', exact: true }).click();
+    > 291 |     await expect(page.locator('.greeting-container [role="alert"]')).toBeVisible();
+          |                                                                      ^
+      292 |     await expect(page.locator('.greeting-bubble')).toHaveCount(0);
+      293 |     await page.locator('.greeting-container').getByRole('button', { name: 'Reload identity', exact: true }).click();
+      294 |     await expect(page.locator('.greeting-bubble')).toContainText('Mara welcomes Alex.');
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:291:70
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-6d5b1-d-identity-cannot-be-loaded-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-6d5b1-d-identity-cannot-be-loaded-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-6d5b1-d-identity-cannot-be-loaded-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-6d5b1-d-identity-cannot-be-loaded-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  13) [chromium] › e2e/story-entry.spec.ts:297:3 › Story entry identity confirmation › starts without an identity and shows the character opening 
+
+    [31mTest timeout of 30000ms exceeded.[39m
+
+    Error: page.waitForURL: Test timeout of 30000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation to "**/chat/chat-story" until "load"
+    ============================================================
+
+      304 |     await expect(startWithoutIdentity).toBeVisible();
+      305 |     await startWithoutIdentity.click();
+    > 306 |     await page.waitForURL('**/chat/chat-story');
+          |                ^
+      307 |     await expect(page.getByText('The lantern room is waiting. What do you do?')).toBeVisible({ timeout: 10000 });
+      308 |   });
+      309 |
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:306:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-61dfe-shows-the-character-opening-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-61dfe-shows-the-character-opening-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-61dfe-shows-the-character-opening-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-61dfe-shows-the-character-opening-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  13 failed
+    [chromium] › e2e/story-discovery.spec.ts:48:3 › Story discovery › keeps keyboard favorite actions separate from the native detail link 
+    [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (light) 
+    [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (dark) 
+    [chromium] › e2e/story-entry.spec.ts:104:3 › Story entry identity confirmation › quick start uses the default persona and survives refresh without another creation 
+    [chromium] › e2e/story-entry.spec.ts:122:3 › Story entry identity confirmation › offers optional setup without creating a story just by viewing it 
+    [chromium] › e2e/story-entry.spec.ts:138:3 › Story entry identity confirmation › recovers a lost creation response after reload without another POST 
+    [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns not_found 
+    [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns old_server 
+    [chromium] › e2e/story-entry.spec.ts:211:3 › Story entry identity confirmation › uses the confirmed identity in the opening and restores it after refresh 
+    [chromium] › e2e/story-entry.spec.ts:223:3 › Story entry identity confirmation › retries a rejected creation with the same request key and identity 
+    [chromium] › e2e/story-entry.spec.ts:247:3 › Story entry identity confirmation › keeps an unknown creation blocked after closing and reopening the dialog 
+    [chromium] › e2e/story-entry.spec.ts:275:3 › Story entry identity confirmation › offers a safe retry when the selected identity cannot be loaded 
+    [chromium] › e2e/story-entry.spec.ts:297:3 › Story entry identity confirmation › starts without an identity and shows the character opening 
+  16 passed (4.8m)

@@ -52,13 +52,13 @@ describe('Health Service', () => {
     expect(result.checks?.database?.status).toBe('ok');
   });
 
-  it('readinessCheck returns degraded when Redis ping fails', async () => {
+  it('readinessCheck returns error when Redis ping fails', async () => {
     mockPing.mockRejectedValue(new Error('Connection refused'));
 
     const { readinessCheck } = await import('./health');
     const result = await readinessCheck();
 
-    expect(result.status).toBe('degraded');
+    expect(result.status).toBe('error');
     expect(result.checks?.redis?.status).toBe('error');
     expect(result.checks?.redis?.error).toBe('Connection refused');
     expect(result.checks?.redis?.details?.connected).toBe(false);

@@ -9,11 +9,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   retrieveMemories: vi.fn(),
+  retrieveStoryPreferences: vi.fn(),
+  memoryOrigins: vi.fn(),
   getCurrentEmotion: vi.fn(),
   scan: vi.fn(),
   findPersona: vi.fn(),
   findOverride: vi.fn(),
+  loadWorldbooks: vi.fn(),
 }));
+
+vi.mock('./story-worldbooks.service', () => ({ loadStoryWorldbookEntries: mocks.loadWorldbooks }));
 
 vi.mock('../../db/repositories/chat.repository', () => ({ chatRepository: {} }));
 vi.mock('../../db/repositories/message.repository', () => ({ messageRepository: {} }));
@@ -31,7 +36,8 @@ vi.mock('./chat-variable.service', () => ({
   },
 }));
 vi.mock('./llm.service', () => ({ llmService: {} }));
-vi.mock('./memory.service', () => ({ memoryService: { retrieveMemories: mocks.retrieveMemories } }));
+vi.mock('./memory.service', () => ({ memoryService: { retrieveMemories: mocks.retrieveMemories, retrieveStoryPreferences: mocks.retrieveStoryPreferences } }));
+vi.mock('./story-knowledge.service', () => ({ verifiedStoryMemoryOrigins: mocks.memoryOrigins }));
 vi.mock('./emotion.service', () => ({ emotionService: { getCurrentEmotion: mocks.getCurrentEmotion } }));
 vi.mock('./worldinfo-engine.service', () => ({ worldInfoEngine: { scan: mocks.scan } }));
 vi.mock('./websocket.service', () => ({
@@ -46,6 +52,7 @@ vi.mock('./intelligence-debug.service', () => ({
 }));
 
 import { ChatService } from './chat.service';
+import { chatVariableStore } from './chat-variable.service';
 
 const character = {
   id: 'char-1',
@@ -97,12 +104,78 @@ describe('buildEnhancedSystemPrompt layout', () => {
   const service = new ChatService({} as never, {} as never);
   const originalLayout = process.env.PROMPT_LAYOUT;
 
+  it.each([null, 1])('keeps macro persistence within legacy stories (version %s)', async contentSnapshotVersion => {
+    const withVariables = { ...character, cardData: { ...character.cardData, system_prompt: '{{setvar::coins::10}}{{setglobalvar::visit::1}}Stay here.' } };
+    await service.buildEnhancedSystemPrompt({ ...baseParams, character: withVariables as never, contentSnapshotVersion });
+    expect(chatVariableStore.setChatVar).toHaveBeenCalledTimes(contentSnapshotVersion == null ? 1 : 0);
+    expect(chatVariableStore.setGlobalVar).toHaveBeenCalledTimes(contentSnapshotVersion == null ? 1 : 0);
+  });
+
+  const identitySnapshot = {
+    protocol: 1 as const, source: 'persona' as const,
+    userId: '550e8400-e29b-41d4-a716-446655440001', tenantId: '550e8400-e29b-41d4-a716-446655440002',
+    sourceId: '550e8400-e29b-41d4-a716-446655440003', name: 'Original traveler', description: 'Keeps promises',
+    revision: 'a'.repeat(64), capturedAt: '2026-10-23T00:00:00.000Z',
+  };
+
+  it.each(['legacy', 'cache_friendly'])('uses the persisted identity without reading an edited persona (%s)', async (layout) => {
+    process.env.PROMPT_LAYOUT = layout;
+    mocks.findPersona.mockResolvedValue({ name: 'Changed identity', description: 'Changed biography', userId: identitySnapshot.userId });
+    const result = await service.buildEnhancedSystemPrompt({ ...baseParams, userId: identitySnapshot.userId, personaId: 'edited', identitySnapshot });
+    expect(result.systemPrompt).toContain('[User Persona: Original traveler]');
+    expect(result.systemPrompt).toContain('Keeps promises');
+    expect(result.systemPrompt).not.toContain('Changed biography');
+    expect(mocks.findPersona).not.toHaveBeenCalled();
+  });
+
+  it('rejects a snapshot belonging to a different user', async () => {
+    await expect(service.buildEnhancedSystemPrompt({ ...baseParams, identitySnapshot })).rejects.toThrow('Story identity owner mismatch');
+  });
+
+  it.each(['legacy', 'cache_friendly'])('keeps a saved name when the identity has no biography (%s)', async layout => {
+    process.env.PROMPT_LAYOUT = layout;
+    const result = await service.buildEnhancedSystemPrompt({ ...baseParams, userId: identitySnapshot.userId,
+      identitySnapshot: { ...identitySnapshot, name: '顾舟', description: null } });
+    expect(result.systemPrompt).toContain('[User Persona: 顾舟]');
+    expect(result.systemPrompt).not.toContain('[User Persona: 顾舟]\nnull');
+    expect(mocks.findPersona).not.toHaveBeenCalled();
+  });
+
+  it.each(['legacy', 'cache_friendly'])('loads saved worldbook entries for generation (%s)', async layout => {
+    process.env.PROMPT_LAYOUT = layout;
+    mocks.loadWorldbooks.mockResolvedValue([]);
+    await service.buildEnhancedSystemPrompt({ ...baseParams, worldbookSnapshotVersion: 1 });
+    expect(mocks.loadWorldbooks).toHaveBeenCalledWith('chat-1', 'user-1', 'char-1');
+    expect(mocks.scan).toHaveBeenCalledWith(expect.objectContaining({ entries: [], chat: baseParams.messages }));
+  });
+
+  it('scans the current action even when there is no prior history', async () => {
+    mocks.loadWorldbooks.mockResolvedValue([]);
+    await service.buildEnhancedSystemPrompt({ ...baseParams, messages: undefined, worldbookSnapshotVersion: 1 });
+    expect(mocks.scan).toHaveBeenCalledWith(expect.objectContaining({ chat: [{ role: 'user', content: baseParams.userMessage }] }));
+  });
+
+  it('fails instead of generating without a missing saved binding', async () => {
+    mocks.loadWorldbooks.mockRejectedValue(new Error('Saved binding unavailable'));
+    await expect(service.buildEnhancedSystemPrompt({ ...baseParams, worldbookSnapshotVersion: 1 }))
+      .rejects.toThrow('Saved binding unavailable');
+    expect(mocks.scan).not.toHaveBeenCalled();
+  });
+
+  it('rejects unsupported binding protocols before fetching live books', async () => {
+    await expect(service.buildEnhancedSystemPrompt({ ...baseParams, worldbookSnapshotVersion: 2 }))
+      .rejects.toThrow('Unsupported story worldbook snapshot version');
+    expect(mocks.scan).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.PROMPT_LAYOUT;
     mocks.findOverride.mockResolvedValue(undefined);
     mocks.findPersona.mockResolvedValue(undefined);
     mocks.retrieveMemories.mockResolvedValue(memories);
+    mocks.retrieveStoryPreferences.mockResolvedValue([]);
+    mocks.memoryOrigins.mockResolvedValue(new Map());
     mocks.getCurrentEmotion.mockResolvedValue(emotion);
     mocks.scan.mockResolvedValue(structuredClone(legacyWorldInfo));
   });
@@ -110,6 +183,27 @@ describe('buildEnhancedSystemPrompt layout', () => {
   afterEach(() => {
     if (originalLayout === undefined) delete process.env.PROMPT_LAYOUT;
     else process.env.PROMPT_LAYOUT = originalLayout;
+  });
+
+  it('injects a sourced story style preference when vector retrieval has no topic match', async () => {
+    mocks.retrieveMemories.mockResolvedValue([]);
+    mocks.retrieveStoryPreferences.mockResolvedValue([{ id: 'style', content: 'outdated candidate', type: 'preference', score: 0 }]);
+    mocks.memoryOrigins.mockResolvedValue(new Map([['style', { type: 'preference', content: '请用短句，少用比喻。',
+      firstVersion: 2, lastVersion: 12, sourceMessageIds: [3, 23] }]]));
+    const result = await service.buildEnhancedSystemPrompt({ ...baseParams, contentSnapshotVersion: 1 });
+    expect(result.systemPrompt).toContain('请用短句，少用比喻。');
+    expect(result.systemPrompt).toContain('来源事件版本 2–12');
+    expect(result.systemPrompt).not.toContain('outdated candidate');
+    expect(mocks.retrieveStoryPreferences).toHaveBeenCalledWith('char-1', 'user-1', 'chat-1');
+    expect(mocks.getCurrentEmotion).not.toHaveBeenCalled();
+  });
+
+  it('omits an unauthorized or invalid story preference rather than reviving its candidate text', async () => {
+    mocks.retrieveMemories.mockResolvedValue([]);
+    mocks.retrieveStoryPreferences.mockResolvedValue([{ id: 'private-style', content: 'HIDDEN_STYLE', type: 'preference', score: 0 }]);
+    const result = await service.buildEnhancedSystemPrompt({ ...baseParams, contentSnapshotVersion: 1, isolateKnowledge: false });
+    expect(result.systemPrompt).not.toContain('HIDDEN_STYLE');
+    expect(result.systemPrompt).not.toContain('本次故事的历史派生记忆');
   });
 
   describe('legacy (default) output is byte-identical to pre-P3-3 behaviour', () => {

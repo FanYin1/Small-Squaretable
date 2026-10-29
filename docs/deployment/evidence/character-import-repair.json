@@ -1,0 +1,262 @@
+{
+  "task": "EXP-03B-REPAIR",
+  "taskClosed": true,
+  "parentTask": "EXP-03B",
+  "parentTaskClosed": false,
+  "date": "2026-10-24T14:44:55.285Z",
+  "result": "passed",
+  "scope": "Explicit repair of reviewed current nonempty embedded books with no current bound books; all other historical recovery remains open",
+  "decisions": [
+    "DEC-10",
+    "DEC-12",
+    "INV-03",
+    "INV-07",
+    "INV-09"
+  ],
+  "migrations": {
+    "normal": "0049_character_import_repairs",
+    "beta": "0009_character_import_repairs",
+    "betaChainAppliedInDisposableDatabase": true,
+    "normalSqlMatchesBeta": true,
+    "liveMigrated": false
+  },
+  "validation": {
+    "unitTests": 36,
+    "testFiles": 3,
+    "repairTests": 3,
+    "auditTests": 24,
+    "mappingTests": 9,
+    "applicationTypecheck": "passed",
+    "cliTypecheck": "passed",
+    "targetedLint": "passed with no warnings/errors",
+    "productionServerBuild": "passed",
+    "productionClientBuild": "passed",
+    "integrationGroups": 23,
+    "newRepairGroups": 6,
+    "auditSyntheticCases": 14,
+    "originalCardSamples": 3,
+    "originalStandaloneBookSamples": 2,
+    "syntheticFormatCases": 41
+  },
+  "database": "disposable PostgreSQL with beta migrations",
+  "repair": {
+    "groups": [
+      "Real repair CLI creates mapped book/entries and a durable receipt; subprocess retry is a no-op; old story remains empty and new story captures the repaired book",
+      "Stale source, foreign tenant/owner, empty/invalid/nested/archive/conflicting sources are rejected without book or receipt writes",
+      "Second-entry constraint failure and receipt-write failure roll back the entire book/entries/receipt; retry after removing the failure succeeds",
+      "Concurrent CLI repairs create exactly one book and receipt; deleting the book does not erase the receipt or let the old request resurrect it",
+      "Actual HTTP binding waits behind the repair character lock, then preserves both the repaired book and the explicitly selected additional reference",
+      "When the real HTTP binding holds the character share lock first, repair waits and then rejects the stale review without inserting an extra book"
+    ],
+    "durableRetriesVerified": true,
+    "concurrentBindingOrdersVerified": true,
+    "liveRepairs": 0
+  },
+  "checks": [
+    "Three original PNGs: single/batch persistence parity, original data retained, embedded books bound and captured",
+    "Two standalone books persisted with owner attribution and no inferred character binding",
+    "CLI dry-run produces readiness only; default standalone skip performs no writes",
+    "Three authorized PNGs imported by actual CLI match web fields, original metadata, tags, owner and embedded book rows",
+    "Two explicitly selected standalone books match web mappings without inferred character bindings",
+    "CLI partial failure exit 2, per-file character/book/entry rollback, next-file continuation, exact-byte dedup and same-name variants",
+    "Actual CLI compressed iTXt/zTXt imports retain embedded books; overflow, trailing bytes and damaged selected V3 produce no records",
+    "Real audit CLI classifies 14 synthetic historical cases, enforces source/book/entry limits and leaves eight database tables unchanged",
+    "Private reports omit source text; repeated fingerprints are stable, changed data invalidates them, foreign owners are hidden and apply is rejected",
+    "Audit transaction is repeatable-read/read-only; PostgreSQL rejects an attempted write with 25006",
+    "Real repair CLI creates mapped book/entries and a durable receipt; subprocess retry is a no-op; old story remains empty and new story captures the repaired book",
+    "Stale source, foreign tenant/owner, empty/invalid/nested/archive/conflicting sources are rejected without book or receipt writes",
+    "Second-entry constraint failure and receipt-write failure roll back the entire book/entries/receipt; retry after removing the failure succeeds",
+    "Concurrent CLI repairs create exactly one book and receipt; deleting the book does not erase the receipt or let the old request resurrect it",
+    "Actual HTTP binding waits behind the repair character lock, then preserves both the repaired book and the explicitly selected additional reference",
+    "When the real HTTP binding holds the character share lock first, repair waits and then rejects the stale review without inserting an extra book",
+    "41 synthetic raw-file API cases: JSON/V2/V3/iTXt/magic detection, corrupt/unsupported/ambiguous files produce no character rows",
+    "Actual JSON and PNG exports reimport current fields and V3 version, retain unknown fields, remove stale metadata and do not nest import archives",
+    "Production Chromium single/batch uploads, partial/all failure details, database counts, 1440px/390px layouts and zero page errors",
+    "Chromium compressed iTXt batch and zTXt single imports; oversized and unavailable decompression show localized errors with zero creation requests",
+    "Malformed book rejected; entry database failure rolls back character/book/prior entries; batch retains only its valid file",
+    "Frozen old/new story revisions survive source edits/deletion; unrelated global books remain unbound",
+    "Production WebSocket prompts: keyword/constant/disabled/zero-probability/secondary/atDepth role, frozen revisions and no global fallback"
+  ],
+  "integrationSources": [
+    {
+      "path": "src/types/character-worldbook.ts",
+      "sha256": "a097d24829ae0fd8007fcaddb80555ca479ecaff49cc63e1c2e223433b3b0f65"
+    },
+    {
+      "path": "src/types/character-card-import.ts",
+      "sha256": "ac416056152727e3cd248f483080a1b841213a34259f2788a1e6a1d9a91d0fc3"
+    },
+    {
+      "path": "src/client/utils/sillytavern.ts",
+      "sha256": "2296948bd7c7f1b9ddb8d83b04ccfde3c9bb69f284569af4381c2df5febf86d7"
+    },
+    {
+      "path": "src/types/worldbook-import.ts",
+      "sha256": "e2e93d3d16cfd18b8530960be435756976ed632e9658d9f3e1322aa2ad75edcc"
+    },
+    {
+      "path": "src/db/character-import.ts",
+      "sha256": "c94cbfb762da89976b55f3e9f0dec6faf1e42e437282933c9a3b4c75ef9dc5b9"
+    },
+    {
+      "path": "src/db/worldbook-import.ts",
+      "sha256": "6fa4bf4465851d1ea9fe3aaf63398785a18e0417287aae2f31091e3222e3ca5e"
+    },
+    {
+      "path": "src/server/routes/worldbooks.ts",
+      "sha256": "d5a0ae74f41d8ffc18f880ec2b024f3c3f9982e0d2c1a09c9cb3bbe3d57787ef"
+    },
+    {
+      "path": "scripts/import-cards.ts",
+      "sha256": "60fa8e3e74925ef40ebe1709f5a1b9bbde2081780527158e6541dc065a30dc2f"
+    },
+    {
+      "path": "scripts/character-cli-check.mjs",
+      "sha256": "f24f729bd05704290c300506158f5e7c7fd8e4330d51a82ba4cdf74f8c1748c8"
+    },
+    {
+      "path": "src/db/character-import-audit.ts",
+      "sha256": "fb91b610dc9b7cc1d9183a3298df2feaa6370a58660dc0f9f5e577ee74805fe2"
+    },
+    {
+      "path": "scripts/character-import-audit.ts",
+      "sha256": "e33a50dc7108fcfad0114c36021c17e71fa3a04e8e136259cf47d9718c26ab90"
+    },
+    {
+      "path": "scripts/character-import-audit-check.mjs",
+      "sha256": "9e43e1629ff521d39852c55c5a54a9b52dcc1e2cfb6a9f2ddf6d9c42f222389b"
+    },
+    {
+      "path": "tsconfig.import-cards.json",
+      "sha256": "3c94781dd6d60a8552f51b071339f320e1734f18645d14fac0d1ba9c46cbee48"
+    },
+    {
+      "path": "src/db/character-import-repair.ts",
+      "sha256": "ca64340193cf6a29c16085204edcb505aa14eded8405ca816539543ce6761b8c"
+    },
+    {
+      "path": "src/db/schema/character-import-repairs.ts",
+      "sha256": "813f002642b03e4e56336b952d8eb56fc7129641aeeb259c7760d9b4c0743ff7"
+    },
+    {
+      "path": "src/db/schema/index.ts",
+      "sha256": "0875c0b2127a12f4f002f03486c006fb4b4de7e867384d6f2b3b88485aad690f"
+    },
+    {
+      "path": "scripts/character-import-repair.ts",
+      "sha256": "6dcfc3e3d27e8c86e0f1e6b323e785e463221c9be40629cf2f019054486d119f"
+    },
+    {
+      "path": "scripts/character-import-repair-check.mjs",
+      "sha256": "dc899cbb77f1585f4b8da4d04494edc85c3c0460073dfbc523bf0649a60a7950"
+    },
+    {
+      "path": "src/db/migrations/0049_character_import_repairs.sql",
+      "sha256": "45d9d83bc16ad11f97874a756a271b696d112fb6ecc458700843a0d4a2d8a79d"
+    },
+    {
+      "path": "src/db/migrations/meta/_journal.json",
+      "sha256": "19f426817ba1e0a370f86a78c75e9dca1d916b76901975852a550fd6849cd9dd"
+    },
+    {
+      "path": "src/db/beta-migrations/0009_character_import_repairs.sql",
+      "sha256": "45d9d83bc16ad11f97874a756a271b696d112fb6ecc458700843a0d4a2d8a79d"
+    },
+    {
+      "path": "src/db/beta-migrations/meta/_journal.json",
+      "sha256": "e684203602975b53ba67c8310dc776ec6e7577f18fc00e5661fd506fb3d3f3b8"
+    },
+    {
+      "path": "src/client/services/export.api.ts",
+      "sha256": "aa12af32b5229167fe5f65c93e210dc370898f3fc56d06ee5c5a2d21828e31d7"
+    },
+    {
+      "path": "src/client/pages/MyCharacters.vue",
+      "sha256": "e87064b108454debc4639312df0d58cb8510f7ecc99a902a001e4cad3a1afe35"
+    },
+    {
+      "path": "src/server/utils/png-embed.ts",
+      "sha256": "1b6ee16aa6ef617b660f46d8fe4b4f34f4c95c5fa9d4c0138949d84e2c188d09"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "33534d268c13326900e2b3151c0364d8bcd4958e5570a1bf6f5edcf3abdcfe35"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "84413ccfe075f47dbedb2bafdc759d4456b60777c4f0a949d43fb004dabbc4fa"
+    },
+    {
+      "path": "scripts/fixtures/character-card-formats.mjs",
+      "sha256": "51949a45c5317c86e450e6ef40cffc74a1e1725ba3fc5f519c1e15e08e69a452"
+    },
+    {
+      "path": "src/db/repositories/character.repository.ts",
+      "sha256": "718ab7db90e4bba386b33f189e3a60088c806adf9a153a9f0c3071ae81df85fa"
+    },
+    {
+      "path": "src/server/routes/characters.ts",
+      "sha256": "02ba9fd0daf9fb475a93ae706a8328cdcb48445b9b2080fc95925ad086400f30"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/server/services/worldinfo-engine.service.ts",
+      "sha256": "1bdd6d18f64fd7485ee5882bd77469210c3232eb507f585f9edcf9de468a0b6a"
+    },
+    {
+      "path": "scripts/character-library-check.mjs",
+      "sha256": "59183f6beb293a078fb2d4238deb5a9a6258b067e717da960be8588c06612685"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "192d212b8052c06cb223a50c8beb9412ac0a75bd971ec97c597c81bce8640efd"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "1dc81156e9b6311e5f5ef9027108b33e26902f37a3116be1258dfb956bd86604"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "94995914d001e0b3787637f45ab63b7f5229b10e4837474310c0c2d79eb7f197"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "c45277a7d4fdc089c94cb7b920f9d6aa56143bb0fdb0e69f6883199d448231fe"
+    }
+  ],
+  "unitTestSources": [
+    {
+      "path": "src/db/character-import-repair.spec.ts",
+      "sha256": "de1b6078e86e040e93f040c90c77f4fc0bebf92b466c1eb98527dba758182fca"
+    },
+    {
+      "path": "src/db/character-import-audit.spec.ts",
+      "sha256": "6870daa7bdb3a6ff7348f722bc8fa2ad7bbccfd37352072a932527b934edcb4b"
+    },
+    {
+      "path": "src/types/character-worldbook.spec.ts",
+      "sha256": "ecf223a8446d49f770babca35b4458e2e2a94906bfd99ef2e8a5b3e9c48c7f7a"
+    }
+  ],
+  "developmentFindings": [
+    "First integration detected double-encoded JSON settings from an already serialized parameter; fixed with explicit text-to-jsonb conversion and verified JSON object type plus all runtime fields.",
+    "A subsequent fixture used PUT for a PATCH edit route; corrected the fixture without changing production routing; complete integration rerun passed."
+  ],
+  "limits": {
+    "liveRepairs": 0,
+    "deployedPorts": [],
+    "paidProviderTokens": 0,
+    "userSignoff": false,
+    "receiptReplay": "already_applied returns a prior committed receipt only; no current-state validation or resurrection of later deleted books",
+    "unsupported": [
+      "nested/archive-only or missing source recovery",
+      "edited/duplicate/disabled/ownership conflict resolution",
+      "old story upgrades",
+      "all-card gameplay compatibility"
+    ],
+    "failureAcknowledgement": "An output or connection failure can happen after commit; retry the same scope and review with a new report path to recover the durable receipt."
+  }
+}

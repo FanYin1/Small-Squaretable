@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-25T12:49:38.371Z",
+  "fixtures": {
+    "incident": {
+      "jobs": 7,
+      "attempts": 6,
+      "running": 0,
+      "due": 0
+    },
+    "safe": {
+      "jobs": 7,
+      "attempts": 0,
+      "running": 0,
+      "due": 0
+    }
+  },
+  "platformRecordedToday": 8633
+}

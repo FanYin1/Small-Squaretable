@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-26",
+  "target": "3081",
+  "private": true,
+  "modelCallsInitiated": 0,
+  "results": [
+    {
+      "filename": "t1.png",
+      "sha256": "e8031fa775dbd5e8130ef0767dd69dceca5353eacf8b8b6cba7e66a600d19c77",
+      "bytes": 6023522,
+      "name": "与钟桃的双人终末旅行",
+      "entries": 455,
+      "enabledEntries": 295,
+      "alternateGreetings": 9,
+      "descriptionLength": 0,
+      "scenarioLength": 0,
+      "firstGreetingLength": 523,
+      "worldbookCharacters": 515080,
+      "variableInsertBlocks": 0,
+      "variableUpdateBlocks": 12,
+      "capabilities": {
+        "native": false,
+        "map": false,
+        "scripted": true,
+        "invalid": false,
+        "issues": [
+          "author_scripts",
+          "regex_rules",
+          "variable_framework"
+        ]
+      },
+      "characterId": "a302aa4d-8ae3-4b91-8eb1-db0b7ef476b6",
+      "status": "imported",
+      "verified": true
+    },
+    {
+      "filename": "t2.png",
+      "sha256": "5192599a51c1c270824a9bf97c99c2aa6c63207d345bb379c037ca66dbccdf75",
+      "bytes": 10226205,
+      "name": "实教瞎创版v1.4",
+      "entries": 188,
+      "enabledEntries": 84,
+      "alternateGreetings": 4,
+      "descriptionLength": 0,
+      "scenarioLength": 0,
+      "firstGreetingLength": 317,
+      "worldbookCharacters": 957441,
+      "variableInsertBlocks": 0,
+      "variableUpdateBlocks": 0,
+      "capabilities": {
+        "native": false,
+        "map": false,
+        "scripted": true,
+        "invalid": false,
+        "issues": [
+          "author_scripts",
+          "regex_rules"
+        ]
+      },
+      "characterId": "86448ec8-6994-4484-a031-0a7c8a28da3b",
+      "status": "imported",
+      "verified": true
+    },
+    {
+      "filename": "t3.png",
+      "sha256": "25f26cf85ee19de5c834f24e10efb094baf2c4963af7c87acdc77a5ed7403b45",
+      "bytes": 6399671,
+      "name": "绝世唐门V3.0",
+      "entries": 76,
+      "enabledEntries": 31,
+      "alternateGreetings": 1,
+      "descriptionLength": 100,
+      "scenarioLength": 0,
+      "firstGreetingLength": 317,
+      "worldbookCharacters": 72550,
+      "variableInsertBlocks": 0,
+      "variableUpdateBlocks": 0,
+      "capabilities": {
+        "native": false,
+        "map": false,
+        "scripted": true,
+        "invalid": false,
+        "issues": [
+          "author_scripts",
+          "regex_rules",
+          "unknown_extensions"
+        ]
+      },
+      "characterId": "780cfbfc-5e63-47da-8edd-b9826c67edbd",
+      "status": "imported",
+      "verified": true
+    }
+  ],
+  "before": {
+    "generation_requests": 0,
+    "memory_jobs": 14,
+    "memory_attempts": 6,
+    "chats": 16,
+    "story_events": 72
+  },
+  "backup": "backups/exploration/test-cards-20261026/before-import.dump",
+  "after": {
+    "generation_requests": 0,
+    "memory_jobs": 14,
+    "memory_attempts": 6,
+    "chats": 16,
+    "story_events": 72
+  },
+  "activityCountsUnchanged": true,
+  "checks": [
+    "source file hashes verified",
+    "shared character and embedded-book importer used",
+    "owner tenant and private visibility verified",
+    "complete card data and PNG avatar match prepared source",
+    "all embedded entries match shared mapping as multisets"
+  ]
+}

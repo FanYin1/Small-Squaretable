@@ -9,6 +9,9 @@
       </div>
 
       <div class="bubble-col">
+        <p v-if="message.extra?.storyAudience" class="bubble-meta">私下交谈 · {{ audienceNames?.join('、') || '仅所选人物知情' }}</p>
+        <p v-if="message.extra?.stateStatus === 'interrupted' && !message.extra?.storyIntentInvalid" class="bubble-meta" role="status">未完成的片段 · 其中的行动与后果未确认</p>
+        <p v-if="message.extra?.storyIntentInvalid" class="bubble-meta" role="status">模型回复未通过剧情结构校验，未提交状态变化。你可以重新发送或调整行动。</p>
         <div v-if="message.extra?.pinned" class="pin-indicator">{{ t('chat.pinnedMessage', 'Pinned') }}</div>
 
         <!-- Assistant name + emotion above bubble -->
@@ -39,7 +42,7 @@
         <div class="bubble">
           <div class="message-body">
             <template v-if="message.role === 'assistant'">
-              <MarkdownRenderer :content="message.content" :regex-scripts="regexScripts" />
+              <MarkdownRenderer :content="readingContent ?? message.content" :regex-scripts="regexScripts" :interactive-html="!historyFixed" />
             </template>
             <template v-else>
               <template v-if="editing">
@@ -76,17 +79,18 @@
             <template v-if="message.role === 'assistant'">
               <button class="action-btn" @click="copyMessage" :aria-label="t('chat.copyMessage') || 'Copy'">{{ copied ? '✓' : '⎘' }}</button>
               <button v-if="ttsSupported" :class="['action-btn', { 'action-btn--active': ttsSpeaking }]" @click="toggleTts" :aria-label="ttsSpeaking ? 'Stop' : 'Play'">{{ ttsSpeaking ? '◼' : '▶' }}</button>
-              <button class="action-btn" @click="handleRegenerate" :aria-label="t('chat.regenerateMessage') || 'Regenerate'">↻</button>
+              <button v-if="!historyFixed" class="action-btn" @click="handleRegenerate" :aria-label="t('chat.regenerateMessage') || 'Regenerate'">↻</button>
             </template>
             <template v-else>
-              <button class="action-btn" @click="handleEdit" :aria-label="t('chat.editMessage') || 'Edit'">✎</button>
+              <button v-if="!historyFixed" class="action-btn" @click="handleEdit" :aria-label="t('chat.editMessage') || 'Edit'">✎</button>
             </template>
             <button :class="['action-btn', { 'action-btn--active': bookmarkStore.isBookmarked(message.id) }]" @click="handleBookmark" :aria-label="bookmarkStore.isBookmarked(message.id) ? t('chat.bookmarked') : t('chat.bookmark')">🔖</button>
-            <el-popover placement="top" :width="160" trigger="click">
+            <el-popover v-model:visible="showMoreMenu" placement="top" :width="180" trigger="click">
               <template #reference>
-                <button class="action-btn action-more" aria-label="More">⋯</button>
+                <button ref="moreButton" class="action-btn action-more" :aria-label="canCorrect ? '此段阅读操作' : 'More'" :aria-expanded="showMoreMenu">⋯</button>
               </template>
               <div class="more-menu">
+                <button v-if="canCorrect" class="more-menu-item" @click="handleCorrect">标注 / 纠正此处</button>
                 <button class="more-menu-item" @click="handleBookmark">
                   {{ bookmarkStore.isBookmarked(message.id) ? t('chat.bookmarked') : t('chat.bookmark') }}
                 </button>
@@ -118,7 +122,7 @@
                     </div>
                   </div>
                 </el-popover>
-                <button class="more-menu-item" @click="handleRollback">{{ t('chat.rollbackToHere') }}</button>
+                <button v-if="!historyFixed" class="more-menu-item" @click="handleRollback">{{ t('chat.rollbackToHere') }}</button>
                 <el-popover :visible="showEmojiPicker" placement="top" :width="200" trigger="click">
                   <template #reference>
                     <button class="more-menu-item" @click="showEmojiPicker = !showEmojiPicker">{{ t('chat.addReaction', 'React') }}</button>
@@ -127,7 +131,7 @@
                     <span v-for="emoji in EMOJI_PRESETS" :key="emoji" class="emoji-option" @click="toggleReaction(emoji)">{{ emoji }}</span>
                   </div>
                 </el-popover>
-                <button class="more-menu-item more-menu-item--danger" @click="handleDelete">{{ t('chat.deleteMessage') || 'Delete' }}</button>
+                <button v-if="!historyFixed" class="more-menu-item more-menu-item--danger" @click="handleDelete">{{ t('chat.deleteMessage') || 'Delete' }}</button>
               </div>
             </el-popover>
           </div>
@@ -166,6 +170,10 @@ interface Props {
   voiceConfig?: VoiceConfig;
   branchInfo?: { currentIndex: number; total: number } | null;
   regexScripts?: RegexScript[];
+  historyFixed?: boolean;
+  canCorrect?: boolean;
+  readingContent?: string;
+  audienceNames?: string[];
 }
 
 const props = defineProps<Props>();
@@ -182,6 +190,7 @@ const emit = defineEmits<{
   (e: 'reply', payload: { id: string; content: string; role: string }): void;
   (e: 'togglePin', payload: { messageId: string; isPinned: boolean }): void;
   (e: 'setImportance', payload: { messageId: string; importance: number }): void;
+  (e: 'correct', messageId: string): void;
 }>();
 
 const { t } = useI18n();
@@ -189,6 +198,13 @@ const { formatRelativeTime } = useDateTime();
 const bookmarkStore = useBookmarkStore();
 const copied = ref(false);
 const editContent = ref('');
+const showMoreMenu = ref(false);
+const moreButton = ref<HTMLButtonElement | null>(null);
+function handleCorrect() {
+  showMoreMenu.value = false;
+  moreButton.value?.focus();
+  emit('correct', props.message.id);
+}
 
 const EMOJI_PRESETS = ['👍', '❤️', '😂', '😮', '😢', '🎉'];
 
@@ -386,15 +402,16 @@ const setImportance = (importance: number) => {
 }
 
 .message-assistant .bubble {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 18px 18px 18px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
 }
 
 .message-user .bubble {
-  background: var(--accent);
-  color: var(--accent-on);
-  border-radius: 18px 18px 4px 18px;
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  border-inline-start: 2px solid var(--accent);
+  border-radius: 0 12px 12px 0;
   display: inline-block;
 }
 

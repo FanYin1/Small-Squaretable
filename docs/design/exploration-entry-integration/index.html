@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>探索入口 · 原型与正式构建对照</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #2e332d; background: #f6f3ec; }
+    body { margin: 0; padding: 24px; }
+    header, main { max-width: 1600px; margin: auto; }
+    h1 { font-size: 26px; }
+    p { line-height: 1.8; }
+    .controls { display: flex; flex-wrap: wrap; gap: 16px; margin: 24px 0; }
+    label { display: flex; gap: 8px; align-items: center; }
+    select { font: inherit; padding: 10px; background: #fffcf6; color: inherit; border: 1px solid #7e8372; border-radius: 6px; }
+    a { color: #82571e; }
+    a:focus-visible, select:focus-visible { outline: 3px solid #82571e; outline-offset: 4px; }
+    #difference { padding: 16px; border-left: 3px solid #82571e; background: #eeebe3; }
+    .comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+    figure { margin: 0; min-width: 0; }
+    figcaption { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 16px 0; }
+    img { display: block; width: 100%; height: auto; max-width: var(--capture-width); border: 1px solid #d2d0c3; }
+    @media (max-width: 700px) { body { padding: 16px; } .comparison { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>探索入口 · 原型与正式构建对照</h1>
+    <p>使用相同原创卡、封面和开场，对照四个入口页面。右侧来自隔离真实 API 的正式构建；数据是测试样本。此页展示截图，不会创建故事或产生费用。</p>
+    <p>3080 仍为 R5 候选。阅读页、可信状态、世界书版本与长期记忆不在这批画面完成范围内。<a href="README.md">查看证据与差异记录</a></p>
+    <div class="controls">
+      <label>页面 <select id="page"><option value="discover">发现</option><option value="detail">角色详情</option><option value="identity">可选身份</option><option value="library">我的故事</option></select></label>
+      <label>截图宽度 <select id="width"><option value="1440">桌面 · 1440</option><option value="390">手机 · 390</option></select></label>
+      <label>主题 <select id="theme"><option value="dark">深色</option><option value="light">浅色</option></select></label>
+    </div>
+    <p id="difference" role="status"></p>
+  </header>
+  <main class="comparison">
+    <figure><figcaption><strong>已保存的原型</strong><a id="reference-link" href="reference-discover-1440-dark.webp">打开完整图片</a></figcaption><img id="reference" src="reference-discover-1440-dark.webp" alt="原型发现页"></figure>
+    <figure><figcaption><strong>正式构建 · 隔离真实 API</strong><a id="production-link" href="production-discover-1440-dark.webp">打开完整图片</a></figcaption><img id="production" src="production-discover-1440-dark.webp" alt="正式构建发现页"></figure>
+  </main>
+  <script>
+    const notes = {
+      discover: '正式页保留搜索、筛选、收藏与独立继续入口；封面比例、标题文案与导航选中样式仍与原型不同。卡片的直接开始明确新建存档。',
+      detail: '正式页保留开场、费用与评论；作者身份、同伴和世界书绑定尚无完整结构化接口，因此尚未迁入原型的双栏资料区。',
+      identity: '正式页沿用已有默认人设、创建人设和账户称呼；尚未实现原型的作者固定身份与存档身份快照，不能把人设选择视为等价完成。',
+      library: '正式页显示服务端摘要与更新时间，并支持同卡另开；本例初始存档没有摘要，因此明确显示缺省状态。原型中的地点和经历摘录还未接入。',
+    };
+    function update() {
+      const page = document.querySelector('#page');
+      const width = document.querySelector('#width').value;
+      const theme = document.querySelector('#theme').value;
+      document.documentElement.style.setProperty('--capture-width', `${width}px`);
+      document.querySelector('#difference').textContent = notes[page.value];
+      for (const version of ['reference', 'production']) {
+        const filename = `${version}-${page.value}-${width}-${theme}.webp`;
+        document.querySelector(`#${version}`).src = filename;
+        document.querySelector(`#${version}`).alt = `${version === 'reference' ? '原型' : '正式构建'}：${page.selectedOptions[0].textContent}，${width}px，${theme === 'dark' ? '深色' : '浅色'}`;
+        document.querySelector(`#${version}-link`).href = filename;
+      }
+    }
+    document.querySelectorAll('select').forEach(select => select.addEventListener('change', update));
+    update();
+  </script>
+</body>
+</html>

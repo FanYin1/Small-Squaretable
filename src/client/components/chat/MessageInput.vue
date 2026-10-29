@@ -62,10 +62,12 @@
       <!-- Normal text input -->
       <el-input
         v-else
+        ref="textInput"
         v-model="inputValue"
         type="textarea"
         :placeholder="computedPlaceholder"
-        :autosize="{ minRows: 1, maxRows: 5 }"
+        :aria-label="t('chat.inputPlaceholder')"
+        :autosize="{ minRows: 2, maxRows: 5 }"
         :maxlength="maxLength"
         :disabled="disabled || sending"
         @keydown="handleKeyDown"
@@ -96,9 +98,10 @@
 
       <!-- Stop generation button -->
       <button
-        v-else-if="!isUploading && props.isStreaming"
+        v-else-if="!isUploading && (props.isStreaming || props.sending)"
         class="stop-btn"
         type="button"
+        :disabled="stopping"
         @click="emit('stopGeneration')"
         :aria-label="t('chat.stopGeneration')"
       >
@@ -137,11 +140,13 @@
     <div class="input-hint">
       {{ t('chat.inputHint') }}
     </div>
+    <p v-if="inputValue && !draftStorageAvailable" class="input-hint" role="status">{{ t('chat.draftStorageUnavailable') }}</p>
+    <p v-else-if="draftRestored" class="input-hint" role="status">{{ t('chat.draftRestored') }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Position, Microphone, Close, CloseBold, Check, Loading, Headset, VideoPause } from '@element-plus/icons-vue';
 import { useAudioRecorder } from '@client/composables/useAudioRecorder';
@@ -149,6 +154,8 @@ import { useSpeechToText } from '@client/composables/useSpeechToText';
 import { uploadApi } from '@client/services/upload.api';
 import { useToast } from '@client/composables/useToast';
 import { useChatStore } from '@client/stores/chat';
+import { useUserStore } from '@client/stores/user';
+import { useStoryDraft } from '@client/composables/useStoryDraft';
 import { getEnabledQuickReplies, type QuickReply } from '@client/services/quick-reply.api';
 import type { MessageAttachment } from '@client/types';
 
@@ -158,7 +165,9 @@ interface Props {
   disabled?: boolean;
   sending?: boolean;
   isStreaming?: boolean;
+  stopping?: boolean;
   characters?: Array<{ id: string; name: string; avatar?: string }>;
+  draftAudience?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -167,21 +176,33 @@ const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   sending: false,
   isStreaming: false,
+  stopping: false,
   characters: () => [],
 });
 
 const emit = defineEmits<{
-  (e: 'send', content: string, attachments?: MessageAttachment[], mentionedCharacterIds?: string[]): void;
+  (e: 'send', content: string, attachments?: MessageAttachment[], mentionedCharacterIds?: string[], onAccepted?: () => void): void;
   (e: 'stopGeneration'): void;
 }>();
 
 const { t } = useI18n();
 const toast = useToast();
 const chatStore = useChatStore();
+const userStore = useUserStore();
 const audioRecorder = useAudioRecorder();
 const stt = useSpeechToText();
-const inputValue = ref('');
+const draftKey = computed(() => userStore.user && chatStore.currentChatId
+  ? `story-draft:${JSON.stringify([userStore.user.tenantId, userStore.user.id, chatStore.currentChatId])}${props.draftAudience ? `:private:${props.draftAudience}` : ''}`
+  : null);
+const {
+  text: inputValue,
+  restored: draftRestored,
+  storageAvailable: draftStorageAvailable,
+  captureAcknowledgement,
+} = useStoryDraft(draftKey);
 const isUploading = ref(false);
+const textInput = ref<{ focus: () => void } | null>(null);
+defineExpose({ fillAction(text: string) { inputValue.value = inputValue.value.trim() ? `${inputValue.value}\n${text}` : text; textInput.value?.focus(); } });
 const enabledQuickReplies = ref<QuickReply[]>([]);
 
 // Load quick replies on mount
@@ -284,6 +305,20 @@ function stopTypingIndicator() {
   }
 }
 
+watch(draftKey, () => {
+  if (typingTimeout) clearTimeout(typingTimeout);
+  typingTimeout = null;
+  isCurrentlyTyping = false;
+  showMentionPopup.value = false;
+  mentionQuery.value = '';
+  mentionStartIndex.value = -1;
+  stt.stopListening();
+  stt.clearTranscript();
+  audioRecorder.cancelRecording();
+});
+
+onUnmounted(stopTypingIndicator);
+
 const computedPlaceholder = computed(() => {
   if (stt.isListening.value && stt.interimTranscript.value) {
     return stt.interimTranscript.value;
@@ -311,7 +346,7 @@ const toggleStt = () => {
 };
 
 const canSend = computed(() => {
-  return inputValue.value.trim().length > 0 && !props.sending && !props.disabled;
+  return inputValue.value.trim().length > 0 && !props.sending && !props.isStreaming && !props.disabled;
 });
 
 const isNearLimit = computed(() => {
@@ -340,12 +375,12 @@ const handleSend = () => {
   const content = inputValue.value.trim();
   if (content) {
     const mentionedIds = extractMentionedIds(content);
-    emit('send', content, undefined, mentionedIds.length > 0 ? mentionedIds : undefined);
-    inputValue.value = '';
+    emit('send', content, undefined, mentionedIds.length > 0 ? mentionedIds : undefined, captureAcknowledgement());
   }
 };
 
 const handleKeyDown = (event: KeyboardEvent) => {
+  if (event.isComposing || event.keyCode === 229) return;
   // Enter without Shift = send message
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault();
@@ -501,7 +536,7 @@ const handleSendRecording = async () => {
 }
 
 .input-textarea :deep(.el-textarea__inner) {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   padding: 6px 0;
   border: none;
@@ -600,11 +635,11 @@ const handleSendRecording = async () => {
 }
 
 .send-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--accent);
-  color: var(--text-inverse);
+  color: var(--accent-on);
   border: none;
   cursor: pointer;
   flex-shrink: 0;
@@ -619,8 +654,8 @@ const handleSendRecording = async () => {
 }
 
 .stop-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--color-danger);
   color: var(--text-inverse);
@@ -659,9 +694,14 @@ const handleSendRecording = async () => {
     padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   }
   .input-wrapper {
-    padding: 6px 8px;
-    border-radius: 20px;
+    padding: 12px;
+    border-radius: 16px;
+    display: grid;
+    grid-template-columns: 44px 44px minmax(0, 1fr) 44px;
   }
+  .input-textarea,.recording-indicator,.uploading-indicator { grid-column:1 / -1; grid-row:1; }
+  .mic-btn,.stt-btn { grid-row:2; min-width:44px; min-height:44px; }
+  .send-btn,.stop-btn { grid-column:4; grid-row:2; }
   /* iOS Safari 对 <16px 的输入框聚焦时会自动放大页面，导致整页横向偏移 */
   .input-textarea :deep(.el-textarea__inner) {
     font-size: 16px;

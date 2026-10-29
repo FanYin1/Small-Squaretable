@@ -39,6 +39,23 @@ describe('LLMService', () => {
   });
 
   describe('chatCompletion', () => {
+    it('lets the durable queue own retries and passes its abort signal', async () => {
+      const signal = new AbortController().signal;
+      global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) });
+      await expect(llmService.chatCompletion({ model: 'gpt-3.5-turbo', messages: [], stream: false },
+        { signal, maxAttempts: 1 })).rejects.toThrow();
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(global.fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ signal }));
+    });
+
+    it('does not start a request when the queue deadline has expired', async () => {
+      const controller = new AbortController();
+      controller.abort();
+      global.fetch = vi.fn();
+      await expect(llmService.chatCompletion({ model: 'gpt-3.5-turbo', messages: [], stream: false },
+        { signal: controller.signal, maxAttempts: 1 })).rejects.toThrow();
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
     it('should make a successful chat completion request', async () => {
       const request: ChatCompletionRequest = {
         model: 'gpt-3.5-turbo',

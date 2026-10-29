@@ -48,6 +48,24 @@ describe('llmApi.streamChatCompletion 非 2xx', () => {
     expect(error.details).toEqual(details);
   });
 
+  it('finishes once after abort and awaits partial-response persistence', async () => {
+    const controller = new AbortController();
+    const onDone = vi.fn().mockResolvedValue(undefined);
+    const onError = vi.fn();
+    const releaseLock = vi.fn();
+    const read = vi.fn()
+      .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode('data: {"choices":[{"delta":{"content":"Partial"}}]}\n\n') })
+      .mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'));
+    fetchMock.mockResolvedValue({ ok: true, body: { getReader: () => ({ read, releaseLock }) } });
+    const onChunk = vi.fn(() => controller.abort());
+    await llmApi.streamChatCompletion({ model: 'm', messages: [] }, onChunk, onDone, onError, controller.signal);
+    expect(onChunk).toHaveBeenCalledWith('Partial');
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+    expect(releaseLock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
+  });
+
   it('非 JSON 错误体：退回通用错误', async () => {
     fetchMock.mockResolvedValue(new Response('<html>Bad Gateway</html>', { status: 502 }));
 

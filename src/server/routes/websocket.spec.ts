@@ -6,6 +6,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { WSMessageType } from '../../types/websocket';
 import type { WSUserMessage } from '../../types/websocket';
 
+vi.mock('../../db/repositories/generation-request.repository', () => ({
+  generationRequestRepository: {
+    findByRequest: vi.fn().mockResolvedValue(null),
+    claim: vi.fn().mockResolvedValue({ claimed: true, request: { id: 'generation-1' } }),
+    markRunning: vi.fn().mockResolvedValue(undefined),
+    finish: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 // Mock dependencies before importing the handler
 vi.mock('../services/websocket.service', () => ({
   websocketService: {
@@ -166,7 +175,13 @@ describe('WebSocket Route', () => {
 
       expect(chatRepository.findById).toHaveBeenCalledWith(chatId);
       expect(websocketService.joinChat).toHaveBeenCalledWith(clientId, chatId);
-      expect(websocketService.sendToClient).not.toHaveBeenCalled();
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(
+        clientId,
+        expect.objectContaining({
+          type: WSMessageType.GENERATION_STATE,
+          data: { chatId, status: 'idle' },
+        })
+      );
     });
 
     it('should reject non-owner with FORBIDDEN error', async () => {
@@ -233,6 +248,43 @@ describe('WebSocket Route', () => {
           data: expect.objectContaining({
             code: 'FORBIDDEN',
           }),
+        })
+      );
+    });
+
+    it('should reject a chat from another tenant', async () => {
+      vi.mocked(websocketService.getClientInfo).mockReturnValue({
+        id: clientId,
+        userId,
+        tenantId: 'tenant-other',
+        connectedAt: new Date(),
+        lastHeartbeat: new Date(),
+      });
+
+      vi.mocked(chatRepository.findById).mockResolvedValue({
+        id: chatId,
+        userId,
+        tenantId: 'tenant-1',
+        characterId: null,
+        title: 'Test Chat',
+        summary: null,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await (handler as any).handleJoinChat(clientId, {
+        type: WSMessageType.JOIN_CHAT,
+        timestamp: new Date().toISOString(),
+        data: { chatId },
+      });
+
+      expect(websocketService.joinChat).not.toHaveBeenCalled();
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(
+        clientId,
+        expect.objectContaining({
+          type: WSMessageType.ERROR,
+          data: expect.objectContaining({ code: 'FORBIDDEN' }),
         })
       );
     });

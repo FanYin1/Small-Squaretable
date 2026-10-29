@@ -5,6 +5,7 @@ import path from 'path';
 // Optional plugins - will be loaded if available
 const loadOptionalPlugins = async (): Promise<PluginOption[]> => {
   const plugins: PluginOption[] = [];
+  if (process.env.ANALYZE_BUNDLE !== 'true') return plugins;
 
   // Try to load rollup-plugin-visualizer
   try {
@@ -29,7 +30,14 @@ export default defineConfig(async () => {
   const optionalPlugins = await loadOptionalPlugins();
 
   return {
-    plugins: [vue(), ...optionalPlugins],
+    plugins: [vue(), ...optionalPlugins, {
+      name: 'exclude-story-demo',
+      apply: 'build',
+      async closeBundle() {
+        const { rm } = await import('node:fs/promises');
+        await rm('dist/client/story-experience-demo.html', { force: true });
+      },
+    }],
     css: {
       preprocessorOptions: {
         scss: {
@@ -132,32 +140,6 @@ export default defineConfig(async () => {
               return 'i18n';
             }
 
-            // Route-based chunks (pages)
-            if (id.includes('/src/client/pages/')) {
-              const match = id.match(/\/pages\/([^/]+)\.vue/);
-              if (match) {
-                return `page-${match[1]}`;
-              }
-            }
-
-            // Component chunks — split by directory for better caching
-            if (id.includes('/src/client/components/')) {
-              // Chat components (ChatWindow, ChatSidebar, MessageBubble, etc.)
-              if (id.includes('/components/chat/')) {
-                return 'chat-components';
-              }
-              // Debug/intelligence components (loaded on demand)
-              if (id.includes('/components/debug/')) {
-                return 'debug-components';
-              }
-              // Character components
-              if (id.includes('/components/character/')) {
-                return 'character-components';
-              }
-              if (id.includes('Market.vue') || id.includes('CharacterCard.vue')) {
-                return 'market-components';
-              }
-            }
           },
           // Asset naming with content hash for better caching
           assetFileNames: (assetInfo: { name: string }) => {

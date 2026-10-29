@@ -1,0 +1,15 @@
+{
+  "at": "2026-10-25T10:37:33.596Z",
+  "result": "passed",
+  "port": 3081,
+  "imageId": "sha256:113b972d8b00b5ed69b6be4165f3bd3b212ec1e993eef7c2904db5c43fe84ad4",
+  "managedStoryLegacyReadStatus": 409,
+  "unscopedRead": "only null-source global memories",
+  "health": {
+    "candidateReady": 200,
+    "historical": 200,
+    "prototype": 200
+  },
+  "modelCalls": 0,
+  "writes": "login session only; no story content modifications"
+}

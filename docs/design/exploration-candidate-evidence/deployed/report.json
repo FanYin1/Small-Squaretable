@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-23T19:12:38.764Z",
+  "result": "passed",
+  "base": "http://127.0.0.1:3081",
+  "image": "sha256:acd8f3b03eac8619726e8e34f2a942f807f5f9f78b4574546badbc31b347e36d",
+  "htmlSha256": "80b87ba7c6ffd23bbc0e42f2078833b17c81fc52934d23a810518a3665b355e3",
+  "syntheticAccount": true,
+  "screenshots": [
+    "candidate-play-390-light.png",
+    "candidate-play-390-dark.png",
+    "candidate-play-1440-light.png",
+    "candidate-play-1440-dark.png"
+  ],
+  "checks": [
+    "authenticated direct entry and reload",
+    "authored initial state from restored/migrated database",
+    "390/1440 light/dark without horizontal overflow",
+    "reader has no platform sidebar",
+    "creator, account and credits use exploration shell"
+  ],
+  "modelGeneration": "not part of this deployed UI check"
+}

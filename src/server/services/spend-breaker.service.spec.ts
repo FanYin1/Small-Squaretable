@@ -118,13 +118,21 @@ describe('SpendBreaker', () => {
       expect(redisClient.get).toHaveBeenCalledWith(breaker.getDayKey(new Date()));
     });
 
+    it('allows the retained daily usage under the operator-approved 10M limit', async () => {
+      mockConfig.platformDailyTokenLimit = 10000000;
+      redisClient.get.mockResolvedValue('120038');
+      await expect(breaker.assertAllowed()).resolves.toBeUndefined();
+      expect(redisClient.set).not.toHaveBeenCalled();
+      expect(redisClient.multi).not.toHaveBeenCalled();
+    });
+
     // 失败关闭：宁可拒绝，也不在看不见花费的时候放行
     it('fails closed when redis throws', async () => {
       redisClient.get.mockRejectedValue(new Error('ECONNREFUSED'));
       const error = await breaker.assertAllowed().catch((e) => e);
 
       expect(error).toBeInstanceOf(AppError);
-      expect(error.code).toBe('PLATFORM_SPEND_LIMIT');
+      expect(error.code).toBe('PLATFORM_SPEND_UNAVAILABLE');
       expect(error.statusCode).toBe(503);
       expect(error.message).toMatch(/temporarily unavailable/i);
       expect(loggerMock.error).toHaveBeenCalled();
@@ -132,12 +140,12 @@ describe('SpendBreaker', () => {
 
     it('fails closed when the redis client cannot be created', async () => {
       getRedisClient.mockRejectedValue(new Error('connect failed'));
-      await expect(breaker.assertAllowed()).rejects.toMatchObject({ code: 'PLATFORM_SPEND_LIMIT' });
+      await expect(breaker.assertAllowed()).rejects.toMatchObject({ code: 'PLATFORM_SPEND_UNAVAILABLE' });
     });
 
     it('fails closed when the stored value is not a number', async () => {
       redisClient.get.mockResolvedValue('garbage');
-      await expect(breaker.assertAllowed()).rejects.toMatchObject({ code: 'PLATFORM_SPEND_LIMIT' });
+      await expect(breaker.assertAllowed()).rejects.toMatchObject({ code: 'PLATFORM_SPEND_UNAVAILABLE' });
     });
 
     it('is a no-op when no limit is configured (non-production)', async () => {

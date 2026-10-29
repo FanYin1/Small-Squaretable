@@ -91,6 +91,8 @@ describe('MemoryConsolidationService', () => {
 
     const result = await service.consolidate('char-1', 'user-1', 0.75, 3);
 
+    expect(memoryRepository.findByCharacterAndUser).toHaveBeenCalledWith('char-1', 'user-1', 500, null);
+
     expect(result).toEqual({ clustersFound: 0, memoriesConsolidated: 0, summariesCreated: 0 });
     expect(memoryRepository.findSimilar).not.toHaveBeenCalled();
     expect(memoryRepository.delete).not.toHaveBeenCalled();

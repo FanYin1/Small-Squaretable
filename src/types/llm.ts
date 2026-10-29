@@ -41,6 +41,7 @@ export const chatCompletionRequestSchema = z.object({
   presence_penalty: z.number().min(-2).max(2).optional().default(0),
   frequency_penalty: z.number().min(-2).max(2).optional().default(0),
   user: z.string().optional(),
+  response_format: z.object({ type: z.enum(['text', 'json_object']) }).optional(),
 });
 
 export type ChatCompletionRequest = z.infer<typeof chatCompletionRequestSchema>;
@@ -58,7 +59,7 @@ export interface ChatCompletionResponse {
     message: LLMMessage;
     finish_reason: 'stop' | 'length' | 'content_filter' | null;
   }>;
-  usage: {
+  usage?: {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
@@ -115,7 +116,7 @@ export interface CompletionResponse {
     index: number;
     finish_reason: 'stop' | 'length' | null;
   }>;
-  usage: {
+  usage?: {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
@@ -148,6 +149,7 @@ export interface ModelMeta {
   provider: string;
   contextWindow: number;    // max context tokens
   maxOutputTokens: number;  // max response tokens
+  outputCapabilityTokens?: number;
   defaultTemperature: number;
 }
 
@@ -161,6 +163,7 @@ export type LLMProvider = 'openai' | 'anthropic' | 'custom' | 'ollama';
  */
 export interface LLMProviderConfig {
   provider: LLMProvider;
+  apiFormat?: 'openai' | 'gemini';
   apiKey: string;
   baseUrl?: string;
   models: string[];

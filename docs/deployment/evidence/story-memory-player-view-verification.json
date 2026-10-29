@@ -1,0 +1,334 @@
+{
+  "date": "2026-10-24T08:02:49.950Z",
+  "result": "passed",
+  "scope": "Player-facing read-only memory job progress and batch provenance; not automatic summary lifecycle or real-model quality",
+  "unit": {
+    "files": 5,
+    "passed": 67
+  },
+  "database": {
+    "reportPath": "/tmp/squaretable-story-restore-evidence/9382ee04-5f79-45d0-8cde-b969c988261d/report.json",
+    "reportSha256": "9690dd20ef2c66cd3f5dcea6bb952fe913704ca8288f1cd98f81f4b015f73aa1",
+    "durableMemoryAndViewChecks": [
+      "Dump/restore plus a separate process resumes the saved extraction without another model call",
+      "Recovered memory is retrievable by real pgvector and retains message/event provenance",
+      "Partial batch progress survives process restart and excludes interrupted replies",
+      "Replaying an already committed turn creates no duplicate job or memory",
+      "Enqueue and progress roll back with the story turn and recover on a subsequent commit",
+      "A crashed lease is reclaimed by only one of two concurrent workers",
+      "An expired worker cannot commit after replacement; checkpoint reuse avoids a second extraction",
+      "Zero vectors are failures; embedding recovery reuses extraction and writes no partial memory",
+      "Cross-story source references are rejected and retries stop at the configured cap",
+      "Explicit failed-job replay retains attempt history, checks reviewed state and cannot replay completed work",
+      "A valid empty extraction succeeds without embedding or a fabricated memory",
+      "Extraction has an abort deadline and a failed attempt is recorded",
+      "Over-budget sources stop visibly without truncation or a provider call",
+      "Editing source text during embedding prevents stale derived memory from committing",
+      "A message/event version mismatch is rejected before any extraction call",
+      "A database failure rolls back memory, vector and provenance together; retry uses the saved extraction",
+      "Deleting a story during extraction cascades work and rejects late completion without resurrection",
+      "Group participants count and derive independently within the same story",
+      "Group memory progress shows each frozen character and only their own five confirmed reply sources",
+      "A repeatedly crashed job stops at the retry cap instead of being claimed forever",
+      "Lowering the retry limit marks already exhausted queued work as failed instead of stranding it",
+      "Deleting completed work preserves other stories and every remaining provenance link stays in its confirmed story",
+      "Player view exposes real successful batch provenance and retained counts without returning memory text",
+      "Player memory reads reject another owner or tenant before loading jobs",
+      "Progress shows three confirmed replies before reaching the five-reply batch threshold",
+      "Extracted checkpoints, failure internals, digests and replay details never enter the player response",
+      "A source digest mismatch withholds references and never exposes the private digest",
+      "Queued, expired-running, retry, failed and completed-with-no-retained-memory states remain distinguishable",
+      "Foreign and missing pagination cursors fail identically",
+      "Bounded pagination preserves all batches sharing the same microsecond timestamp and global counts",
+      "Cross-story event references are withheld rather than becoming player source links",
+      "Interrupted or version-mismatched replies cannot be presented as confirmed memory provenance",
+      "Legacy stories explicitly report unsupported progress without inventing historical coverage",
+      "Deleted stories cannot return remembered progress or stale source IDs"
+    ],
+    "viewRelatedChecksAdded": 13,
+    "restoredStoryBehaviorChecks": 19,
+    "evidenceGuards": 14,
+    "corruptionProbes": 2
+  },
+  "browser": {
+    "scope": "Real API/WebSocket/browser/database; five controlled-provider turns. Failure/lease/success states and derived memory are explicitly seeded UI fixtures; real worker behavior verified separately.",
+    "checks": [
+      "Empty automatic progress and saved personal notes remain distinct",
+      "Five real WebSocket turns create one durable batch; partial progress is visible after three",
+      "A controlled persisted failure is visible without exposing extraction or provider internals",
+      "Both source links open actual saved input and reply through the authenticated message API",
+      "Expired lease and retained-memory counts reflect database state; reads never trigger generation",
+      "Page reload preserves real progress; read failure is explicit, preserves last data, and recovers",
+      "390px memory panel exposes source controls without horizontal overflow and Escape returns focus"
+    ],
+    "unexpectedPageErrorsOr429Or5xx": 0,
+    "screenshots": [
+      {
+        "path": "/tmp/squaretable-memory-ui-evidence/2f35df40-f47c-4417-bb8d-d93272f8ac85/desktop-memory-failed.png",
+        "sha256": "cf7e005a0446016b8bce7137678a33be40d04e8cfc0c809b04d609b19d4b4cef"
+      },
+      {
+        "path": "/tmp/squaretable-memory-ui-evidence/2f35df40-f47c-4417-bb8d-d93272f8ac85/mobile-memory-overview.png",
+        "sha256": "a384516a1abcbebc3dd21bcf4c262f28b8549f11ead69789acb1e90345cad499"
+      },
+      {
+        "path": "/tmp/squaretable-memory-ui-evidence/2f35df40-f47c-4417-bb8d-d93272f8ac85/mobile-memory-sources.png",
+        "sha256": "ee16d3f87cf46f72f9cde8843f3d118ba1393810312b69dbe5b4b9482e2ed70c"
+      }
+    ]
+  },
+  "verification": {
+    "typeCheck": "passed",
+    "productionServerAndClientBuild": "passed",
+    "scriptSyntax": "passed",
+    "targetedLint": {
+      "errors": 0,
+      "existingWarnings": 1
+    },
+    "visualReview": "1440px desktop failure state and 390px mobile source controls; mobile source click, dialog dismissal, Escape and focus return passed"
+  },
+  "deployment": {
+    "updated": false,
+    "unchangedPorts": [
+      3080,
+      3081,
+      5188
+    ],
+    "newMigrations": [],
+    "requires": "0048 / beta0008",
+    "disposableServicesCleaned": true
+  },
+  "limitations": [
+    "No full automatic summarization lifecycle or old-history backfill.",
+    "Only batch provenance and retained counts are exposed, not unclassified derived text.",
+    "Memory job failure, expired lease and success states in browser are explicit database fixtures; worker behavior is validated separately in disposable databases.",
+    "Controlled providers do not prove real long-form coherence, knowledge isolation or phone hardware behavior.",
+    "EXP-05A/05B, EXP-07D and OPEN-01 through OPEN-07 remain open."
+  ],
+  "sources": [
+    {
+      "path": "scripts/story-memory-browser-check.mjs",
+      "sha256": "f9f9cc4dd95e55884ee232fa4cf65c3492e1c56ea0b1cca112b4354c3102f377"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "be579cea0da465581c0d361c9080f3c05c734438d39d3414caff83a914593797"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "4a48c963ce6c8791397299bf93942f6e4b03505373fb11352ce3ba8d83f61be9"
+    },
+    {
+      "path": "src/server/services/story-memory-view.service.ts",
+      "sha256": "f777498d0fae9652fe6987e3094d2d47063341587e98c9777196238f98a24d12"
+    },
+    {
+      "path": "src/server/routes/chats.ts",
+      "sha256": "37c036d1cc7ea218adbd1156d5588ae23a6acf07f7d2c534a21cca2fbba9589b"
+    },
+    {
+      "path": "src/types/story-memory.ts",
+      "sha256": "c9712199f13a11d41661053c85d2a1f3d3e8a18f7ff5ffe57c9640a89fc93c0c"
+    },
+    {
+      "path": "src/client/services/story.api.ts",
+      "sha256": "75a7a88d10ebbea3ea9fe646d085d9e219ca8c93b24480058f2590de43611886"
+    },
+    {
+      "path": "src/client/composables/useStoryMemory.ts",
+      "sha256": "89b42e994afb7637b2134cfaf6a4755e4909d2cbff05a77fc29e63b391b7561a"
+    },
+    {
+      "path": "src/client/components/chat/StoryMemoryStatus.vue",
+      "sha256": "6c0ed7a9056db7b480afd138927828d670c981956e7b13becaafe2f3d03f159c"
+    },
+    {
+      "path": "src/client/components/chat/StoryDossier.vue",
+      "sha256": "8c032bdb024ce3f14d6878bacec1feb9e24d69a8909dd3a100d81f222eab9a8e"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "9367a17b6af79ea2c025368d03fdfd27c9b836a7635555c68cc1ecbc745505e1"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "263247a37015401e378e9d673e421e7b92e94ee30415a674e5f6d1e917302294"
+    },
+    {
+      "path": "scripts/story-nonempty-restore-check.mjs",
+      "sha256": "b1a8b4063fbeb78f02b3f1be9c69eae604851c75978a27eb79c68a5b69b517cc"
+    },
+    {
+      "path": "scripts/story-restore-fixture.mjs",
+      "sha256": "7dbfc79dd2602c4da34c02a8fbba8978cd18ea34f79912aacbb29991c0270d40"
+    },
+    {
+      "path": "scripts/story-restore-evidence.mjs",
+      "sha256": "c9317c706bd67f7e06945f53a9d8d896246c8173ab7541c35b40d22b2b5f373d"
+    },
+    {
+      "path": "scripts/story-restore-evidence.test.mjs",
+      "sha256": "719553edc73cffbed8550c75977a8d10fb1a457a8ee1debf4d2df417de83213d"
+    },
+    {
+      "path": "scripts/exploration-restore-check.mjs",
+      "sha256": "855e39688fb02853057ddeb5cc8ff8d218cb2b0a09251cb934c316e01174413f"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "ad99964a6a3dcbf21fcadd56928f753d077c13a388768b5e759b9acd376c3b67"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "1cbaa43c5e63f0232d9cb5e4a557551fbfbaa462ceb215547d6c042d56df5576"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+    },
+    {
+      "path": "src/db/migrate.ts",
+      "sha256": "91bbac98d250f3c2f89edf6511b80f674fa0db55ec428abbd2f4c6daedb93e57"
+    },
+    {
+      "path": "src/db/beta-migrations/0000_beta_schema.sql",
+      "sha256": "1d21eaef4b6c561bd431924a45533480ce328510a7e3ef2ac4a2d4d2be7c163a"
+    },
+    {
+      "path": "src/db/beta-migrations/0001_beta_invariants.sql",
+      "sha256": "b77d1ccea176602d34da511f7e1242fdedd9c71963b8a3b4902d6b307d6a8c16"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/db/beta-migrations/0004_story_content.sql",
+      "sha256": "3c09875fe35c43e68d2f0bd4e03044253b9bf879c16c1c564dfa6898f5e1648b"
+    },
+    {
+      "path": "src/db/beta-migrations/0005_story_state.sql",
+      "sha256": "09cae5255133b9fe58a981ee3cadda43210de96a5abfd70a233aead9350b1b89"
+    },
+    {
+      "path": "src/db/beta-migrations/0006_story_memory_scope.sql",
+      "sha256": "4d9519301750da6ad4bb4bba825feee3be843d47dfb9313d6a06d9b2455974e3"
+    },
+    {
+      "path": "src/db/beta-migrations/0007_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/beta-migrations/0008_story_memory_jobs.sql",
+      "sha256": "919011023b56c679a08abd2d220458de35796005d5749ccaa025615ac2a7f8e6"
+    },
+    {
+      "path": "src/db/beta-migrations/meta/_journal.json",
+      "sha256": "f52a0ba629434ea52bc71df9fde0e5104c1b12277f699edca3135344f36111fe"
+    },
+    {
+      "path": "scripts/story-deletion-replay.mjs",
+      "sha256": "a76cdfd68b5f4b3235892833294a0462e5f1f699624d433c4cc8ad7adaf96778"
+    },
+    {
+      "path": "src/db/migrations/0047_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/schema/story-lifecycle.ts",
+      "sha256": "2e6ed153e51a28617cb2feb32f8474afb00217a35c90d435fea60044acb324cf"
+    },
+    {
+      "path": "scripts/story-memory-fixture.mjs",
+      "sha256": "5f452d6830f7c51f20369c94346d7c2d58e3024cdd6eaace752407ed48dcadc8"
+    },
+    {
+      "path": "scripts/story-memory-view-fixture.mjs",
+      "sha256": "502cfdfdad531ce0b6676368b75de3a5483f8060bd8ba360069f977305950f66"
+    },
+    {
+      "path": "src/server/services/story-memory-worker.service.ts",
+      "sha256": "d3bb9ff942826e2ec39c934d8b259c6cc7bfb06fa22e90c5540fe855ca5c9917"
+    },
+    {
+      "path": "scripts/story-memory-retry.mjs",
+      "sha256": "05b1072c03d2d3c1cb84f7b4fe374c018c518c476c60c9ef0460d6003245607d"
+    },
+    {
+      "path": "src/server/services/story-memory-extraction.ts",
+      "sha256": "c1a19ecf32b30684a2e7a9f89df394a4572509bf6f678dd6201643a15a5353bd"
+    },
+    {
+      "path": "src/server/jobs/story-memory.job.ts",
+      "sha256": "04848ffd4c633d7a358e9e98c730fd129ffeae5b0d0f89f35b348babc40d91e7"
+    },
+    {
+      "path": "src/server/jobs/index.ts",
+      "sha256": "2a996583157296ec9e0c40b8f8e988fbfbf6305a2c5f16283143247714302cf9"
+    },
+    {
+      "path": "src/db/schema/story-memory.ts",
+      "sha256": "e9ab7222ea9981ceaf7a673f77c561d96799704d64f33c852ce9a8067ee5aa42"
+    },
+    {
+      "path": "src/db/schema/memories.ts",
+      "sha256": "8b71c85500495a54ac3c9bc57d083b56cccf1c9b9aa5c16dcfad4b48407ac57f"
+    },
+    {
+      "path": "src/db/migrations/0048_story_memory_jobs.sql",
+      "sha256": "919011023b56c679a08abd2d220458de35796005d5749ccaa025615ac2a7f8e6"
+    },
+    {
+      "path": "src/server/services/embedding.service.ts",
+      "sha256": "177b7598f47bfe4138e51614b4abef1b4291ed4048338d145c26b8dc9a40e94e"
+    },
+    {
+      "path": "src/server/services/llm.service.ts",
+      "sha256": "4ddaf45029b45410060dcc5853f87bae0845c477663713e36ee2470b62e8e297"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "5fa0a7e637232b91973639dda069e0ce3067799be2cbde1b208036e076076078"
+    },
+    {
+      "path": "package.json",
+      "sha256": "7379f5870894a4197c6593ccd6d3bdc5e4ceef8d0a49909836cad457e0a8c91b"
+    },
+    {
+      "path": "src/client/composables/useStoryMemory.spec.ts",
+      "sha256": "138a3018f0916cd6c1ea37e2b13dd720f6e2d2baa60d5f107f5bf8cbafe9f58c"
+    },
+    {
+      "path": "src/client/components/chat/StoryMemoryStatus.spec.ts",
+      "sha256": "09418dbcff198e1991c3be4117a3528518d99b92f2150d4e9668e799fc7c35ef"
+    },
+    {
+      "path": "src/client/composables/useStoryState.spec.ts",
+      "sha256": "4a4784995122e73015eca7b5b5bc55aeb2b0a8b634ba451731a5734bffd7e513"
+    },
+    {
+      "path": "src/client/components/chat/ChatWindow.spec.ts",
+      "sha256": "5fbabd283738226a499ede23cdca1126ee844765562c1314f3009e20c9fd5bfa"
+    },
+    {
+      "path": "src/server/routes/chats.spec.ts",
+      "sha256": "4592ad443348561d4a9069e5c96d58609565e22a3273809b50f0e291cb252661"
+    }
+  ]
+}

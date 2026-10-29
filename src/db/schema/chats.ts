@@ -9,6 +9,7 @@ import { tenants } from './tenants';
 import { users } from './users';
 import { characters } from './characters';
 import { userPersonas } from './user-personas';
+import type { StoryIdentitySnapshot } from '../../types/story-identity';
 
 // 定义 tsvector 自定义类型
 const tsvector = customType<{ data: string; driverData: string }>({
@@ -35,6 +36,9 @@ export const chats = pgTable('chats', {
   title: varchar('title', { length: 500 }),
   summary: text('summary'),
   metadata: jsonb('metadata').default({}).notNull(),
+  identitySnapshot: jsonb('identity_snapshot').$type<StoryIdentitySnapshot>(),
+  worldbookSnapshotVersion: integer('worldbook_snapshot_version'),
+  contentSnapshotVersion: integer('content_snapshot_version'),
 
   lastReadMessageId: bigint('last_read_message_id', { mode: 'number' }),
   unreadCount: integer('unread_count').default(0).notNull(),

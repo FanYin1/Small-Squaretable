@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { getCurrentScope, onScopeDispose, ref } from 'vue';
 import { characterApi, mapSearchItemToCharacter } from '@client/services';
 import type { Character } from '@client/types';
 import type { SearchResult } from '@/types/search';
@@ -14,9 +14,16 @@ export function useCharacterSearch() {
   const currentPage = ref(1);
   const pageSize = ref(20);
   const loading = ref(false);
+  const failed = ref(false);
+  let requestVersion = 0;
+  if (getCurrentScope()) onScopeDispose(() => { requestVersion += 1; });
 
   const fetchCharacters = async () => {
+    const version = ++requestVersion;
     loading.value = true;
+    failed.value = false;
+    characters.value = [];
+    total.value = 0;
     try {
       const query = searchQuery.value.trim() || '*';
       const response: SearchResult = await characterApi.searchCharacters({
@@ -26,13 +33,18 @@ export function useCharacterSearch() {
         page: currentPage.value,
         limit: pageSize.value,
         category: selectedCategory.value || undefined,
-        tags: selectedTags.value.length ? selectedTags.value : undefined,
+        tags: selectedTags.value.length ? [...selectedTags.value] : undefined,
       });
 
+      if (version !== requestVersion) return;
       characters.value = (response.items || []).map(mapSearchItemToCharacter);
       total.value = response.pagination.total;
+    } catch (error) {
+      if (version !== requestVersion) return;
+      failed.value = true;
+      throw error;
     } finally {
-      loading.value = false;
+      if (version === requestVersion) loading.value = false;
     }
   };
 
@@ -57,6 +69,7 @@ export function useCharacterSearch() {
     currentPage,
     pageSize,
     loading,
+    failed,
     fetchCharacters,
     resetFilters,
     setPage,

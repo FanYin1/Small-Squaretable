@@ -1,0 +1,534 @@
+{
+  "date": "2026-10-24T11:13:45.401Z",
+  "mode": "real-provider",
+  "scope": "real model and local multilingual embeddings with production state, memory worker, context and provider services; no HTTP/WebSocket/browser acceptance",
+  "model": "gemini-3.8-flash",
+  "embedding": "Xenova/paraphrase-multilingual-MiniLM-L12-v2, real 384-dimensional embeddings",
+  "limits": {
+    "providerCalls": 145,
+    "platformTokens": 300000,
+    "perRequestTimeoutMs": 60000
+  },
+  "taskClosed": false,
+  "sourceHashes": {
+    "scripts/story-memory-real-longrun.mjs": "335d689d33f9d70346a507f0d06624becf3d98c5e2426f0edc9962ba26026f38",
+    "scripts/story-memory-real-longrun-fixture.mjs": "c2b60ea6955568f3a98ca4d39896a5d2dba257f9935b33c875d2788e71b4939d",
+    "scripts/story-memory-controlled-provider.mjs": "b9dc75447070a66e038a6f1170cf128c810a06af36ffb384a2db7e91f51ed67d",
+    "scripts/story-restore-evidence.mjs": "c9317c706bd67f7e06945f53a9d8d896246c8173ab7541c35b40d22b2b5f373d",
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+    "src/server/services/llm.service.ts": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890",
+    "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+    "src/server/jobs/story-memory.job.ts": "ab9b94ae68c8a09783e2e17ea80f1d152165654c01034e18e488046fbb481c9c",
+    "src/server/services/story-memory-extraction.ts": "96098d151b9a8d59e9ad18bd2e9ccce86f676d7a0ff10302cafd0797602eb63b",
+    "src/server/services/story-memory-worker.service.ts": "2cfb837f7fb788bfe43da9e9b85c4d89dc2f37e058a06db87233037a0ae526d4",
+    "src/server/services/story-state.service.ts": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f",
+    "src/server/services/context-manager.service.ts": "c5aec3b505d8a7699ea4c41e1a3821bf2d472910e9df8e076ce1498f58ae654b",
+    "src/server/services/story-summary-context.ts": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b",
+    "src/server/services/story-summary.service.ts": "6636ddff69daf82be03d1ec190a3e525736ee08a3011a6eed4aa5a42dc80adec",
+    "src/db/repositories/memory.repository.ts": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+  },
+  "phase": "second-half",
+  "sourceFingerprint": {
+    "tables": {
+      "books": {
+        "rows": 1,
+        "digest": "487eac9f568a5a70016d287903829d7d"
+      },
+      "chats": {
+        "rows": 2,
+        "digest": "53324dcbb752bb06c4a63932bc3693aa"
+      },
+      "notes": {
+        "rows": 2,
+        "digest": "c73263bc1bf542cbdbc708516bd32910"
+      },
+      "state": {
+        "rows": 2,
+        "digest": "82a3c0da7182eff203aefe39e4420254"
+      },
+      "users": {
+        "rows": 1,
+        "digest": "42e25be75e89a47ecdd36ed01d09bd8b"
+      },
+      "events": {
+        "rows": 56,
+        "digest": "bbbeb3b3f1d542cc2b0ff6d5abf2ffff"
+      },
+      "content": {
+        "rows": 2,
+        "digest": "5c495d8b446759a5faf5eb3090c6e457"
+      },
+      "entries": {
+        "rows": 1,
+        "digest": "9e7c958c4956dfb9677aad600993206e"
+      },
+      "lineage": {
+        "rows": 1,
+        "digest": "98c2253680a85cbaf4df5b35e8c537ad"
+      },
+      "tenants": {
+        "rows": 1,
+        "digest": "662d175996f2fff52bc7729aff72e33b"
+      },
+      "vectors": {
+        "rows": 43,
+        "digest": "7dcb88a4dd116a58c4f09924c835d013"
+      },
+      "memories": {
+        "rows": 43,
+        "digest": "ccd2bc8cbfde84c8560241f594424bca"
+      },
+      "messages": {
+        "rows": 112,
+        "digest": "05d0aa35dab53829021cae9361a670ab"
+      },
+      "personas": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "deletions": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "characters": {
+        "rows": 1,
+        "digest": "e07058ce7cef3fc94864a298bc9b52fa"
+      },
+      "memoryJobs": {
+        "rows": 11,
+        "digest": "2ce38b1f96a9fb5b72129b93a6946aba"
+      },
+      "migrations": {
+        "rows": 9,
+        "digest": "bd362cc73769b56fd68a4402280d8dec"
+      },
+      "worldbooks": {
+        "rows": 2,
+        "digest": "49308609a1c797575fbf90cd72239bac"
+      },
+      "memoryLinks": {
+        "rows": 81,
+        "digest": "416251ce483e0d23f16d4d9a9e21d667"
+      },
+      "participants": {
+        "rows": 2,
+        "digest": "ae536919c1c41d223a235240c51818ad"
+      },
+      "reservations": {
+        "rows": 2,
+        "digest": "c02a9c9f2ca5c10aa31b2c1cd15d7fd8"
+      },
+      "memoryProgress": {
+        "rows": 2,
+        "digest": "f6167f790f4ebc96a7e3bfb910a887bb"
+      },
+      "creationRequests": {
+        "rows": 2,
+        "digest": "ea2d273d045694fb6d2a957015c7415b"
+      }
+    },
+    "coverage": {
+      "identities": 2,
+      "boundEntries": 2,
+      "confirmedEvents": 55,
+      "sourcedMemories": 43,
+      "interruptedEvents": 1,
+      "invalidMemoryLinks": 0,
+      "invalidEventSources": 0,
+      "invalidStateSources": 0,
+      "invalidMemorySources": 0
+    },
+    "protocol": 2
+  },
+  "restoredFingerprint": {
+    "tables": {
+      "books": {
+        "rows": 1,
+        "digest": "487eac9f568a5a70016d287903829d7d"
+      },
+      "chats": {
+        "rows": 2,
+        "digest": "53324dcbb752bb06c4a63932bc3693aa"
+      },
+      "notes": {
+        "rows": 2,
+        "digest": "c73263bc1bf542cbdbc708516bd32910"
+      },
+      "state": {
+        "rows": 2,
+        "digest": "82a3c0da7182eff203aefe39e4420254"
+      },
+      "users": {
+        "rows": 1,
+        "digest": "42e25be75e89a47ecdd36ed01d09bd8b"
+      },
+      "events": {
+        "rows": 56,
+        "digest": "bbbeb3b3f1d542cc2b0ff6d5abf2ffff"
+      },
+      "content": {
+        "rows": 2,
+        "digest": "5c495d8b446759a5faf5eb3090c6e457"
+      },
+      "entries": {
+        "rows": 1,
+        "digest": "9e7c958c4956dfb9677aad600993206e"
+      },
+      "lineage": {
+        "rows": 1,
+        "digest": "98c2253680a85cbaf4df5b35e8c537ad"
+      },
+      "tenants": {
+        "rows": 1,
+        "digest": "662d175996f2fff52bc7729aff72e33b"
+      },
+      "vectors": {
+        "rows": 43,
+        "digest": "7dcb88a4dd116a58c4f09924c835d013"
+      },
+      "memories": {
+        "rows": 43,
+        "digest": "ccd2bc8cbfde84c8560241f594424bca"
+      },
+      "messages": {
+        "rows": 112,
+        "digest": "05d0aa35dab53829021cae9361a670ab"
+      },
+      "personas": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "deletions": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "characters": {
+        "rows": 1,
+        "digest": "e07058ce7cef3fc94864a298bc9b52fa"
+      },
+      "memoryJobs": {
+        "rows": 11,
+        "digest": "2ce38b1f96a9fb5b72129b93a6946aba"
+      },
+      "migrations": {
+        "rows": 9,
+        "digest": "bd362cc73769b56fd68a4402280d8dec"
+      },
+      "worldbooks": {
+        "rows": 2,
+        "digest": "49308609a1c797575fbf90cd72239bac"
+      },
+      "memoryLinks": {
+        "rows": 81,
+        "digest": "416251ce483e0d23f16d4d9a9e21d667"
+      },
+      "participants": {
+        "rows": 2,
+        "digest": "ae536919c1c41d223a235240c51818ad"
+      },
+      "reservations": {
+        "rows": 2,
+        "digest": "c02a9c9f2ca5c10aa31b2c1cd15d7fd8"
+      },
+      "memoryProgress": {
+        "rows": 2,
+        "digest": "f6167f790f4ebc96a7e3bfb910a887bb"
+      },
+      "creationRequests": {
+        "rows": 2,
+        "digest": "ea2d273d045694fb6d2a957015c7415b"
+      }
+    },
+    "coverage": {
+      "identities": 2,
+      "boundEntries": 2,
+      "confirmedEvents": 55,
+      "sourcedMemories": 43,
+      "interruptedEvents": 1,
+      "invalidMemoryLinks": 0,
+      "invalidEventSources": 0,
+      "invalidStateSources": 0,
+      "invalidMemorySources": 0
+    },
+    "protocol": 2
+  },
+  "restoreFingerprintMatched": true,
+  "result": "engineering_passed_semantic_review_required",
+  "behavior": {
+    "model": "gemini-3.8-flash",
+    "mode": "real-provider",
+    "tokenAccounting": "recorded provider usage with estimator fallback",
+    "generatedTurns": 105,
+    "providerCalls": 127,
+    "controlledCalls": 0,
+    "extractionCalls": 22,
+    "trimmedTurns": 93,
+    "recapTurns": 87,
+    "checks": [
+      "50 real-provider turns and a parallel five-turn story persisted; embedding outage retained extraction checkpoint",
+      "New process and restored database resume failed embedding without repeating extraction",
+      "100 real-provider main-story turns span 20 source-checked batches; interrupted event excluded; retrieval and recaps used after trimming"
+    ],
+    "taskClosed": false,
+    "lastRequest": {
+      "startedAt": "2026-10-24T11:27:17.887Z",
+      "streaming": false,
+      "status": 200
+    },
+    "lastExtraction": {
+      "status": 200,
+      "finishReason": "STOP",
+      "characters": 623,
+      "fenced": false,
+      "schemaValid": true
+    },
+    "lastJob": {
+      "status": "succeeded",
+      "errorCode": null,
+      "attempts": 1
+    },
+    "derivationFailures": [
+      {
+        "status": "retry",
+        "errorCode": "EXTRACTION_FAILED",
+        "attempts": 1,
+        "injected": false,
+        "generatedTurns": 40,
+        "extraction": {
+          "status": 200,
+          "finishReason": "MAX_TOKENS",
+          "characters": 960,
+          "fenced": true,
+          "schemaValid": false,
+          "error": "JSON_INVALID"
+        }
+      },
+      {
+        "status": "retry",
+        "errorCode": "EMBEDDING_FAILED",
+        "attempts": 1,
+        "injected": true,
+        "generatedTurns": 50,
+        "extraction": {
+          "status": 200,
+          "finishReason": "STOP",
+          "characters": 1186,
+          "fenced": true,
+          "schemaValid": true
+        }
+      }
+    ],
+    "result": "engineering_passed_semantic_review_required",
+    "tokens": 257395,
+    "phase": "main-second-half",
+    "returnSignals": [
+      {
+        "marker": "第三夜",
+        "present": true
+      },
+      {
+        "marker": "北门",
+        "present": true
+      },
+      {
+        "marker": "蓝色票据",
+        "present": true
+      }
+    ]
+  },
+  "disposableServicesRemoved": true,
+  "review": {
+    "performedBy": "coding agent source comparison; not user signoff",
+    "result": "initial_appointment_and_style_continuity_verified_with_generation_quality_limits",
+    "returnContext": {
+      "retrieved": [
+        {
+          "id": "829fdfa5-d496-4319-9be3-c89fda90aa78",
+          "content": "双方约定第三夜在北门见面，凭证为蓝色票据；当前是第一夜，尚未赴约。"
+        },
+        {
+          "id": "739536dc-e243-4e16-8390-e1b978ac93b8",
+          "content": "书店中一本旧书封皮磨损厉害，书页上有杂乱手写批注，小禾称收来时已有且说不准是谁留下的。"
+        },
+        {
+          "id": "22fdce8c-115b-4a0b-8732-872ec47e23b3",
+          "content": "小禾提到一本旧书布面磨得起毛、压印字样辨不真切，收来时页边便写满了杂乱墨迹，说不准是谁留下的。"
+        },
+        {
+          "id": "3ce4c0ca-4e71-4c77-bedf-46eeedf5ba1a",
+          "content": "店内有一本泛灰蓝布封皮的旧书，布面磨损起毛且压印书名只剩轮廓，页上有密密麻麻的杂乱墨迹批注，小禾称收来时便已有、说不准是谁留下的。"
+        },
+        {
+          "id": "3c41f017-d944-4761-a4a0-51c3ba7eab60",
+          "content": "小禾手边那本灰蓝布面的书扉页署名角上缺了一块，只剩半个墨印，小禾说不准作者是谁。"
+        }
+      ],
+      "sourceTurnOneRetained": false,
+      "styleRetained": true,
+      "noOtherStoryCredential": true,
+      "reply": "小禾停下手里的活计，抬眼轻声说道。\n\n“当初说定的是第三夜在北门碰头，凭着那张蓝色票据认人。今晚才刚是第一夜，还没到赴约的时候，你想先把票据收妥么？”"
+    },
+    "anchorSource": {
+      "input": "我们约好第三夜在北门见面，凭证是蓝色票据。今天第一夜，尚未赴约。",
+      "reply": "小禾把手中的账册合上，抬眼看向你。\n\n“我知道，票据收好就行。今晚时间还长，你想先看点什么？”",
+      "version": 1,
+      "messageId": 12,
+      "inputMessageId": 11
+    },
+    "sampledBatches": [
+      {
+        "jobId": "a5fa5fb8-af60-444c-ae9a-51b538905f37",
+        "versions": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "jobId": "27b5630c-08c0-4b30-834b-d81f476b86a1",
+        "versions": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "jobId": "40b36e08-1422-4c8e-923d-91be102304ec",
+        "versions": [
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      },
+      {
+        "jobId": "f39f4a28-df77-49d4-abb1-b778ee91e461",
+        "versions": [
+          21,
+          22,
+          23,
+          24,
+          25
+        ]
+      },
+      {
+        "jobId": "d00c2aae-2cca-4cca-bd58-0aa72a2c04ad",
+        "versions": [
+          42,
+          43,
+          44,
+          45,
+          46
+        ]
+      },
+      {
+        "jobId": "f7a2670d-c5d3-48aa-9f5a-e8f97318ffdc",
+        "versions": [
+          47,
+          48,
+          49,
+          50,
+          51
+        ]
+      },
+      {
+        "jobId": "c2e15ac3-6312-406e-8d5f-d07014f67e80",
+        "versions": [
+          52,
+          53,
+          54,
+          55,
+          56
+        ]
+      },
+      {
+        "jobId": "037be85e-331d-4532-8185-6754456f2d5a",
+        "versions": [
+          67,
+          68,
+          69,
+          70,
+          71
+        ]
+      },
+      {
+        "jobId": "83f17277-938a-498d-a323-6a3620c379d2",
+        "versions": [
+          77,
+          78,
+          79,
+          80,
+          81
+        ]
+      },
+      {
+        "jobId": "2b6cc0de-59a0-4002-9b80-52826b11762c",
+        "versions": [
+          92,
+          93,
+          94,
+          95,
+          96
+        ]
+      },
+      {
+        "jobId": "c964b8a7-f99c-4805-83bb-e17c7d1c3297",
+        "versions": [
+          97,
+          98,
+          99,
+          100,
+          101
+        ]
+      }
+    ],
+    "observations": [
+      "Return turn explicitly retains third night, north gate, blue ticket, first night and unfulfilled status after early dialogue was trimmed.",
+      "Sampled batches retain unknown authorship, tentative weather and suggestions without confirming player acceptance; previous overnight-stay and definite-authorship failures were not observed in these samples.",
+      "Replies remain short NPC dialogue with an observable action; no explicit player emotion or major decision is supplied in reviewed passages. Strict two-sentence formatting is not consistent in every reply."
+    ],
+    "isolationSignals": {
+      "parallelAnchorsInMain": []
+    },
+    "finishCounts": {
+      "stop": 104,
+      "length": 1
+    },
+    "truncatedTurns": [
+      {
+        "turn": 24,
+        "input": "我观察窗外的雨。我仍留在书店，继续这一夜的交谈。",
+        "reply": "小禾顺着你的视线看向淌着水痕的窗格。\n\n“檐下的水声比方才更急了些，一时半刻大概歇不住。你想在",
+        "usage": {
+          "prompt_tokens": 1594,
+          "completion_tokens": 1122,
+          "total_tokens": 2716
+        }
+      }
+    ],
+    "truncationBoundary": "This service-level fixture directly committed the truncated turn. Production WebSocket handling was subsequently fixed and must be assessed using its separate regression evidence, not attributed to this run.",
+    "limitations": [
+      "Single synthetic bookstore scenario with repeated topics; not all-card plot quality",
+      "Sampled extraction review does not prove every possible semantic inference is correct",
+      "No real-provider browser/end-to-end run or deployment acceptance",
+      "Strict sentence-count compliance and narrative detail drift remain quality considerations"
+    ],
+    "evidenceDigests": {
+      "report.json": "a727e59b4bcd1818a63ace2656652138d3ca8cb487b03ccd9a5287676a0d36d6",
+      "synthetic-longrun.json": "67ad58d6d6017553dd0e966543b5755fbb4ef3a4d82f2dba3b19cbe21ea6870f"
+    },
+    "authorizationAccounting": {
+      "authorizedTokens": 450000,
+      "previousRecordedTokens": 140607,
+      "thisRunRecordedTokens": 257395,
+      "totalRecordedTokens": 398002,
+      "remainingTokens": 51998,
+      "onlineLimitUnchanged": 100000
+    }
+  }
+}

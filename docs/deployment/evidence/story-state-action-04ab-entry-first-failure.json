@@ -1,0 +1,37 @@
+{
+  "result": "failed",
+  "path": "/chat/7a3325dd-fe0b-456c-b948-5979e5e55688",
+  "failures": [
+    {
+      "path": "/api/v1/characters/84d62c6c-6f13-44a1-93d4-e73a20307855/intelligence/memories",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/84d62c6c-6f13-44a1-93d4-e73a20307855/intelligence/memories",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/84d62c6c-6f13-44a1-93d4-e73a20307855/intelligence/memories",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/84d62c6c-6f13-44a1-93d4-e73a20307855/intelligence/memories",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/84d62c6c-6f13-44a1-93d4-e73a20307855/intelligence/memories",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/84d62c6c-6f13-44a1-93d4-e73a20307855/intelligence/memories",
+      "status": 409
+    }
+  ],
+  "checks": [
+    "six-page production/reference comparison: 390/1440, dark/light; view-only creates no chats or charges",
+    "market quick start: stored default persona, distinct save, matching opening, refresh without another POST",
+    "real WebSocket generation and one ledger charge; resume and reload retain exactly the selected opening and one user/assistant turn",
+    "same-card new run creates a distinct chat without copying or deleting the original messages",
+    "identity snapshot survives persona edit/deletion, a new story uses edited identity, and the actual model request uses the original name/biography"
+  ]
+}

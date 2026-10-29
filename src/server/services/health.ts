@@ -177,9 +177,7 @@ export async function readinessCheck(): Promise<HealthStatus> {
         connected: false,
       },
     };
-    if (overallStatus === 'ok') {
-      overallStatus = 'degraded';
-    }
+    overallStatus = 'error';
   }
 
   return {

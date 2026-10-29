@@ -3,6 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+const loadContent = vi.hoisted(() => vi.fn());
+vi.mock('./story-content.service', () => ({ loadStoryContent: loadContent }));
 
 // ── Hoisted mocks ──
 const { mockGetCharacterIds, mockGetCharacters, mockAddCharacter, mockRemoveCharacter, mockFindById, mockDbUpdate, mockCacheGet, mockCacheSet, mockCacheDelete } = vi.hoisted(() => {
@@ -71,6 +73,26 @@ describe('GroupChatService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     service = new GroupChatService();
+    mockFindById.mockResolvedValue(null);
+  });
+
+  it('uses the saved cast and only exposes opening fields', async () => {
+    mockFindById.mockResolvedValue({ id: 'story', userId: 'owner', contentSnapshotVersion: 1 });
+    loadContent.mockResolvedValue({ characters: [{ id: 'saved', name: 'Original', avatarUrl: null,
+      cardData: { first_mes: 'Hello', system_prompt: 'secret', extensions: { scripts: ['untrusted'] } } }] });
+    expect(await service.getChatCharacters('story')).toEqual([{ id: 'saved', name: 'Original', avatarUrl: null, sortOrder: 0,
+      compatibility: { native: false, map: false, scripted: true, invalid: false, issues: ['author_scripts'] },
+      cardData: { first_mes: 'Hello', alternate_greetings: [] } }]);
+    expect(await service.selectRespondents('story')).toEqual(['saved']);
+    expect(mockGetCharacterIds).not.toHaveBeenCalled();
+  });
+
+  it('rejects cast edits before changing a versioned story', async () => {
+    mockFindById.mockResolvedValue({ contentSnapshotVersion: 1 });
+    await expect(service.addCharacter('story', 'another')).rejects.toThrow('starting cast');
+    await expect(service.removeCharacter('story', 'original')).rejects.toThrow('starting cast');
+    expect(mockAddCharacter).not.toHaveBeenCalled();
+    expect(mockRemoveCharacter).not.toHaveBeenCalled();
   });
 
   describe('selectRespondents', () => {

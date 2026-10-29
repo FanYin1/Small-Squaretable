@@ -201,9 +201,10 @@ export const useUserStore = defineStore('user', () => {
     if (token.value && !user.value) {
       try {
         await fetchProfile();
-      } catch {
-        // 如果获取失败，清除认证状态
-        clearAuth();
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          clearAuth();
+        }
       }
     }
   }

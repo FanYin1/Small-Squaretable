@@ -1,0 +1,111 @@
+{
+  "createdAt": "2026-10-25T08:14:20.402Z",
+  "model": "gemini-3.8-flash",
+  "initialAccounted": 443319,
+  "authorization": 450000,
+  "scope": "Two owned short semantic samples using captured production prompt; not full live gameplay or general card quality",
+  "calls": [
+    {
+      "kind": "refusal-and-off-menu",
+      "input": "先别买通行证。我想检查木门上的划痕，听说仓库有金币，但还没有证实。",
+      "reservation": 4661,
+      "maxOutputTokens": 768,
+      "status": "schema-passed-semantic-review-needed",
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 669,
+        "completion_tokens": 1083,
+        "total_tokens": 1752
+      },
+      "finishReason": "stop",
+      "output": "明白，那我们先不急着花那20枚钱款去买通行证。\n\n关于仓库里有金币的传闻，目前确实还只是道听途说，缺乏实质的证据，保持谨慎是明智的。至于这扇木门——你靠近仔细端详那些划痕，它们深浅不一，边缘有些粗糙，似乎是用某种坚硬的器物或利爪留下的。\n\n你想顺着划痕的方向进一步探查，还是先看看周围其他的线索？\n\n<story-intent>{\"version\":1,\"disposition\":\"proposal\",\"steps\":[{\"kind\":\"refuse\",\"description\":\"先不购买通行证\",\"evidence\":\"先别买通行证\"},{\"kind\":\"explore\",\"intent\":\"observe\",\"description\":\"检查木门上的划痕\",\"evidence\":\"我想检查木门上的划痕\"}],\"facts\":[{\"kind\":\"claim\",\"content\":\"仓库里可能有金币（未证实传言）\",\"speaker\":\"player\",\"evidence\":\"听说仓库有金币，但还没有证实\"},{\"kind\":\"intention\",\"content\":\"打算检查木门上的划痕\",\"speaker\":\"player\",\"evidence\":\"我想检查木门上的划痕\"}],\"question\":\"你想顺着划痕的方向进一步探查，还是先看看周围其他的线索？\"}</story-intent>",
+      "parsed": {
+        "content": "明白，那我们先不急着花那20枚钱款去买通行证。\n\n关于仓库里有金币的传闻，目前确实还只是道听途说，缺乏实质的证据，保持谨慎是明智的。至于这扇木门——你靠近仔细端详那些划痕，它们深浅不一，边缘有些粗糙，似乎是用某种坚硬的器物或利爪留下的。\n\n你想顺着划痕的方向进一步探查，还是先看看周围其他的线索？",
+        "intent": {
+          "version": 1,
+          "disposition": "proposal",
+          "question": "你想顺着划痕的方向进一步探查，还是先看看周围其他的线索？",
+          "steps": [
+            {
+              "kind": "refuse",
+              "description": "先不购买通行证",
+              "evidence": "先别买通行证"
+            },
+            {
+              "kind": "explore",
+              "intent": "observe",
+              "description": "检查木门上的划痕",
+              "evidence": "我想检查木门上的划痕"
+            }
+          ],
+          "facts": [
+            {
+              "kind": "claim",
+              "content": "仓库里可能有金币（未证实传言）",
+              "evidence": "听说仓库有金币，但还没有证实",
+              "speaker": "player"
+            },
+            {
+              "kind": "intention",
+              "content": "打算检查木门上的划痕",
+              "evidence": "我想检查木门上的划痕",
+              "speaker": "player"
+            }
+          ]
+        },
+        "invalid": false
+      }
+    },
+    {
+      "kind": "paraphrase",
+      "input": "我想拿一张通行证",
+      "reservation": 4586,
+      "maxOutputTokens": 768,
+      "status": "schema-passed-semantic-review-needed",
+      "httpStatus": 200,
+      "usage": {
+        "prompt_tokens": 650,
+        "completion_tokens": 733,
+        "total_tokens": 1383
+      },
+      "finishReason": "stop",
+      "output": "获取通行证需要花费20枚钱款。你目前身上持有100枚钱款，确定要现在购买一张通行证吗？\n<story-intent>{\"version\":1,\"disposition\":\"proposal\",\"steps\":[{\"kind\":\"execute\",\"actionId\":\"buy\",\"evidence\":\"我想拿一张通行证\"}],\"facts\":[{\"kind\":\"intention\",\"content\":\"玩家表达了想拿一张通行证的意向\",\"speaker\":\"player\",\"evidence\":\"我想拿一张通行证\"}],\"question\":\"是否确认花费20枚购买通行证？\"}</story-intent>",
+      "parsed": {
+        "content": "获取通行证需要花费20枚钱款。你目前身上持有100枚钱款，确定要现在购买一张通行证吗？",
+        "intent": {
+          "version": 1,
+          "disposition": "proposal",
+          "question": "是否确认花费20枚购买通行证？",
+          "steps": [
+            {
+              "kind": "execute",
+              "actionId": "buy",
+              "evidence": "我想拿一张通行证"
+            }
+          ],
+          "facts": [
+            {
+              "kind": "intention",
+              "content": "玩家表达了想拿一张通行证的意向",
+              "evidence": "我想拿一张通行证",
+              "speaker": "player"
+            }
+          ]
+        },
+        "invalid": false
+      }
+    }
+  ],
+  "knownNewTokens": 3135,
+  "reservedNewTokens": 0,
+  "finalAccounted": 446454,
+  "remaining": 3546,
+  "review": {
+    "performedBy": "development agent; not user acceptance",
+    "paraphrase": "Correctly identifies buy, states authored cost 20 and existing balance 100, asks for confirmation without completing purchase.",
+    "refusalAndOffMenu": "Correctly separates refusal, exploration and unverified rumor; original prose prematurely describes exploration before review. This is a recorded defect, not an unqualified pass.",
+    "repair": "Candidate prose is buffered and replaced with a server-authored review message. Proposed events are excluded from confirmed memory jobs. Character facts supported only by discarded candidate prose are not retained.",
+    "verification": "Original first response replayed through actual local API/WebSocket/database and confirmed withheld; no fresh provider calls during replay.",
+    "boundary": "Two short synthetic samples, not a full real-model play session or broad narrative-quality sign-off."
+  }
+}

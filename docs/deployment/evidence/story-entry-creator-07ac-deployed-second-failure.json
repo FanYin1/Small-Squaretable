@@ -1,0 +1,151 @@
+{
+  "message": "fetch failed",
+  "errors": [],
+  "mutations": [],
+  "blockedTelemetry": [
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    }
+  ],
+  "jobAudit": {
+    "before": {
+      "jobs": 14,
+      "attempts": 6,
+      "running": 0,
+      "due": 0,
+      "generationRequests": 0
+    },
+    "after": {
+      "jobs": 14,
+      "attempts": 6,
+      "running": 0,
+      "due": 0,
+      "generationRequests": 0
+    }
+  }
+}

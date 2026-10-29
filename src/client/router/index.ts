@@ -43,6 +43,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   const userStore = useUserStore();
+  await userStore.initialize();
   const token = userStore.token;
 
   // 使用 token 有效性验证（检查是否过期）
