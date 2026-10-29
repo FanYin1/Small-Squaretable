@@ -21,6 +21,8 @@ for (const width of [1440, 390]) {
       return route.fulfill({ json: { success: true, data: null } });
     });
     await page.goto('/chat');
+    await expect(page).toHaveTitle('小小方桌 · Small Squaretable');
+    await expect(page.locator('.story-brand')).toContainText('小小方桌');
     const cards = page.locator('.library-story');
     await expect(cards).toHaveCount(2);
     const remove = page.getByRole('button', { name: '删除 雾港来信', exact: true });

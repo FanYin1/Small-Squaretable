@@ -225,7 +225,7 @@
     "onboardingCopy3": "描述行动或输入台词；生成可停止，费用以真实账本为准。需要时先查看点数。",
     "fontSize": "正文字号",
     "connection": "连接状态",
-    "brand": "小方桌",
+    "brand": "小小方桌",
     "library": "我的故事",
     "discover": "发现",
     "create": "创作",
@@ -247,7 +247,7 @@
     "discoverDescription": "选一段情境，成为故事里的那个人。故事从你的下一句话开始。",
     "createHeading": "给故事，一个开场。",
     "createDescription": "先定义相遇的那一刻，把之后的可能留给参与者。",
-    "accountHeading": "我的小方桌",
+    "accountHeading": "我的小小方桌",
     "accountDescription": "管理身份、阅读偏好与点数。复杂设置不必打扰每一次阅读。",
     "authHeading": "另一段故事，等你入座。",
     "authDescription": "进入 AI 互动故事，扮演自己的角色。需要邀请码注册，生成按实际用量消耗点数。"
@@ -525,7 +525,7 @@
   "auth": {
     "login": "登录",
     "register": "注册",
-    "welcomeBack": "欢迎回到 Small Squaretable",
+    "welcomeBack": "欢迎回到小小方桌",
     "email": "邮箱地址",
     "password": "密码",
     "emailRequired": "请输入邮箱地址",
