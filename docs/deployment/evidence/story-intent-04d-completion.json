@@ -1,0 +1,80 @@
+{
+  "workPackage": "EXP-04D",
+  "status": "engineering-delivered",
+  "verifiedAt": "2026-10-25T09:00:01.350Z",
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261025-04d",
+    "imageId": "sha256:357c6cd4f1a147eceb4c622c688a380dc55c23bb70e272ac93c05504bf2dcc41",
+    "betaMigrationCount": 12,
+    "report": "story-intent-04d-deployed.json",
+    "upgrade": "story-intent-04d-upgrade.json",
+    "preservedExistingTables": 71,
+    "modelCallsDuringDeploymentCheck": 0
+  },
+  "requirements": [
+    {
+      "requirement": "改写及菜单外行动进入可确认链路",
+      "scope": "single-card versioned stories, source-bound and version-checked proposals",
+      "evidence": "story-intent-04d-integration.json",
+      "checks": [1, 3, 5, 12]
+    },
+    {
+      "requirement": "拒绝与传闻不变成资产",
+      "scope": "typed source facts and server-owned state transitions",
+      "evidence": "story-intent-04d-integration.json",
+      "checks": [2, 6, 8]
+    },
+    {
+      "requirement": "两个选择有依据的后果差异",
+      "scope": "authored rules, ordered atomic effects, distinct saved stories",
+      "evidence": "story-intent-04d-integration.json",
+      "checks": [4, 6, 7]
+    },
+    {
+      "requirement": "秘密不进入无权人物上下文",
+      "scope": "explicit audience in versioned multi-character stories; raw and whole-batch derived sources",
+      "evidence": "story-intent-04d-integration.json",
+      "checks": [9, 10, 11, 13]
+    }
+  ],
+  "verification": {
+    "unit": "story-intent-04d-unit.json",
+    "unitTests": 338,
+    "newUnitTests": 29,
+    "regressionUnitTests": 309,
+    "finalUIRecheck": 14,
+    "controlledIntegrationGroups": 35,
+    "intentGroups": 13,
+    "effectsGroups": 16,
+    "recoveryGroups": 6,
+    "effects": "story-intent-04d-effects-regression.json",
+    "recovery": "story-intent-04d-recovery-regression.json",
+    "deployedScreenshotsReviewed": 4,
+    "typecheck": "passed",
+    "targetedLintErrors": 0,
+    "existingLintWarnings": 18
+  },
+  "realProvider": {
+    "report": "story-intent-04d-model.json",
+    "calls": 2,
+    "newTokens": 3135,
+    "knownCumulativeTokens": 439863,
+    "existingUnreceiptedReservation": 6591,
+    "authorization": 450000,
+    "remaining": 3546,
+    "semanticDefect": "First response prematurely narrated exploration despite correct candidate metadata",
+    "repair": "Buffer interpretation output, persist safe proposed notice only, exclude discarded prose and unsupported character facts from history and confirmed memory",
+    "repairEvidence": "Recorded actual response replayed through real local API/WS/database in integration check 8",
+    "fullNarrativeQualityAccepted": false
+  },
+  "limits": [
+    "Generic candidate confirmation applies to single-card stories; native multi-character numeric rules are not implemented",
+    "NPCs within one opaque card are not automatically separate authorized actors",
+    "No automatic classification of unmarked author secrets",
+    "Public generation excludes private sources even for a character who personally knows them",
+    "Shared story notes remain shared",
+    "Do not run old 04C generation on stories containing private messages",
+    "OPEN decisions, full EXP-07D, human visual and real-device acceptance remain open"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "scope": "EXP-ADAPT AD-5 / RI-02..05 / DEC-18,27: reviewed original card identity continuity only",
+  "deploymentChanged": false,
+  "runtimeCodeChanged": false,
+  "controlled": { "checkGroups": 6, "screenshots": 4, "browserErrors": 0, "supplierCalls": 0 },
+  "live": {
+    "checkGroups": 6,
+    "screenshots": 4,
+    "browserErrors": 0,
+    "supplierCalls": 4,
+    "batchId": "b6e0da9a-edd2-4444-a4cd-8c1a5ffdf183",
+    "actualTokens": [2167, 3166, 4289, 3655],
+    "totalTokens": 13277,
+    "requestOutputLimit": 2048,
+    "strengthByTurn": [3, 6, 9, 6],
+    "identityByTurn": [false, true, true, false],
+    "identityInProviderPromptByTurn": [false, true, true, false],
+    "prefixBranchExcludesFutureUserTurns": true,
+    "duplicateOrNavigationExtraSupplierCalls": 0,
+    "semanticReview": {
+      "method": "manual review of all four persisted replies plus captured provider context checks",
+      "authoredResponseAfterClaim": "passed",
+      "responseContinuityAfterRestart": "passed",
+      "ordinaryResponseOnPreclaimBranch": "passed",
+      "noEarlyTriggerDisclosure": "passed",
+      "noGrantedAssetsOrPowers": "passed",
+      "longTermStyleAndMemory": "not accepted"
+    }
+  },
+  "budgetClosed": true,
+  "gatewayStopped": true,
+  "pending": 0,
+  "newUnknown": 0,
+  "historicalUnknownHold": 204591,
+  "availableTokensAfterClose": 743939,
+  "privateEvidence": "backups/engineering-model/identity-continuity-20261027/",
+  "privateManifestSha256": "f2e2af013b97529bc4b0d9847d9d98edd8e9a8d44ac31b458da66e3196be9749",
+  "limits": [
+    "No general semantic rule adaptation acceptance",
+    "No whole AD-3 or AD-5 parent closure",
+    "No human visual or physical phone acceptance",
+    "No new frontend or production deployment"
+  ]
+}

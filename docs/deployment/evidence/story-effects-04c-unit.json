@@ -1,0 +1,27 @@
+{
+  "result": "passed",
+  "files": 10,
+  "totalTests": 292,
+  "newTests": 12,
+  "regressionTests": 280,
+  "typecheck": "passed",
+  "targetedLint": {
+    "errors": 0,
+    "existingWarnings": 10
+  },
+  "scope": [
+    "WebSocket prepaid credits and metering",
+    "chat store and message transport",
+    "ERA parsing and macro behavior",
+    "interrupted memory extraction",
+    "prompt layout and legacy/frozen macro persistence",
+    "group chat selection"
+  ],
+  "newTestCoverage": [
+    "stop during commit, stop after last commit, failed legacy commit notification",
+    "whole-group recovery, failed group reconciliation, missing completion and observer request identity",
+    "forward pagination and page failure",
+    "zero forward cursor transport",
+    "legacy/frozen macro writes"
+  ]
+}

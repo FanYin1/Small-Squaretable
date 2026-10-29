@@ -48,12 +48,17 @@ export function loadLLMConfig(): LLMProviderConfig[] {
 
   // 自定义端点配置
   if (process.env.CUSTOM_LLM_API_KEY && process.env.CUSTOM_LLM_BASE_URL) {
+    const apiFormat = process.env.CUSTOM_LLM_API_FORMAT || 'openai';
+    if (apiFormat !== 'openai' && apiFormat !== 'gemini') throw new Error('CUSTOM_LLM_API_FORMAT must be openai or gemini');
     const models = process.env.CUSTOM_LLM_MODELS
       ? process.env.CUSTOM_LLM_MODELS.split(',').map((m) => m.trim())
       : ['default'];
 
+    parseCustomModelLimits(process.env.CUSTOM_LLM_MODEL_LIMITS, models);
+
     configs.push({
       provider: 'custom',
+      apiFormat,
       apiKey: process.env.CUSTOM_LLM_API_KEY,
       baseUrl: process.env.CUSTOM_LLM_BASE_URL,
       models,
@@ -83,6 +88,28 @@ export function loadLLMConfig(): LLMProviderConfig[] {
  * LLM 配置单例
  */
 export const llmConfigs = loadLLMConfig();
+
+export function parseCustomModelLimits(raw: string | undefined, models: string[]) {
+  const limits: Record<string, { contextWindow: number; outputCapabilityTokens: number; maxOutputTokens: number }> = Object.create(null);
+  if (!raw?.trim()) return limits;
+  try {
+    const entries: unknown = JSON.parse(raw);
+    if (!entries || typeof entries !== 'object' || Array.isArray(entries)) throw new Error();
+    for (const [model, value] of Object.entries(entries)) {
+      if (!models.includes(model) || !value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
+      const entry = value as Record<string, unknown>;
+      if (Object.keys(entry).sort().join(',') !== 'contextWindow,maxOutputTokens,requestOutputTokens') throw new Error();
+      const { contextWindow, maxOutputTokens, requestOutputTokens } = entry;
+      if (![contextWindow, maxOutputTokens, requestOutputTokens].every(token => typeof token === 'number' && Number.isSafeInteger(token) && token > 0)) throw new Error();
+      if ((maxOutputTokens as number) >= (contextWindow as number) || (requestOutputTokens as number) > (maxOutputTokens as number)
+        || (requestOutputTokens as number) + 100 >= (contextWindow as number)) throw new Error();
+      limits[model] = { contextWindow: contextWindow as number, outputCapabilityTokens: maxOutputTokens as number, maxOutputTokens: requestOutputTokens as number };
+    }
+    return limits;
+  } catch {
+    throw new Error('CUSTOM_LLM_MODEL_LIMITS must map configured models to valid contextWindow, maxOutputTokens and requestOutputTokens integers');
+  }
+}
 
 /**
  * 获取所有可用模型
@@ -160,7 +187,9 @@ const DEFAULT_MODEL_META: Omit<ModelMeta, 'id' | 'provider'> = {
  */
 export function getModelMeta(model: string): ModelMeta {
   const provider = findProviderForModel(model);
-  const meta = MODEL_REGISTRY[model] || DEFAULT_MODEL_META;
+  const override = provider?.provider === 'custom'
+    ? parseCustomModelLimits(process.env.CUSTOM_LLM_MODEL_LIMITS, provider.models)[model] : undefined;
+  const meta = override ? { ...DEFAULT_MODEL_META, ...override } : MODEL_REGISTRY[model] || DEFAULT_MODEL_META;
   return {
     id: model,
     provider: provider?.provider || 'unknown',

@@ -52,6 +52,16 @@ describe('MessageBubble', () => {
     expect(wrapper.find('.message-assistant').exists()).toBe(true);
   });
 
+  it('explains invalid story output without implying the player input was unclear', () => {
+    const message = { ...createMessage('assistant'), extra: { stateStatus: 'interrupted', storyIntentInvalid: true } };
+    const wrapper = mount(MessageBubble, { props: { message }, ...mountOptions() });
+
+    expect(wrapper.text()).toContain('模型回复未通过剧情结构校验');
+    expect(wrapper.text()).toContain('未提交状态变化');
+    expect(wrapper.text()).not.toContain('行动理解');
+    expect(wrapper.text()).not.toContain('未完成的片段');
+  });
+
   it('displays message content', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage() },
@@ -101,5 +111,25 @@ describe('MessageBubble', () => {
     const emitted = wrapper.emitted('reply');
     expect(emitted).toBeTruthy();
     expect(emitted![0][0]).toEqual({ id: '1', content: 'Hello, world!', role: 'user' });
+  });
+
+  it('opens correction for the selected original message and returns focus to its reading menu', async () => {
+    const wrapper = mount(MessageBubble, {
+      props: { message: createMessage('assistant'), historyFixed: true, canCorrect: true },
+      attachTo: document.body,
+      global: { plugins: [i18n, createPinia()], stubs: {
+        MarkdownRenderer: true,
+        'el-popover': { template: '<div><slot /><slot name="reference" /></div>' },
+      } },
+    });
+    const correction = wrapper.findAll('.more-menu-item').find(button => button.text() === '标注 / 纠正此处')!;
+    await correction.trigger('click');
+    expect(wrapper.emitted('correct')).toEqual([['1']]);
+    expect(document.activeElement).toBe(wrapper.get('.action-more').element);
+    expect(wrapper.get('.action-more').attributes('aria-expanded')).toBe('false');
+    expect(wrapper.findAll('.action-btn').some(button => button.attributes('aria-label')?.includes('Regenerate'))).toBe(false);
+    await wrapper.setProps({ canCorrect: false });
+    expect(wrapper.findAll('.more-menu-item').some(button => button.text() === '标注 / 纠正此处')).toBe(false);
+    wrapper.unmount();
   });
 });

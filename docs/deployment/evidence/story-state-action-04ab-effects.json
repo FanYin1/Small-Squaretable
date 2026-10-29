@@ -1,0 +1,181 @@
+{
+  "scope": "EXP-04C",
+  "provider": "local controlled, no paid calls",
+  "checks": [
+    {
+      "case": "atomic legacy response, rollback after variable write, concurrent idempotent commit and serialized increments",
+      "result": "passed"
+    },
+    {
+      "case": "invalid legacy cache fails closed and recovers without partial data",
+      "result": "passed"
+    },
+    {
+      "case": "Redis read failure rolls back, retry succeeds, deletion cascades and stale cache cannot resurrect a story",
+      "result": "passed"
+    },
+    {
+      "case": "HTTP legacy complete/interrupted openings and frozen-story ERA isolation",
+      "result": "passed"
+    },
+    {
+      "case": "legacy WebSocket commit, replay, cache removal and process restart",
+      "result": "passed",
+      "snapshot": {
+        "variables": {
+          "pass": "yes",
+          "coins": "90",
+          "place": "pier",
+          "retained": "seed"
+        },
+        "replies": 1,
+        "charges": 1,
+        "requests": 1
+      }
+    },
+    {
+      "case": "group complete, persisted character boundaries, replay and released holds",
+      "result": "passed",
+      "snapshot": {
+        "variables": {
+          "pass": "yes",
+          "coins": "80",
+          "place": "pier",
+          "retained": "seed"
+        },
+        "replies": 2,
+        "charges": 2,
+        "requests": 1
+      },
+      "providerStreams": 2
+    },
+    {
+      "case": "group fail, persisted character boundaries, replay and released holds",
+      "result": "passed",
+      "snapshot": {
+        "variables": {
+          "pass": "yes",
+          "coins": "90",
+          "place": "pier",
+          "retained": "seed"
+        },
+        "replies": 1,
+        "charges": 1,
+        "requests": 1
+      },
+      "providerStreams": 2
+    },
+    {
+      "case": "group save-fail, persisted character boundaries, replay and released holds",
+      "result": "passed",
+      "snapshot": {
+        "variables": {
+          "pass": "yes",
+          "coins": "90",
+          "place": "pier",
+          "retained": "seed"
+        },
+        "replies": 1,
+        "charges": 2,
+        "requests": 1
+      },
+      "providerStreams": 2
+    },
+    {
+      "case": "group derived-fail, persisted character boundaries, replay and released holds",
+      "result": "passed",
+      "snapshot": {
+        "variables": {
+          "pass": "yes",
+          "coins": "80",
+          "place": "pier",
+          "retained": "seed"
+        },
+        "replies": 2,
+        "charges": 2,
+        "requests": 1
+      },
+      "providerStreams": 2
+    },
+    {
+      "case": "group stop, persisted character boundaries, replay and released holds",
+      "result": "passed",
+      "snapshot": {
+        "variables": {
+          "pass": "yes",
+          "coins": "90",
+          "place": "pier",
+          "retained": "seed"
+        },
+        "replies": 2,
+        "charges": 2,
+        "requests": 1
+      },
+      "providerStreams": 2
+    },
+    {
+      "case": "group truncated, persisted character boundaries, replay and released holds",
+      "result": "passed",
+      "snapshot": {
+        "variables": {
+          "coins": "100",
+          "obsolete": "remove",
+          "retained": "seed"
+        },
+        "replies": 1,
+        "charges": 1,
+        "requests": 1
+      },
+      "providerStreams": 1
+    },
+    {
+      "case": "group versioned, persisted character boundaries, replay and released holds",
+      "result": "passed",
+      "snapshot": {
+        "variables": null,
+        "replies": 2,
+        "charges": 2,
+        "requests": 1
+      },
+      "providerStreams": 2
+    },
+    {
+      "case": "production browser recovers both group replies after lost first confirmation and second stream disconnect",
+      "result": "passed",
+      "sends": 1,
+      "screenshot": "group-recovered.png"
+    },
+    {
+      "case": "reloaded group history remains ordered on desktop and mobile",
+      "result": "passed",
+      "screenshot": "group-mobile.png"
+    },
+    {
+      "case": "105 missing historical replies recover across three forward pages; zero cursor reads the oldest page",
+      "result": "passed",
+      "recovered": 105,
+      "pages": 3,
+      "extraProviderCalls": 0
+    },
+    {
+      "case": "observer tab recovers missing first acknowledgement using the originating request identity, without disconnect or resend",
+      "result": "passed",
+      "screenshot": "observer-recovered.png"
+    }
+  ],
+  "passed": true,
+  "sourceHashes": {
+    "src/server/services/legacy-variables.service.ts": "9e9690dafe8d90da4d3ceba56f71d0dce9adba3932072f796863bedb2436135e",
+    "src/server/services/chat-variable.service.ts": "ce4aa9eba8f36501963f2bdfd96c64b56f8b2887c66dc573dec7c9ef22c1afd8",
+    "src/server/routes/websocket.ts": "d79b82150e87b7e090f2d09b545a82310f8444d93ad271aff7683d88cb25bc0b",
+    "src/server/routes/chats.ts": "1617b46320915804842e8415f99c27ea8f7e5d158f8a5956c7a392f665a915a3",
+    "src/server/services/chat.service.ts": "a8fabdbb8a7e0450d8b3b9902e87486a8f7852d9addff3195f0c2ffe2a0e5195",
+    "src/db/repositories/message.repository.ts": "eecdda47eba26e31617b0788d084d4d19ae55c9abaddd2ebf6c8fb9e560966fb",
+    "src/client/stores/chat.ts": "216c847bfad245a76adca2afb787a0691fcfb4ee5c7c75da2f6c23f6c9e9d611",
+    "src/client/services/chat.api.ts": "0f8061309b96408748e519f72f9210a6dd6f3062a064215fc7e16d92f00309f8",
+    "src/db/beta-migrations/0010_legacy_chat_variables.sql": "5cc94519d21a4ac2c5268ab90403921755ba5045fc194243d01f52d5b49c2a39",
+    "dist/server/index.js": "adae00ea5ef3cbaa9788e65d2cdb0d1bff31ebb1c5e4aabbf65d215ffc5159fb",
+    "dist/client/index.html": "49c41bc2a27fa991f6c46956f0efd60d41211828133e4be10a5fd0db1e60ab6c"
+  },
+  "runtime": "2026-10-25T11:41:37.027Z"
+}

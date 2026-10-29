@@ -50,7 +50,7 @@ function handleCardClick(characterId: string) {
   </section>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .recommendation-section {
   margin-bottom: 24px;
 }
@@ -155,7 +155,7 @@ function handleCardClick(characterId: string) {
   50% { opacity: 0.4; }
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .carousel-item {
     flex: 0 0 220px;
   }

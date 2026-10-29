@@ -1,0 +1,47 @@
+{
+  "status": "operational zero-call assertion invalidated",
+  "reason": "Prewritten deployment events activated the normal database memory-enqueue trigger; original zero-call claim is withdrawn",
+  "correctedBudgetEvidence": "story-state-action-04ab-budget-incident.json",
+  "originalReport": {
+    "passed": true,
+    "at": "2026-10-25T12:34:37.699Z",
+    "checks": [
+      {
+        "case": "old field source opens in one actual request beyond the recent event window; raw text available; browsing the map does not travel or disclose undiscovered nodes",
+        "result": "passed"
+      },
+      {
+        "case": "390px source failure is explicit and retry uses the real endpoint; Escape restores focus; no generation or state mutation",
+        "result": "passed"
+      },
+      {
+        "case": "actual story memory tool reads scoped progress without legacy memory requests or errors",
+        "result": "passed"
+      },
+      {
+        "case": "actual restart preserves state, map, source lookup and event version; no generation requests",
+        "result": "passed"
+      }
+    ],
+    "artifacts": {
+      "cardId": "ed6c9aba-e0cb-408d-adda-f2e46e8f07f0",
+      "storyId": "41c5aa40-486f-4519-ab07-9ec5c3374196",
+      "sourceEventId": "95fdb94f-71e2-4ea0-bfc3-7cbd48ae4a27"
+    },
+    "hashes": {
+      "dist/server/index.js": "adae00ea5ef3cbaa9788e65d2cdb0d1bff31ebb1c5e4aabbf65d215ffc5159fb",
+      "dist/client/index.html": "4ef402431083070158801b565bba475425169e5b2f7bc357ef395cf05f5dee74"
+    },
+    "errors": [],
+    "screenshots": [
+      "source-desktop.png",
+      "source-mobile.png",
+      "story-memory-drawer.png"
+    ],
+    "provider": "not called; explicitly prewritten fixtures",
+    "faultInjection": "one 503 source read; all successful responses use actual API",
+    "paidProviderTokens": 0,
+    "migrationCount": 12,
+    "image": "sha256:e36464956e1d614641bd853a37edff2ec7da5ff29ac8c0bf95b0804d306e3bdf"
+  }
+}

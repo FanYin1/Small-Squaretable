@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-25T15:01:03.151Z",
+  "fullTypecheck": "passed",
+  "importTypecheck": "passed",
+  "targetedLint": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "hashes": {
+    "dist/server/index.js": "5d4e29954bd8671d6c5a68af6c34c09171a6924dec4c73d848e41464bc34dd94",
+    "dist/client/index.html": "621eda5df8ec52ca6eb8c70d5162e80a750af5ed63a46db06682fd685f8d2748"
+  },
+  "image": "sha256:39fd8d73b02b02214c0566c6a5169520181fe65366808ce1f51d285b94ede57b",
+  "health": {
+    "3080": 200,
+    "3081": 200,
+    "5188": 200
+  },
+  "readOnlyCandidateAudit": {
+    "jobs": 14,
+    "attempts": 6,
+    "running": 0,
+    "due": 0,
+    "generationRequests": 0,
+    "repairs": 0,
+    "migrations": 12
+  },
+  "scope": "local admin tools delivered; running 3081 application unchanged; no live historical repair"
+}

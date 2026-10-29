@@ -28,6 +28,26 @@ vi.mock('../middleware/auth', () => ({
     });
     return next();
   },
+  // 公开主页按可选登录取观看者；测试里由 viewerRef 决定是否已登录
+  optionalAuthMiddleware: () => async (c: any, next: any) => {
+    if (viewerRef.id) c.set('user', { id: viewerRef.id, tenantId: 'tenant-123' });
+    return next();
+  },
+}));
+
+const { viewerRef, nsfwMocks } = vi.hoisted(() => ({
+  viewerRef: { id: null as string | null },
+  nsfwMocks: {
+    resolveShowNsfw: vi.fn(),
+    nsfwVisibilityConditionForViewer: vi.fn(),
+  },
+}));
+
+vi.mock('../services/nsfw-preference.service', () => ({
+  resolveShowNsfw: nsfwMocks.resolveShowNsfw,
+}));
+vi.mock('../../db/repositories/nsfw-visibility', () => ({
+  nsfwVisibilityConditionForViewer: nsfwMocks.nsfwVisibilityConditionForViewer,
 }));
 
 // Mock notification service
@@ -118,6 +138,9 @@ describe('User Profile Routes', () => {
     app = new Hono();
     app.route('/social', socialRoutes);
     vi.clearAllMocks();
+    viewerRef.id = null;
+    nsfwMocks.resolveShowNsfw.mockResolvedValue(false);
+    nsfwMocks.nsfwVisibilityConditionForViewer.mockReturnValue(undefined);
   });
 
   describe('GET /social/users/:userId/profile', () => {
@@ -169,6 +192,26 @@ describe('User Profile Routes', () => {
       expect(body.success).toBe(true);
       expect(body.data).toEqual(mockChars);
       expect(body.data).toHaveLength(2);
+    });
+
+    it('applies NSFW visibility for an anonymous viewer (P2-6)', async () => {
+      dbMockRef.select.mockReturnValue(mockChain([]));
+
+      const res = await app.request('/social/users/user-1/characters');
+      expect(res.status).toBe(200);
+      expect(nsfwMocks.resolveShowNsfw).toHaveBeenCalledWith(undefined);
+      expect(nsfwMocks.nsfwVisibilityConditionForViewer).toHaveBeenCalledWith(false, undefined);
+    });
+
+    it('passes the logged-in viewer and their server-side preference (P2-6)', async () => {
+      viewerRef.id = 'viewer-9';
+      nsfwMocks.resolveShowNsfw.mockResolvedValue(true);
+      dbMockRef.select.mockReturnValue(mockChain([]));
+
+      const res = await app.request('/social/users/user-1/characters?showNsfw=true');
+      expect(res.status).toBe(200);
+      expect(nsfwMocks.resolveShowNsfw).toHaveBeenCalledWith('viewer-9');
+      expect(nsfwMocks.nsfwVisibilityConditionForViewer).toHaveBeenCalledWith(true, 'viewer-9');
     });
 
     it('returns 500 on database error', async () => {

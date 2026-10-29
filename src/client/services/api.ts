@@ -103,77 +103,64 @@ const API_BASE_URL = '/api/v1'; // Vite 会代理到 http://localhost:3000/api/v
  */
 class CsrfTokenManager {
   private token: string | null = null;
-  private fetching = false;
+  private authToken: string | null = null;
   private fetchPromise: Promise<string> | null = null;
+  private generation = 0;
 
-  /**
-   * 获取 CSRF Token
-   */
-  async getToken(): Promise<string | null> {
-    // 如果已有 token，直接返回
-    if (this.token) {
-      return this.token;
-    }
-
-    // 如果正在获取，等待结果
-    if (this.fetching && this.fetchPromise) {
-      return this.fetchPromise;
-    }
-
-    // 只有在已登录时才获取 CSRF token
-    const authToken = localStorage.getItem('token');
+  async getToken(authToken = localStorage.getItem('token')): Promise<string | null> {
     if (!authToken) {
+      this.clearToken();
       return null;
     }
-
-    try {
-      this.fetching = true;
-      this.fetchPromise = this.fetchToken();
-      this.token = await this.fetchPromise;
-      return this.token;
-    } catch (error) {
-      console.error('Failed to fetch CSRF token:', error);
-      return null;
-    } finally {
-      this.fetching = false;
-      this.fetchPromise = null;
+    if (this.authToken !== authToken) {
+      this.clearToken();
+      this.authToken = authToken;
     }
+    if (this.token) return this.token;
+    if (this.fetchPromise) return this.fetchPromise;
+    const generation = this.generation;
+    const pending = this.fetchToken(authToken).then(token => {
+      if (generation !== this.generation || localStorage.getItem('token') !== authToken) {
+        throw new ApiError(409, 'AUTH_SESSION_CHANGED', 'Login session changed; retry from the current account');
+      }
+      this.token = token;
+      return token;
+    }).catch(async error => {
+      if (error instanceof ApiError && error.status === 401 && generation === this.generation && localStorage.getItem('token') === authToken) {
+        await interceptors.applyErrorInterceptors(error);
+      }
+      throw error;
+    }).finally(() => {
+      if (generation === this.generation) this.fetchPromise = null;
+    });
+    this.fetchPromise = pending;
+    return pending;
   }
 
-  /**
-   * 从服务器获取 CSRF Token
-   */
-  private async fetchToken(): Promise<string> {
+  private async fetchToken(authToken: string): Promise<string> {
     const response = await fetch(`${API_BASE_URL}/csrf-token`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      },
+      headers: { Authorization: `Bearer ${authToken}` },
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to get CSRF token');
-    }
-
+    if (!response.ok) throw new ApiError(response.status, 'CSRF_TOKEN_UNAVAILABLE', 'Unable to obtain request protection token');
     const data = await response.json();
+    if (typeof data.csrfToken !== 'string' || !/^[a-f0-9]{64}$/.test(data.csrfToken)) {
+      throw new ApiError(502, 'CSRF_TOKEN_UNAVAILABLE', 'Invalid request protection token response');
+    }
     return data.csrfToken;
   }
 
-  /**
-   * 刷新 CSRF Token
-   */
   async refreshToken(): Promise<string | null> {
-    this.token = null;
+    this.clearToken();
     return this.getToken();
   }
 
-  /**
-   * 清除 CSRF Token（登出时调用）
-   */
   clearToken(): void {
+    this.generation++;
     this.token = null;
+    this.authToken = null;
+    this.fetchPromise = null;
   }
 }
-
 /**
  * CSRF Token 管理器实例
  */
@@ -227,7 +214,7 @@ export async function apiRequest<T = unknown>(
   const isCsrfExcluded = isAuthEndpoint || !token;
 
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && !isCsrfExcluded) {
-    const csrfToken = await csrfTokenManager.getToken();
+    const csrfToken = await csrfTokenManager.getToken(token);
     if (csrfToken) {
       headers['X-CSRF-Token'] = csrfToken;
     }
@@ -358,7 +345,7 @@ export const api = {
     if (tenantId) headers['X-Tenant-ID'] = tenantId;
 
     // Add CSRF token for POST
-    const csrfToken = await csrfTokenManager.getToken();
+    const csrfToken = await csrfTokenManager.getToken(token);
     if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
 
     let config: RequestInit = { method: 'POST', headers, body: JSON.stringify(body) };
@@ -384,7 +371,7 @@ export const api = {
     if (tenantId) headers['X-Tenant-ID'] = tenantId;
 
     // Add CSRF token for POST
-    const csrfToken = await csrfTokenManager.getToken();
+    const csrfToken = await csrfTokenManager.getToken(token);
     if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
 
     let config: RequestInit = { method: 'POST', headers, body: formData };
@@ -453,10 +440,10 @@ async function refreshAccessToken(): Promise<string | null> {
 
     if (response.ok) {
       const data = await response.json();
-      if (data.success && data.data?.tokens) {
-        const newToken = data.data.tokens.accessToken;
+      if (data.success && typeof data.data?.accessToken === 'string' && typeof data.data?.refreshToken === 'string') {
+        const newToken = data.data.accessToken;
         localStorage.setItem('token', newToken);
-        localStorage.setItem('refreshToken', data.data.tokens.refreshToken);
+        localStorage.setItem('refreshToken', data.data.refreshToken);
         console.log('Token refreshed successfully');
         return newToken;
       }

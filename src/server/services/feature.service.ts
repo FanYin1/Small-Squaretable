@@ -8,6 +8,10 @@ import { subscriptionRepository } from '../../db/repositories/subscription.repos
 import { usageService, type ResourceType } from './usage.service';
 import { resolveEffectivePlan } from './entitlement';
 import type { PlanType } from './subscription.service';
+import { config } from '../../core/config';
+
+/** 预付点数模式下由点数接管、不再按套餐限额的资源 */
+const CREDITS_EXEMPT_RESOURCES: ResourceType[] = ['messages', 'llm_tokens'];
 
 export type FeatureName =
   | 'basic_chat'
@@ -54,24 +58,41 @@ const PLAN_FEATURES: Record<PlanType, FeatureName[]> = {
   ],
 };
 
+/**
+ * llm_tokens 的口径是「输入 + 输出」（P0-1）：每次生成计 上下文 token + 回复 token。
+ *
+ * 推导（没有真实流量数据，以下是假设值，上线后应按实测的 usage 元数据校准）：
+ *   典型上下文 ≈ 3,000 tokens（system 提示 + 角色卡 + 被 context-manager 裁剪后的历史）
+ *   典型回复   ≈   400 tokens
+ *   每次生成   ≈ 3,400 tokens
+ *   messages 配额同时计用户消息和助手消息（每轮 2 条），所以生成次数 = messages / 2
+ *
+ *   free: 100 条     -> 50 次     x 3,400 =     170,000   （旧口径 50,000）
+ *   pro:  10,000 条  -> 5,000 次  x 3,400 =  17,000,000   （旧口径 1,000,000）
+ *   team: 100,000 条 -> 50,000 次 x 3,400 = 170,000,000   （旧口径 10,000,000）
+ *
+ * 旧数字只量输出（约 400 tokens/条），在新口径下一个 free 用户 15 次生成就会用完。
+ * 数字刻意和 messages 配额保持同一个「松紧」，让两个配额大致同时触顶，
+ * 而不是 token 配额悄悄变成唯一的约束。
+ */
 const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   free: {
     messages: 100,
-    llm_tokens: 50000,
+    llm_tokens: 170000,
     images: 10,
     api_calls: 0,
     plugin_installs: 0,
   },
   pro: {
     messages: 10000,
-    llm_tokens: 1000000,
+    llm_tokens: 17000000,
     images: 500,
     api_calls: 1000,
     plugin_installs: 5,
   },
   team: {
     messages: 100000,
-    llm_tokens: 10000000,
+    llm_tokens: 170000000,
     images: 5000,
     api_calls: 10000,
     plugin_installs: 20,
@@ -127,6 +148,20 @@ export class FeatureService {
     limit: number;
     remaining: number;
   }> {
+    // 预付点数模式（P3-1）：生成由点数余额约束，messages / llm_tokens 两项套餐配额不再生效。
+    // 在这里放行，requireQuota 中间件和 WebSocket 里的 messages 检查都不用改。
+    // 用量仍然照常计量（usage-meter 不变），面板上的数字继续累计，只是没有上限。
+    // images / api_calls 与点数无关，仍按套餐。
+    if (config.billingMode === 'credits' && CREDITS_EXEMPT_RESOURCES.includes(resourceType)) {
+      const quotaInfo = await usageService.checkQuota(tenantId, resourceType);
+      return {
+        allowed: true,
+        currentUsage: quotaInfo.currentUsage,
+        limit: Number.MAX_SAFE_INTEGER,
+        remaining: Number.MAX_SAFE_INTEGER,
+      };
+    }
+
     // 配额按生效套餐算：付款失败的用户不该继续用 pro 的额度
     const subscription = await subscriptionRepository.findByTenantId(tenantId);
     const plan = resolveEffectivePlan(subscription);

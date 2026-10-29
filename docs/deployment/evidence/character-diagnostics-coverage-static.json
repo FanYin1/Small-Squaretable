@@ -1,0 +1,493 @@
+{
+  "date": "2026-10-25T05:23:18.308Z",
+  "result": "passed",
+  "task": "EXP-03C R1",
+  "selection": "deterministic first matching structures, stopping once required categories have examples; not a prevalence or full-library compatibility estimate",
+  "counts": {
+    "inspectedFiles": 1416,
+    "parsedCards": 1241,
+    "parseRejected": 170,
+    "oversized": 5
+  },
+  "matrix": [
+    {
+      "category": "legacy",
+      "sha256": "07398fc142120d887d3560da9308bc4a21de8665c5d188cb2e833be587b0245b"
+    },
+    {
+      "category": "v2",
+      "sha256": "7f2959bb28a6d495da6d32e753ebe7287f650c09089250d9ac293af0d976560d"
+    },
+    {
+      "category": "v3",
+      "sha256": "68f1f21ae9ab66b593155a49c5ae2c969adb1c71cff2f63f8896cda988c7db38"
+    },
+    {
+      "category": "embedded-book",
+      "sha256": "ae1e237c1895dbc5eda3f1f5c290b563bef87100ddf32039dea2f6d58ac18ef3"
+    },
+    {
+      "category": "named-book",
+      "sha256": "ae1e237c1895dbc5eda3f1f5c290b563bef87100ddf32039dea2f6d58ac18ef3"
+    },
+    {
+      "category": "alternate-openings",
+      "sha256": "c2a9c52dbd7b4f4e0fae6dcfe9068b4336ecca3459b1fe59992e48f87bab6d76"
+    },
+    {
+      "category": "helper-scripts",
+      "sha256": "0c7fb7a001219980b617f6544ada6a79779fa4e26b93a08932addfa31558a386"
+    },
+    {
+      "category": "helper-tuples",
+      "sha256": "84c2e54c16940e9ce2236e4464676180e30c71bf2a8584f3c8c0c284457ec326"
+    },
+    {
+      "category": "mvu",
+      "sha256": "dd10fda914f380b82ebcfe73370a6480d203eaafd33354f69558e66cda8fa72a"
+    },
+    {
+      "category": "era",
+      "sha256": "1314e21e612929c5f859daf451be67dafc0505d907978a50a85292f4b149b814"
+    },
+    {
+      "category": "regex",
+      "sha256": "0c7fb7a001219980b617f6544ada6a79779fa4e26b93a08932addfa31558a386"
+    },
+    {
+      "category": "author-html",
+      "sha256": "5989ef8b2e026e9e1bc472e0c77bcdf7812b8af8cf4d8d645236914f3264a34a"
+    }
+  ],
+  "samples": [
+    {
+      "sha256": "7f2959bb28a6d495da6d32e753ebe7287f650c09089250d9ac293af0d976560d",
+      "format": "chara_card_v2",
+      "bytes": 10381,
+      "categories": [
+        "v2"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": false,
+        "invalid": false,
+        "issues": []
+      },
+      "structures": {
+        "helperScripts": "undefined",
+        "helper": "undefined",
+        "embeddedEntries": 0,
+        "alternateOpenings": 0
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    },
+    {
+      "sha256": "ae1e237c1895dbc5eda3f1f5c290b563bef87100ddf32039dea2f6d58ac18ef3",
+      "format": "chara_card_v2",
+      "bytes": 20270,
+      "categories": [
+        "embedded-book",
+        "named-book"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": false,
+        "invalid": false,
+        "issues": []
+      },
+      "structures": {
+        "helperScripts": "undefined",
+        "helper": "undefined",
+        "embeddedEntries": 5,
+        "alternateOpenings": 0
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    },
+    {
+      "sha256": "c2a9c52dbd7b4f4e0fae6dcfe9068b4336ecca3459b1fe59992e48f87bab6d76",
+      "format": "chara_card_v2",
+      "bytes": 371649,
+      "categories": [
+        "alternate-openings"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": false,
+        "invalid": false,
+        "issues": []
+      },
+      "structures": {
+        "helperScripts": "undefined",
+        "helper": "undefined",
+        "embeddedEntries": 0,
+        "alternateOpenings": 1
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    },
+    {
+      "sha256": "07398fc142120d887d3560da9308bc4a21de8665c5d188cb2e833be587b0245b",
+      "format": "legacy",
+      "bytes": 171607,
+      "categories": [
+        "legacy"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": false,
+        "invalid": false,
+        "issues": [
+          "unknown_extensions"
+        ]
+      },
+      "structures": {
+        "helperScripts": "undefined",
+        "helper": "undefined",
+        "embeddedEntries": 0,
+        "alternateOpenings": 0
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    },
+    {
+      "sha256": "68f1f21ae9ab66b593155a49c5ae2c969adb1c71cff2f63f8896cda988c7db38",
+      "format": "chara_card_v3",
+      "bytes": 485700,
+      "categories": [
+        "v3"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": false,
+        "invalid": false,
+        "issues": []
+      },
+      "structures": {
+        "helperScripts": "undefined",
+        "helper": "undefined",
+        "embeddedEntries": 0,
+        "alternateOpenings": 0
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    },
+    {
+      "sha256": "0c7fb7a001219980b617f6544ada6a79779fa4e26b93a08932addfa31558a386",
+      "format": "chara_card_v3",
+      "bytes": 2970528,
+      "categories": [
+        "helper-scripts",
+        "regex"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree",
+        "author execution dependencies are diagnosed",
+        "active regex dependency is diagnosed"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": true,
+        "invalid": false,
+        "issues": [
+          "author_scripts",
+          "regex_rules"
+        ]
+      },
+      "structures": {
+        "helperScripts": {
+          "type": "array",
+          "length": 1,
+          "items": [
+            {
+              "type": "object",
+              "fields": {
+                "type": "string",
+                "value": {
+                  "type": "object",
+                  "fields": {
+                    "id": "string",
+                    "name": "string",
+                    "content": "string",
+                    "data": {
+                      "type": "object",
+                      "fields": {},
+                      "otherFieldCount": 0
+                    },
+                    "enabled": "boolean"
+                  },
+                  "otherFieldCount": 2
+                }
+              },
+              "otherFieldCount": 0
+            }
+          ]
+        },
+        "helper": "undefined",
+        "embeddedEntries": 20,
+        "alternateOpenings": 0
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    },
+    {
+      "sha256": "5989ef8b2e026e9e1bc472e0c77bcdf7812b8af8cf4d8d645236914f3264a34a",
+      "format": "chara_card_v3",
+      "bytes": 1416182,
+      "categories": [
+        "author-html"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree",
+        "author execution dependencies are diagnosed"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": true,
+        "invalid": false,
+        "issues": [
+          "author_scripts",
+          "regex_rules"
+        ]
+      },
+      "structures": {
+        "helperScripts": "undefined",
+        "helper": "undefined",
+        "embeddedEntries": 13,
+        "alternateOpenings": 1
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    },
+    {
+      "sha256": "dd10fda914f380b82ebcfe73370a6480d203eaafd33354f69558e66cda8fa72a",
+      "format": "chara_card_v3",
+      "bytes": 861468,
+      "categories": [
+        "mvu"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree",
+        "variable framework is not silently treated as native state"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": true,
+        "invalid": false,
+        "issues": [
+          "author_scripts",
+          "regex_rules",
+          "variable_framework"
+        ]
+      },
+      "structures": {
+        "helperScripts": {
+          "type": "array",
+          "length": 1,
+          "items": [
+            {
+              "type": "object",
+              "fields": {
+                "type": "string",
+                "value": {
+                  "type": "object",
+                  "fields": {
+                    "id": "string",
+                    "name": "string",
+                    "content": "string",
+                    "data": {
+                      "type": "object",
+                      "fields": {},
+                      "otherFieldCount": 0
+                    },
+                    "enabled": "boolean"
+                  },
+                  "otherFieldCount": 2
+                }
+              },
+              "otherFieldCount": 0
+            }
+          ]
+        },
+        "helper": "undefined",
+        "embeddedEntries": 20,
+        "alternateOpenings": 0
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    },
+    {
+      "sha256": "84c2e54c16940e9ce2236e4464676180e30c71bf2a8584f3c8c0c284457ec326",
+      "format": "chara_card_v3",
+      "bytes": 843311,
+      "categories": [
+        "helper-tuples"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree",
+        "author execution dependencies are diagnosed"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": true,
+        "invalid": false,
+        "issues": [
+          "author_scripts",
+          "regex_rules",
+          "variable_framework"
+        ]
+      },
+      "structures": {
+        "helperScripts": "undefined",
+        "helper": {
+          "type": "array",
+          "length": 2,
+          "items": [
+            {
+              "type": "array",
+              "length": 2,
+              "items": [
+                "string",
+                {
+                  "type": "array",
+                  "length": 1,
+                  "items": [
+                    {
+                      "type": "object",
+                      "fields": {
+                        "type": "string",
+                        "enabled": "boolean",
+                        "name": "string",
+                        "id": "string",
+                        "content": "string",
+                        "button": {
+                          "type": "object",
+                          "fields": {
+                            "enabled": "bounded"
+                          },
+                          "otherFieldCount": 1
+                        },
+                        "data": {
+                          "type": "object",
+                          "fields": {},
+                          "otherFieldCount": 0
+                        }
+                      },
+                      "otherFieldCount": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "array",
+              "length": 2,
+              "items": [
+                "string",
+                {
+                  "type": "object",
+                  "fields": {},
+                  "otherFieldCount": 0
+                }
+              ]
+            }
+          ]
+        },
+        "embeddedEntries": 28,
+        "alternateOpenings": 0
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    },
+    {
+      "sha256": "1314e21e612929c5f859daf451be67dafc0505d907978a50a85292f4b149b814",
+      "format": "chara_card_v3",
+      "bytes": 975238,
+      "categories": [
+        "era"
+      ],
+      "checks": [
+        "selected original object preserved",
+        "diagnosis does not mutate original data",
+        "canonical source fields and imported capability reports agree",
+        "variable framework is not silently treated as native state"
+      ],
+      "capability": {
+        "native": false,
+        "map": false,
+        "scripted": false,
+        "invalid": false,
+        "issues": [
+          "variable_framework"
+        ]
+      },
+      "structures": {
+        "helperScripts": "undefined",
+        "helper": "undefined",
+        "embeddedEntries": 13,
+        "alternateOpenings": 3
+      },
+      "source": "authorized external original; read-only production parser and normalization; no author execution or model call"
+    }
+  ],
+  "failures": [],
+  "missing": [],
+  "sources": [
+    {
+      "path": "scripts/character-coverage-check.mjs",
+      "sha256": "3bf2c028c4f045aad8202e30fa6f55ff257cf37dfe35ad0282776544c4b6eb1b"
+    },
+    {
+      "path": "src/types/character-card-import.ts",
+      "sha256": "ac416056152727e3cd248f483080a1b841213a34259f2788a1e6a1d9a91d0fc3"
+    },
+    {
+      "path": "src/types/card-fields.ts",
+      "sha256": "7ce5ace55ffb2820e9331fdc501cbc5d8b7d18c5f60614f6653afce7fd0bb539"
+    },
+    {
+      "path": "src/types/story-capabilities.ts",
+      "sha256": "1e87ecdc837463f90378991528c6803e74ad5d5b458b3645f288b0e6d2c4476b"
+    }
+  ],
+  "limits": [
+    "Static parsing, preservation and diagnostic coverage only",
+    "Original scripts never executed; game semantics and multi-character runtime are checked separately",
+    "Existing standalone-book and format/compression integration evidence remains separate"
+  ],
+  "paidProviderTokens": 0
+}

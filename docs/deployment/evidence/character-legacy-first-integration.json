@@ -1,0 +1,59 @@
+{
+  "result": "passed",
+  "at": "2026-10-25T14:54:55.673Z",
+  "checks": [
+    "current source: read-only plan, real CLI atomic copy, preserved source/recursive/purpose settings, durable retry",
+    "nested source: read-only plan, real CLI atomic copy, preserved source/recursive/purpose settings, durable retry",
+    "archive source: read-only plan, real CLI atomic copy, preserved source/recursive/purpose settings, durable retry",
+    "Explicit external JSON and compressed V3 PNG mapping; exact original bytes archived privately with file hashes, no name guessing",
+    "Edited/global binding explicitly detached without deleting entries; old frozen story unchanged, new API-created story uses selected recovery only",
+    "Explicit duplicate selection enables the selected inactive book, preserves other disabled references and detaches only the specified duplicate",
+    "No source, ambiguous archived source, contradictory selected binding and omitted binding dispositions all refuse without writes",
+    "Stale character, book, entry edit/insert/delete, new binding and changed original file bytes reject the old preview atomically",
+    "Missing, other tenant and other owner are indistinguishable; conflicting book ownership cannot be bypassed by detaching it",
+    "Newly discovered unfrozen solo and group histories block apply; no silent migration of legacy stories",
+    "Concurrent CLI calls write once; later deletion is not resurrected; receipt works without the original source file and distinguishes unknown requests",
+    "Failure after copy and detach rolls back book, every entry, binding changes and durable receipt together",
+    "Real concurrent entry editor waits behind locked reviewed rows and its later change is preserved",
+    "Real HTTP binding waits behind repair character lock, then preserves the explicit extra reference",
+    "When an entry editor commits first, repair waits then rejects the stale review with no partial writes",
+    "Existing narrow repair regression: 6 groups, including both real binding lock orders, rollback and frozen story checks"
+  ],
+  "oldRepair": {
+    "groups": [
+      "Real repair CLI creates mapped book/entries and a durable receipt; subprocess retry is a no-op; old story remains empty and new story captures the repaired book",
+      "Stale source, foreign tenant/owner, empty/invalid/nested/archive/conflicting sources are rejected without book or receipt writes",
+      "Second-entry constraint failure and receipt-write failure roll back the entire book/entries/receipt; retry after removing the failure succeeds",
+      "Concurrent CLI repairs create exactly one book and receipt; deleting the book does not erase the receipt or let the old request resurrect it",
+      "Actual HTTP binding waits behind the repair character lock, then preserves both the repaired book and the explicitly selected additional reference",
+      "When the real HTTP binding holds the character share lock first, repair waits and then rejects the stale review without inserting an extra book"
+    ],
+    "durableRetriesVerified": true,
+    "concurrentBindingOrdersVerified": true,
+    "liveRepairs": 0
+  },
+  "sources": [
+    {
+      "path": "src/db/character-legacy-reconciliation.ts",
+      "sha256": "f9b72fcac39f37100405c9603ecb6f8459c26bc024eeda5840e572e43b7b1aeb"
+    },
+    {
+      "path": "scripts/character-legacy-reconcile.ts",
+      "sha256": "0652e5d77a236ee4b676c871a01eaf41839984bd21ea2ac7816726a191ec2776"
+    },
+    {
+      "path": "scripts/character-legacy-check.mjs",
+      "sha256": "e81c4ebbfd3938c9ed231ed03885b957a07f134b8e638368ee952a5055778f8d"
+    },
+    {
+      "path": "src/db/character-import-audit.ts",
+      "sha256": "764c4e86c89d406015667cb40f825e3e016840eec25fc8cf1176f73c2ed26c59"
+    },
+    {
+      "path": "src/db/character-import-repair.ts",
+      "sha256": "b4504ecc200e9a3981c6c8afe15ca18b178b394f7ff400126269edbc28a23508"
+    }
+  ],
+  "scope": "disposable database and local controlled provider; no actual candidate repair, no paid model verification",
+  "addedStreams": 0
+}

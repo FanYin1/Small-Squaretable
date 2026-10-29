@@ -5,7 +5,6 @@ import 'element-plus/dist/index.css';
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import App from './App.vue';
 import router from './router';
-import { useUserStore } from './stores/user';
 import { initWebVitals, observeCustomMetrics } from './utils/webVitals';
 import { initSentry } from './utils/sentry';
 import i18n from './i18n';
@@ -16,6 +15,7 @@ import './styles/fonts.css';
 import './styles/variables.css';
 import './styles/global.css';
 import './styles/transitions.css';
+import './styles/story-shell.css';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -39,14 +39,6 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 // Register Router
 app.use(router);
-
-// 初始化用户认证状态（从 localStorage 恢复）
-const userStore = useUserStore();
-userStore.initialize().then(() => {
-  console.log('User authentication initialized');
-}).catch((error) => {
-  console.error('Failed to initialize user authentication:', error);
-});
 
 // Initialize Web Vitals monitoring
 initWebVitals();

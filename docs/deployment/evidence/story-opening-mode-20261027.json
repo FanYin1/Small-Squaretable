@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-27",
+  "workPackage": "EXP-ADAPT / AD-3",
+  "scope": "Exact reviewed sans source: exclusive first opening choice; not combat or experience progression",
+  "decisions": ["DEC-05", "DEC-06", "DEC-08", "DEC-18", "INV-02", "INV-08", "INV-09"],
+  "source": {
+    "pngSha256": "297188b16b6fe4754ca4d9595711b6b67eae46595110f68b0703fd47ca8c1e19",
+    "importedContentSha256": "a3d71e549ed319431df22de6ec41c2063bb22708aea82593e638d853c8d82a28",
+    "entrySha256": "5d8e52bb17cd5e3737fef740f194bbf43ce570f4b3b591a31da63a6d94541102",
+    "ruleScope": "sans-opening-modes-v1",
+    "alteredSourceCasesRejected": 16
+  },
+  "validation": {
+    "targetedUnitFiles": 8,
+    "targetedUnitTestsPassed": 139,
+    "typeCheckPassed": true,
+    "targetedLintPassed": true,
+    "existingAdapterRegression": {
+      "groupsPassed": 36,
+      "screenshots": 26,
+      "browserErrors": 0,
+      "timing": "Before final promotional-cover fix; final fix covered by latest units and focused integration"
+    },
+    "latestFocusedIntegration": {
+      "groupsPassed": 6,
+      "screenshots": 6,
+      "widths": [1440, 390],
+      "browserErrors": 0,
+      "narration": "Controlled service commits, not real model gameplay",
+      "covers": [
+        "Original HTTP import and durable adapter queue",
+        "Refusal, quotation, question, interruption and proposal guards",
+        "Exclusive once-only choice, atomic assignment and duplicate request replay",
+        "Independent branches before and after choice, server restart",
+        "Actual details and readers with frozen scope and narrative opening preview",
+        "Changed source rejected for new stories, frozen stories continue"
+      ]
+    },
+    "dumpRestore": {
+      "result": "passed",
+      "allPublicTablesCompared": 76,
+      "baseBehaviorChecks": 21,
+      "openingModeChecks": 5,
+      "evidenceGuards": 14,
+      "corruptionProbes": 2,
+      "narrationAndMemory": "Controlled fixtures; no model or embedding provider"
+    }
+  },
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261027-modes",
+    "imageSha256": "a4b912938d882df83860899839bb80246b23164dfe19796029dd411e96d010a2",
+    "result": "passed",
+    "betaMigrations": 16,
+    "newSqlMigrations": 0,
+    "rehearsalTablesCompared": 76,
+    "existingRowsPreserved": true,
+    "historical3080Unchanged": true,
+    "actualCandidateCheck": {
+      "result": "passed",
+      "privateOriginalImport": true,
+      "httpCompilationAndReport": true,
+      "screenshots": 2,
+      "browserErrors": 0,
+      "containerRestart": true,
+      "temporaryCardDeleted": true,
+      "businessTablesUnchangedAfterCleanup": 16,
+      "storiesCreated": 0
+    },
+    "backupDirectory": "backups/exploration/upgrade-e8587e45-3dfa-4cc7-b282-58c54dd66ca3",
+    "rollbackLimit": "New frozen scope requires compatible code or coordinated application/data restore"
+  },
+  "budget": {
+    "additionalPaidCalls": 0,
+    "additionalPaidTokens": 0,
+    "userPointsAdjusted": 0,
+    "ledgerUnchanged": true,
+    "ledgerSha256": "8dcbeae02d450fab0fd60cf046c0499aec3b7e38ff889c0931d02dff7038ac1e"
+  },
+  "privateEvidenceDirectory": "backups/exploration/opening-mode-20261027",
+  "deployedEvidenceDirectory": "backups/exploration/opening-mode-deployed-47b79139-c2e4-4053-a0b5-becc9c994718",
+  "acceptance": {
+    "assistantScreenshotReview": true,
+    "userVisualSignoff": false,
+    "physicalMobileDeviceSignoff": false,
+    "realModelGameplay": false,
+    "ad3Closed": false,
+    "ad5Closed": false,
+    "parentPackagesClosed": false
+  },
+  "remaining": [
+    "Complete sourced rewards, transactions and additional ongoing rules",
+    "Complex ongoing mechanics of the four user test cards",
+    "Per-card real model quality and long gameplay continuity",
+    "Seven-page visual review and physical-device acceptance",
+    "Intermittent loading failures and final candidate acceptance"
+  ]
+}

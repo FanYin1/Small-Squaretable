@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-24T11:20:31.946Z",
+  "task": "EXP-03B",
+  "taskClosed": false,
+  "scope": "Five user-authorized local samples: parsing and import mapping only; no gameplay, script execution, live database or provider calls",
+  "result": "five_selected_samples_passed_with_limited_scope",
+  "samples": [
+    {
+      "relativePath": "已分类/2025年3月前/正常向(不分类)/冒险者公会的宝物鉴定师.png",
+      "sha256": "eb796df3af4400e32024716089f210b781b11a9ef71700f609db988ac562f74d",
+      "kind": "character-card",
+      "embeddedEntries": 0,
+      "features": [
+        "alternate-greetings",
+        "extensions"
+      ],
+      "checks": "Production browser PNG parser and original chara payload field equality"
+    },
+    {
+      "relativePath": "已分类/世界卡/异世界，奇幻/冒险者公会模拟器.png",
+      "sha256": "130383d1ab858ad9bb4a38111410201c3e35e7f6d88e836e8fcea56786aa8f01",
+      "kind": "character-card",
+      "embeddedEntries": 5,
+      "features": [
+        "embedded-worldbook",
+        "named-external-worldbook",
+        "extensions"
+      ],
+      "checks": "Production browser PNG parser and original chara payload field equality"
+    },
+    {
+      "relativePath": "已分类/世界卡/异世界，奇幻/异世界冒险团2.1.1.png",
+      "sha256": "d4b24962d7238a8e9785de9f1d546df17870bb6170d6dc7fa1223a1488f893f2",
+      "kind": "character-card",
+      "embeddedEntries": 53,
+      "features": [
+        "embedded-worldbook",
+        "alternate-greetings",
+        "named-external-worldbook",
+        "regex-scripts",
+        "enabled-regex-scripts",
+        "html-or-script-markers",
+        "extensions"
+      ],
+      "checks": "Production browser PNG parser and original chara payload field equality"
+    },
+    {
+      "relativePath": "世界书及其他/世界书/神明级魔法.json",
+      "sha256": "3fb62df772070d6e0ea1f45013db8ec9905b0ef55b9f5ed3704141ebd358fc80",
+      "kind": "standalone-worldbook",
+      "standaloneEntries": 10,
+      "checks": "Production Hono import-file handler with mocked persistence; count, content, keys, enabled, constant, owner and scope mapping"
+    },
+    {
+      "relativePath": "世界书及其他/世界书/通用旁白 (只有世界书).json",
+      "sha256": "62f3511ad276ce3793ffa83bc5286eb7e81bb8f278ce2d6aac9f9fa10224b11a",
+      "kind": "standalone-worldbook",
+      "standaloneEntries": 4,
+      "checks": "Production Hono import-file handler with mocked persistence; count, content, keys, enabled, constant, owner and scope mapping"
+    }
+  ],
+  "tests": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0,
+    "selectedSampleTests": 5,
+    "existingRegressionTests": 6,
+    "typecheck": "passed"
+  },
+  "notes": [
+    "Adventure guild simulator contains matching chara V2 and ccv3 V3 data; current PNG loader reads chara.",
+    "One sample has 53 embedded entries and regex extensions, retained as data; execution equivalence not tested.",
+    "Object URL creation is stubbed; avatar rendering not tested.",
+    "Worldbook persistence is mocked; actual database binding and trigger behavior not tested.",
+    "Only chara tEXt metadata covered; ccv3-only, compressed metadata and malformed files are outside this sample run.",
+    "Third-party source contents are not copied to the repository or sent to a provider."
+  ],
+  "sourceHashes": {
+    "src/client/utils/sillytavern.ts": "78f32dbff8f9e1df9fd4ff55b3e1739d203b96b32982c36969eeb13bf1ea8c8b",
+    "src/client/utils/sillytavern-library.spec.ts": "a58f0a2c150aa9f3b71d75853a4b4023caf3cbe687f95e3ffd49cdf0f6a40994",
+    "src/server/routes/worldbooks.ts": "e2a42d86685e7bf35f97d7e0b1e92ba70c391fb96eb13422754468f56f55f332",
+    "src/server/routes/worldbooks.spec.ts": "0c8faa03ddd0fe60ba03efab3252c7abbb40c97a7e468260eaa345b6cc36a578"
+  }
+}

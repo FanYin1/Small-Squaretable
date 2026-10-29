@@ -1,0 +1,268 @@
+{
+  "date": "2026-10-24T05:45:13.162Z",
+  "result": "passed",
+  "database": "two disposable PostgreSQL/pgvector containers with full beta migrations",
+  "scope": "whole-database dump/restore and current service/repository behavior; not HTTP/browser or model-quality validation",
+  "memoryFixture": "synthetic memory and fixed nonzero vector, explicitly linked to a confirmed synthetic reply; no model or embedding provider called",
+  "fingerprints": {
+    "tables": {
+      "books": {
+        "rows": 1,
+        "digest": "ec835b0af21ab82e8d752ef0fd24c3aa"
+      },
+      "chats": {
+        "rows": 2,
+        "digest": "009d9e7d53e74da36259fd9ca190c7fc"
+      },
+      "notes": {
+        "rows": 1,
+        "digest": "072d8d2edf662c4cfff9f0afec4ea9f9"
+      },
+      "state": {
+        "rows": 2,
+        "digest": "e080b6360e6c6a9e33a8a3733f429481"
+      },
+      "users": {
+        "rows": 2,
+        "digest": "95a745a24de9d01beaf85e67e124ed55"
+      },
+      "events": {
+        "rows": 3,
+        "digest": "c4960ee60a1a8a6782ec95ef31d7e11c"
+      },
+      "content": {
+        "rows": 2,
+        "digest": "d1900ef7b6bc102b0b6021c22bfe9471"
+      },
+      "entries": {
+        "rows": 1,
+        "digest": "3fa58563b4b2cd5b19aee7804906be2e"
+      },
+      "lineage": {
+        "rows": 1,
+        "digest": "5b305bb8ace0cbf48af8099d7e1dda46"
+      },
+      "tenants": {
+        "rows": 1,
+        "digest": "f48c726052ab6ff2a72343c3ea73bf65"
+      },
+      "vectors": {
+        "rows": 2,
+        "digest": "6992709f7b5ed12542ae4305d5768f86"
+      },
+      "memories": {
+        "rows": 2,
+        "digest": "c339db116efa764c9632de6807ec1601"
+      },
+      "messages": {
+        "rows": 6,
+        "digest": "12ac995161ad54f55bd4c447d6b4155e"
+      },
+      "personas": {
+        "rows": 1,
+        "digest": "b69f11e0aceab4eb50e012c968135403"
+      },
+      "deletions": {
+        "rows": 1,
+        "digest": "26210923f715b5e3f4118e6c18c79b6f"
+      },
+      "characters": {
+        "rows": 1,
+        "digest": "6968f139f3a4a084aeb62dda9b5680d2"
+      },
+      "migrations": {
+        "rows": 8,
+        "digest": "498ea8443b548fe6a474a548809f756b"
+      },
+      "worldbooks": {
+        "rows": 2,
+        "digest": "d1d6861da2ff471fce5c26d776879d9b"
+      },
+      "participants": {
+        "rows": 2,
+        "digest": "a204ab89c0eaa1fb20d42449eb739216"
+      },
+      "reservations": {
+        "rows": 3,
+        "digest": "9584b50a39d6279f1019b44857ea4fe0"
+      },
+      "creationRequests": {
+        "rows": 3,
+        "digest": "faee2eabafe2e2738c21d4f982fa5bbf"
+      }
+    },
+    "coverage": {
+      "identities": 2,
+      "boundEntries": 2,
+      "confirmedEvents": 2,
+      "sourcedMemories": 2,
+      "interruptedEvents": 1,
+      "invalidEventSources": 0,
+      "invalidStateSources": 0,
+      "invalidMemorySources": 0
+    },
+    "protocol": 2
+  },
+  "guardTests": 13,
+  "corruptionProbes": [
+    "changed vector with same row count rejected",
+    "wrong-story message provenance rejected"
+  ],
+  "sourceUnchangedAfterTargetDeletion": true,
+  "checks": [
+    "A mismatched tenant cannot delete the story or generate a receipt",
+    "Rolled-back deletion leaves no receipt and preserves the story and memory",
+    "Normal repository deletion atomically captures owner and creation request without story text",
+    "A story created and deleted after the backup retains its creation replay evidence",
+    "Deleted story IDs cannot be reused by a late insert",
+    "A transaction with an older snapshot cannot reinsert an ID deleted after that snapshot",
+    "Receipts, reserved IDs and restore lineage reject ordinary alteration or removal",
+    "A cascaded account deletion preserves its story receipt after the owner disappears",
+    "Restored old backup no longer contains stories deleted after it was taken",
+    "Replayed deletion cascades all restored text, state, sources, notes, memory and vectors",
+    "Original and post-backup creation requests both report deleted",
+    "Replaying a creation request absent from the old backup cannot recreate its deleted story",
+    "Post-backup story IDs remain reserved after restoration",
+    "Exports, late generation and late memory writes cannot restore the deleted content",
+    "Deleted memory is absent from vector retrieval after old-backup cleanup",
+    "Other stories and their source-backed memory survive replay unchanged"
+  ],
+  "deletion": {
+    "messages": 0,
+    "events": 0,
+    "state": 0,
+    "notes": 0,
+    "content": 0,
+    "worldbooks": 0,
+    "memories": 0,
+    "vectors": 0
+  },
+  "deletionReplay": {
+    "protocol": 1,
+    "result": "replayed",
+    "receipts": 5,
+    "deletedStories": 1,
+    "restoredRequests": 1,
+    "requestsWithoutOwner": 0,
+    "checks": [
+      "Preflight identifies database clusters and refuses to overwrite the authoritative deletion source",
+      "Unrelated database lineage is rejected without mutation",
+      "A source missing existing target deletion evidence is rejected",
+      "A creation-request conflict rolls back deletion, receipts and reservations together",
+      "Ownership conflicts reject the entire replay",
+      "Active source writers and active target readers prevent replay",
+      "Repeating deletion replay is idempotent"
+    ]
+  },
+  "restoreScriptTests": 8,
+  "sources": [
+    {
+      "path": "scripts/story-nonempty-restore-check.mjs",
+      "sha256": "03f5e83d1622e17756b9d0d2c9403e5c5b00582155f662ecdf2bf9586c3277e1"
+    },
+    {
+      "path": "scripts/story-restore-fixture.mjs",
+      "sha256": "7dbfc79dd2602c4da34c02a8fbba8978cd18ea34f79912aacbb29991c0270d40"
+    },
+    {
+      "path": "scripts/story-restore-evidence.mjs",
+      "sha256": "ac868c0a93909a52a0f87e820eb48751764d92e63b8981fafbe6815d86a40c4c"
+    },
+    {
+      "path": "scripts/story-restore-evidence.test.mjs",
+      "sha256": "245fb179de23ccedfa3e877c91a6ca5e5cd45e6d055b0e841608bb0cd7898311"
+    },
+    {
+      "path": "scripts/exploration-restore-check.mjs",
+      "sha256": "855e39688fb02853057ddeb5cc8ff8d218cb2b0a09251cb934c316e01174413f"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "ad99964a6a3dcbf21fcadd56928f753d077c13a388768b5e759b9acd376c3b67"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "1cbaa43c5e63f0232d9cb5e4a557551fbfbaa462ceb215547d6c042d56df5576"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+    },
+    {
+      "path": "src/db/migrate.ts",
+      "sha256": "91bbac98d250f3c2f89edf6511b80f674fa0db55ec428abbd2f4c6daedb93e57"
+    },
+    {
+      "path": "src/db/beta-migrations/0000_beta_schema.sql",
+      "sha256": "1d21eaef4b6c561bd431924a45533480ce328510a7e3ef2ac4a2d4d2be7c163a"
+    },
+    {
+      "path": "src/db/beta-migrations/0001_beta_invariants.sql",
+      "sha256": "b77d1ccea176602d34da511f7e1242fdedd9c71963b8a3b4902d6b307d6a8c16"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/db/beta-migrations/0004_story_content.sql",
+      "sha256": "3c09875fe35c43e68d2f0bd4e03044253b9bf879c16c1c564dfa6898f5e1648b"
+    },
+    {
+      "path": "src/db/beta-migrations/0005_story_state.sql",
+      "sha256": "09cae5255133b9fe58a981ee3cadda43210de96a5abfd70a233aead9350b1b89"
+    },
+    {
+      "path": "src/db/beta-migrations/0006_story_memory_scope.sql",
+      "sha256": "4d9519301750da6ad4bb4bba825feee3be843d47dfb9313d6a06d9b2455974e3"
+    },
+    {
+      "path": "src/db/beta-migrations/0007_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/beta-migrations/meta/_journal.json",
+      "sha256": "4d4191bab8ee0bfec1ece1ad24fd776eea5ac6bb8741e5783056969b8ea38546"
+    },
+    {
+      "path": "scripts/story-deletion-replay.mjs",
+      "sha256": "a76cdfd68b5f4b3235892833294a0462e5f1f699624d433c4cc8ad7adaf96778"
+    },
+    {
+      "path": "src/db/migrations/0047_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/schema/story-lifecycle.ts",
+      "sha256": "2e6ed153e51a28617cb2feb32f8474afb00217a35c90d435fea60044acb324cf"
+    },
+    {
+      "path": "scripts/story-deletion-fixture.mjs",
+      "sha256": "0a68a5c27e85c9b28f37804384e95cfd1e6d3f814333820d9f1c7b04ff0df4d6"
+    },
+    {
+      "path": "scripts/restore-db.sh",
+      "sha256": "da17f2b2ca5da29a8321fdbdbe129d3ef5a5091ceb481a4b2211d722d5a6cf9b"
+    },
+    {
+      "path": "scripts/story-deletion-restore.test.mjs",
+      "sha256": "87a67c1cbd1cfb0a3df731402b64ff6d6e5dd231f4123b736463660de1c7e1d8"
+    }
+  ]
+}

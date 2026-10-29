@@ -18,6 +18,15 @@ vi.mock('../middleware/auth', () => ({
     });
     return next();
   },
+  // 公开合集路由改用 optionalAuthMiddleware（P2-6：要知道观看者是谁才能判断 NSFW 偏好）。
+  // 这组既有用例都是匿名访问，所以这里不设置 user。
+  optionalAuthMiddleware: () => async (_c: any, next: any) => next(),
+}));
+
+// NSFW 偏好解析需要查库；这组用例不关心偏好，统一视为「看不到 NSFW」。
+// 偏好生效的行为在 character-collections-nsfw.spec.ts 里测。
+vi.mock('../services/nsfw-preference.service', () => ({
+  resolveShowNsfw: async () => false,
 }));
 
 // Chainable mock helpers

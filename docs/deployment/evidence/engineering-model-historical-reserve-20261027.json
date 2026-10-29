@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-27",
+  "incident": "story-state-action-04ab-budget-incident.json",
+  "method": "Read-only, network-disabled inspection of the incident image source map; conservative engineering reservation, not billing settlement",
+  "image": "small-squaretable:exploration-20261025-04ab",
+  "sources": [
+    { "path": "src/server/services/story-memory-extraction.ts", "sha256": "96098d151b9a8d59e9ad18bd2e9ccce86f676d7a0ff10302cafd0797602eb63b" },
+    { "path": "src/server/jobs/story-memory.job.ts", "sha256": "ab9b94ae68c8a09783e2e17ea80f1d152165654c01034e18e488046fbb481c9c" },
+    { "path": "src/server/services/story-memory-worker.service.ts", "sha256": "b45cdfe695f3fd9d352bcd9389f7856155ba12e4ae69a81979663a5e1dfe4219" }
+  ],
+  "unknownExtractionAttempts": 1,
+  "maxLLMAttemptsPerExtraction": 1,
+  "maxSerializedSourceChars": 48000,
+  "requestOutputLimit": 2000,
+  "staticRequestEnvelopeBytes": 2408,
+  "sourceEnvelopeMultiplier": 4,
+  "additionalMargin": 1024,
+  "formula": "ceil((2408 + 4 * 48000 + 2000 + 1024) / 1000) * 1000",
+  "estimatedRequestReservation": 197432,
+  "unknownHold": 198000,
+  "knownHistoricalTokens": 448496,
+  "olderUnreceiptedHold": 6591,
+  "combinedHistoricalOccupation": 653087,
+  "authorization": 1450000,
+  "availableBeforeNewBatch": 796913,
+  "reconciled": false,
+  "limitations": [
+    "Original request body and supplier billing receipt are unavailable",
+    "Four times the serialized source character limit covers JSON escaping and UTF-8 bytes for the local engineering estimate",
+    "Static envelope uses a placeholder model name; the additional margin covers that local difference",
+    "Bytes plus output are an engineering reservation estimate, not proof of the supplier's billing upper bound",
+    "The 198000 hold remains separate from 6591 and is not replaced by zero or counted as settled usage",
+    "New calls must remain serialized, use their own durable reservations, and halt on unknown or overrun"
+  ]
+}

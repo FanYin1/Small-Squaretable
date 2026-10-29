@@ -15,6 +15,8 @@ import { UnauthorizedError, ValidationError, BadRequestError } from '../../core/
 import { sendEmail } from '../../core/email';
 import { config } from '../../core/config';
 import { auditService } from './audit.service';
+import { ageConfirmationFields } from '../utils/age-confirmation';
+import { inviteCodeService, InviteCodeError, normalizeInviteCode } from './invite-code.service';
 import type { RegisterInput, LoginInput, AuthTokens, AuthUser } from '../../types/auth';
 import type { User } from '../../db/schema/users';
 
@@ -26,8 +28,26 @@ export type LoginResult =
   | { requiresMfa: false; user: AuthUser; tokens: AuthTokens }
   | { requiresMfa: true; mfaToken: string };
 
+/**
+ * 注册时额外带上的请求上下文。
+ * actorIp 不在 registerSchema 里——它来自请求头，不是客户端提交的字段，
+ * 让客户端能自己填 IP 等于让证据可伪造。
+ */
+export type RegisterContext = RegisterInput & { actorIp?: string };
+
 export class AuthService {
-  async register(input: RegisterInput): Promise<{ user: AuthUser; tokens: AuthTokens }> {
+  async register(input: RegisterContext): Promise<{ user: AuthUser; tokens: AuthTokens }> {
+    // 服务端复核一遍：前端勾选只是 UI，绕过前端直接打接口的情况必须挡住。
+    if (input.ageConfirmed !== true) {
+      throw new ValidationError('You must confirm you are at least 18 years old');
+    }
+
+    // 缺码先于任何查库和 bcrypt：不该为一个注定被拒的请求付出哈希成本。
+    if (!normalizeInviteCode(input.inviteCode)) {
+      throw new InviteCodeError('INVITE_CODE_REQUIRED');
+    }
+
+    // 邮箱查重放在消费邀请码之前：重复邮箱不该烧掉一个码。
     const existingUser = await userRepository.findByEmail(input.email);
     if (existingUser) {
       throw new ValidationError('Email already registered');
@@ -35,17 +55,42 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
-    // Create tenant first
-    const tenant = await tenantRepository.create({
-      name: input.displayName ?? input.email.split('@')[0],
-      plan: 'free',
-    });
+    // 消费邀请码 + 建租户 + 建用户 + 记录使用 在同一个事务里：
+    // 任何一步失败都整体回滚，不会出现「码被扣了但没建出号」或「号建了没扣码」。
+    const { tenant, user } = await inviteCodeService.createAccountWithInvite(
+      input.inviteCode,
+      { source: 'register', actorIp: input.actorIp },
+      async (tx) => {
+        const createdTenant = await tenantRepository.create(
+          {
+            name: input.displayName ?? input.email.split('@')[0],
+            plan: 'free',
+          },
+          tx
+        );
 
-    const user = await userRepository.create({
-      email: input.email,
-      passwordHash,
+        const createdUser = await userRepository.create(
+          {
+            email: input.email,
+            passwordHash,
+            tenantId: createdTenant.id,
+            displayName: input.displayName ?? null,
+            ...ageConfirmationFields(input.actorIp),
+          },
+          tx
+        );
+
+        return { id: createdUser.id, tenantId: createdTenant.id, tenant: createdTenant, user: createdUser };
+      }
+    );
+
+    // 用户表里的字段会随账号删除一起消失，审计里再留一份独立记录。
+    auditService.log({
       tenantId: tenant.id,
-      displayName: input.displayName ?? null,
+      actorId: user.id,
+      actorIp: input.actorIp,
+      action: 'age_confirm',
+      metadata: { source: 'register' },
     });
 
     // Generate email verification token

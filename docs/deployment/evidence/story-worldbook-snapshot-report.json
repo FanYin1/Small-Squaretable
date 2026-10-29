@@ -1,0 +1,215 @@
+{
+  "date": "2026-10-23T17:21:32.493Z",
+  "result": "passed",
+  "database": "disposable PostgreSQL",
+  "backend": "current built server",
+  "model": "local deterministic beta-smoke provider; not narrative-quality validation",
+  "networkInterception": "only drop one real committed creation response; no successful API responses fabricated",
+  "fixtures": [
+    "雾海之外",
+    "晚一点开门"
+  ],
+  "checks": [
+    "same-content four-page comparison: 390/1440, dark/light; view-only creates no chats or charges",
+    "market quick start: stored default persona, distinct save, matching opening, refresh without another POST",
+    "real WebSocket generation and one ledger charge; resume and reload retain exactly the selected opening and one user/assistant turn",
+    "same-card new run creates a distinct chat without copying or deleting the original messages",
+    "identity snapshot survives persona edit/deletion, a new story uses edited identity, and the actual model request uses the original name/biography",
+    "saved worldbook rules reach real model requests after source edit/deletion; new stories use edited rules; global books and hidden snapshot contents stay excluded",
+    "optional identity setup cancellation does not create a chat",
+    "after a real committed POST response is dropped, reload queries its request ID and opens the original chat without another POST",
+    "missing saved worldbooks stop generation visibly, release the held balance and create no generated assistant response or charge"
+  ],
+  "screenshots": [
+    "production-discover-390-dark.png",
+    "reference-discover-390-dark.png",
+    "production-detail-390-dark.png",
+    "reference-detail-390-dark.png",
+    "production-identity-390-dark.png",
+    "reference-identity-390-dark.png",
+    "production-library-390-dark.png",
+    "reference-library-390-dark.png",
+    "production-discover-390-light.png",
+    "reference-discover-390-light.png",
+    "production-detail-390-light.png",
+    "reference-detail-390-light.png",
+    "production-identity-390-light.png",
+    "reference-identity-390-light.png",
+    "production-library-390-light.png",
+    "reference-library-390-light.png",
+    "production-discover-1440-dark.png",
+    "reference-discover-1440-dark.png",
+    "production-detail-1440-dark.png",
+    "reference-detail-1440-dark.png",
+    "production-identity-1440-dark.png",
+    "reference-identity-1440-dark.png",
+    "production-library-1440-dark.png",
+    "reference-library-1440-dark.png",
+    "production-discover-1440-light.png",
+    "reference-discover-1440-light.png",
+    "production-detail-1440-light.png",
+    "reference-detail-1440-light.png",
+    "production-identity-1440-light.png",
+    "reference-identity-1440-light.png",
+    "production-library-1440-light.png",
+    "reference-library-1440-light.png"
+  ],
+  "sources": [
+    {
+      "path": "docs/design/exploration-demo/app.js",
+      "sha256": "b7f220fbcb51edacee24ff6169f99a990a5330dfbf5156d175ece5b2a569202f"
+    },
+    {
+      "path": "src/client/pages/Chat.vue",
+      "sha256": "3fac63aac84d34e93f044169d17ed15ef823814a2e34ec948cfc49d324e05f85"
+    },
+    {
+      "path": "src/client/pages/Market.vue",
+      "sha256": "0121e085be3b23b82c825960ab64c2f6b38de78711efdeac33820e132e649340"
+    },
+    {
+      "path": "src/client/pages/CharacterDetail.vue",
+      "sha256": "9b37e7e50e63b2664313aa5cf59dc329aa628480699dba40fef0ad5450964ee8"
+    },
+    {
+      "path": "src/client/components/layout/ExplorationLayout.vue",
+      "sha256": "8a6aadc018a4210a25793fb136875459e3dc202506e201951bac24bd979cf700"
+    },
+    {
+      "path": "src/client/components/chat/PersonaSelector.vue",
+      "sha256": "e064365ab326d293f866aac8014d965c9ffe8bab29bc287ec60229bde674c8e2"
+    },
+    {
+      "path": "src/client/components/chat/StorySaveCard.vue",
+      "sha256": "5223d1aad0d6997043373c4e12c1919c68f936bb3d7fa01754a8f6b6887b5d86"
+    },
+    {
+      "path": "src/client/styles/exploration-entry.css",
+      "sha256": "306cecaa5a640b8621f43330ade1c36152b04d4d112cd171bb4e815274070d4f"
+    },
+    {
+      "path": "src/client/main.ts",
+      "sha256": "9192d3fe1b216967567c1a577f6bf05b546e744be4b219ce390492fc2004a607"
+    },
+    {
+      "path": "src/client/router/index.ts",
+      "sha256": "939642490bc4f5b792ee99ffeb10baaf7608525fc967e11547c7adad229173ae"
+    },
+    {
+      "path": "src/client/stores/user.ts",
+      "sha256": "db63131b9e75da3464e26ba3c3dc1d1e4fabcde8e440a82d8420d762be5ac023"
+    },
+    {
+      "path": "src/server/middleware/rateLimit.ts",
+      "sha256": "c09c8602cc4409f5812140c8b9ba3c20e72bf4b5fafdbd23ca30973efd8000a3"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "2480659b9cd58dbcbabe32c519e28428681eb495f6b688ecebdd6d96bc8b0e2e"
+    },
+    {
+      "path": "scripts/exploration-entry-browser-check.mjs",
+      "sha256": "df07b944d3e49b9ef482f3eea8a1dfcab6555e498df59ead8216385f9e9d0830"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "70368844c7e2d58b2ebf04845489fa5be2c62d0453c54ac75ba71d91ba624d6c"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "a57cd07099773371272e04ec35c0fc6975307bee546a72da1e20a15691054d4e"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "55213660ddccf7a2968cc66621f7dbd4db3d323b178d0448e71971deaf072c0b"
+    },
+    {
+      "path": "src/types/story-identity.ts",
+      "sha256": "ad41fe44f8b2924d15fd3b52db33ae9de450a9357cc37e77514669ee3bb9bae8"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "8e6312980fd51b4cc5404b8684baf299f3d2f66837c80839ceb0951348c9d0ed"
+    },
+    {
+      "path": "src/server/services/chat.service.ts",
+      "sha256": "58b192836ff32f020fd4e3bc099a238dd53be48e0e096fd41f1bcdce227cc1d2"
+    },
+    {
+      "path": "src/server/routes/chats.ts",
+      "sha256": "a87b43e4f95990e30e6073c2e9d3e7022623bd32ba9944b267cdead5c5e7c7d6"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "3025d4bd744e77e319f3ee012104b3fad285a6b90976a94de6109fa02e2cc28b"
+    },
+    {
+      "path": "src/client/composables/useStoryIdentity.ts",
+      "sha256": "b2b77d54e7b5e9c119925b74fe2e93a3982041f18f361e9dcde215ff241843aa"
+    },
+    {
+      "path": "src/client/services/chat.api.ts",
+      "sha256": "0b6ce1e3eb1aeb3406f0976a08673c1fa3cf05754cb75740d848710b94a937a6"
+    },
+    {
+      "path": "src/client/stores/chat.ts",
+      "sha256": "1db52a7193764e20f32545c212f4b5ac6ffb4ddaa6198951001b3c41d0abf2a8"
+    },
+    {
+      "path": "src/db/schema/chats.ts",
+      "sha256": "2179b105d7d788185e3225fea0e0faf293966ea800e27bbc05cbe3684f6cf56e"
+    },
+    {
+      "path": "src/db/migrations/0042_story_identity_snapshot.sql",
+      "sha256": "734b9210b02986c25c35f4b4409135f51d5b97d5d7d35cb311602bb3875f457c"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "scripts/chat-creation-concurrency-check.ts",
+      "sha256": "c8b554b8fc499ac9f3526b2ceb50f7960ed21183692f7f0c3c73bece417934c7"
+    },
+    {
+      "path": "src/types/story-worldbooks.ts",
+      "sha256": "8622923b8a1fdf50dd80812290fe62be1a3f7d6622ad29591fc241b11590aa40"
+    },
+    {
+      "path": "src/db/schema/story-worldbooks.ts",
+      "sha256": "62474a8611c79106ffa90c7887f7cae767ab253997576f41008fae4737ab0fc0"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/server/services/worldinfo-engine.service.ts",
+      "sha256": "1bdd6d18f64fd7485ee5882bd77469210c3232eb507f585f9edcf9de468a0b6a"
+    },
+    {
+      "path": "src/db/migrations/0043_story_worldbooks.sql",
+      "sha256": "533b9ebdca16ff103b331fab6cd3748234c0d7bd43235e131bed3fc10bee5d15"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/client/components/chat/ChatWindow.vue",
+      "sha256": "ba75353230e844963063a247dc1e6bfe9bd1f217b782ed6125baf2288ef08534"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "d903d9ef6cf243652b7efa883290e71c57009d53be50ff75b73bac7669c4f9b7"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "e1447c23241cc18b4df0eb80773c5ce17c1465f599e82b3b5af444e048f69ef9"
+    }
+  ]
+}

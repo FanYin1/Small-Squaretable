@@ -2,15 +2,17 @@
  * MyCharacters page tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import i18n from '../i18n';
 import MyCharacters from './MyCharacters.vue';
+import { characterCollectionApi } from '@client/services/character-collection.api';
 
 // --- Mocks ---
 
 const mockPush = vi.fn();
+const mockHasFeature = vi.fn(() => true);
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockPush }),
@@ -30,6 +32,8 @@ vi.mock('@client/services/api', () => ({
 }));
 
 const mockGetCharacters = vi.fn();
+const mockBatchImport = vi.fn();
+const mockToastSuccess = vi.fn();
 
 vi.mock('@client/services/character.api', () => ({
   characterApi: {
@@ -43,7 +47,7 @@ vi.mock('@client/services/character.api', () => ({
 vi.mock('@client/services/export.api', () => ({
   exportApi: {
     batchExportCharacters: vi.fn(),
-    batchImportCharacters: vi.fn(),
+    batchImportCharacters: (...args: unknown[]) => mockBatchImport(...args),
   },
 }));
 
@@ -57,21 +61,22 @@ vi.mock('@client/services/character-collection.api', () => ({
 
 vi.mock('@client/composables/useFeatureGate', () => ({
   useFeatureGate: () => ({
-    hasFeature: () => true,
+    hasFeature: () => mockHasFeature(),
     currentPlan: { value: 'pro' },
   }),
 }));
 
 vi.mock('@client/composables/useToast', () => ({
   useToast: () => ({
-    success: vi.fn(),
+    success: (...args: unknown[]) => mockToastSuccess(...args),
     error: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
   }),
 }));
 
-vi.mock('@client/utils/sillytavern', () => ({
+vi.mock('@client/utils/sillytavern', async () => ({
+  ...await vi.importActual<Record<string, unknown>>('@client/utils/sillytavern'),
   downloadCharacterJson: vi.fn(),
   readCharacterFile: vi.fn(),
 }));
@@ -114,19 +119,15 @@ const sampleCharacters = [
 ];
 
 const stubs = {
-  DashboardLayout: {
+  ExplorationLayout: {
     template: '<div class="dashboard-layout"><slot name="title" /><slot name="center" /><slot name="actions" /><slot /></div>',
   },
   CollectionSidebar: { template: '<div class="collection-sidebar" />' },
-  CharacterCard: {
-    template: '<div class="character-card">{{ character.name }}</div>',
-    props: ['character'],
-  },
   EmptyState: {
     template: '<div class="empty-state" :data-type="type"><slot /></div>',
     props: ['type'],
   },
-  CharacterPublishForm: { template: '<div />' },
+  CharacterPublishForm: { name: 'CharacterPublishForm', props: ['visible', 'character'], template: '<div />' },
   // 渲染成 data-* 才能断言透传的字段：声明了 props 的 stub 会把绑定吃掉，
   // 属性不会出现在 DOM 里
   ModerationStatusBadge: {
@@ -134,7 +135,7 @@ const stubs = {
     props: ['status', 'note', 'category'],
   },
   'el-input': { template: '<input v-bind="$attrs" />' },
-  'el-button': { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' },
+  'el-button': { emits: ['click'], template: '<button v-bind="$attrs" @click="$emit(\'click\', $event)"><slot /></button>' },
   'el-tabs': { template: '<div class="el-tabs"><slot /></div>', props: ['modelValue'] },
   'el-tab-pane': { template: '<div class="el-tab-pane"><slot /><slot name="label" /></div>', props: ['name'] },
   'el-checkbox': { template: '<input type="checkbox" />', props: ['modelValue'] },
@@ -143,6 +144,9 @@ const stubs = {
   'el-form-item': { template: '<div><slot /></div>' },
   'el-select': { template: '<select><slot /></select>' },
   'el-icon': { template: '<i />' },
+  'el-dropdown': { template: '<div><slot /><slot name="dropdown" /></div>' },
+  'el-dropdown-menu': { template: '<ul><slot /></ul>' },
+  'el-dropdown-item': { template: '<li><slot /></li>' },
 };
 
 function mountPage(items = sampleCharacters) {
@@ -157,8 +161,182 @@ function mountPage(items = sampleCharacters) {
 }
 
 describe('MyCharacters', () => {
+  afterEach(() => vi.useRealTimers());
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasFeature.mockReturnValue(true);
+  });
+
+  it('opens local publication preview without entitlement or a write request', async () => {
+    mockHasFeature.mockReturnValue(false);
+    const wrapper = mountPage();
+    await flushPromises();
+    wrapper.findComponent({ name: 'PrivateStoryCard' }).vm.$emit('manage', 'publish');
+    await flushPromises();
+    expect(wrapper.findComponent({ name: 'CharacterPublishForm' }).props('visible')).toBe(true);
+    expect(mockApiPost).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('starts an imported card through the same quick-entry contract as discovery', async () => {
+    mockGetCharacters.mockResolvedValueOnce({ characters: sampleCharacters, pagination: { hasNext: false } });
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.findAll('.private-story-enter')[0].trigger('click');
+    expect(mockPush).toHaveBeenCalledWith({ name: 'Chat', query: { characterId: '1', storyEntry: 'quick' } });
+    wrapper.unmount();
+  });
+
+  it('offers remaining pages without pretending the first page is the full collection', async () => {
+    mockGetCharacters.mockResolvedValueOnce({ characters: [sampleCharacters[0]], pagination: { hasNext: true } });
+    const wrapper = mountPage();
+    await flushPromises();
+    expect((wrapper.vm as any).nextPage).toBe(2);
+    expect(wrapper.text()).toContain(i18n.global.t('myCharacters.partialList'));
+    mockGetCharacters.mockResolvedValueOnce({ characters: [sampleCharacters[1]], pagination: { hasNext: false } });
+    await (wrapper.vm as any).fetchCharacters(true);
+    expect(mockGetCharacters).toHaveBeenLastCalledWith({ page: 2, limit: 50 }, { signal: expect.any(AbortSignal) });
+    expect((wrapper.vm as any).characters).toHaveLength(2);
+    expect((wrapper.vm as any).nextPage).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('shows a load error rather than the create-your-first-work empty state', async () => {
+    mockGetCharacters.mockRejectedValueOnce(new Error('offline'));
+    const wrapper = mountPage();
+    await flushPromises();
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true);
+    expect(wrapper.findComponent({ name: 'EmptyState' }).exists()).toBe(false);
+    await (wrapper.vm as any).fetchCharacters();
+    expect((wrapper.vm as any).loadFailed).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('does not let an older list response overwrite the latest request', async () => {
+    let finish!: (result: object) => void;
+    mockGetCharacters.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const wrapper = mountPage();
+    await (wrapper.vm as any).fetchCharacters();
+    finish({ characters: [{ ...sampleCharacters[0], id: 'obsolete' }] });
+    await flushPromises();
+    expect((wrapper.vm as any).characters.map((item: { id: string }) => item.id)).not.toContain('obsolete');
+    wrapper.unmount();
+  });
+
+  it('ends a hanging first-page read after 15 seconds and retries only on user action', async () => {
+    vi.useFakeTimers();
+    let finish!: (result: object) => void;
+    mockGetCharacters.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const wrapper = mountPage();
+    await flushPromises();
+    const signal = mockGetCharacters.mock.calls[0][1].signal as AbortSignal;
+    await vi.advanceTimersByTimeAsync(15000);
+    await nextTick();
+    expect(signal.aborted).toBe(true);
+    expect((wrapper.vm as any).loading).toBe(false);
+    expect(wrapper.get('[data-testid="library-load-error"]').text()).toContain(i18n.global.t('myCharacters.loadListTimedOut'));
+    expect(wrapper.get('[data-testid="library-load-error"] button').text()).toBe(i18n.global.t('myCharacters.retryLoad'));
+    expect(wrapper.find('.empty-state').exists()).toBe(false);
+    expect(mockGetCharacters).toHaveBeenCalledTimes(1);
+    await wrapper.get('[data-testid="library-load-error"] button').trigger('click');
+    await flushPromises();
+    expect(mockGetCharacters).toHaveBeenCalledTimes(2);
+    expect(mockGetCharacters.mock.calls[1][0]).toEqual({ page: 1, limit: 50 });
+    finish({ characters: [{ ...sampleCharacters[0], id: 'late-timeout' }] });
+    await flushPromises();
+    expect((wrapper.vm as any).characters).toEqual(sampleCharacters);
+    expect(wrapper.find('[data-testid="library-load-error"]').exists()).toBe(false);
+    wrapper.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps loaded cards on page timeout and retries that same remaining page', async () => {
+    vi.useFakeTimers();
+    mockGetCharacters.mockResolvedValueOnce({ characters: [sampleCharacters[0]], pagination: { hasNext: true } });
+    const wrapper = mountPage();
+    await flushPromises();
+    mockGetCharacters.mockReturnValueOnce(new Promise(() => {}));
+    const pending = (wrapper.vm as any).fetchCharacters(true);
+    await vi.advanceTimersByTimeAsync(15000);
+    await pending;
+    expect((wrapper.vm as any).characters).toEqual([sampleCharacters[0]]);
+    expect((wrapper.vm as any).nextPage).toBe(2);
+    mockGetCharacters.mockResolvedValueOnce({ characters: [sampleCharacters[1]], pagination: { hasNext: false } });
+    await wrapper.get('[data-testid="library-load-error"] button').trigger('click');
+    await flushPromises();
+    expect(mockGetCharacters.mock.calls.at(-1)[0]).toEqual({ page: 2, limit: 50 });
+    expect((wrapper.vm as any).characters).toEqual(sampleCharacters);
+    wrapper.unmount();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancels superseded and unmounted reads without late errors or loading state changes', async () => {
+    vi.useFakeTimers();
+    mockGetCharacters.mockReturnValueOnce(new Promise(() => {}));
+    const wrapper = mountPage();
+    const firstSignal = mockGetCharacters.mock.calls[0][1].signal as AbortSignal;
+    await (wrapper.vm as any).fetchCharacters();
+    expect(firstSignal.aborted).toBe(true);
+    expect((wrapper.vm as any).loadFailed).toBe(false);
+    mockGetCharacters.mockReturnValueOnce(new Promise(() => {}));
+    const pending = (wrapper.vm as any).fetchCharacters();
+    const lastSignal = mockGetCharacters.mock.calls.at(-1)[1].signal as AbortSignal;
+    wrapper.unmount();
+    await pending;
+    expect(lastSignal.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('applies the same deadline to collection reads and clears the old collection on switching', async () => {
+    vi.useFakeTimers();
+    const wrapper = mountPage();
+    await flushPromises();
+    vi.mocked(characterCollectionApi.getCollectionCharacters).mockReturnValueOnce(new Promise(() => {}));
+    (wrapper.vm as any).handleCollectionSelect('collection-one');
+    const signal = vi.mocked(characterCollectionApi.getCollectionCharacters).mock.calls.at(-1)![1]!.signal!;
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(signal.aborted).toBe(true);
+    expect((wrapper.vm as any).loadTimedOut).toBe(true);
+    (wrapper.vm as any).handleCollectionSelect(null);
+    await flushPromises();
+    expect((wrapper.vm as any).characters).toEqual(sampleCharacters);
+    expect((wrapper.vm as any).loadFailed).toBe(false);
+    wrapper.unmount();
+  });
+
+  it.each([0, 1])('retains per-file failures with %s imported characters and does not report all-success', async count => {
+    const wrapper = mountPage();
+    await flushPromises();
+    mockBatchImport.mockResolvedValue({
+      imported: count ? [{ id: 'new', name: 'New card' }] : [],
+      failed: [{ filename: 'broken.png', code: 'INVALID_METADATA', error: 'Invalid metadata' }],
+      total: count + 1,
+    });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, 'files', { value: [new File(['bad'], 'broken.png')] });
+    await input.trigger('change');
+    await flushPromises();
+    const result = wrapper.get('[data-testid="import-result"]');
+    expect(result.text()).toContain('broken.png');
+    expect(result.text()).toContain(i18n.global.t('myCharacters.importErrors.INVALID_METADATA'));
+    expect(result.text()).toContain(i18n.global.t('myCharacters.batchImportResult', { imported: count, failed: 1 }));
+    expect(mockToastSuccess).not.toHaveBeenCalled();
+    expect(mockGetCharacters).toHaveBeenCalledTimes(count + 1);
+    await result.get('button').trigger('click');
+    expect(wrapper.find('[data-testid="import-result"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('reports a numeric count when every file succeeds', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+    mockBatchImport.mockResolvedValue({ imported: [{ id: 'new', name: 'New card' }], failed: [], total: 1 });
+    const input = wrapper.find('input[type="file"]');
+    Object.defineProperty(input.element, 'files', { value: [new File(['{}'], 'card.json')] });
+    await input.trigger('change');
+    await flushPromises();
+    expect(mockToastSuccess).toHaveBeenCalledWith(i18n.global.t('myCharacters.batchImportSuccess', { count: 1 }));
+    wrapper.unmount();
   });
 
   it('renders character cards when data exists', async () => {
@@ -166,7 +344,7 @@ describe('MyCharacters', () => {
     await flushPromises();
     await nextTick();
 
-    const cards = wrapper.findAll('.character-card');
+    const cards = wrapper.findAll('.private-story-card');
     expect(cards).toHaveLength(2);
     expect(cards[0].text()).toContain('Alice');
     expect(cards[1].text()).toContain('Bob');
@@ -195,7 +373,7 @@ describe('MyCharacters', () => {
     await flushPromises();
     await nextTick();
 
-    const emptyState = wrapper.find('.empty-state');
+    const emptyState = wrapper.find('.library-empty');
     expect(emptyState.exists()).toBe(true);
     expect(emptyState.attributes('data-type')).toBe('no-data');
   });

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>07A / 07C 页面核对</title>
+<style>
+body{margin:0;padding:24px;background:#151615;color:#ede9df;font:16px/1.7 system-ui,sans-serif}main{max-width:1600px;margin:auto}h1{font-size:28px;font-weight:500}p{max-width:1000px;color:#b0b2a6}form{display:flex;flex-wrap:wrap;gap:16px;padding:16px 0}select{font:inherit;padding:8px;background:#242722;color:#ede9df;border:1px solid #818775;border-radius:6px}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:20px}figure{margin:0;min-width:0}figcaption{padding:12px 0}img{width:100%;height:auto;display:block;border:1px solid #3b4037}a{color:#e9bd78}@media(max-width:700px){.comparison{grid-template-columns:1fr}body{padding:16px}}
+</style>
+<main>
+<h1>07A / 07C：原型与正式构建逐页核对</h1>
+<p>截图来自隔离真实 API 与受控模型验收。四个入口页面使用相同故事素材；创作页与账户页比较结构及功能落点，真实账户、空白编辑器与原型演示数据有所不同。生产部署摘要另见交付记录。浏览器窄视口不能替代手机真机或用户视觉签收。</p>
+<form aria-label="画面对照选择">
+<label>页面 <select id="page"><option value="discover">发现</option><option value="detail">详情</option><option value="identity">可选身份</option><option value="library">我的故事</option><option value="create">创作</option><option value="account">账户</option></select></label>
+<label>宽度 <select id="width"><option>390</option><option>768</option><option selected>1440</option></select></label>
+<label>主题 <select id="theme"><option value="dark">深色</option><option value="light">浅色</option></select></label>
+</form>
+<div class="comparison"><figure><figcaption>已保存原型</figcaption><a id="reference-link"><img id="reference" alt="所选页面的原型画面"></a></figure><figure><figcaption>正式构建 · 真实 API</figcaption><a id="production-link"><img id="production" alt="所选页面的正式构建画面"></a></figure></div>
+<p><a href="README.md">差异说明与验收边界</a> · <a href="../../deployment/story-entry-creator-07ac-completion.md">交付记录</a></p>
+</main>
+<script>
+const controls = ['page','width','theme'].map(id => document.getElementById(id));
+function update(){const [page,width,theme]=controls.map(control=>control.value);for(const kind of ['reference','production']){const path=`${kind}-${page}-${width}-${theme}.webp`;document.getElementById(kind).src=path;document.getElementById(`${kind}-link`).href=path;}}
+controls.forEach(control=>control.addEventListener('change',update));update();
+</script>
+</html>

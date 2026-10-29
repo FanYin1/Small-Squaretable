@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-25T12:42:39.450Z",
+  "incident": "Prewritten deployment events activated the normal database memory-enqueue trigger; original zero-call claim is withdrawn",
+  "fixtureStoryId": "41c5aa40-486f-4519-ab07-9ec5c3374196",
+  "jobs": {
+    "jobs": 7,
+    "attempts": 6,
+    "running": 0,
+    "due": 0,
+    "extracted": 5
+  },
+  "counter": {
+    "day": "2026-10-25",
+    "counter": "spend-breaker daily platform tokens",
+    "increments": [
+      1880,
+      1435,
+      2053,
+      1736,
+      1529
+    ],
+    "total": 8633,
+    "note": "Filtered numerical counter operations only; no credentials or other Redis data retained"
+  },
+  "recordedSuccessfulCalls": 5,
+  "failedAttemptWithoutUsageReceipt": 1,
+  "accounting": {
+    "previousKnownTokens": 439863,
+    "previousUnreceiptedReservation": 6591,
+    "additionalPlatformRecordedTokens": 8633,
+    "knownRecordedTokens": 448496,
+    "minimumOccupiedTokens": 455087,
+    "authorization": 450000,
+    "minimumOverage": 5087,
+    "remainingAuthorizedTokens": 0,
+    "newFailedAttemptUsage": "unknown; not counted as zero"
+  },
+  "containment": {
+    "onlySyntheticFixtureJobs": true,
+    "availableAt": "2099-01-01T00:00:00Z",
+    "originalAttemptsAndCheckpointsPreserved": true,
+    "futureFixtureSeedDefersJobsInSameTransaction": true
+  },
+  "limits": [
+    "Platform spend counter was retained; no per-request provider billing receipt was persisted",
+    "Five extraction checkpoints failed at embedding; one extraction attempt failed with unknown usage",
+    "No user story was deleted or rewritten; normal production memory processing was not disabled"
+  ]
+}

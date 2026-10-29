@@ -78,6 +78,34 @@
       "when": 1770630881000,
       "tag": "0011_serious_khan",
       "breakpoints": true
-    }
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792540800000,
+      "tag": "0040_generation_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792627200000,
+      "tag": "0041_chat_creation_requests",
+      "breakpoints": true
+    },
+    { "idx": 13, "version": "7", "when": 1792713600000, "tag": "0042_story_identity_snapshot", "breakpoints": true },
+    { "idx": 14, "version": "7", "when": 1792800000000, "tag": "0043_story_worldbooks", "breakpoints": true },
+    { "idx": 15, "version": "7", "when": 1792800000001, "tag": "0044_story_content", "breakpoints": true },
+    { "idx": 16, "version": "7", "when": 1792800000002, "tag": "0045_story_state", "breakpoints": true },
+    { "idx": 17, "version": "7", "when": 1792800000003, "tag": "0046_story_memory_scope", "breakpoints": true },
+    { "idx": 18, "version": "7", "when": 1792800000004, "tag": "0047_story_deletion_receipts", "breakpoints": true },
+    { "idx": 19, "version": "7", "when": 1792800000005, "tag": "0048_story_memory_jobs", "breakpoints": true },
+    { "idx": 20, "version": "7", "when": 1792800000006, "tag": "0049_character_import_repairs", "breakpoints": true },
+    { "idx": 21, "version": "7", "when": 1792886400000, "tag": "0050_legacy_chat_variables", "breakpoints": true },
+    { "idx": 22, "version": "7", "when": 1792886400001, "tag": "0051_story_intent_proposals", "breakpoints": true },
+    { "idx": 23, "version": "7", "when": 1792972800000, "tag": "0052_story_corrections", "breakpoints": true },
+    { "idx": 24, "version": "7", "when": 1793059200000, "tag": "0053_story_adapter_jobs", "breakpoints": true },
+    { "idx": 25, "version": "7", "when": 1793059200001, "tag": "0054_character_presentations", "breakpoints": true },
+    { "idx": 26, "version": "7", "when": 1793059200002, "tag": "0055_presentation_jobs", "breakpoints": true }
   ]
 }

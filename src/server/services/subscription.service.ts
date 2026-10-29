@@ -1,15 +1,21 @@
 import Stripe from 'stripe';
 import { subscriptionRepository } from '../../db/repositories/subscription.repository';
 import { stripeWebhookEventRepository } from '../../db/repositories/stripe-webhook-event.repository';
-import { NotFoundError, ValidationError } from '../../core/errors';
+import { AppError, NotFoundError, ValidationError } from '../../core/errors';
 import { config } from '../../core/config';
 import { logger } from './logger.service';
 import { auditService } from './audit.service';
 import type { Subscription } from '../../db/schema/subscriptions';
 
-const stripe = new Stripe(config.stripeSecretKey, {
-  apiVersion: '2026-01-28.clover',
-});
+let stripeClient: Stripe | undefined;
+
+function getStripe(): Stripe {
+  if (!config.stripeSecretKey) {
+    throw new AppError('Online payments are unavailable', 503, 'PAYMENTS_UNAVAILABLE');
+  }
+  stripeClient ??= new Stripe(config.stripeSecretKey, { apiVersion: '2026-01-28.clover' });
+  return stripeClient;
+}
 
 const subscriptionLogger = logger.child({ module: 'subscription' });
 
@@ -31,6 +37,7 @@ export class SubscriptionService {
   }
 
   async createOrGetCustomer(tenantId: string, email: string): Promise<string> {
+    const stripe = getStripe();
     const existingSub = await subscriptionRepository.findByTenantId(tenantId);
     if (existingSub?.stripeCustomerId) {
       return existingSub.stripeCustomerId;
@@ -66,7 +73,7 @@ export class SubscriptionService {
   ): Promise<string> {
     const customerId = await this.createOrGetCustomer(tenantId, email);
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -84,6 +91,7 @@ export class SubscriptionService {
   }
 
   async createBillingPortalSession(tenantId: string, returnUrl: string): Promise<string> {
+    const stripe = getStripe();
     const subscription = await subscriptionRepository.findByTenantId(tenantId);
     if (!subscription?.stripeCustomerId) {
       throw new NotFoundError('Subscription');
@@ -108,6 +116,7 @@ export class SubscriptionService {
    * 处理失败不能静默吞掉，否则用户付了钱而库里没有记录。
    */
   async handleWebhook(payload: string, signature: string): Promise<void> {
+    const stripe = getStripe();
     const webhookSecret = config.stripeWebhookSecret;
     let event: Stripe.Event;
 
@@ -183,7 +192,7 @@ export class SubscriptionService {
     const tenantId = session.metadata?.tenantId;
     if (!tenantId || !session.subscription) return;
 
-    const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+    const subscription = await getStripe().subscriptions.retrieve(session.subscription as string);
     const priceId = subscription.items.data[0]?.price.id;
     const plan = PRICE_TO_PLAN[priceId] || 'pro';
 
@@ -397,7 +406,7 @@ export class SubscriptionService {
       return this.extractCustomerId(dispute.charge);
     }
 
-    const charge = await stripe.charges.retrieve(dispute.charge);
+    const charge = await getStripe().charges.retrieve(dispute.charge);
     return this.extractCustomerId(charge);
   }
 

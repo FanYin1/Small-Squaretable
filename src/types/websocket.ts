@@ -19,6 +19,8 @@ export enum WSMessageType {
   ASSISTANT_MESSAGE = 'assistant_message',
   ASSISTANT_MESSAGE_CHUNK = 'assistant_message_chunk',
   ASSISTANT_MESSAGE_DONE = 'assistant_message_done',
+  GENERATION_FINISHED = 'generation_finished',
+  GENERATION_STATE = 'generation_state',
   USER_TYPING = 'user_typing',
   ERROR = 'error',
   PONG = 'pong',
@@ -82,8 +84,11 @@ export interface WSUserMessage extends WSMessage {
     chatId: string;
     content: string;
     messageId?: string;
+    clientMessageId?: string;
     attachments?: WSAttachment[];
     mentionedCharacterIds?: string[];
+    storyAction?: import('./story-state').StoryActionRequest;
+    storyAudience?: import('./story-knowledge').StoryAudience;
   };
 }
 
@@ -106,6 +111,7 @@ export interface WSAssistantMessageChunk extends WSMessage {
   type: WSMessageType.ASSISTANT_MESSAGE_CHUNK;
   data: {
     chatId: string;
+    requestId?: string;
     messageId: string;
     chunk: string;
     index: number;
@@ -121,10 +127,20 @@ export interface WSAssistantMessageDone extends WSMessage {
   type: WSMessageType.ASSISTANT_MESSAGE_DONE;
   data: {
     chatId: string;
+    requestId?: string;
     messageId: string;
     totalTokens?: number;
     characterId?: string;
     characterName?: string;
+    /** 本轮回复是否改动了聊天变量（客户端据此刷新 ERA 变量面板） */
+    variablesChanged?: boolean;
+    stateStatus?: 'confirmed' | 'interrupted' | 'proposed';
+    storyAudience?: import('./story-knowledge').StoryAudience;
+    storyIntent?: import('./story-intent').StoredStoryIntent;
+    storyConfirmedIntent?: import('./story-intent').StoryIntent;
+    storyIntentInvalid?: boolean;
+    storyRecommendations?: Array<{ label: string; input: string }>;
+    storyRecommendationsSource?: import('./story-recommendations').StoryRecommendationsSource;
   };
 }
 
@@ -158,6 +174,8 @@ export interface WSErrorMessage extends WSMessage {
   type: WSMessageType.ERROR;
   data: {
     code: string;
+    chatId?: string;
+    requestId?: string;
     message: string;
     details?: unknown;
   };
@@ -177,6 +195,26 @@ export interface WSAbortGenerationMessage extends WSMessage {
   type: WSMessageType.ABORT_GENERATION;
   data: {
     chatId: string;
+    requestId?: string;
+  };
+}
+
+export interface WSGenerationFinishedMessage extends WSMessage {
+  type: WSMessageType.GENERATION_FINISHED;
+  data: {
+    chatId: string;
+    requestId: string;
+    status: 'completed' | 'stopped' | 'failed';
+    retryable?: boolean;
+  };
+}
+
+export interface WSGenerationStateMessage extends WSMessage {
+  type: WSMessageType.GENERATION_STATE;
+  data: {
+    chatId: string;
+    status: 'running' | 'idle';
+    requestId?: string;
   };
 }
 
@@ -231,6 +269,8 @@ export type WSMessageUnion =
   | WSAssistantMessage
   | WSAssistantMessageChunk
   | WSAssistantMessageDone
+  | WSGenerationFinishedMessage
+  | WSGenerationStateMessage
   | WSTypingMessage
   | WSChatControlMessage
   | WSErrorMessage
@@ -256,6 +296,7 @@ export type WSMessageUnion =
 export interface WSClientConfig {
   url: string;
   token: string;
+  refreshAccessToken?: () => Promise<string>;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
   heartbeatInterval?: number;

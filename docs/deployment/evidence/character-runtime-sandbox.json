@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-24T16:17:37.574Z",
+  "result": "passed",
+  "checks": [
+    "Actual SandboxedHtml static mode renders markup, blocks inline script and labels inactive author controls",
+    "Actual interactive panel receives initial and updated variables through the bounded display bridge",
+    "Actual EraScriptRunner opaque iframe denies parent DOM/storage and fetch; getVar reads scoped server data; unavailable APIs reject explicitly",
+    "Changed chat reloads the bridge from its own server scope; narrow viewport has no horizontal overflow or page errors"
+  ],
+  "sources": {
+    "src/client/components/chat/EraScriptRunner.vue": "db2e3af3c264d2830514f17f1e39d3e821c8c3ce1c738c0b59c5bcdba3d78b01",
+    "src/client/components/chat/SandboxedHtml.vue": "dfaa1821b1a78b06b8051451c8ba6dd61bc41b5d092032dc1f53ef53a84051d8",
+    "src/client/utils/card-sandbox.ts": "4c5b17d880905d2d81009600d6a079c7556bb0d56d3ae371a562fae84924d209",
+    "src/client/utils/sillytavern-shim.ts": "f93cf104e90f92f214185f97ef3f4839b9c288c646bd7bc281bc89da36c6d6f3",
+    "src/client/utils/era-bridge.ts": "b0238354fbebf0a6542c058ded7865a81620d276b3a557c0814baa04e30d674a",
+    "scripts/card-sandbox-check.mjs": "2f09cfd4721bf18e0ad5cc011f1ec29cfc9d7977b95d398ee4c7abf0ce285c34"
+  },
+  "limits": [
+    "Owned synthetic scripts only; no third-party author code executed",
+    "Component harness, not deployed candidate verification",
+    "Opaque iframe/CSP do not establish arbitrary-script resource or navigation containment",
+    "Legacy writes are transient; frozen stories do not execute author scripts"
+  ]
+}

@@ -170,14 +170,15 @@ const presetForm = ref({
 async function loadPresets() {
   loading.value = true;
   try {
-    const response = await api.get('/presets');
-    let allPresets = response.data.data || [];
+    // api.get 已解包 data 字段，直接返回预设数组
+    const response = await api.get<Array<{ isGlobal: boolean }> | null>('/presets');
+    let allPresets = response || [];
 
     // Filter based on active tab
     if (activeTab.value === 'global') {
-      allPresets = allPresets.filter((p: any) => p.isGlobal);
+      allPresets = allPresets.filter((p) => p.isGlobal);
     } else if (activeTab.value === 'character') {
-      allPresets = allPresets.filter((p: any) => !p.isGlobal);
+      allPresets = allPresets.filter((p) => !p.isGlobal);
     }
 
     presets.value = allPresets;

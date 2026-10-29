@@ -134,7 +134,7 @@ onMounted(() => {
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .chat-templates-page {
   max-width: 900px;
   margin: 0 auto;
@@ -197,7 +197,7 @@ onMounted(() => {
   padding: 40px 0;
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .chat-templates-page {
     padding: 16px;
   }

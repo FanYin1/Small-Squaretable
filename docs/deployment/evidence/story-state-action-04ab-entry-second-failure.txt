@@ -1,0 +1,81 @@
+Entry failure diagnostics: /tmp/squaretable-entry-integration-evidence/5d88fa98-3063-4a72-8f31-7b56ebbf9d44
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   {
++     path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
++     status: 409
++   },
++   {
++     path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
++     status: 409
++   },
++   {
++     path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
++     status: 409
++   },
++   {
++     path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
++     status: 409
++   },
++   {
++     path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
++     status: 409
++   },
++   {
++     path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
++     status: 409
++   },
++   {
++     path: '/api/v1/characters/71ded8d3-7068-43a7-893c-c650aa7d3868/intelligence/memories',
++     status: 409
++   }
++ ]
+- []
+
+    at checkExplorationEntry (file:///var/aichat/Small-Squaretable/scripts/exploration-entry-browser-check.mjs:280:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///var/aichat/Small-Squaretable/scripts/beta-smoke-check.mjs:367:60 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    {
+      path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
+      status: 409
+    },
+    {
+      path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
+      status: 409
+    },
+    {
+      path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
+      status: 409
+    },
+    {
+      path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
+      status: 409
+    },
+    {
+      path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
+      status: 409
+    },
+    {
+      path: '/api/v1/characters/2083b0ef-8ec2-4412-9330-0ea2f67474fa/intelligence/memories',
+      status: 409
+    },
+    {
+      path: '/api/v1/characters/71ded8d3-7068-43a7-893c-c650aa7d3868/intelligence/memories',
+      status: 409
+    }
+  ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.13.0

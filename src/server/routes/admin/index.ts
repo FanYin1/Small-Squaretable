@@ -12,6 +12,9 @@ import { adminAuditRoutes } from './audit';
 import { adminGdprRoutes } from './gdpr';
 import { adminExperimentRoutes } from './experiments';
 import { adminJobRoutes } from './jobs';
+import { adminInviteCodeRoutes } from './invite-codes';
+import { adminCreditRoutes } from './credits';
+import { isModuleEnabled } from '../../../core/modules';
 
 export const adminRoutes = new Hono();
 
@@ -20,5 +23,10 @@ adminRoutes.route('/content', adminContentRoutes);
 adminRoutes.route('/system', adminSystemRoutes);
 adminRoutes.route('/audit-logs', adminAuditRoutes);
 adminRoutes.route('/gdpr', adminGdprRoutes);
-adminRoutes.route('/experiments', adminExperimentRoutes);
+// P2-1：A/B 实验属于 analytics 模块，关闭时不挂
+if (isModuleEnabled('analytics')) {
+  adminRoutes.route('/experiments', adminExperimentRoutes);
+}
 adminRoutes.route('/jobs', adminJobRoutes);
+adminRoutes.route('/invite-codes', adminInviteCodeRoutes);
+adminRoutes.route('/credits', adminCreditRoutes);

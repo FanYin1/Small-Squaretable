@@ -74,7 +74,7 @@ function openEdit(persona: UserPersona) {
     name: persona.name,
     description: persona.description || '',
     avatarUrl: persona.avatarUrl || '',
-    metadata: { ...persona.metadata } || {},
+    metadata: { ...persona.metadata },
     isDefault: persona.isDefault,
   };
   dialogVisible.value = true;

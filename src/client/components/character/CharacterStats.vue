@@ -5,12 +5,12 @@ import { View, Download, Star, ChatDotRound, StarFilled } from '@element-plus/ic
 
 const props = defineProps<{
   character: {
-    viewCount: number;
-    downloadCount: number;
-    favoriteCount: number;
-    commentCount: number;
-    ratingAvg: number | string | null;
-    ratingCount: number;
+    viewCount?: number;
+    downloadCount?: number;
+    favoriteCount?: number;
+    commentCount?: number;
+    ratingAvg?: number | string | null;
+    ratingCount?: number;
   };
 }>();
 
@@ -24,7 +24,7 @@ const stats = computed(() => [
   {
     label: t('characterStats.rating'),
     value: props.character.ratingAvg
-      ? `${Number(props.character.ratingAvg).toFixed(1)} (${props.character.ratingCount})`
+      ? `${Number(props.character.ratingAvg).toFixed(1)} (${props.character.ratingCount ?? 0})`
       : '-',
     icon: StarFilled,
   },
@@ -44,7 +44,7 @@ const stats = computed(() => [
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .character-stats {
   margin-top: 16px;
 }
@@ -62,7 +62,7 @@ const stats = computed(() => [
   gap: 12px;
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }

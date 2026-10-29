@@ -13,6 +13,41 @@ import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.
 import type { ApiResponse } from '../../types/api';
 import { worldInfoEngine } from '../services/worldinfo-engine.service';
 import { countTokens } from '../utils/tokens';
+import { db } from '../../db';
+import { importStandaloneWorldbook } from '../../db/worldbook-import';
+import { prepareStandaloneWorldbook } from '../../types/worldbook-import';
+import { worldbooks, worldbookEntries } from '../../db/schema/worldbooks';
+import { characters } from '../../db/schema/characters';
+import { and, eq } from 'drizzle-orm';
+import { AppError, NotFoundError } from '../../core/errors';
+import { exportWorldbookEntry } from '../../types/worldbook-export';
+
+/**
+ * 把 DB 行（keyword + settings JSONB）显式映射为 world-info 引擎 scanText 期望的条目结构。
+ * 读取方式与导出路由保持一致：settings 中的值缺失或类型不符时回退到列值。
+ */
+function toScanEntry(row: Awaited<ReturnType<typeof worldBookEntryRepository.findByWorldBook>>[number]) {
+  const s = (row.settings ?? {}) as Record<string, unknown>;
+  const stringArray = (v: unknown): string[] | undefined =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : undefined;
+
+  const keys = stringArray(s.keys)?.length
+    ? (s.keys as string[])
+    : row.keyword.split(',').map((k) => k.trim()).filter(Boolean);
+
+  return {
+    id: row.id,
+    keys,
+    secondaryKeys: stringArray(s.keysSecondary),
+    content: row.content,
+    comment: typeof s.comment === 'string' ? s.comment : undefined,
+    depth: typeof s.depth === 'number' ? s.depth : row.priority,
+    constant: s.constant === true,
+    selectiveLogic: typeof s.selectiveLogic === 'string' ? s.selectiveLogic : undefined,
+    recursive: row.recursive,
+    preventRecursion: row.preventRecursion,
+  };
+}
 
 // --- Validation schemas ---
 
@@ -31,7 +66,7 @@ const updateWorldBookSchema = z.object({
 });
 
 const createEntrySchema = z.object({
-  keyword: z.string().min(1),
+  keyword: z.string(),
   content: z.string().min(1),
   position: z.number().int().default(0),
   isEnabled: z.boolean().default(true),
@@ -42,7 +77,7 @@ const createEntrySchema = z.object({
 });
 
 const updateEntrySchema = z.object({
-  keyword: z.string().min(1).optional(),
+  keyword: z.string().optional(),
   content: z.string().min(1).optional(),
   position: z.number().int().optional(),
   isEnabled: z.boolean().optional(),
@@ -80,11 +115,19 @@ worldbooksRouter.post(
     const user = c.get('user');
     const input = c.req.valid('json');
 
-    const worldbook = await worldBookRepository.create({
-      name: input.name,
-      scope: input.scope,
-      ownerId: user.id,
-      characterId: input.characterId,
+    const worldbook = await db.transaction(async transaction => {
+      if (input.characterId) {
+        const [character] = await transaction.select({ id: characters.id }).from(characters).where(and(
+          eq(characters.id, input.characterId), eq(characters.creatorId, user.id), eq(characters.tenantId, user.tenantId),
+        )).for('share');
+        if (!character) throw new NotFoundError('Character');
+        if (input.scope !== 'character') throw new AppError('Bound references require character scope', 409, 'WORLDBOOK_BINDING_SCOPE_UNSUPPORTED');
+      }
+      const [created] = await transaction.insert(worldbooks).values({
+        name: input.name, description: input.description, scope: input.scope,
+        userId: user.id, tenantId: user.tenantId, characterId: input.characterId,
+      }).returning();
+      return created;
     });
 
     return c.json<ApiResponse>(
@@ -104,94 +147,17 @@ worldbooksRouter.post('/import-file', authMiddleware(), async (c) => {
   const user = c.get('user');
   const body = await c.req.json();
 
-  const entries = body.entries;
-  if (!entries || typeof entries !== 'object') {
-    return c.json<ApiResponse>(
-      {
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: 'Invalid world book format: missing entries object' },
-        meta: { timestamp: new Date().toISOString() },
-      },
-      400
-    );
+  if (!prepareStandaloneWorldbookSafely(body)) {
+    return c.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid world book format' } }, 400);
   }
-
-  const name = body.name || body.originalData?.name || 'Imported World Book';
-  const description = body.description || body.originalData?.description || null;
-
-  const worldBook = await worldBookRepository.create({
-    name,
-    scope: 'global',
-    ownerId: user.id,
-    settings: {},
-  });
-
-  const positionMap: Record<number, string> = {
-    0: 'before', 1: 'after', 2: 'ANTop', 3: 'ANBottom',
-    4: 'atDepth', 5: 'EMTop', 6: 'EMBottom',
-  };
-  const selectiveLogicMap: Record<number, string> = {
-    0: 'AND_ANY', 1: 'AND_ALL', 2: 'NOT_ANY', 3: 'NOT_ALL',
-  };
-
-  const entryKeys = Object.keys(entries).sort((a, b) => Number(a) - Number(b));
-  let importedCount = 0;
-
-  for (const key of entryKeys) {
-    const e = entries[key];
-    if (!e || typeof e !== 'object') continue;
-
-    const primaryKeys = Array.isArray(e.keys) ? e.keys
-      : Array.isArray(e.key) ? e.key : [];
-    const secondaryKeys = Array.isArray(e.secondary_keys) ? e.secondary_keys
-      : Array.isArray(e.keysecondary) ? e.keysecondary : undefined;
-    const order = typeof e.insertion_order === 'number' ? e.insertion_order
-      : typeof e.order === 'number' ? e.order : 100;
-    const enabled = typeof e.enabled === 'boolean' ? e.enabled
-      : typeof e.disable === 'boolean' ? !e.disable : true;
-    const position = typeof e.position === 'number'
-      ? (positionMap[e.position] ?? 'before')
-      : typeof e.position === 'string' ? e.position : 'before';
-    const extPosition = e.extensions?.position;
-    const finalPosition = typeof extPosition === 'number'
-      ? (positionMap[extPosition] ?? position) : position;
-    const depth = typeof e.depth === 'number' ? e.depth
-      : typeof e.extensions?.depth === 'number' ? e.extensions.depth : 4;
-
-    await worldBookEntryRepository.create({
-      worldBookId: worldBook.id,
-      keys: primaryKeys,
-      keysSecondary: secondaryKeys,
-      selectiveLogic: selectiveLogicMap[e.selectiveLogic] ?? 'AND_ANY',
-      content: typeof e.content === 'string' ? e.content : '',
-      comment: typeof e.comment === 'string' ? e.comment
-        : typeof e.name === 'string' ? e.name : null,
-      position: finalPosition,
-      depth,
-      order,
-      enabled,
-      constant: e.constant === true,
-      probability: typeof e.probability === 'number' ? e.probability : 100,
-      sticky: typeof e.sticky === 'number' ? e.sticky : 0,
-      cooldown: typeof e.cooldown === 'number' ? e.cooldown : 0,
-      delay: typeof e.delay === 'number' ? e.delay : 0,
-      caseSensitive: e.case_sensitive === true || e.caseSensitive === true,
-      matchWholeWords: e.match_whole_words === true || e.matchWholeWords === true,
-      preventRecursion: e.prevent_recursion === true || e.preventRecursion === true,
-      excludeRecursion: e.exclude_recursion === true || e.excludeRecursion === true,
-    });
-    importedCount++;
-  }
-
-  return c.json<ApiResponse>(
-    {
-      success: true,
-      data: { worldBookId: worldBook.id, name, imported: importedCount },
-      meta: { timestamp: new Date().toISOString() },
-    },
-    201
-  );
+  const result = await importStandaloneWorldbook(db, { userId: user.id, tenantId: user.tenantId }, body);
+  return c.json<ApiResponse>({ success: true, data: result, meta: { timestamp: new Date().toISOString() } }, 201);
 });
+
+function prepareStandaloneWorldbookSafely(input: unknown): boolean {
+  try { prepareStandaloneWorldbook(input); return true; }
+  catch { return false; }
+}
 
 // Get world book by ID (ownership check)
 worldbooksRouter.get('/:id', authMiddleware(), async (c) => {
@@ -242,7 +208,17 @@ worldbooksRouter.patch(
       );
     }
 
-    const updated = await worldBookRepository.update(id, input);
+    const updated = await db.transaction(async transaction => {
+      const [current] = await transaction.select().from(worldbooks).where(and(
+        eq(worldbooks.id, id), eq(worldbooks.userId, user.id), eq(worldbooks.tenantId, user.tenantId),
+      )).for('update');
+      if (!current) throw new NotFoundError('World book');
+      if (current.characterId && input.scope && input.scope !== 'character') {
+        throw new AppError('Unbind this reference before changing its scope', 409, 'WORLDBOOK_BINDING_SCOPE_UNSUPPORTED');
+      }
+      const [result] = await transaction.update(worldbooks).set({ ...input, updatedAt: new Date() }).where(eq(worldbooks.id, id)).returning();
+      return result;
+    });
 
     return c.json<ApiResponse>(
       {
@@ -337,16 +313,7 @@ worldbooksRouter.post(
       );
     }
 
-    const entry = await worldBookEntryRepository.create({
-      worldBookId: id,
-      keys: [input.keyword],
-      content: input.content,
-      order: input.position,
-      enabled: input.isEnabled,
-      depth: input.priority,
-      recursive: input.recursive,
-      preventRecursion: input.preventRecursion,
-    });
+    const [entry] = await db.insert(worldbookEntries).values({ ...input, worldbookId: id }).returning();
 
     return c.json<ApiResponse>(
       {
@@ -439,82 +406,20 @@ worldbooksRouter.post('/:id/import', authMiddleware(), async (c) => {
     );
   }
 
-  const positionMap: Record<number, string> = {
-    0: 'before', 1: 'after', 2: 'ANTop', 3: 'ANBottom',
-    4: 'atDepth', 5: 'EMTop', 6: 'EMBottom',
-  };
-
-  const selectiveLogicMap: Record<number, string> = {
-    0: 'AND_ANY', 1: 'AND_ALL', 2: 'NOT_ANY', 3: 'NOT_ALL',
-  };
-
-  const created: unknown[] = [];
-  const entryKeys = Object.keys(entries).sort((a, b) => Number(a) - Number(b));
-
-  for (const key of entryKeys) {
-    const e = entries[key];
-    if (!e || typeof e !== 'object') continue;
-
-    // Normalize field names: support both character_book format (keys, secondary_keys,
-    // insertion_order, enabled) and standalone world book format (key, keysecondary,
-    // order, disable)
-    const primaryKeys = Array.isArray(e.keys) ? e.keys
-      : Array.isArray(e.key) ? e.key
-      : [];
-    const secondaryKeys = Array.isArray(e.secondary_keys) ? e.secondary_keys
-      : Array.isArray(e.keysecondary) ? e.keysecondary
-      : undefined;
-    const order = typeof e.insertion_order === 'number' ? e.insertion_order
-      : typeof e.order === 'number' ? e.order
-      : 100;
-    // 'enabled' (true=on) vs 'disable' (false=on, inverted logic)
-    const enabled = typeof e.enabled === 'boolean' ? e.enabled
-      : typeof e.disable === 'boolean' ? !e.disable
-      : true;
-    const position = typeof e.position === 'number'
-      ? (positionMap[e.position] ?? 'before')
-      : typeof e.position === 'string'
-        ? e.position
-        : 'before';
-    // extensions.position overrides top-level position (SillyTavern V3 behavior)
-    const extPosition = e.extensions?.position;
-    const finalPosition = typeof extPosition === 'number'
-      ? (positionMap[extPosition] ?? position)
-      : position;
-    const depth = typeof e.depth === 'number' ? e.depth
-      : typeof e.extensions?.depth === 'number' ? e.extensions.depth
-      : 4;
-
-    const entry = await worldBookEntryRepository.create({
-      worldBookId: id,
-      keys: primaryKeys,
-      keysSecondary: secondaryKeys,
-      selectiveLogic: selectiveLogicMap[e.selectiveLogic] ?? 'AND_ANY',
-      content: typeof e.content === 'string' ? e.content : '',
-      comment: typeof e.comment === 'string' ? e.comment
-        : typeof e.name === 'string' ? e.name
-        : null,
-      position: finalPosition,
-      depth,
-      order,
-      enabled,
-      constant: e.constant === true,
-      probability: typeof e.probability === 'number' ? e.probability : 100,
-      sticky: typeof e.sticky === 'number' ? e.sticky : 0,
-      cooldown: typeof e.cooldown === 'number' ? e.cooldown : 0,
-      delay: typeof e.delay === 'number' ? e.delay : 0,
-      caseSensitive: e.case_sensitive === true || e.caseSensitive === true,
-      matchWholeWords: e.match_whole_words === true || e.matchWholeWords === true,
-      preventRecursion: e.prevent_recursion === true || e.preventRecursion === true,
-      excludeRecursion: e.exclude_recursion === true || e.excludeRecursion === true,
-    });
-    created.push(entry);
+  if (!prepareStandaloneWorldbookSafely({ entries })) {
+    return c.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid world book entries' } }, 400);
   }
+  const prepared = prepareStandaloneWorldbook({ entries });
+  await db.transaction(async transaction => {
+    for (const entry of prepared.entries) {
+      await transaction.insert(worldbookEntries).values({ ...entry, worldbookId: id });
+    }
+  });
 
   return c.json<ApiResponse>(
     {
       success: true,
-      data: { imported: created.length },
+      data: { imported: prepared.entries.length },
       meta: { timestamp: new Date().toISOString() },
     },
     201
@@ -540,43 +445,9 @@ worldbooksRouter.get('/:id/export', authMiddleware(), async (c) => {
 
   const dbEntries = await worldBookEntryRepository.findByWorldBook(id);
 
-  const positionReverseMap: Record<string, number> = {
-    before: 0, after: 1, EMTop: 2, EMBottom: 3,
-    atDepth: 4, ANTop: 5, ANBottom: 6,
-  };
-
-  const selectiveLogicReverseMap: Record<string, number> = {
-    AND_ANY: 0, AND_ALL: 1, NOT_ANY: 2, NOT_ALL: 3,
-  };
-
   const exportEntries: Record<string, unknown> = {};
   dbEntries.forEach((entry, index) => {
-    const s = (entry.settings ?? {}) as Record<string, unknown>;
-    const keys = Array.isArray(s.keys) ? s.keys : entry.keyword ? entry.keyword.split(',').map((k: string) => k.trim()).filter(Boolean) : [];
-    const secondaryKeys = Array.isArray(s.keysSecondary) ? s.keysSecondary : [];
-    const posStr = typeof s.position === 'string' ? s.position : 'before';
-    const logicStr = typeof s.selectiveLogic === 'string' ? s.selectiveLogic : 'AND_ANY';
-
-    exportEntries[String(index)] = {
-      keys,
-      secondary_keys: secondaryKeys,
-      selectiveLogic: selectiveLogicReverseMap[logicStr] ?? 0,
-      content: entry.content,
-      comment: typeof s.comment === 'string' ? s.comment : '',
-      position: positionReverseMap[posStr] ?? 0,
-      depth: typeof s.depth === 'number' ? s.depth : 4,
-      insertion_order: typeof s.order === 'number' ? s.order : entry.position,
-      enabled: entry.isEnabled,
-      constant: s.constant === true,
-      probability: typeof s.probability === 'number' ? s.probability : 100,
-      sticky: typeof s.sticky === 'number' ? s.sticky : 0,
-      cooldown: typeof s.cooldown === 'number' ? s.cooldown : 0,
-      delay: typeof s.delay === 'number' ? s.delay : 0,
-      case_sensitive: s.caseSensitive === true,
-      match_whole_words: s.matchWholeWords === true,
-      prevent_recursion: s.preventRecursion === true,
-      exclude_recursion: s.excludeRecursion === true,
-    };
+    exportEntries[String(index)] = exportWorldbookEntry(entry);
   });
 
   return c.json({
@@ -653,7 +524,7 @@ worldbooksRouter.post('/:id/scan', authMiddleware(), zValidator('json', scanSche
   const entries = await worldBookEntryRepository.findByWorldBook(id);
 
   // Scan text against entries using the world info engine
-  const scanResult = worldInfoEngine.scanText(text, entries);
+  const scanResult = worldInfoEngine.scanText(text, entries.map(toScanEntry));
 
   // Format results with token counts and recursion depth
   const matches = scanResult.map(match => ({

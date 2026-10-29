@@ -110,7 +110,7 @@ const popularPages = [
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .not-found-page {
   min-height: 100vh;
   display: flex;
@@ -268,7 +268,7 @@ const popularPages = [
   transform: translateY(-2px);
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .error-code {
     font-size: 80px;
   }

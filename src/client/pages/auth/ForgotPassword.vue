@@ -118,7 +118,7 @@ const goToLogin = () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .forgot-page {
   min-height: 100vh;
   display: flex;
@@ -207,7 +207,7 @@ const goToLogin = () => {
   margin-top: 16px;
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .forgot-page { padding: 16px; }
   .forgot-container { max-width: 100%; }
   .card-header { padding: 28px 20px 20px; }
@@ -215,7 +215,7 @@ const goToLogin = () => {
   .title { font-size: 24px; }
 }
 
-@media (max-width: 480px) {
+@include below(sm) {
   .forgot-page { padding: 12px; }
   .card-header { padding: 24px 16px 16px; }
   .el-form { padding: 0 16px 24px; }

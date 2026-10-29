@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-26",
+  "target": "3081",
+  "image": "small-squaretable:exploration-20261026-test-cards-ui",
+  "imageId": "sha256:5f901936bb8b35f3efbafb92e4b425d513429d9c0a424056453a2dfe0ce25a4b",
+  "backendSha256": "5d4e29954bd8671d6c5a68af6c34c09171a6924dec4c73d848e41464bc34dd94",
+  "backendUnchanged": true,
+  "historical3080Unchanged": true,
+  "frontendFilesMatched": 222,
+  "htmlSha256": "f0dadad2f0105cfd70af7299be33305f1647accf9020ae61cf15b7b707c02fe5",
+  "importedCardsReverified": 3,
+  "allEmbeddedEntriesAndPrivateOwnershipPreserved": true,
+  "activity": {
+    "generation_requests": 0,
+    "memory_jobs": 14,
+    "memory_attempts": 6,
+    "chats": 16,
+    "story_events": 72
+  },
+  "modelCallsInitiated": 0,
+  "activityAfterBrowser": {
+    "generation_requests": 0,
+    "memory_jobs": 14,
+    "memory_attempts": 6,
+    "chats": 16,
+    "story_events": 72
+  }
+}

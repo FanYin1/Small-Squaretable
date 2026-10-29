@@ -56,6 +56,7 @@ vi.mock('../../db/repositories/subscription.repository', () => ({
 }));
 
 import { analyticsRoutes } from './analytics';
+import { getKafkaProducer } from '../../core/kafka';
 
 describe('Analytics Routes', () => {
   let app: Hono;
@@ -107,6 +108,25 @@ describe('Analytics Routes', () => {
       }),
     });
     expect(res.status).toBe(400);
+  });
+
+  it('POST /analytics/events returns 503 when the Kafka producer is unavailable', async () => {
+    // getKafkaProducer 在连接失败时返回 null（见 core/kafka.ts）
+    vi.mocked(getKafkaProducer).mockResolvedValueOnce(null);
+
+    const res = await app.request('/analytics/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        events: [{ eventType: 'page.view', properties: { path: '/market' } }],
+        context: { sessionId: 'sess-123', platform: 'web', deviceType: 'desktop' },
+      }),
+    });
+
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('ANALYTICS_UNAVAILABLE');
   });
   // ── GET /analytics/overview ──
 

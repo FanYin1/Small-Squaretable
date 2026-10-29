@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-24T03:56:23.157Z",
+  "result": "passed",
+  "database": "disposable PostgreSQL",
+  "backend": "current built server",
+  "model": "controlled local provider; not real narrative quality",
+  "networkInterception": "real WebSocket server; drop commit acknowledgements and delay other-tab frames; no success responses fabricated",
+  "checks": [
+    {
+      "case": "EX-09 committed turn acknowledgements lost",
+      "result": "passed",
+      "dropped": [
+        "assistant_message_done",
+        "generation_finished"
+      ],
+      "sends": 1,
+      "providerStreams": 1,
+      "persisted": {
+        "version": 1,
+        "values": {
+          "seal": false,
+          "coins": 100,
+          "permit": true,
+          "source": null,
+          "location": "harbor"
+        },
+        "messages": 2,
+        "events": 1,
+        "requests": 1,
+        "charges": 1,
+        "tokens": -120
+      }
+    },
+    {
+      "case": "EX-09 explicit replay after reconnect",
+      "result": "passed",
+      "stateEventsMessagesAndChargesUnchanged": true,
+      "providerStreamsUnchanged": true
+    },
+    {
+      "case": "EX-10 stale action from a delayed second tab",
+      "result": "passed",
+      "draftPreserved": true,
+      "unsafeRetryHidden": true,
+      "rejectedBeforeGenerationOrCharge": true
+    },
+    {
+      "case": "EX-10 explicit fresh action and reload",
+      "result": "passed",
+      "newRequestAndCurrentVersion": true,
+      "otherStoryUnchanged": true,
+      "persisted": {
+        "version": 2,
+        "values": {
+          "seal": false,
+          "coins": 100,
+          "permit": true,
+          "source": null,
+          "location": "lighthouse"
+        },
+        "messages": 4,
+        "events": 2,
+        "requests": 2,
+        "charges": 2,
+        "tokens": -240
+      }
+    },
+    {
+      "case": "EX-09 reconnect while generation is still running",
+      "result": "passed",
+      "completeSavedReplyDisplayed": true,
+      "automaticResends": 0,
+      "providerStreams": 1,
+      "persisted": {
+        "version": 3,
+        "values": {
+          "seal": false,
+          "coins": 100,
+          "permit": true,
+          "source": null,
+          "location": "lighthouse"
+        },
+        "messages": 6,
+        "events": 3,
+        "requests": 3,
+        "charges": 3,
+        "tokens": -360
+      }
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/exploration-recovery-check.mjs",
+      "sha256": "70ff845e1ce789da6e1a0cdc364011842bae5af5b032e363495f955a8dbe16cc"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "318db999a0ac5c362ccc64bca3d66de15c85f8e5304787dc857306415efa4a5f"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "aa0a7794821c42baa0482f78c33b6c71eda01cdca01873b7475a06ed404b6543"
+    },
+    {
+      "path": "src/client/stores/chat.ts",
+      "sha256": "61325775e637471b01ab3b867fa4a318ccbbcf1ba1406692679f62571bbf3bb9"
+    },
+    {
+      "path": "src/client/composables/useStoryState.ts",
+      "sha256": "ccd3a74e5f6a887627dc9b6ab0d0b67195a96e40cf9e758ca20035f903914887"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "6ffbbfe888f84e3cc7de83f0d2be61d03c47436fbe0801562fa5cee7d553efe6"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "c416902a4b758ab7aa6f0258ac9298c7eed7cbb923f7fb3edcf42df5859bb163"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "5961e4e0188d15cf7f37ba7cb1f4969fe66aa6239a0e59e20c0ece8090b9a842"
+    }
+  ]
+}

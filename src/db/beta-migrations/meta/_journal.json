@@ -1,0 +1,22 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    { "idx": 0, "version": "7", "when": 1792627200001, "tag": "0000_beta_schema", "breakpoints": false },
+    { "idx": 1, "version": "7", "when": 1792627200002, "tag": "0001_beta_invariants", "breakpoints": false },
+    { "idx": 2, "version": "7", "when": 1792713600000, "tag": "0002_story_identity_snapshot", "breakpoints": false },
+    { "idx": 3, "version": "7", "when": 1792800000000, "tag": "0003_story_worldbooks", "breakpoints": false },
+    { "idx": 4, "version": "7", "when": 1792800000001, "tag": "0004_story_content", "breakpoints": false },
+    { "idx": 5, "version": "7", "when": 1792800000002, "tag": "0005_story_state", "breakpoints": false },
+    { "idx": 6, "version": "7", "when": 1792800000003, "tag": "0006_story_memory_scope", "breakpoints": false },
+    { "idx": 7, "version": "7", "when": 1792800000004, "tag": "0007_story_deletion_receipts", "breakpoints": false },
+    { "idx": 8, "version": "7", "when": 1792800000005, "tag": "0008_story_memory_jobs", "breakpoints": false },
+    { "idx": 9, "version": "7", "when": 1792800000006, "tag": "0009_character_import_repairs", "breakpoints": false },
+    { "idx": 10, "version": "7", "when": 1792886400000, "tag": "0010_legacy_chat_variables", "breakpoints": false },
+    { "idx": 11, "version": "7", "when": 1792886400001, "tag": "0011_story_intent_proposals", "breakpoints": false },
+    { "idx": 12, "version": "7", "when": 1792972800000, "tag": "0012_story_corrections", "breakpoints": false },
+    { "idx": 13, "version": "7", "when": 1793059200000, "tag": "0013_story_adapter_jobs", "breakpoints": false },
+    { "idx": 14, "version": "7", "when": 1793059200001, "tag": "0014_character_presentations", "breakpoints": false },
+    { "idx": 15, "version": "7", "when": 1793059200002, "tag": "0015_presentation_jobs", "breakpoints": false }
+  ]
+}

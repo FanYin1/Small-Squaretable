@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { BaseRepository } from './base.repository';
+import { BaseRepository, type DbExecutor } from './base.repository';
 import { db } from '../index';
 import { users, type User, type NewUser } from '../schema/users';
 
@@ -18,8 +18,8 @@ export class UserRepository extends BaseRepository {
     return await this.db.select().from(users).where(eq(users.tenantId, tenantId));
   }
 
-  async create(data: NewUser): Promise<User> {
-    const result = await this.db.insert(users).values(data).returning();
+  async create(data: NewUser, executor: DbExecutor = this.db): Promise<User> {
+    const result = await executor.insert(users).values(data).returning();
     return result[0];
   }
 

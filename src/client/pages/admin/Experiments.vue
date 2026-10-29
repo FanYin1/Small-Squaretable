@@ -65,9 +65,7 @@ function removeVariant(index: number) {
 async function fetchExperiments() {
   loading.value = true;
   try {
-    const res = await api.get('/api/v1/admin/experiments');
-    const data = await res.json();
-    if (data.success) experiments.value = data.data;
+    experiments.value = await api.get<Experiment[]>('/admin/experiments');
   } catch {
     toast.error(t('common.retry'));
   } finally {
@@ -82,16 +80,15 @@ async function handleCreate() {
       weight: v.weight,
       config: JSON.parse(v.configJson || '{}'),
     }));
-    const res = await api.post('/api/v1/admin/experiments', {
-      json: { name: form.value.name, description: form.value.description, variants },
+    const created = await api.post<Experiment>('/admin/experiments', {
+      name: form.value.name,
+      description: form.value.description,
+      variants,
     });
-    const data = await res.json();
-    if (data.success) {
-      experiments.value.push(data.data);
-      createDialogVisible.value = false;
-      resetForm();
-      toast.success(t('admin.experiments.created'));
-    }
+    experiments.value.push(created);
+    createDialogVisible.value = false;
+    resetForm();
+    toast.success(t('admin.experiments.created'));
   } catch {
     toast.error(t('admin.experiments.createFailed'));
   }
@@ -100,15 +97,10 @@ async function handleCreate() {
 
 async function handleStatusChange(exp: Experiment, status: 'running' | 'completed') {
   try {
-    const res = await api.patch(`/api/v1/admin/experiments/${exp.id}`, {
-      json: { status },
-    });
-    const data = await res.json();
-    if (data.success) {
-      const idx = experiments.value.findIndex((e) => e.id === exp.id);
-      if (idx !== -1) experiments.value[idx] = data.data;
-      toast.success(status === 'running' ? t('admin.experiments.started') : t('admin.experiments.stopped'));
-    }
+    const updated = await api.patch<Experiment>(`/admin/experiments/${exp.id}`, { status });
+    const idx = experiments.value.findIndex((e) => e.id === exp.id);
+    if (idx !== -1) experiments.value[idx] = updated;
+    toast.success(status === 'running' ? t('admin.experiments.started') : t('admin.experiments.stopped'));
   } catch {
     toast.error(t('admin.experiments.updateFailed'));
   }
@@ -119,9 +111,7 @@ async function viewResults(exp: Experiment) {
   resultsDialogVisible.value = true;
   resultsLoading.value = true;
   try {
-    const res = await api.get(`/api/v1/admin/experiments/${exp.id}/results`);
-    const data = await res.json();
-    if (data.success) currentResults.value = data.data;
+    currentResults.value = await api.get<VariantMetrics[]>(`/admin/experiments/${exp.id}/results`);
   } catch {
     toast.error(t('admin.experiments.loadResultsFailed'));
   } finally {

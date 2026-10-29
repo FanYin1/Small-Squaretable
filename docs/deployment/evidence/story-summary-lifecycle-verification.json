@@ -1,0 +1,486 @@
+{
+  "date": "2026-10-24T08:33:48.596Z",
+  "result": "passed",
+  "scope": "Versioned durable five-turn batch summaries and bounded use by default WebSocket continuation; not global rolling summaries or real-provider quality",
+  "requirements": [
+    "EXP-05A",
+    "EXP-05B",
+    "DEC-07",
+    "DEC-08",
+    "INV-01",
+    "INV-03",
+    "INV-09",
+    "EX-07",
+    "EX-10",
+    "EX-12"
+  ],
+  "unit": {
+    "files": 6,
+    "passed": 117,
+    "command": "npx vitest run src/server/services/story-summary-context.spec.ts src/server/services/story-memory-extraction.spec.ts src/server/jobs/story-memory.job.spec.ts src/server/services/context-manager.service.spec.ts src/server/routes/websocket-credits.spec.ts src/server/routes/websocket-metering.spec.ts"
+  },
+  "database": {
+    "command": "npm run check:story-memory",
+    "reportPath": "/tmp/squaretable-story-restore-evidence/d8e48908-fea4-449b-9da8-fe310eb8d20d/report.json",
+    "reportSha256": "d346bedc0a20e888f36d38d564f96a9ded5f14b03694b6dadf3f6d40aece756a",
+    "durableMemoryChecks": [
+      "Dump/restore plus a separate process resumes the saved extraction without another model call",
+      "Versioned batch recap survives full backup/restore and checkpoint resume with its ten source messages",
+      "Recap retrieval is isolated by owner, tenant, story and responding character",
+      "Pending, running, retry and failed checkpoints cannot supply recaps to generation",
+      "Changed source text invalidates a completed recap even if IDs and event versions still match",
+      "Legacy fact-only checkpoints and malformed recap versions or references are not treated as summaries",
+      "A recap without a persisted source digest is excluded rather than trusted",
+      "Recovered memory is retrievable by real pgvector and retains message/event provenance",
+      "Partial batch progress survives process restart and excludes interrupted replies",
+      "Replaying an already committed turn creates no duplicate job or memory",
+      "Enqueue and progress roll back with the story turn and recover on a subsequent commit",
+      "A crashed lease is reclaimed by only one of two concurrent workers",
+      "An expired worker cannot commit after replacement; checkpoint reuse avoids a second extraction",
+      "Zero vectors are failures; embedding recovery reuses extraction and writes no partial memory",
+      "Cross-story source references are rejected and retries stop at the configured cap",
+      "Explicit failed-job replay retains attempt history, checks reviewed state and cannot replay completed work",
+      "A valid empty extraction succeeds without embedding or a fabricated memory",
+      "Extraction has an abort deadline and a failed attempt is recorded",
+      "Over-budget sources stop visibly without truncation or a provider call",
+      "Editing source text during embedding prevents stale derived memory from committing",
+      "A message/event version mismatch is rejected before any extraction call",
+      "A database failure rolls back memory, vector and provenance together; retry uses the saved extraction",
+      "Deleting a story during extraction cascades work and rejects late completion without resurrection",
+      "Group participants count and derive independently within the same story",
+      "Group memory progress shows each frozen character and only their own five confirmed reply sources",
+      "Group recap retrieval includes only the responding character's confirmed input/reply sources",
+      "A repeatedly crashed job stops at the retry cap instead of being claimed forever",
+      "Lowering the retry limit marks already exhausted queued work as failed instead of stranding it",
+      "Deleting completed work preserves other stories and every remaining provenance link stays in its confirmed story",
+      "Deleting a completed story removes its saved recap from continuation reads",
+      "Player view exposes real successful batch provenance and retained counts without returning memory text",
+      "Player memory reads reject another owner or tenant before loading jobs",
+      "Progress shows three confirmed replies before reaching the five-reply batch threshold",
+      "Extracted checkpoints, failure internals, digests and replay details never enter the player response",
+      "A source digest mismatch withholds references and never exposes the private digest",
+      "Queued, expired-running, retry, failed and completed-with-no-retained-memory states remain distinguishable",
+      "Foreign and missing pagination cursors fail identically",
+      "Bounded pagination preserves all batches sharing the same microsecond timestamp and global counts",
+      "Cross-story event references are withheld rather than becoming player source links",
+      "Interrupted or version-mismatched replies cannot be presented as confirmed memory provenance",
+      "Legacy stories explicitly report unsupported progress without inventing historical coverage",
+      "Deleted stories cannot return remembered progress or stale source IDs"
+    ],
+    "checksAddedSincePlayerView": 8,
+    "restoredStoryChecks": [
+      "Restored panel, available actions, event sources and style notes match the saved story",
+      "Identity remains frozen after its source changes",
+      "Character content snapshot remains readable",
+      "Bound worldbook uses the frozen entry after its source changes",
+      "Real pgvector retrieval recovers only this story memory",
+      "Another story with the same query vector stays isolated",
+      "Retrieved memory still links to its original confirmed text",
+      "Restored story still rejects a different owner",
+      "A pre-backup committed action replays without a second event",
+      "Resumed generation preparation includes confirmed state and saved style notes",
+      "A new action after restore advances once and preserves resources",
+      "Restored message sequence allocates fresh source IDs",
+      "Continuing the restored story does not alter another save",
+      "A story deleted before backup stays deleted after restore",
+      "Replaying the deleted creation request cannot recreate its story",
+      "Deleting a restored story cascades its messages, snapshots, state, notes, events, memories and vectors",
+      "Deleted story memory is absent from scoped and global retrieval",
+      "Late memory insertion and late turn commit cannot resurrect the deleted story",
+      "Deletion and rejected late writes leave the other save intact"
+    ],
+    "guardTests": 14,
+    "corruptionProbes": [
+      "changed vector with same row count rejected",
+      "wrong-story message provenance rejected"
+    ],
+    "extraction": "controlled provider; no real model calls",
+    "embedding": "fixed nonzero 384-dimensional vectors"
+  },
+  "browser": {
+    "command": "npm run check:story-context",
+    "reportPath": "/tmp/squaretable-context-evidence/59c18cda-5fb9-4b1d-aca1-aeefbb3bdfcf/report.json",
+    "reportSha256": "52798e878fe80a80079dbc024c71018c2c86386ae689caed68b80d93260629ae",
+    "checks": [
+      {
+        "case": "oversized accepted input is retained without body generation, credit hold or story effects",
+        "result": "passed"
+      },
+      {
+        "case": "input recovery appends to an existing draft without resending",
+        "result": "passed"
+      },
+      {
+        "case": "edited input generates once with frozen identity and saved style; oversized older input stays stored",
+        "result": "passed"
+      },
+      {
+        "case": "nonempty long history is trimmed by whole turns while saved notes and current input reach the real provider boundary",
+        "result": "passed",
+        "syntheticHistoricalTurns": 25
+      },
+      {
+        "case": "validated completed batch recap reaches the real WebSocket provider boundary alongside notes and latest input",
+        "result": "passed",
+        "fixture": "seeded synthetic completed summary, not real provider extraction"
+      },
+      {
+        "case": "changed source digest excludes stale recap from the next real continuation without dropping notes or latest input",
+        "result": "passed"
+      },
+      {
+        "case": "mobile critical depth material is preserved and rejected before generation; error metadata contains no private prompt",
+        "result": "passed"
+      }
+    ],
+    "model": "controlled loopback provider; beta-smoke uses the existing unknown-model 4096/2048 metadata fallback",
+    "summaryFixture": "Explicitly seeded successful checkpoint for confirmed rounds 6–10 with numeric source IDs and canonical source digest; no real model extraction claimed",
+    "screenshots": [
+      {
+        "path": "/tmp/squaretable-context-evidence/59c18cda-5fb9-4b1d-aca1-aeefbb3bdfcf/desktop-overflow.png",
+        "sha256": "ed465d4059cc7b1221892e8ba12d92108eeb8c038da963f0f61c424ad2fed887"
+      },
+      {
+        "path": "/tmp/squaretable-context-evidence/59c18cda-5fb9-4b1d-aca1-aeefbb3bdfcf/mobile-critical-overflow.png",
+        "sha256": "c6f46c507743467d2c3c094a83c033835a083e7015c9b062e4cf35dafef5a1aa"
+      }
+    ]
+  },
+  "validation": {
+    "typeCheck": "passed",
+    "productionServerBuild": "passed in isolated browser runner",
+    "productionClientBuild": "passed in isolated browser runner",
+    "focusedLint": {
+      "errors": 0,
+      "existingWarnings": 2
+    },
+    "scriptSyntax": "passed",
+    "patchWhitespace": "passed"
+  },
+  "deployment": {
+    "changed": false,
+    "unchangedPorts": [
+      3080,
+      3081,
+      5188
+    ],
+    "newMigrations": [],
+    "requiresExistingMigrations": [
+      "0048_story_memory_jobs.sql",
+      "beta/0008_story_memory_jobs.sql"
+    ]
+  },
+  "limits": [
+    "Only succeeded source-validated versioned checkpoints are eligible; legacy arrays remain resumable without invented summaries.",
+    "At most 20 candidates and 4 whole omitted batches; recap budget capped at 1024 estimated tokens or 25% input capacity.",
+    "Default chat templates only; protected system, latest, pinned and depth material retain priority.",
+    "No historical backfill, recursive/global rolling summary, complete character-knowledge isolation or real-provider semantic/style acceptance.",
+    "Internal summary text remains absent from the player progress API and reading export.",
+    "Summary database read errors can fail the request before body generation; unconditional graceful fallback is not claimed.",
+    "EXP-05A/05B, EXP-07D and OPEN-01 through OPEN-07 remain open."
+  ],
+  "logs": [
+    {
+      "path": "/tmp/squaretable-summary-unit.log",
+      "sha256": "0090985a6ed3ef1e1c2d048fbe24af1040a46c68308f166eb7da4b1e68777539"
+    },
+    {
+      "path": "/tmp/squaretable-summary-types.log",
+      "sha256": "69ae6d722cff93849ae66d685ef712f897d82062a956dba6ebecf8ed83997c93"
+    },
+    {
+      "path": "/tmp/squaretable-summary-lint.log",
+      "sha256": "e889ff90e84065fb9c0abf0d4265176ad36d2ba164741c8e98e71430218f4737"
+    },
+    {
+      "path": "/tmp/squaretable-summary-db.log",
+      "sha256": "902d2ea3fc462c2ca8e223e960e2df3caf04eaeb544a00eb49fcdfb65eb7ef7b"
+    },
+    {
+      "path": "/tmp/squaretable-summary-browser.log",
+      "sha256": "5bb5f85681a4ab63443bfae6c4c024bdbcaee48f39e7e7d6b5b32f8bb3474b97"
+    }
+  ],
+  "sources": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "9a83b4006beab66ad1215f26cc2e41b8ccfd2a6d8efe91f533f293a9d3fa0788"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "263247a37015401e378e9d673e421e7b92e94ee30415a674e5f6d1e917302294"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "51871015b8cf8767b686e573c318a67aa0852ad0b27b4682df2296c22957b60a"
+    },
+    {
+      "path": "docs/deployment/exploration-candidate.md",
+      "sha256": "ffcc990ec8c01c309299e68971378b6e2a5b224cdf5275f43597b39e7ae4f256"
+    },
+    {
+      "path": "docs/product/backlog.md",
+      "sha256": "980bf87b4f7736c76602260e66eff8fbe9b238ae39fdc6b33bb1a4f8185c3208"
+    },
+    {
+      "path": "docs/product/story-context-budget.md",
+      "sha256": "e1ccf2f4699f25f483ec131093f6e58e0c330c2a333f64374d0e1138780c51d0"
+    },
+    {
+      "path": "docs/product/story-development-plan.md",
+      "sha256": "7c5d855ae77590207a2681fa678df59e044ac032f39c5a9af12900fc75ebc151"
+    },
+    {
+      "path": "docs/product/story-memory-durability.md",
+      "sha256": "eb87b625a7046d433f624073e9006575809eba355320f708132caf99bbdc8267"
+    },
+    {
+      "path": "docs/product/story-memory-player-view.md",
+      "sha256": "d7d8295793a7a5d3fe476075be035f79874eb542307cb2c33ab8f64187beeef0"
+    },
+    {
+      "path": "docs/product/story-state-protocol.md",
+      "sha256": "897eab4348f191f1f01b04d686ebbecd38a66990cf783841fe27dd4537725176"
+    },
+    {
+      "path": "docs/product/story-summary-lifecycle.md",
+      "sha256": "f6246f8329e675250792ce4395ecbe48aabdf87424258375be2b881001665a30"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "4a48c963ce6c8791397299bf93942f6e4b03505373fb11352ce3ba8d83f61be9"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "be579cea0da465581c0d361c9080f3c05c734438d39d3414caff83a914593797"
+    },
+    {
+      "path": "scripts/exploration-restore-check.mjs",
+      "sha256": "855e39688fb02853057ddeb5cc8ff8d218cb2b0a09251cb934c316e01174413f"
+    },
+    {
+      "path": "scripts/story-context-browser-check.mjs",
+      "sha256": "5da6962910f807fdba13e50a967da7356bb7082c38b2c3133796a8780c24fe3c"
+    },
+    {
+      "path": "scripts/story-deletion-replay.mjs",
+      "sha256": "a76cdfd68b5f4b3235892833294a0462e5f1f699624d433c4cc8ad7adaf96778"
+    },
+    {
+      "path": "scripts/story-memory-fixture.mjs",
+      "sha256": "66ff250b16a1f36262f5947bfbb65a52617c8f17e9c7eb638d68cb0d1f291322"
+    },
+    {
+      "path": "scripts/story-memory-retry.mjs",
+      "sha256": "05b1072c03d2d3c1cb84f7b4fe374c018c518c476c60c9ef0460d6003245607d"
+    },
+    {
+      "path": "scripts/story-memory-view-fixture.mjs",
+      "sha256": "502cfdfdad531ce0b6676368b75de3a5483f8060bd8ba360069f977305950f66"
+    },
+    {
+      "path": "scripts/story-nonempty-restore-check.mjs",
+      "sha256": "503f2b59edee9c5ea2a6904d07fdac217a4fdd24f890c4bbea03406909b97559"
+    },
+    {
+      "path": "scripts/story-restore-evidence.mjs",
+      "sha256": "c9317c706bd67f7e06945f53a9d8d896246c8173ab7541c35b40d22b2b5f373d"
+    },
+    {
+      "path": "scripts/story-restore-evidence.test.mjs",
+      "sha256": "719553edc73cffbed8550c75977a8d10fb1a457a8ee1debf4d2df417de83213d"
+    },
+    {
+      "path": "scripts/story-restore-fixture.mjs",
+      "sha256": "7dbfc79dd2602c4da34c02a8fbba8978cd18ea34f79912aacbb29991c0270d40"
+    },
+    {
+      "path": "scripts/story-summary-fixture.mjs",
+      "sha256": "4fc57f3b61339234f0c559b671405978e8e6d826b762f6cf05f53a71ec1994c4"
+    },
+    {
+      "path": "src/client/components/chat/ChatWindow.vue",
+      "sha256": "0ebd82cd30e3745ba94bf8f701cc953b3e5b7643a64ac69febe547c7bd5b43f5"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "8f522643f7c5583ae81744564fe487903541fe8ed524ae20434ef6117153598a"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "5bc469584c0de314623e5e8ff2fae1d3a67fe16a8ac877b940a4ad0d3a3281b6"
+    },
+    {
+      "path": "src/client/stores/chat.ts",
+      "sha256": "b161a6c97735d7d015d3fe9a7f9a477dfd5702b760f9e649ba6da7ae97dc0133"
+    },
+    {
+      "path": "src/db/beta-migrations/0000_beta_schema.sql",
+      "sha256": "1d21eaef4b6c561bd431924a45533480ce328510a7e3ef2ac4a2d4d2be7c163a"
+    },
+    {
+      "path": "src/db/beta-migrations/0001_beta_invariants.sql",
+      "sha256": "b77d1ccea176602d34da511f7e1242fdedd9c71963b8a3b4902d6b307d6a8c16"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/db/beta-migrations/0004_story_content.sql",
+      "sha256": "3c09875fe35c43e68d2f0bd4e03044253b9bf879c16c1c564dfa6898f5e1648b"
+    },
+    {
+      "path": "src/db/beta-migrations/0005_story_state.sql",
+      "sha256": "09cae5255133b9fe58a981ee3cadda43210de96a5abfd70a233aead9350b1b89"
+    },
+    {
+      "path": "src/db/beta-migrations/0006_story_memory_scope.sql",
+      "sha256": "4d9519301750da6ad4bb4bba825feee3be843d47dfb9313d6a06d9b2455974e3"
+    },
+    {
+      "path": "src/db/beta-migrations/0007_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/beta-migrations/0008_story_memory_jobs.sql",
+      "sha256": "919011023b56c679a08abd2d220458de35796005d5749ccaa025615ac2a7f8e6"
+    },
+    {
+      "path": "src/db/beta-migrations/meta/_journal.json",
+      "sha256": "f52a0ba629434ea52bc71df9fde0e5104c1b12277f699edca3135344f36111fe"
+    },
+    {
+      "path": "src/db/migrate.ts",
+      "sha256": "91bbac98d250f3c2f89edf6511b80f674fa0db55ec428abbd2f4c6daedb93e57"
+    },
+    {
+      "path": "src/db/migrations/0047_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/migrations/0048_story_memory_jobs.sql",
+      "sha256": "919011023b56c679a08abd2d220458de35796005d5749ccaa025615ac2a7f8e6"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+    },
+    {
+      "path": "src/db/schema/memories.ts",
+      "sha256": "8b71c85500495a54ac3c9bc57d083b56cccf1c9b9aa5c16dcfad4b48407ac57f"
+    },
+    {
+      "path": "src/db/schema/story-lifecycle.ts",
+      "sha256": "2e6ed153e51a28617cb2feb32f8474afb00217a35c90d435fea60044acb324cf"
+    },
+    {
+      "path": "src/db/schema/story-memory.ts",
+      "sha256": "e9ab7222ea9981ceaf7a673f77c561d96799704d64f33c852ce9a8067ee5aa42"
+    },
+    {
+      "path": "src/server/jobs/index.ts",
+      "sha256": "2a996583157296ec9e0c40b8f8e988fbfbf6305a2c5f16283143247714302cf9"
+    },
+    {
+      "path": "src/server/jobs/story-memory.job.spec.ts",
+      "sha256": "534bd02f69892c1ee27ee2968fc0d9a1c7c83c0a97b66eb5336e889f528d4789"
+    },
+    {
+      "path": "src/server/jobs/story-memory.job.ts",
+      "sha256": "da9c6c9929eb4c8a2db0cdb417c20ebbc957563672fdcbd41c986c37f7c65544"
+    },
+    {
+      "path": "src/server/routes/websocket-credits.spec.ts",
+      "sha256": "ad260bd9d6f0f11e3fdc25c1713207cf7e573b2f026509e565a8b98fee5df54f"
+    },
+    {
+      "path": "src/server/routes/websocket-metering.spec.ts",
+      "sha256": "1e19b7535fa41af45af103ffb683bf2f26b68c4548771ae268a1e90cbd4142a5"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "240930d38b749391560629f3a9c1cbe82af85818f0bf28a43b5239a7e49b8296"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "ad99964a6a3dcbf21fcadd56928f753d077c13a388768b5e759b9acd376c3b67"
+    },
+    {
+      "path": "src/server/services/context-budget.ts",
+      "sha256": "6cb9822fd1445f129d7c8eac8ced481a283db71bd9ba81a7d264c6382a655959"
+    },
+    {
+      "path": "src/server/services/context-manager.service.spec.ts",
+      "sha256": "86d6c1d99d623b8bb4888b950ebe021085f8f8698eee94adc5fbbbfc10d59193"
+    },
+    {
+      "path": "src/server/services/context-manager.service.ts",
+      "sha256": "c5aec3b505d8a7699ea4c41e1a3821bf2d472910e9df8e076ce1498f58ae654b"
+    },
+    {
+      "path": "src/server/services/embedding.service.ts",
+      "sha256": "177b7598f47bfe4138e51614b4abef1b4291ed4048338d145c26b8dc9a40e94e"
+    },
+    {
+      "path": "src/server/services/llm.service.ts",
+      "sha256": "4ddaf45029b45410060dcc5853f87bae0845c477663713e36ee2470b62e8e297"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "1cbaa43c5e63f0232d9cb5e4a557551fbfbaa462ceb215547d6c042d56df5576"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/story-memory-extraction.spec.ts",
+      "sha256": "9718bfae11ecf3d1a9659f2c3848252d5be25f07f069af14b85c1c95308fc962"
+    },
+    {
+      "path": "src/server/services/story-memory-extraction.ts",
+      "sha256": "e1e5d8de5c99c8067d2848b31ee58aa7d09269d0525b5d1fac33d4dd0ee4fc54"
+    },
+    {
+      "path": "src/server/services/story-memory-view.service.ts",
+      "sha256": "f777498d0fae9652fe6987e3094d2d47063341587e98c9777196238f98a24d12"
+    },
+    {
+      "path": "src/server/services/story-memory-worker.service.ts",
+      "sha256": "2cfb837f7fb788bfe43da9e9b85c4d89dc2f37e058a06db87233037a0ae526d4"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f"
+    },
+    {
+      "path": "src/server/services/story-summary-context.spec.ts",
+      "sha256": "5298bb31e4b9e057811ce45890331c8a6c088aaecc8488220e09bbac66e59f25"
+    },
+    {
+      "path": "src/server/services/story-summary-context.ts",
+      "sha256": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b"
+    },
+    {
+      "path": "src/server/services/story-summary.service.ts",
+      "sha256": "6636ddff69daf82be03d1ec190a3e525736ee08a3011a6eed4aa5a42dc80adec"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/types/context-budget.ts",
+      "sha256": "96fdf94abee07109188ce5c7564fac6c304b9c6f1d820b1c8685ab92ff06c809"
+    },
+    {
+      "path": "src/types/story-memory.ts",
+      "sha256": "c9712199f13a11d41661053c85d2a1f3d3e8a18f7ff5ffe57c9640a89fc93c0c"
+    }
+  ]
+}

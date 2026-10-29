@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { effectScope } from 'vue';
 
 const { mockSearchCharacters, mockMapSearchItem } = vi.hoisted(() => ({
   mockSearchCharacters: vi.fn(),
@@ -17,6 +18,58 @@ import { useCharacterSearch } from './useCharacterSearch';
 describe('useCharacterSearch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('ignores older success and failure while the newest request owns loading', async () => {
+    let resolveOld!: (value: unknown) => void;
+    let rejectMiddle!: (reason: Error) => void;
+    let resolveLatest!: (value: unknown) => void;
+    mockSearchCharacters
+      .mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }))
+      .mockReturnValueOnce(new Promise((_, reject) => { rejectMiddle = reject; }))
+      .mockReturnValueOnce(new Promise(resolve => { resolveLatest = resolve; }));
+    const search = useCharacterSearch();
+    const old = search.fetchCharacters();
+    search.searchQuery.value = 'new';
+    const middle = search.fetchCharacters();
+    const latest = search.fetchCharacters();
+    resolveOld({ items: [{ id: 'old' }], pagination: { total: 90 } });
+    rejectMiddle(new Error('Old failure'));
+    await Promise.all([old, middle]);
+    expect(search.characters.value).toEqual([]);
+    expect(search.loading.value).toBe(true);
+    expect(search.failed.value).toBe(false);
+    resolveLatest({ items: [{ id: 'new', name: 'New' }], pagination: { total: 1 } });
+    await latest;
+    expect(search.characters.value[0].id).toBe('new');
+    expect(search.total.value).toBe(1);
+    expect(search.loading.value).toBe(false);
+  });
+
+  it('clears previous results on a failed new search and recovers on retry', async () => {
+    mockSearchCharacters.mockResolvedValueOnce({ items: [{ id: 'old' }], pagination: { total: 1 } })
+      .mockRejectedValueOnce(new Error('Offline'))
+      .mockResolvedValueOnce({ items: [], pagination: { total: 0 } });
+    const search = useCharacterSearch();
+    await search.fetchCharacters();
+    await expect(search.fetchCharacters()).rejects.toThrow('Offline');
+    expect(search.characters.value).toEqual([]);
+    expect(search.total.value).toBe(0);
+    expect(search.failed.value).toBe(true);
+    await search.fetchCharacters();
+    expect(search.failed.value).toBe(false);
+  });
+
+  it('does not publish a result after its scope is disposed', async () => {
+    let resolveRequest!: (value: unknown) => void;
+    mockSearchCharacters.mockReturnValueOnce(new Promise(resolve => { resolveRequest = resolve; }));
+    const scope = effectScope();
+    const search = scope.run(useCharacterSearch)!;
+    const pending = search.fetchCharacters();
+    scope.stop();
+    resolveRequest({ items: [{ id: 'old' }], pagination: { total: 1 } });
+    await pending;
+    expect(search.characters.value).toEqual([]);
   });
 
   it('has correct initial state', () => {

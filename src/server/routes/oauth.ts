@@ -20,6 +20,14 @@ const OAUTH_STATE_PREFIX = 'oauth_state:';
 const OAUTH_STATE_TTL = 300; // 5 minutes
 const OAUTH_CODE_PREFIX = 'oauth_code:';
 const OAUTH_CODE_TTL = 30; // 30 seconds
+const MAX_INVITE_CODE_LENGTH = 64;
+
+// 邀请码校验失败时回到注册页，让用户能直接改码重试；
+// 其余错误仍走 oauth-callback 页。
+const INVITE_CODE_ERROR_PARAMS: Record<string, string> = {
+  INVITE_CODE_REQUIRED: 'invite_code_required',
+  INVITE_CODE_INVALID: 'invite_code_invalid',
+};
 
 export const oauthRoutes = new Hono();
 
@@ -32,10 +40,28 @@ oauthRoutes.get('/:provider', async (c) => {
 
   const { url, state, codeVerifier } = oauthService.getAuthorizationUrl(provider);
 
+  /**
+   * 注册页勾了成年声明后才会带上 ageConfirmed=1。
+   *
+   * 声明随 state 存进 Redis，不放在回调 URL 上——回调地址用户可以自己改，
+   * 放在那里等于让「是否声明过」变成可伪造的查询参数。
+   * 登录页不带这个标记：老用户登录不需要重复声明，而全新账号会在
+   * authenticateWithOAuth 里被拦下并提示去注册页。
+   */
+  const ageConfirmed = c.req.query('ageConfirmed') === '1';
+
+  /**
+   * 邀请码同理随 state 存 Redis。只存不校验：校验和消费必须发生在建号的
+   * 那个事务里（authenticateWithOAuth），这里预校验一次既多余又有竞态。
+   * 合法码不超过 64 位；更长的直接丢弃，不让它占 Redis。
+   */
+  const rawInviteCode = c.req.query('inviteCode')?.trim();
+  const inviteCode = rawInviteCode && rawInviteCode.length <= MAX_INVITE_CODE_LENGTH ? rawInviteCode : undefined;
+
   // Store state → codeVerifier mapping in Redis
   await redis.set(
     `${OAUTH_STATE_PREFIX}${state}`,
-    JSON.stringify({ codeVerifier, provider }),
+    JSON.stringify({ codeVerifier, provider, ageConfirmed, inviteCode }),
     { EX: OAUTH_STATE_TTL },
   );
 
@@ -64,17 +90,22 @@ oauthRoutes.get('/:provider/callback', async (c) => {
   // Clean up state
   await redis.del(`${OAUTH_STATE_PREFIX}${state}`);
 
-  const { codeVerifier, provider: storedProvider } = JSON.parse(stateData);
+  const { codeVerifier, provider: storedProvider, ageConfirmed, inviteCode } = JSON.parse(stateData);
   if (storedProvider !== provider) {
     return c.redirect(`${config.appUrl}/auth/oauth-callback?error=provider_mismatch`);
   }
 
+  const actorIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+
   try {
     const profile = await oauthService.handleCallback(provider, code, codeVerifier);
-    const result = await oauthService.authenticateWithOAuth(profile);
+    const result = await oauthService.authenticateWithOAuth(profile, {
+      ageConfirmed: ageConfirmed === true,
+      inviteCode: typeof inviteCode === 'string' ? inviteCode : undefined,
+      actorIp: actorIp === 'unknown' ? undefined : actorIp,
+    });
 
     // Audit OAuth link
-    const actorIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
     auditService.log({
       tenantId: result.user.tenantId,
       actorId: result.user.id,
@@ -82,6 +113,17 @@ oauthRoutes.get('/:provider/callback', async (c) => {
       action: 'oauth_link',
       metadata: { provider },
     });
+
+    // 新建账号才有声明可记；和邮箱注册留同一个 action，取证时一处查得到。
+    if (result.isNewUser) {
+      auditService.log({
+        tenantId: result.user.tenantId,
+        actorId: result.user.id,
+        actorIp,
+        action: 'age_confirm',
+        metadata: { source: 'oauth', provider },
+      });
+    }
 
     // Generate a short-lived auth code and store the result in Redis
     const authCode = crypto.randomBytes(32).toString('hex');
@@ -97,6 +139,10 @@ oauthRoutes.get('/:provider/callback', async (c) => {
 
     return c.redirect(`${config.appUrl}/auth/oauth-callback?code=${authCode}`);
   } catch (err: any) {
+    const inviteParam = INVITE_CODE_ERROR_PARAMS[err?.code];
+    if (inviteParam) {
+      return c.redirect(`${config.appUrl}/auth/register?error=${inviteParam}`);
+    }
     const message = encodeURIComponent(err.message || 'oauth_failed');
     return c.redirect(`${config.appUrl}/auth/oauth-callback?error=${message}`);
   }

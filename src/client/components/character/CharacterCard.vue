@@ -104,7 +104,7 @@ function handleStartChat() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .character-card-wrapper {
   position: relative;
   overflow: hidden;
@@ -250,7 +250,7 @@ function handleStartChat() {
 }
 
 /* Mobile breakpoint */
-@media (max-width: 480px) {
+@include below(sm) {
   .character-card :deep(.el-card__body) {
     padding: 15px;
   }

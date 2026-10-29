@@ -4,6 +4,13 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Hono } from 'hono';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { importStandaloneWorldbook } from '../../db/worldbook-import';
+import { prepareStandaloneWorldbook } from '../../types/worldbook-import';
+
+vi.mock('../../db', () => ({ db: {} }));
+vi.mock('../../db/worldbook-import', () => ({ importStandaloneWorldbook: vi.fn() }));
 
 // --- Mocks (must precede router import) ---
 
@@ -49,6 +56,34 @@ describe('World Book Routes', () => {
     vi.clearAllMocks();
   });
 
+  describe.skipIf(!process.env.CARD_LIBRARY_SAMPLE_ROOT)('Local library worldbook import mapping', () => {
+    for (const relative of ['世界书及其他/世界书/神明级魔法.json', '世界书及其他/世界书/通用旁白 (只有世界书).json']) {
+      it(relative, async () => {
+        const source = JSON.parse(await readFile(join(process.env.CARD_LIBRARY_SAMPLE_ROOT!, relative), 'utf8'));
+        const entries = Object.keys(source.entries).sort((left, right) => Number(left) - Number(right))
+          .map(key => source.entries[key]);
+        vi.mocked(importStandaloneWorldbook).mockResolvedValue({ worldBookId: 'sample-book', name: source.name, imported: entries.length });
+        const response = await app.request('/worldbooks/import-file', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(source) });
+        expect(response.status).toBe(201);
+        expect((await response.json()).data.imported).toBe(entries.length);
+        expect(importStandaloneWorldbook).toHaveBeenCalledWith({}, { userId: 'user-1', tenantId: 'tenant-1' }, source);
+        const prepared = prepareStandaloneWorldbook(source);
+        entries.forEach((entry, index) => {
+          expect(prepared.entries[index]).toMatchObject({ content: entry.content,
+            isEnabled: entry.enabled ?? !entry.disable,
+            settings: { keys: entry.keys ?? entry.key ?? [], constant: entry.constant === true } });
+        });
+      });
+    }
+  });
+
+  it.each([null, { entries: [null] }, { entries: [{ content: 12 }] }])('rejects malformed file without persistence: %j', async input => {
+    const response = await app.request('/worldbooks/import-file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });
+    expect(response.status).toBe(400);
+    expect(importStandaloneWorldbook).not.toHaveBeenCalled();
+  });
+
   // --- GET / ---
 
   describe('GET /', () => {
@@ -89,6 +124,7 @@ describe('World Book Routes', () => {
         name: 'My Lore',
         scope: 'global',
         ownerId: 'user-1',
+        tenantId: 'tenant-1',
         characterId: undefined,
       });
     });
@@ -147,6 +183,9 @@ describe('World Book Routes', () => {
         order: 0,
         enabled: true,
         depth: 0,
+        // createEntrySchema 的默认值：路由始终显式传入递归开关
+        recursive: true,
+        preventRecursion: false,
       });
     });
   });

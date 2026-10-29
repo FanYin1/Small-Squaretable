@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { Fold } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
+import { useUserStore } from '@client/stores/user';
 import LeftSidebar from './LeftSidebar.vue';
 import UserMenu from './UserMenu.vue';
 import BottomTabBar from './BottomTabBar.vue';
@@ -9,6 +11,8 @@ import ConnectionIndicator from './ConnectionIndicator.vue';
 import NotificationBell from './NotificationBell.vue';
 
 const mobileSidebarVisible = ref(false);
+const { t } = useI18n();
+const userStore = useUserStore();
 
 const toggleMobileSidebar = () => {
   mobileSidebarVisible.value = !mobileSidebarVisible.value;
@@ -20,13 +24,13 @@ const closeMobileSidebar = () => {
 </script>
 
 <template>
-  <div class="dashboard-layout">
+  <div class="dashboard-layout story-shell">
     <LeftSidebar :mobile-visible="mobileSidebarVisible" @close="closeMobileSidebar" />
 
     <div class="dashboard-main">
       <header class="top-bar" role="banner">
         <div class="top-bar-left">
-          <button class="mobile-menu-btn" aria-label="Toggle menu" @click="toggleMobileSidebar">
+          <button class="mobile-menu-btn" :aria-label="t('storyShell.navigation')" :aria-expanded="mobileSidebarVisible" @click="toggleMobileSidebar">
             <el-icon :size="22"><Fold /></el-icon>
           </button>
           <div class="title-wrapper">
@@ -48,10 +52,12 @@ const closeMobileSidebar = () => {
         </div>
 
         <div class="top-bar-user">
-          <ConnectionIndicator />
-          <DeviceIndicator />
+          <template v-if="userStore.isAuthenticated">
+          <details class="connection-details"><summary>{{ t('storyShell.connection') }}</summary><ConnectionIndicator /><DeviceIndicator /></details>
           <NotificationBell />
           <UserMenu />
+          </template>
+          <router-link v-else class="guest-login" :to="{ name: 'Login' }">{{ t('nav.login') }}</router-link>
         </div>
       </header>
 
@@ -64,7 +70,7 @@ const closeMobileSidebar = () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .dashboard-layout {
   display: flex;
   min-height: 100vh;
@@ -73,7 +79,8 @@ const closeMobileSidebar = () => {
 
 .dashboard-main {
   flex: 1;
-  margin-left: 280px;
+  min-width: 0;
+  margin-left: 240px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -106,11 +113,11 @@ const closeMobileSidebar = () => {
 }
 
 .page-title {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 500;
   color: var(--text-primary);
   margin: 0;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .page-subtitle {
@@ -138,16 +145,21 @@ const closeMobileSidebar = () => {
   justify-content: flex-end;
   gap: 8px;
 }
+.guest-login { display:inline-flex; align-items:center; min-height:44px; padding:10px 16px; color:var(--accent-text); border:1px solid var(--border-interactive); border-radius:10px; text-decoration:none; }
 
 .dashboard-content {
   flex: 1;
-  padding: 24px 32px;
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
 }
 
-@media (max-width: 1024px) {
+@include below(lg) {
   .top-bar {
     grid-template-columns: 1fr auto;
     gap: 8px;
+    padding: 12px 16px;
   }
 
   .top-bar-center {
@@ -156,17 +168,23 @@ const closeMobileSidebar = () => {
 
   .top-bar-actions {
     justify-content: flex-end;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-wrap: wrap;
   }
+
+  .top-bar-actions:empty { display: none; }
+  .top-bar-user { grid-column: 2; grid-row: 1; }
 }
 
-@media (max-width: 768px) {
+@include below(lg) {
   .dashboard-main {
     margin-left: 0;
   }
 
   .dashboard-content {
     padding: 16px;
-    padding-bottom: 72px;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
   }
 }
 
@@ -174,8 +192,8 @@ const closeMobileSidebar = () => {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   margin-right: 12px;
   background: transparent;
@@ -193,10 +211,14 @@ const closeMobileSidebar = () => {
   color: var(--accent-text);
 }
 
-@media (max-width: 767px) {
+@include below(lg) {
   .mobile-menu-btn {
     display: flex;
   }
 }
+
+.connection-details { position:relative; font-size:12px; color:var(--text-secondary); }
+.connection-details summary { cursor:pointer; min-height:44px; display:flex; align-items:center; }
+.connection-details[open] { padding:8px; border:1px solid var(--border-default); border-radius:10px; background:var(--bg-surface); }
 
 </style>

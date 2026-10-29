@@ -13,9 +13,10 @@
  * isNsfw 是违规待处置标记而不是分级标记，没有「让用户自己选择」这一档。
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CharacterService } from './character.service';
 import { BadRequestError } from '../../core/errors';
+import { config } from '../../core/config';
 
 const characterId = 'char-1';
 const userId = 'user-1';
@@ -44,8 +45,18 @@ const base = {
   isNsfw: false,
 };
 
-describe('publish 与 isNsfw', () => {
-  beforeEach(() => vi.clearAllMocks());
+// P2-6 之后「拒绝发布 NSFW」只在平台开关关闭（NSFW_ENABLED=false）时成立；
+// 默认开启时 NSFW 卡可以发布、审核照常。本组用例描述的是开关关闭时的行为，
+// 所以显式切到关闭，结束后恢复。开关开启的行为见下面的 describe。
+describe('publish 与 isNsfw（平台开关关闭）', () => {
+  const original = config.nsfwEnabled;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    config.nsfwEnabled = false;
+  });
+  afterEach(() => {
+    config.nsfwEnabled = original;
+  });
 
   it('拒绝发布标记为 NSFW 的角色，而不是发完让它隐形', async () => {
     const repo = createRepoSpy({ ...base, isNsfw: true });
@@ -116,5 +127,37 @@ describe('publish 与 isNsfw', () => {
       isPublic: false,
       moderationStatus: 'draft',
     });
+  });
+});
+
+describe('publish 与 isNsfw（平台开关开启，默认）', () => {
+  const original = config.nsfwEnabled;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    config.nsfwEnabled = true;
+  });
+  afterEach(() => {
+    config.nsfwEnabled = original;
+  });
+
+  it('NSFW 角色可以发布，进入待审（审核流程不变）', async () => {
+    const repo = createRepoSpy({ ...base, isNsfw: true });
+    const service = makeService(repo);
+
+    await service.publish(characterId, userId, tenantId);
+
+    expect(repo.update).toHaveBeenCalledWith(characterId, tenantId, {
+      isPublic: true,
+      moderationStatus: 'pending',
+      violationCategory: null,
+      moderationNote: null,
+    });
+  });
+
+  it('非作者仍然拿到权限错误', async () => {
+    const repo = createRepoSpy({ ...base, isNsfw: true, creatorId: 'someone-else' });
+    const service = makeService(repo);
+
+    await expect(service.publish(characterId, userId, tenantId)).rejects.toThrow(/Only creator/i);
   });
 });

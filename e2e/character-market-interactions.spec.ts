@@ -492,7 +492,7 @@ test.describe('My Characters Page', () => {
       data: { items: MOCK_CHARACTERS, pagination: { page: 1, limit: 20, total: 3, totalPages: 1, hasNext: false, hasPrev: false } },
     });
     await mockApiResponse(page, '**/api/v1/character-collections*', { success: true, data: [] });
-    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.setViewportSize({ width: 900, height: 768 });
     await gotoWithAuth(page, '/my-characters');
     await waitForNetworkIdle(page);
 
@@ -500,7 +500,7 @@ test.describe('My Characters Page', () => {
     await expect(grid).toBeVisible();
     const columns = await grid.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
     const colCount = columns.split(' ').length;
-    // At 1024px (between 768 and 1279), should be 3 columns
+    // Tablet range is 768–1023px since P1-3 unified breakpoints (480/768/1024); 1024px is already desktop
     expect(colCount).toBe(3);
   });
 

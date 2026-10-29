@@ -1,0 +1,146 @@
+{
+  "date": "2026-10-27",
+  "result": "SG-01-through-05-source-activation-correctness-deployed",
+  "scope": "Reject unsupported activation restrictions; not conversion of those restrictions, new third-party mechanics or whole AD-3/5 acceptance",
+  "failBefore": {
+    "semanticCounterexamples": 10
+  },
+  "unitTests": {
+    "passed": 139,
+    "files": 10,
+    "fullRepositorySuite": false
+  },
+  "typecheck": "passed",
+  "focusedLint": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "isolated": {
+    "sourceCases": [
+      "keyword",
+      "probability",
+      "delay",
+      "cooldown",
+      "sticky",
+      "character-filter"
+    ],
+    "obsoleteSameRevisionGrantRejected": true,
+    "receiptUnchanged": true,
+    "oldSnapshotUnchanged": true,
+    "frozenValues": [
+      10,
+      7,
+      4
+    ],
+    "recheckedUnconditionalInitial": 10,
+    "screenshots": 4,
+    "browserErrors": 0,
+    "existingGroups": 31,
+    "existingScreenshots": 22,
+    "reference": "backups/exploration/adapter-source-gates-20261027/isolated/result.json",
+    "existingReference": "backups/exploration/adapter-source-gates-20261027/full-isolated/result.json"
+  },
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261027-source-gates",
+    "imageId": "sha256:1924a808856cc94727889a8ac7efad7faac1def02b694b81a8e6aa683573c2b2",
+    "migrationCount": 16,
+    "newMigrations": 0,
+    "rehearsalComparedTables": 76,
+    "existingRowsPreserved": true,
+    "backup": "backups/exploration/upgrade-315d58ab-d7d3-4fd9-b00e-59dc281793df",
+    "historical3080Changed": false,
+    "rollback": "New conditional-source reason is not guaranteed readable by older images; require compatible code or matched application/data restoration"
+  },
+  "deployedSource": {
+    "syntheticCards": 2,
+    "cases": [
+      {
+        "constant": false,
+        "reason": "conditional-source"
+      },
+      {
+        "constant": true,
+        "reason": "compiled"
+      }
+    ],
+    "screenshots": 4,
+    "restartPassed": true,
+    "storyCreation": false,
+    "browserErrors": 0,
+    "unchangedBusinessTables": 20,
+    "obsoleteGrantMutation": "Isolated database only",
+    "reference": "backups/exploration/adapter-source-gates-20261027/deployed-source/report.json"
+  },
+  "deployedReadOnly": {
+    "groups": 7,
+    "recoveryCases": 4,
+    "screenshots": 34,
+    "runtimeFilesMatched": 242,
+    "unchangedBusinessTables": 20,
+    "browserErrors": 0,
+    "businessMutationRequests": 0,
+    "publicationPreviewsBlocked": 3,
+    "reference": "backups/exploration/adapter-source-gates-20261027/deployed-readonly/report.json"
+  },
+  "testHarnessFailures": [
+    "First isolated check used incompatible JSON parameter serialization; corrected parameterized JSON text to jsonb, original log retained",
+    "First deployed script expected no presentation task; authored introduction correctly yields skipped task; assertion corrected, business rows restored after cleanup"
+  ],
+  "budget": {
+    "paidCalls": 0,
+    "ledgerUnchanged": true,
+    "authorization": 1450000,
+    "occupied": 692784,
+    "available": 757216,
+    "pending": 0,
+    "unknownNewRequests": 0
+  },
+  "pointChanges": 0,
+  "humanAcceptance": false,
+  "privateManifest": "backups/exploration/adapter-source-gates-20261027/manifest.json",
+  "remaining": [
+    "AD-3 complete source-backed conditional/set/once/transaction conversion",
+    "AD-5 sustained mechanics on four user cards",
+    "EXP-07D-LOAD historical intermittent failures root cause",
+    "Human visual and real-device acceptance"
+  ],
+  "sources": [
+    {
+      "path": "src/types/story-adapter.ts",
+      "sha256": "4a2d3552c83f10a9a3803c396fcdce9ddbb0d641b6f634865a27e32c5813f4d2"
+    },
+    {
+      "path": "src/server/services/story-adapter-compiler.ts",
+      "sha256": "3741bbbd83e31dd0142b5aa51390572ab5b4e1975066efbbb5675305f1793049"
+    },
+    {
+      "path": "src/server/services/story-adapter-compiler.spec.ts",
+      "sha256": "eaf39154962885fb0181e5a6ac04ccc3bb42d1fc8d8de3248011b652bff652d7"
+    },
+    {
+      "path": "src/server/services/story-adapter-jobs.service.ts",
+      "sha256": "63ea2b200ab8e857bcc90c57ae348b1f83603d70ea71a5c9a689309f69c6ac13"
+    },
+    {
+      "path": "src/client/components/character/StoryAdapterPanel.vue",
+      "sha256": "5ad11f1da85f8e31ecc20c199d423d693460798181f6341196cde2241ad55ab5"
+    },
+    {
+      "path": "src/client/components/character/StoryAdapterPanel.spec.ts",
+      "sha256": "0d400765994d474c90d74fe33730462573578c64835c2008e23b487b532f82fd"
+    },
+    {
+      "path": "scripts/story-adapter-source-check.mjs",
+      "sha256": "0d638a161fea38a15d1dc14b933479a4e26b94dc9177efd2dbb67c7fbb4ebcff"
+    },
+    {
+      "path": "scripts/story-adapter-source-deployed-check.mjs",
+      "sha256": "303e69d58fcab70d50e232dfb190b61dad22580869eec609ec5c90f0580f451a"
+    },
+    {
+      "path": "scripts/story-adapter-check.mjs",
+      "sha256": "2ff2685275fc66fdb031cfef74508bfe6df290a4b651b872da6df3ae83a25313"
+    }
+  ]
+}

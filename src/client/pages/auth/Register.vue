@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@client/stores/user';
 import { useToast } from '@client/composables/useToast';
 import type { FormInstance, FormRules } from 'element-plus';
 import { View, Hide } from '@element-plus/icons-vue';
+import { ApiError } from '@client/services/api';
+import AuthStoryIntro from '@client/components/layout/AuthStoryIntro.vue';
 
 const router = useRouter();
+const route = useRoute();
 const { t } = useI18n();
 const userStore = useUserStore();
 const toast = useToast();
@@ -19,7 +22,11 @@ const formData = reactive({
   email: '',
   password: '',
   confirmPassword: '',
+  inviteCode: '',
   agreeToTerms: false,
+  // 与条款勾选分开：条款同意和年龄声明是两件事，合成一个勾选框
+  // 就无法证明用户单独确认过年龄。
+  ageConfirmed: false,
 });
 
 // UI state
@@ -89,9 +96,25 @@ const validateConfirmPassword = (_rule: any, value: any, callback: any) => {
   }
 };
 
+const validateInviteCode = (_rule: any, value: any, callback: any) => {
+  if (!value || !String(value).trim()) {
+    callback(new Error(t('auth.inviteCodeRequired')));
+  } else {
+    callback();
+  }
+};
+
 const validateTerms = (_rule: any, value: any, callback: any) => {
   if (!value) {
     callback(new Error(t('auth.agreeTermsRequired')));
+  } else {
+    callback();
+  }
+};
+
+const validateAgeConfirmed = (_rule: any, value: any, callback: any) => {
+  if (!value) {
+    callback(new Error(t('auth.ageConfirmRequired')));
   } else {
     callback();
   }
@@ -113,8 +136,14 @@ const rules = reactive<FormRules>({
   confirmPassword: [
     { required: true, validator: validateConfirmPassword, trigger: 'blur' },
   ],
+  inviteCode: [
+    { required: true, validator: validateInviteCode, trigger: 'blur' },
+  ],
   agreeToTerms: [
     { required: true, validator: validateTerms, trigger: 'change' },
+  ],
+  ageConfirmed: [
+    { required: true, validator: validateAgeConfirmed, trigger: 'change' },
   ],
 });
 
@@ -128,7 +157,13 @@ const handleRegister = async () => {
 
     loading.value = true;
 
-    await userStore.register(formData.email, formData.password, formData.name);
+    await userStore.register(
+      formData.email,
+      formData.password,
+      formData.name,
+      formData.ageConfirmed,
+      formData.inviteCode.trim(),
+    );
 
     toast.success(t('auth.registerSuccess'));
 
@@ -136,26 +171,68 @@ const handleRegister = async () => {
     router.push({ name: 'Chat' });
   } catch (error: unknown) {
     toast.error(t('auth.registerFailed'), {
-      message: error instanceof Error ? error.message : t('auth.checkInputRetry')
+      message: inviteCodeMessage(error instanceof ApiError ? error.code : undefined)
+        ?? (error instanceof Error ? error.message : t('auth.checkInputRetry')),
     });
   } finally {
     loading.value = false;
   }
 };
 
+// 邀请码相关错误码 → 可读文案。服务端把「不存在 / 过期 / 用尽 / 禁用」合并成同一个
+// INVALID，前端也就只有这两条。
+const INVITE_ERROR_KEYS: Record<string, string> = {
+  INVITE_CODE_REQUIRED: 'auth.inviteCodeRequired',
+  INVITE_CODE_INVALID: 'auth.inviteCodeInvalid',
+  invite_code_required: 'auth.inviteCodeRequired',
+  invite_code_invalid: 'auth.inviteCodeInvalid',
+};
+
+function inviteCodeMessage(code: string | undefined): string | undefined {
+  const key = code ? INVITE_ERROR_KEYS[code] : undefined;
+  return key ? t(key) : undefined;
+}
+
+// OAuth 首次登录被邀请码挡住时，服务端回跳 /auth/register?error=invite_code_*
+onMounted(() => {
+  const queryError = route.query.error;
+  const message = typeof queryError === 'string' ? inviteCodeMessage(queryError) : undefined;
+  if (message) {
+    toast.error(t('auth.registerFailed'), { message });
+  }
+});
+
 // Navigate to login
 const goToLogin = () => {
   router.push({ name: 'Login' });
 };
 
-// OAuth login - full page redirect to server
+/**
+ * OAuth login - full page redirect to server.
+ *
+ * 注册页的第三方登录同样会建新账号，所以先要有成年声明再跳走——
+ * 否则用户点 Google 按钮就绕过了整个年龄门。
+ * 服务端只认 Redis 里随 state 存下的标记，这里的查询参数只是把
+ * 用户的勾选传给授权入口。
+ */
 const loginWithOAuth = (provider: string) => {
-  window.location.href = `/api/v1/auth/oauth/${provider}`;
+  if (!formData.ageConfirmed) {
+    toast.error(t('auth.ageConfirmRequired'));
+    return;
+  }
+  const inviteCode = formData.inviteCode.trim();
+  if (!inviteCode) {
+    toast.error(t('auth.inviteCodeRequired'));
+    return;
+  }
+  window.location.href =
+    `/api/v1/auth/oauth/${provider}?ageConfirmed=1&inviteCode=${encodeURIComponent(inviteCode)}`;
 };
 </script>
 
 <template>
-  <div class="register-page">
+  <div class="register-page story-shell">
+    <AuthStoryIntro />
     <el-card class="register-card">
       <template #header>
         <div class="card-header">
@@ -255,6 +332,17 @@ const loginWithOAuth = (provider: string) => {
           </el-input>
         </el-form-item>
 
+        <!-- Invite Code Field -->
+        <el-form-item :label="t('auth.inviteCode')" prop="inviteCode">
+          <el-input
+            v-model="formData.inviteCode"
+            :placeholder="t('auth.enterInviteCode')"
+            :disabled="loading"
+            maxlength="64"
+            clearable
+          />
+        </el-form-item>
+
         <!-- Terms and Conditions -->
         <el-form-item prop="agreeToTerms">
           <el-checkbox v-model="formData.agreeToTerms" :disabled="loading">
@@ -262,6 +350,13 @@ const loginWithOAuth = (provider: string) => {
             <router-link :to="{ name: 'Terms' }" class="terms-link">{{ t('auth.termsOfService') }}</router-link>
             {{ t('auth.and') }}
             <router-link :to="{ name: 'Privacy' }" class="terms-link">{{ t('auth.privacyPolicy') }}</router-link>
+          </el-checkbox>
+        </el-form-item>
+
+        <!-- Age confirmation -->
+        <el-form-item prop="ageConfirmed">
+          <el-checkbox v-model="formData.ageConfirmed" :disabled="loading">
+            {{ t('auth.ageConfirm') }}
           </el-checkbox>
         </el-form-item>
 
@@ -313,7 +408,7 @@ const loginWithOAuth = (provider: string) => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .register-page {
   display: flex;
   align-items: center;
@@ -407,7 +502,7 @@ const loginWithOAuth = (provider: string) => {
   margin-top: 8px;
   background-color: var(--accent);
   border: none;
-  color: white;
+  color: var(--accent-on);
   transition: all 0.2s ease;
 }
 
@@ -470,7 +565,9 @@ const loginWithOAuth = (provider: string) => {
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@include below(md) {
+  .social-buttons { flex-direction: column; }
+  :deep(.el-divider__text) { white-space: nowrap; font-size: 13px; }
   .register-page {
     padding: 16px;
   }
@@ -492,7 +589,7 @@ const loginWithOAuth = (provider: string) => {
   }
 }
 
-@media (max-width: 480px) {
+@include below(sm) {
   .register-page {
     padding: 12px;
   }
@@ -603,13 +700,13 @@ const loginWithOAuth = (provider: string) => {
   padding: 0 24px 32px;
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   :deep(.el-form) {
     padding: 0 20px 28px;
   }
 }
 
-@media (max-width: 480px) {
+@include below(sm) {
   :deep(.el-form) {
     padding: 0 16px 24px;
   }

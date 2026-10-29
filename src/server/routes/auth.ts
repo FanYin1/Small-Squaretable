@@ -20,7 +20,10 @@ authRoutes.post(
   zValidator('json', registerSchema),
   async (c) => {
     const input = c.req.valid('json');
-    const result = await authService.register(input);
+    // IP 由服务端从请求头取，不接受客户端自报——否则这份声明的证据就是可伪造的。
+    const actorIp =
+      c.req.header('x-forwarded-for')?.split(',')[0] || c.req.header('x-real-ip') || undefined;
+    const result = await authService.register({ ...input, actorIp });
 
     return c.json<ApiResponse>(
       {

@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "at": "2026-10-25T11:10:56.296Z",
+  "checks": [
+    "Author creates a constant entry without keywords through the real UI; purpose, injection position and ordering persist",
+    "Purpose edit survives reload at desktop/mobile sizes; old story keeps knowledge and new story captures style",
+    "Unknown purpose survives edit; export/import and append preserve purpose, position, logic, role and recursion; invalid append writes nothing",
+    "Actual 3081 container restart preserves author settings, export and both frozen story snapshots"
+  ],
+  "artifacts": {
+    "cardId": "d17787c9-35c4-4851-963f-a0f3b1a31837",
+    "bookId": "61b6d08c-1388-45ad-8dce-ef9afcfd52cd",
+    "oldStoryId": "39fc18fc-7ba3-4d59-a505-855ab381ba7e",
+    "newStoryId": "edcfc672-3c5c-401a-a65a-f8e0372edab9",
+    "importedBookId": "d698e1b4-0302-4d36-9d8a-5c509c0b5919"
+  },
+  "hashes": {
+    "dist/server/index.js": "898b6c600a987ed24b39d76411cfda3d2a1d8f5440f5b01b6cd5903c04272930",
+    "dist/client/index.html": "19a726d679f2857f8d49094b285fbed82a84bdeb4431549568c717c8ed653783"
+  },
+  "screenshots": [
+    "purpose-desktop.png",
+    "purpose-mobile.png"
+  ],
+  "errors": [],
+  "generationSends": 0,
+  "paidProviderTokens": 0,
+  "provider": "not called; synthetic authoring fixtures",
+  "migrationCount": 12,
+  "image": "sha256:513da41b2bdf951c0a06ee7e6a9be377723d2a22482c183284c3070c0fdf5e7c"
+}

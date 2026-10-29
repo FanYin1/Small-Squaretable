@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>小方桌 · 体验评审</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="notice">独立评审 · 截图来自已归档验收，交互使用预写示例 · 不连接真实故事或模型</div>
+  <header><a class="brand" href="/">◇ <span>小方桌<small>EXPERIENCE REVIEW</small></span></a><span class="draft-badge">待确认提案</span><button id="theme-toggle" type="button">切换明暗</button></header>
+  <main>
+    <section class="intro"><p class="eyebrow">从看见，到亲手体验</p><h1>把下一步，走得更清楚。</h1><p>先看页面的真实差异，再试一试如何行动、如何改错。每一处反馈都可以留下，正式决定由你确认。</p></section>
+    <nav aria-label="评审步骤"><button type="button" data-tab="pages" aria-pressed="true">01 页面对照</button><button type="button" data-tab="interaction" aria-pressed="false">02 行动与纠正</button><button type="button" data-tab="feedback" aria-pressed="false">03 反馈草稿</button></nav>
+    <section id="pages" class="tab-panel">
+      <div class="section-title"><div><p class="eyebrow">OPEN-03 · 页面与信息层级</p><h2 tabindex="-1">原型与正式页面，放在一起看。</h2></div><span>390 / 768 / 1440 px</span></div>
+      <div class="filters"><label>页面<select id="page-select"><option value="discover">发现</option><option value="detail" selected>故事详情</option><option value="identity">可选身份</option><option value="library">我的故事</option><option value="create">创作</option><option value="account">账户</option><option value="play">游玩</option></select></label><label>截图宽度<select id="width-select"><option>390</option><option selected>768</option><option>1440</option></select></label><label>截图主题<select id="image-theme"><option value="light">浅色</option><option value="dark">深色</option></select></label></div>
+      <p id="page-difference" class="callout"></p>
+      <div class="comparison"><figure><figcaption>已保存原型 <span>设计参考</span></figcaption><a id="reference-link" target="_blank" rel="noopener"><img id="reference-image" alt="选中页面的已保存原型截图"></a><p id="reference-unavailable" hidden>尚未归档游玩页的同场景原型对照。右侧仅为正式构建截图；下面的交互示例也不能替代同内容视觉验收。</p></figure><figure><figcaption>正式构建 <span>真实接口验收截图</span></figcaption><a id="production-link" target="_blank" rel="noopener"><img id="production-image" alt="选中页面的正式构建截图"></a></figure></div>
+      <p id="image-status" role="status"></p>
+      <div class="note-card"><label>这组页面的反馈<select id="page-verdict"><option value="pending">尚未判断</option><option value="adjust">需要调整</option><option value="ready">可进入正式验收</option></select></label><label>具体想调整哪里？<textarea id="page-note" maxlength="2000" rows="3" placeholder="例如：768px详情页的开始按钮太靠后，希望先看故事，再看高级设定。"></textarea></label><p class="muted">反馈按页面、截图宽度和主题分别保存。这里的选择不会关闭产品待办。</p></div>
+    </section>
+    <section id="interaction" class="tab-panel" hidden>
+      <div class="section-title"><div><p class="eyebrow">OPEN-02 / OPEN-01 · 操作方式与影响</p><h2 tabindex="-1">同一个故事，试两种推进方式。</h2></div></div>
+      <div class="filters"><label>预写场景<select id="scene-select"><option value="harbor">港口 · 资源与探索</option><option value="bookshop">书店 · 称呼与约定</option></select></label><label>推荐行动的试用模式<select id="action-mode"><option value="draft">先填入草稿，再发送</option><option value="direct">点击即执行</option></select></label><button id="record-mode" type="button">记为我的倾向</button></div>
+      <p class="muted">先填草稿便于修改；直接执行少一步操作。切换试用不等于确认默认方案。</p>
+      <div class="play-layout"><article class="story-panel"><p class="eyebrow">预写示例 · 当前故事</p><h3 id="scene-title"></h3><p id="original-text" class="narrative"></p><p id="scene-source" class="source"></p><div class="separator"></div><p class="eyebrow">你打算怎么做？</p><div id="recommendations" class="recommendations"></div><form id="action-form"><label for="action-draft">也可以用自己的话</label><textarea id="action-draft" rows="3" maxlength="1000" placeholder="写下你的行动或想问的话……"></textarea><div class="form-footer"><span>Enter发送 · Shift+Enter换行</span><button id="send-action" class="primary" type="submit">发送示例行动</button></div></form><p id="action-status" role="status">尚未提交示例行动。</p></article><aside class="state-panel"><p class="eyebrow">原故事的已确认记录 · 预写</p><details id="state-details" open><summary>这一刻，留下了什么</summary><dl id="original-state"></dl><p class="muted">示例中的金币和约定属于剧情；不是平台点数，也不会产生真实消费。</p></details></aside></div>
+      <section class="correction-panel"><p class="eyebrow">遇到不对的地方</p><h2>先说清想改什么，再看影响。</h2><div class="correction-grid"><button type="button" data-correction="note"><strong>加一处阅读标注</strong><span>保留原文，不改变后续认知</span></button><button type="button" data-correction="rewrite"><strong>换一种表达</strong><span>预览同事件结果的另一种写法</span></button><button type="button" data-correction="fact"><strong>指出事实错误</strong><span>带着依据预览一个修正分支</span></button><button type="button" data-correction="branch"><strong>尝试另一个选择</strong><span>从行动前预览另一条故事线</span></button></div><section id="correction-result" class="result" hidden aria-live="polite"><p class="eyebrow">预写方案 · 未提交到真实故事</p><h3 id="result-title"></h3><p id="result-text" class="narrative"></p><dl id="result-state"></dl><p id="result-memory"></p><button type="button" id="reset-example">收起示例结果</button></section></section>
+    </section>
+    <section id="feedback" class="tab-panel" hidden>
+      <div class="section-title"><div><p class="eyebrow">保留讨论，不冒充定案</p><h2 tabindex="-1">把你的判断，留下来。</h2></div><span id="feedback-count"></span></div>
+      <div class="feedback-layout"><section class="note-card"><h3>交互倾向</h3><p id="mode-preference"></p><label>对于纠正、重写和分支的想法<textarea id="correction-note" rows="6" maxlength="3000" placeholder="例如：我希望改错保留原故事；但改称呼必须影响后续记忆，而不只是加标注。"></textarea></label><p class="muted">本机草稿不自动写回开发决策。导出后，仍需在讨论中明确确认具体规则。</p><button id="export-feedback" type="button" class="primary">导出待确认反馈</button></section><section class="note-card"><h3>已经记录的页面反馈</h3><div id="feedback-list"></div></section></div>
+      <div class="callout">仍待完成：页面及真机确认、纠正与分支的生产实现、完整体验验收。试用预写示例不代表这些任务通过。</div>
+    </section>
+    <p id="storage-status" role="status" class="storage-status">反馈仅保存在此浏览器。</p>
+  </main>
+  <dialog id="draft-dialog" aria-labelledby="draft-title"><h2 id="draft-title">保留正在写的想法？</h2><p>输入框已有内容。选用推荐会替换这段示例草稿。</p><div class="dialog-actions"><button type="button" id="keep-draft" autofocus>保留我的草稿</button><button type="button" class="primary" id="replace-draft">替换为推荐</button></div></dialog>
+  <dialog id="correction-dialog" aria-labelledby="correction-title"><p class="eyebrow">影响预览 · 待确认方案</p><h2 id="correction-title"></h2><p id="correction-description"></p><label id="evidence-label" hidden>用于纠正的依据<select id="evidence-select"><option value="known">场景中可见的原文依据</option><option value="missing">没有找到依据，只是猜测</option></select></label><p id="evidence-warning" role="status" hidden>依据不足，不能把猜测当作已修复的事实。</p><div class="impact-table"><table><thead><tr><th>影响范围</th><th>这个方案怎么处理</th></tr></thead><tbody id="impact-rows"></tbody></table></div><p class="muted">以下结果都是预先编写的示例，没有创建真实分支、调用模型或修改存档。</p><div class="dialog-actions"><button type="button" id="cancel-correction" autofocus>返回原故事</button><button type="button" class="primary" id="preview-correction">查看预写结果</button></div></dialog>
+</body>
+</html>

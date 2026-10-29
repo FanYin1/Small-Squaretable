@@ -1,0 +1,311 @@
+[dotenv@17.3.1] injecting env (30) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+
+ RUN  v4.0.18 /var/aichat/Small-Squaretable
+
+ ✓ |server| src/types/story-knowledge.spec.ts (9 tests) 16ms
+ ✓ |server| src/types/story-intent.spec.ts (17 tests) 50ms
+ ✓ |server| src/types/story-state.spec.ts (13 tests) 34ms
+ ✓ |server| src/server/services/story-turn-prompt.spec.ts (3 tests) 7ms
+ ✓ |server| src/server/services/credit-generation.spec.ts (22 tests) 31ms
+ ✓ |server| src/types/story-capabilities.spec.ts (21 tests) 35ms
+ ✓ |server| src/server/services/group-chat.service.spec.ts (16 tests) 23ms
+ ✓ |client| src/client/composables/useStoryState.spec.ts (4 tests) 17ms
+ ✓ |client| src/client/composables/useStoryCredits.spec.ts (6 tests) 30ms
+ ✓ |client| src/client/components/chat/StoryIntentReview.spec.ts (3 tests) 69ms
+ ✓ |client| src/client/components/chat/StoryDossier.spec.ts (7 tests) 273ms
+stderr | src/client/stores/chat.spec.ts > Chat Store > 点数不足报警 (INSUFFICIENT_CREDITS) > WebSocket error 事件：设置错误文案、复位发送状态并弹出报警
+[Chat] WebSocket error undefined {
+  errorData: {
+    code: 'INSUFFICIENT_CREDITS',
+    message: 'Insufficient credits',
+    details: { requiredPoints: 3, availablePoints: 1 }
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > 点数不足报警 (INSUFFICIENT_CREDITS) > WebSocket error 事件：其他错误码不弹报警
+[Chat] WebSocket error undefined { errorData: { code: 'MESSAGE_ERROR', message: 'boom' } }
+
+stdout | src/client/stores/chat.spec.ts > Chat Store > setCurrentChat > does not restore an old selection after a slow summary response
+[Chat] getChatCharacters result { chatId: 'new', count: 0 }
+[Chat] Attempting fallback character load { chatId: 'new' }
+[Chat] Found chat in store { found: true, characterId: 'char1' }
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > setCurrentChat > does not restore an old selection after a slow summary response
+[Chat] Failed to load character from fallback TypeError: Cannot read properties of undefined (reading 'id')
+    at Proxy.setCurrentChat (/var/aichat/Small-Squaretable/src/client/stores/chat.ts:1117:85)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /var/aichat/Small-Squaretable/src/client/stores/chat.spec.ts:464:7
+    at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:915:20
+
+stdout | src/client/stores/chat.spec.ts > Chat Store > setCurrentChat > discards old message responses when the user switches stories
+[Chat] getChatCharacters result { chatId: 'new', count: 0 }
+[Chat] Attempting fallback character load { chatId: 'new' }
+[Chat] Found chat in store { found: true, characterId: 'char1' }
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > setCurrentChat > discards old message responses when the user switches stories
+[Chat] Failed to load character from fallback TypeError: Cannot read properties of undefined (reading 'id')
+    at Proxy.setCurrentChat (/var/aichat/Small-Squaretable/src/client/stores/chat.ts:1117:85)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /var/aichat/Small-Squaretable/src/client/stores/chat.spec.ts:479:7
+    at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:915:20
+
+stdout | src/client/stores/chat.spec.ts > Chat Store > setCurrentChat > should set current chat and fetch messages
+[Chat] getChatCharacters result { chatId: 'chat1', count: 0 }
+[Chat] Attempting fallback character load { chatId: 'chat1' }
+[Chat] Found chat in store { found: true, characterId: 'char1' }
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > setCurrentChat > should set current chat and fetch messages
+[Chat] Failed to load character from fallback TypeError: Cannot read properties of undefined (reading 'id')
+    at Proxy.setCurrentChat (/var/aichat/Small-Squaretable/src/client/stores/chat.ts:1117:85)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /var/aichat/Small-Squaretable/src/client/stores/chat.spec.ts:524:7
+    at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:915:20
+
+stdout | src/client/stores/chat.spec.ts > Chat Store > setCurrentChat > loads a deep-linked chat summary when it is not in the sidebar list
+[Chat] getChatCharacters result { chatId: 'deep-linked-chat', count: 0 }
+[Chat] Attempting fallback character load { chatId: 'deep-linked-chat' }
+[Chat] Found chat in store { found: true, characterId: 'char1' }
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > setCurrentChat > loads a deep-linked chat summary when it is not in the sidebar list
+[Chat] Failed to load character from fallback TypeError: Cannot read properties of undefined (reading 'id')
+    at Proxy.setCurrentChat (/var/aichat/Small-Squaretable/src/client/stores/chat.ts:1117:85)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /var/aichat/Small-Squaretable/src/client/stores/chat.spec.ts:542:7
+    at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:915:20
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > explains output truncation and prevents resending the accepted action
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-6d98350f-9013-4c0e-a325-55eac0cbc4ec',
+    code: 'GENERATION_OUTPUT_TRUNCATED',
+    message: 'provider detail'
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > explains latest overflow and returns accepted text for editing without retrying
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-56ed4901-a499-42d1-a38f-f66913a9d56f',
+    code: 'CONTEXT_BUDGET_EXCEEDED',
+    message: 'provider detail',
+    details: {
+      reason: 'latest',
+      contextWindow: 1000,
+      outputTokens: 200,
+      requiredTokens: 800,
+      availableTokens: 700
+    }
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > explains critical overflow and returns accepted text for editing without retrying
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-3edc0ea7-e352-4c99-ab11-61ee18d86729',
+    code: 'CONTEXT_BUDGET_EXCEEDED',
+    message: 'provider detail',
+    details: {
+      reason: 'critical',
+      contextWindow: 1000,
+      outputTokens: 200,
+      requiredTokens: 800,
+      availableTokens: 700
+    }
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > explains pinned overflow and returns accepted text for editing without retrying
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-5ab055cf-197f-46dd-b2cc-995d9b9edbab',
+    code: 'CONTEXT_BUDGET_EXCEEDED',
+    message: 'provider detail',
+    details: {
+      reason: 'pinned',
+      contextWindow: 1000,
+      outputTokens: 200,
+      requiredTokens: 800,
+      availableTokens: 700
+    }
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > explains payload overflow and returns accepted text for editing without retrying
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-80dee9b6-0194-47c3-a485-d8b8a3f601de',
+    code: 'CONTEXT_BUDGET_EXCEEDED',
+    message: 'provider detail',
+    details: {
+      reason: 'payload',
+      contextWindow: 1000,
+      outputTokens: 200,
+      requiredTokens: 800,
+      availableTokens: 700
+    }
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > explains template overflow and returns accepted text for editing without retrying
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-8d43dbaf-1cf8-4974-8768-f545bd4017ca',
+    code: 'CONTEXT_BUDGET_EXCEEDED',
+    message: 'provider detail',
+    details: {
+      reason: 'template',
+      contextWindow: 1000,
+      outputTokens: 200,
+      requiredTokens: 800,
+      availableTokens: 700
+    }
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > explains unknown overflow and returns accepted text for editing without retrying
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-9c0174bf-5cd3-40bc-a5e6-750a2033b280',
+    code: 'CONTEXT_BUDGET_EXCEEDED',
+    message: 'provider detail',
+    details: {
+      reason: 'unknown',
+      contextWindow: 1000,
+      outputTokens: 200,
+      requiredTokens: 800,
+      availableTokens: 700
+    }
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > clears recoverable input on story changes and ignores late errors from the previous story
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-a71286bc-62ef-4b76-83d8-c46d74c59ccb',
+    code: 'CONTEXT_BUDGET_EXCEEDED',
+    message: 'too long'
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > preserves the unaccepted draft and requires a fresh selection after STORY_STATE_CONFLICT
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-37985f15-5855-4ea6-83e6-95ca79c5793d',
+    code: 'STORY_STATE_CONFLICT',
+    message: 'stale action'
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > preserves the unaccepted draft and requires a fresh selection after STORY_ACTION_UNAVAILABLE
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-f332cd92-2cc4-467a-910b-e3fc4f7ec1cc',
+    code: 'STORY_ACTION_UNAVAILABLE',
+    message: 'stale action'
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > preserves the unaccepted draft and requires a fresh selection after STORY_ACTION_PRECONDITION
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-25d5d7a8-3a97-48b6-b56a-5b2f6ef0f71f',
+    code: 'STORY_ACTION_PRECONDITION',
+    message: 'stale action'
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > keeps an accepted user message when a conflict happens during commit
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-2bd9f745-78eb-44fe-ae34-91c78b2f1209',
+    code: 'STORY_STATE_CONFLICT',
+    message: 'Version changed during generation'
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > does not offer retry without explicit permission (false)
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-885c2177-ed90-41ce-8c22-34f800bf2d2f',
+    code: 'MESSAGE_ERROR',
+    message: 'Interrupted'
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > does not offer retry without explicit permission (undefined)
+[Chat] WebSocket error undefined {
+  errorData: {
+    chatId: 'story',
+    requestId: 'temp-58793b0b-9902-407a-9bb7-b93cb1f26eb3',
+    code: 'MESSAGE_ERROR',
+    message: 'Interrupted'
+  }
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > recovers multiple forward pages without hiding a failed later page (true)
+[Chat] Failed to reconcile messages after WebSocket reconnect {
+  error: Error: second page unavailable
+      at /var/aichat/Small-Squaretable/src/client/stores/chat.spec.ts:861:73
+      at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:1026:60
+      at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:145:11
+      at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:915:26
+      at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:1243:20
+      at new Promise (<anonymous>)
+      at runWithTimeout (file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:1209:10)
+      at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:1653:37
+      at Traces.$ (file:///var/aichat/Small-Squaretable/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+      at trace (file:///var/aichat/Small-Squaretable/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > reports an incomplete recovery only in its own story (switched: false)
+[Chat] Failed to reconcile messages after WebSocket reconnect {
+  error: Error: Read unavailable
+      at /var/aichat/Small-Squaretable/src/client/stores/chat.spec.ts:997:22
+      at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:915:20
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > reports an incomplete recovery only in its own story (switched: true)
+[Chat] Failed to reconcile messages after WebSocket reconnect {
+  error: Error: Read unavailable
+      at /var/aichat/Small-Squaretable/src/client/stores/chat.spec.ts:997:22
+      at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:915:20
+}
+
+stderr | src/client/stores/chat.spec.ts > Chat Store > addGreetingMessage > should throw and not add message if API call fails
+[Chat] Failed to persist greeting message ApiError: Server error
+    at /var/aichat/Small-Squaretable/src/client/stores/chat.spec.ts:1062:21
+    at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///var/aichat/Small-Squaretable/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///var/aichat/Small-Squaretable/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///var/aichat/Small-Squaretable/node_modules/@vitest/runner/dist/index.js:1653:12) {
+  status: 500,
+  code: 'SERVER_ERROR',
+  details: undefined
+}
+
+ ✓ |client| src/client/stores/chat.spec.ts (67 tests) 249ms
+ ✓ |server| src/server/services/chat.service.spec.ts (10 tests) 23ms
+
+ Test Files  13 passed (13)
+      Tests  198 passed (198)
+   Start at  19:37:56
+   Duration  4.64s (transform 5.86s, setup 670ms, import 13.03s, tests 858ms, environment 5.43s)
+

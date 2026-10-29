@@ -1,0 +1,376 @@
+{
+  "date": "2026-10-24T16:46:52.784Z",
+  "task": "EXP-03B",
+  "taskClosed": false,
+  "result": "passed",
+  "database": "disposable PostgreSQL with beta migrations",
+  "backend": "production HTTP/WebSocket, no mocked repositories",
+  "provider": "loopback controlled provider; synthetic prompts only",
+  "paidProviderTokens": 0,
+  "samples": [
+    {
+      "relativePath": "已分类/2025年3月前/正常向(不分类)/冒险者公会的宝物鉴定师.png",
+      "sha256": "eb796df3af4400e32024716089f210b781b11a9ef71700f609db988ac562f74d",
+      "entries": 0,
+      "result": "single_batch_and_story_binding_passed"
+    },
+    {
+      "relativePath": "已分类/世界卡/异世界，奇幻/冒险者公会模拟器.png",
+      "sha256": "130383d1ab858ad9bb4a38111410201c3e35e7f6d88e836e8fcea56786aa8f01",
+      "entries": 5,
+      "result": "single_batch_and_story_binding_passed"
+    },
+    {
+      "relativePath": "已分类/世界卡/异世界，奇幻/异世界冒险团2.1.1.png",
+      "sha256": "d4b24962d7238a8e9785de9f1d546df17870bb6170d6dc7fa1223a1488f893f2",
+      "entries": 53,
+      "result": "single_batch_and_story_binding_passed"
+    },
+    {
+      "relativePath": "世界书及其他/世界书/神明级魔法.json",
+      "sha256": "3fb62df772070d6e0ea1f45013db8ec9905b0ef55b9f5ed3704141ebd358fc80",
+      "entries": 10,
+      "result": "persisted_unbound"
+    },
+    {
+      "relativePath": "世界书及其他/世界书/通用旁白 (只有世界书).json",
+      "sha256": "62f3511ad276ce3793ffa83bc5286eb7e81bb8f278ce2d6aac9f9fa10224b11a",
+      "entries": 4,
+      "result": "persisted_unbound"
+    }
+  ],
+  "checks": [
+    "Three original PNGs: single/batch persistence parity, original data retained, embedded books bound and captured",
+    "Two standalone books persisted with owner attribution and no inferred character binding",
+    "CLI dry-run produces readiness only; default standalone skip performs no writes",
+    "Three authorized PNGs imported by actual CLI match web fields, original metadata, tags, owner and embedded book rows",
+    "Two explicitly selected standalone books match web mappings without inferred character bindings",
+    "CLI partial failure exit 2, per-file character/book/entry rollback, next-file continuation, exact-byte dedup and same-name variants",
+    "Actual CLI compressed iTXt/zTXt imports retain embedded books; overflow, trailing bytes and damaged selected V3 produce no records",
+    "Real audit CLI classifies 14 synthetic historical cases, enforces source/book/entry limits and leaves eight database tables unchanged",
+    "Private reports omit source text; repeated fingerprints are stable, changed data invalidates them, foreign owners are hidden and apply is rejected",
+    "Audit transaction is repeatable-read/read-only; PostgreSQL rejects an attempted write with 25006",
+    "Real repair CLI creates mapped book/entries and a durable receipt; subprocess retry is a no-op; old story remains empty and new story captures the repaired book",
+    "Stale source, foreign tenant/owner, empty/invalid/nested/archive/conflicting sources are rejected without book or receipt writes",
+    "Second-entry constraint failure and receipt-write failure roll back the entire book/entries/receipt; retry after removing the failure succeeds",
+    "Concurrent CLI repairs create exactly one book and receipt; deleting the book does not erase the receipt or let the old request resurrect it",
+    "Actual HTTP binding waits behind the repair character lock, then preserves both the repaired book and the explicitly selected additional reference",
+    "When the real HTTP binding holds the character share lock first, repair waits and then rejects the stale review without inserting an extra book",
+    "41 synthetic raw-file API cases: JSON/V2/V3/iTXt/magic detection, corrupt/unsupported/ambiguous files produce no character rows",
+    "Actual JSON and PNG exports reimport current fields and V3 version, retain unknown fields, remove stale metadata and do not nest import archives",
+    "Production Chromium single/batch uploads, partial/all failure details, database counts, 1440px/390px layouts and zero page errors",
+    "Chromium compressed iTXt batch and zTXt single imports; oversized and unavailable decompression show localized errors with zero creation requests",
+    "Malformed book rejected; entry database failure rolls back character/book/prior entries; batch retains only its valid file",
+    "Frozen old/new story revisions survive source edits/deletion; unrelated global books remain unbound",
+    "Production WebSocket prompts: keyword/constant/disabled/zero-probability/secondary/atDepth role, frozen revisions and no global fallback",
+    "fog-harbor: production browser file import, embedded binding, quick start, recommended/free actions, sourced state, leave/reload, same-card save isolation",
+    "late-bookshop: production browser file import, embedded binding, quick start, recommended/free actions, sourced state, leave/reload, same-card save isolation",
+    "Both mechanisms survive actual API process restart and mobile re-entry, continue actions and keep alternate saves untouched",
+    "Three original library cards show truthful entry/frozen-story diagnostics and never execute author code or fabricate native state"
+  ],
+  "sources": [
+    {
+      "path": "src/types/character-worldbook.ts",
+      "sha256": "a097d24829ae0fd8007fcaddb80555ca479ecaff49cc63e1c2e223433b3b0f65"
+    },
+    {
+      "path": "src/types/character-card-import.ts",
+      "sha256": "ac416056152727e3cd248f483080a1b841213a34259f2788a1e6a1d9a91d0fc3"
+    },
+    {
+      "path": "src/client/utils/sillytavern.ts",
+      "sha256": "2296948bd7c7f1b9ddb8d83b04ccfde3c9bb69f284569af4381c2df5febf86d7"
+    },
+    {
+      "path": "src/types/worldbook-import.ts",
+      "sha256": "e2e93d3d16cfd18b8530960be435756976ed632e9658d9f3e1322aa2ad75edcc"
+    },
+    {
+      "path": "src/db/character-import.ts",
+      "sha256": "c94cbfb762da89976b55f3e9f0dec6faf1e42e437282933c9a3b4c75ef9dc5b9"
+    },
+    {
+      "path": "src/db/worldbook-import.ts",
+      "sha256": "6fa4bf4465851d1ea9fe3aaf63398785a18e0417287aae2f31091e3222e3ca5e"
+    },
+    {
+      "path": "src/server/routes/worldbooks.ts",
+      "sha256": "d5a0ae74f41d8ffc18f880ec2b024f3c3f9982e0d2c1a09c9cb3bbe3d57787ef"
+    },
+    {
+      "path": "scripts/import-cards.ts",
+      "sha256": "60fa8e3e74925ef40ebe1709f5a1b9bbde2081780527158e6541dc065a30dc2f"
+    },
+    {
+      "path": "scripts/character-cli-check.mjs",
+      "sha256": "f24f729bd05704290c300506158f5e7c7fd8e4330d51a82ba4cdf74f8c1748c8"
+    },
+    {
+      "path": "src/db/character-import-audit.ts",
+      "sha256": "fb91b610dc9b7cc1d9183a3298df2feaa6370a58660dc0f9f5e577ee74805fe2"
+    },
+    {
+      "path": "src/db/character-import-audit.spec.ts",
+      "sha256": "6870daa7bdb3a6ff7348f722bc8fa2ad7bbccfd37352072a932527b934edcb4b"
+    },
+    {
+      "path": "scripts/character-import-audit.ts",
+      "sha256": "e33a50dc7108fcfad0114c36021c17e71fa3a04e8e136259cf47d9718c26ab90"
+    },
+    {
+      "path": "scripts/character-import-audit-check.mjs",
+      "sha256": "9e43e1629ff521d39852c55c5a54a9b52dcc1e2cfb6a9f2ddf6d9c42f222389b"
+    },
+    {
+      "path": "tsconfig.import-cards.json",
+      "sha256": "3c94781dd6d60a8552f51b071339f320e1734f18645d14fac0d1ba9c46cbee48"
+    },
+    {
+      "path": "src/db/character-import-repair.ts",
+      "sha256": "ca64340193cf6a29c16085204edcb505aa14eded8405ca816539543ce6761b8c"
+    },
+    {
+      "path": "src/db/schema/character-import-repairs.ts",
+      "sha256": "813f002642b03e4e56336b952d8eb56fc7129641aeeb259c7760d9b4c0743ff7"
+    },
+    {
+      "path": "src/db/schema/index.ts",
+      "sha256": "0875c0b2127a12f4f002f03486c006fb4b4de7e867384d6f2b3b88485aad690f"
+    },
+    {
+      "path": "scripts/character-import-repair.ts",
+      "sha256": "6dcfc3e3d27e8c86e0f1e6b323e785e463221c9be40629cf2f019054486d119f"
+    },
+    {
+      "path": "scripts/character-import-repair-check.mjs",
+      "sha256": "dc899cbb77f1585f4b8da4d04494edc85c3c0460073dfbc523bf0649a60a7950"
+    },
+    {
+      "path": "src/db/migrations/0049_character_import_repairs.sql",
+      "sha256": "45d9d83bc16ad11f97874a756a271b696d112fb6ecc458700843a0d4a2d8a79d"
+    },
+    {
+      "path": "src/db/migrations/meta/_journal.json",
+      "sha256": "19f426817ba1e0a370f86a78c75e9dca1d916b76901975852a550fd6849cd9dd"
+    },
+    {
+      "path": "src/db/beta-migrations/0009_character_import_repairs.sql",
+      "sha256": "45d9d83bc16ad11f97874a756a271b696d112fb6ecc458700843a0d4a2d8a79d"
+    },
+    {
+      "path": "src/db/beta-migrations/meta/_journal.json",
+      "sha256": "e684203602975b53ba67c8310dc776ec6e7577f18fc00e5661fd506fb3d3f3b8"
+    },
+    {
+      "path": "src/client/services/export.api.ts",
+      "sha256": "aa12af32b5229167fe5f65c93e210dc370898f3fc56d06ee5c5a2d21828e31d7"
+    },
+    {
+      "path": "src/client/pages/MyCharacters.vue",
+      "sha256": "e87064b108454debc4639312df0d58cb8510f7ecc99a902a001e4cad3a1afe35"
+    },
+    {
+      "path": "src/server/utils/png-embed.ts",
+      "sha256": "1b6ee16aa6ef617b660f46d8fe4b4f34f4c95c5fa9d4c0138949d84e2c188d09"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "33534d268c13326900e2b3151c0364d8bcd4958e5570a1bf6f5edcf3abdcfe35"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "84413ccfe075f47dbedb2bafdc759d4456b60777c4f0a949d43fb004dabbc4fa"
+    },
+    {
+      "path": "scripts/fixtures/character-card-formats.mjs",
+      "sha256": "51949a45c5317c86e450e6ef40cffc74a1e1725ba3fc5f519c1e15e08e69a452"
+    },
+    {
+      "path": "src/db/repositories/character.repository.ts",
+      "sha256": "718ab7db90e4bba386b33f189e3a60088c806adf9a153a9f0c3071ae81df85fa"
+    },
+    {
+      "path": "src/server/routes/characters.ts",
+      "sha256": "02ba9fd0daf9fb475a93ae706a8328cdcb48445b9b2080fc95925ad086400f30"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/server/services/worldinfo-engine.service.ts",
+      "sha256": "1bdd6d18f64fd7485ee5882bd77469210c3232eb507f585f9edcf9de468a0b6a"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "ef95e7235a2b1fa39e0d0c7d77f4fa88ef486105c002b8cf6fe4c0191d05e27b"
+    },
+    {
+      "path": "src/server/services/story-turn-prompt.ts",
+      "sha256": "78e06c8cd63a1c4424711a10d6d35e5ef3ca5a0776e72786cc3295de8ab7a618"
+    },
+    {
+      "path": "src/server/services/chat.service.ts",
+      "sha256": "bb90701278e0f2765e0eea05abeee2859e0b22c980b2d9b3e7caf9eefc9712e9"
+    },
+    {
+      "path": "scripts/character-library-check.mjs",
+      "sha256": "712e869f1440f43c6c90c374204db74940e5c12cc275ee710ec898675ef44a1c"
+    },
+    {
+      "path": "scripts/character-journey-check.mjs",
+      "sha256": "3ae483e6a09f2f9bc13f60c59ea725fc7a48d5333ad5908e6259d8c602da654c"
+    },
+    {
+      "path": "src/types/story-capabilities.ts",
+      "sha256": "ce80f23af46f02dbb86866719c95428d888832af7e03a4bb7f001888a699b52f"
+    },
+    {
+      "path": "src/types/story-content.ts",
+      "sha256": "cb8f91a9ed2cf63449a12a6c8a2007b802d8735c0ff1b939befafa649152089c"
+    },
+    {
+      "path": "src/client/components/chat/StoryDossier.vue",
+      "sha256": "18176ca2f71221625115f224bbf1b7498cf27ce12d196d20156070e33d121c07"
+    },
+    {
+      "path": "src/client/components/chat/ChatWindow.vue",
+      "sha256": "87269eaf89bd35c92113a5edf500b41f6fa4c27d4cc88cab983c5850c3e3e48e"
+    },
+    {
+      "path": "src/client/components/character/StoryCompatibility.vue",
+      "sha256": "ac83ca092e130b156d2cd36ea7f4ef6b77f28511e1e479724a3e184977e668fc"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "192d212b8052c06cb223a50c8beb9412ac0a75bd971ec97c597c81bce8640efd"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "82ecf7e3548ecaf9892cdb3aeb071686b3ab2bda65a2683379dd4591ad11cdc9"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "10aabbb5bd4390a116291fcd1f2432f693443d1779d7c49527c4270b094042ef"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "0365802f4369e9b8bd3844a6d66e259aaa0a169f76f65cf611d1b8f17466e9dc"
+    }
+  ],
+  "cli": {
+    "result": "passed",
+    "groups": [
+      "CLI dry-run produces readiness only; default standalone skip performs no writes",
+      "Three authorized PNGs imported by actual CLI match web fields, original metadata, tags, owner and embedded book rows",
+      "Two explicitly selected standalone books match web mappings without inferred character bindings",
+      "CLI partial failure exit 2, per-file character/book/entry rollback, next-file continuation, exact-byte dedup and same-name variants",
+      "Actual CLI compressed iTXt/zTXt imports retain embedded books; overflow, trailing bytes and damaged selected V3 produce no records"
+    ],
+    "samples": {
+      "cards": 3,
+      "worldbooks": 2
+    },
+    "paidProviderTokens": 0
+  },
+  "audit": {
+    "groups": [
+      "Real audit CLI classifies 14 synthetic historical cases, enforces source/book/entry limits and leaves eight database tables unchanged",
+      "Private reports omit source text; repeated fingerprints are stable, changed data invalidates them, foreign owners are hidden and apply is rejected",
+      "Audit transaction is repeatable-read/read-only; PostgreSQL rejects an attempted write with 25006"
+    ],
+    "syntheticCases": 14,
+    "repairedRecords": 0,
+    "readOnlyVerified": true,
+    "privateReportsVerified": true
+  },
+  "repair": {
+    "groups": [
+      "Real repair CLI creates mapped book/entries and a durable receipt; subprocess retry is a no-op; old story remains empty and new story captures the repaired book",
+      "Stale source, foreign tenant/owner, empty/invalid/nested/archive/conflicting sources are rejected without book or receipt writes",
+      "Second-entry constraint failure and receipt-write failure roll back the entire book/entries/receipt; retry after removing the failure succeeds",
+      "Concurrent CLI repairs create exactly one book and receipt; deleting the book does not erase the receipt or let the old request resurrect it",
+      "Actual HTTP binding waits behind the repair character lock, then preserves both the repaired book and the explicitly selected additional reference",
+      "When the real HTTP binding holds the character share lock first, repair waits and then rejects the stale review without inserting an extra book"
+    ],
+    "durableRetriesVerified": true,
+    "concurrentBindingOrdersVerified": true,
+    "liveRepairs": 0
+  },
+  "journeys": {
+    "checks": [
+      "fog-harbor: production browser file import, embedded binding, quick start, recommended/free actions, sourced state, leave/reload, same-card save isolation",
+      "late-bookshop: production browser file import, embedded binding, quick start, recommended/free actions, sourced state, leave/reload, same-card save isolation",
+      "Both mechanisms survive actual API process restart and mobile re-entry, continue actions and keep alternate saves untouched",
+      "Three original library cards show truthful entry/frozen-story diagnostics and never execute author code or fabricate native state"
+    ],
+    "stories": [
+      {
+        "key": "fog-harbor",
+        "characterId": "0fec1306-2641-48f8-ac00-2641d6da2a52",
+        "chatId": "0132d7b5-21a0-4e07-9bbd-6876c48a1371",
+        "secondId": "c4d7dc9d-a37e-4098-9850-a9ad394a5a4d",
+        "sha256": "7e6eee9fc163a6ae63c4cd51cd4617e71eec4f8112ad960f94b00cba650bd961",
+        "confirmedTurns": 3
+      },
+      {
+        "key": "late-bookshop",
+        "characterId": "73db3bc3-4c04-4a68-bf21-688015b33c69",
+        "chatId": "aa0857a6-8fee-47f8-a351-d42a39f48178",
+        "secondId": "5969a604-a7c2-4afb-8c12-3000d54077cd",
+        "sha256": "d50033c719a1c66998843f0211ddb997ec769856bd61d520f87863d5630db8da",
+        "confirmedTurns": 4
+      }
+    ],
+    "originalDiagnostics": [
+      {
+        "sha256": "eb796df3af4400e32024716089f210b781b11a9ef71700f609db988ac562f74d",
+        "capabilities": {
+          "native": false,
+          "map": false,
+          "scripted": false,
+          "invalid": false,
+          "issues": []
+        },
+        "mode": "frozen-narrative-with-explicit-limits",
+        "authorCodeExecuted": false
+      },
+      {
+        "sha256": "130383d1ab858ad9bb4a38111410201c3e35e7f6d88e836e8fcea56786aa8f01",
+        "capabilities": {
+          "native": false,
+          "map": false,
+          "scripted": false,
+          "invalid": false,
+          "issues": []
+        },
+        "mode": "frozen-narrative-with-explicit-limits",
+        "authorCodeExecuted": false
+      },
+      {
+        "sha256": "d4b24962d7238a8e9785de9f1d546df17870bb6170d6dc7fa1223a1488f893f2",
+        "capabilities": {
+          "native": false,
+          "map": false,
+          "scripted": false,
+          "invalid": false,
+          "issues": [
+            "regex_rules"
+          ]
+        },
+        "mode": "frozen-narrative-with-explicit-limits",
+        "authorCodeExecuted": false
+      }
+    ],
+    "pageErrors": [],
+    "provider": "controlled loopback; original third-party content not generated"
+  },
+  "pageErrors": [],
+  "standaloneSyntheticBookCreated": true,
+  "limits": [
+    "No author scripts executed or original library contents submitted to any model",
+    "Owned native cards have controlled-provider journeys; original cards have truthful degradation checks, not full author-mechanism or real-model acceptance; decompressed text bounded at 10 MiB",
+    "Standalone books remain unbound; author binding UI is separately verified; no historical repair or cross-run import deduplication",
+    "No live candidate deployment or user signoff"
+  ]
+}

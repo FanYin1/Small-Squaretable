@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-25T05:50:14.231Z",
+  "task": "EXP-03C",
+  "result": "completed after original-requirement coverage review, defect repair and deployed verification",
+  "originalRequirementReview": {
+    "R1": "10 external original cards cover 12 structural categories; actual import, original preservation, diagnoses and frozen content verified; existing standalone-book evidence separately mapped",
+    "R2": "Unannotated identity and purposes, actual production contexts, unrelated-book exclusion, edited-source restart continuity and multi-character boundaries verified; prose identity conflicts remain explicitly unverified"
+  },
+  "actualEffects": [
+    "Cards with null sticky/cooldown/delay fields now import; source nulls preserved and mapped defaults confirmed on 3081",
+    "New story uses updated sources; an existing story retains its original identity, character and books across restart",
+    "Unknown identity constraints and book purposes remain visibly unverified; no false framework support claim"
+  ],
+  "validation": {
+    "targetedTests": 113,
+    "newTests": 8,
+    "testFiles": 6,
+    "preFixFailingTests": 2,
+    "focusedIntegrationGroups": 12,
+    "existingDiagnosticGroups": 6,
+    "newUndeclaredGroups": 5,
+    "externalImportGroup": 1,
+    "newExternalCards": 10,
+    "structuralCategories": 12,
+    "typecheck": "passed",
+    "targetedLint": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "build": "passed; local and image server/frontend artifacts matched",
+    "deployedScreenshots": 12,
+    "sourceMismatches": 0
+  },
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261025-03c-coverage",
+    "imageId": "sha256:a19eb377c82324ed45dc50f473331a2d48284e882363d60e5e60e2eeb790f538",
+    "migrationCount": 10,
+    "existingTablesCompared": 70,
+    "previousImage": "sha256:66428c8babd13a3af996453c1bb2c77352c794b1ed92ae45a3db3a4573ca95d4",
+    "oldStoriesPreserved": true,
+    "ownedPrivateSample": {
+      "characterId": "9e1b7e4d-a9b7-4399-a384-ed668f6e8d5e",
+      "storyId": "7cf058cb-7b43-4cd8-be08-574b664847ba"
+    }
+  },
+  "paidModel": {
+    "newTokens": 0,
+    "knownCumulative": 436728,
+    "unreturnedReservation": 6591,
+    "accounted": 443319,
+    "authorization": 450000,
+    "remaining": 6681
+  },
+  "limits": [
+    "No full external framework execution or universal library compatibility",
+    "No semantic validation of prose identity/occupation/relationship conflicts; preserving both inputs does not prove conflict resolution",
+    "No real-provider narrative quality run in this round; controlled generation uses owned prompts only",
+    "No human product signoff, real-device acceptance, full EX-11/13 acceptance or character-knowledge isolation",
+    "No historical source backfill or new database migration"
+  ],
+  "processCorrections": [
+    "Discarded early selection runs that inspected the parser wrapper or mirrored root fields; did not count them as passed",
+    "Static parsing passed before real import found nullable-timer rejection; reproduced in failing unit checks and fixed before closure"
+  ],
+  "evidenceFiles": [
+    "character-diagnostics-coverage-static.json",
+    "character-diagnostics-coverage-unit.json",
+    "character-diagnostics-coverage-integration.json",
+    "character-diagnostics-coverage-upgrade.json",
+    "character-diagnostics-coverage-deployed.json"
+  ],
+  "sources": [
+    {
+      "path": "scripts/character-coverage-check.mjs",
+      "sha256": "3bf2c028c4f045aad8202e30fa6f55ff257cf37dfe35ad0282776544c4b6eb1b"
+    },
+    {
+      "path": "scripts/character-coverage-integration.mjs",
+      "sha256": "d8fd206cc23ed6b2bb0aae3e9c78a99b798b1e5e18d357fae6a9d829a7c81f26"
+    },
+    {
+      "path": "scripts/character-undeclared-check.mjs",
+      "sha256": "a039d66b68a196e53ac481aca3e83d993fd5342360245ddafb6b4fb6e4c9952c"
+    },
+    {
+      "path": "scripts/character-diagnostics-deployed-check.mjs",
+      "sha256": "97e4dc1470f9785fcaa3f7a6dff80da13548c17c81afaaaeb65a8140ea6f95fd"
+    },
+    {
+      "path": "scripts/upgrade-exploration-candidate.mjs",
+      "sha256": "e1bf87c9515c9c55f6fd5af7eff8dccc07d7fda6fcb8e8680a959f224d819b8d"
+    }
+  ],
+  "nextWorkPackage": "EXP-04C: legacy variable side-effect atomicity and multi-character failure recovery; remains open"
+}

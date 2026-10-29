@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { clearSession, waitForNetworkIdle, mockApiResponse } from './utils/helpers';
+import { clearSession, waitForNetworkIdle, mockApiResponse, mockModules } from './utils/helpers';
 
 const MOCK_CHARACTERS = [
   { id: 'char_1', name: 'Popular Bot', description: 'Trending', tags: ['popular'], rating: 4.5, avatar: null, downloadCount: 500, viewCount: 2000, createdAt: '2026-02-01T00:00:00Z' },
@@ -9,6 +9,8 @@ const MOCK_CHARACTERS = [
 test.describe('Recommendations', () => {
   test.beforeEach(async ({ page }) => {
     await clearSession(page);
+    // P2-1：推荐区块属于默认关闭的模块，测试里显式打开
+    await mockModules(page, ['recommendations']);
   });
 
   test('market page shows recommendation section when trending data exists', async ({ page }) => {

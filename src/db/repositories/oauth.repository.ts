@@ -5,7 +5,7 @@
  */
 
 import { eq, and } from 'drizzle-orm';
-import { BaseRepository } from './base.repository';
+import { BaseRepository, type DbExecutor } from './base.repository';
 import { db } from '../index';
 import {
   oauthAccounts,
@@ -46,8 +46,8 @@ export class OAuthRepository extends BaseRepository {
   /**
    * Create a new OAuth account link.
    */
-  async create(data: NewOAuthAccount): Promise<OAuthAccount> {
-    const result = await this.db
+  async create(data: NewOAuthAccount, executor: DbExecutor = this.db): Promise<OAuthAccount> {
+    const result = await executor
       .insert(oauthAccounts)
       .values(data)
       .returning();

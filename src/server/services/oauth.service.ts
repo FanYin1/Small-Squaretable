@@ -13,6 +13,8 @@ import { tenantRepository } from '../../db/repositories/tenant.repository';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../core/jwt';
 import { redis } from '../../core/redis';
 import { BadRequestError } from '../../core/errors';
+import { inviteCodeService, InviteCodeError, normalizeInviteCode } from './invite-code.service';
+import { ageConfirmationFields } from '../utils/age-confirmation';
 import type { AuthUser, AuthTokens } from '../../types/auth';
 
 // --- Provider registry ---
@@ -44,6 +46,24 @@ export interface OAuthProfile {
   email: string;
   displayName: string | null;
   avatarUrl: string | null;
+}
+
+/**
+ * 满 18 岁声明的上下文。
+ * 与 OAuthProfile 分开：profile 来自第三方，这份声明来自我们自己的授权页。
+ */
+export interface AgeConsent {
+  ageConfirmed?: boolean;
+  actorIp?: string;
+}
+
+/**
+ * 新建 OAuth 账号时的注册上下文：年龄声明 + 邀请码。
+ * 邀请码和年龄声明一样来自我们自己的授权入口（经 Redis state 带回），
+ * 不来自第三方 profile。
+ */
+export interface OAuthSignupContext extends AgeConsent {
+  inviteCode?: string;
 }
 
 // --- Constants ---
@@ -115,9 +135,12 @@ export const oauthService = {
    * 1. If an oauth_account already exists for this provider+id → login that user.
    * 2. Else if a user with the same email exists → link the account + login.
    * 3. Else create a new user (emailVerified=true) + tenant + link account.
+   *
+   * 分支 3 是注册，要和邮箱注册一样过年龄门和邀请码门；分支 1、2 是登录，不重复要求。
    */
   async authenticateWithOAuth(
     profile: OAuthProfile,
+    consent: OAuthSignupContext = {},
   ): Promise<{ user: AuthUser; tokens: AuthTokens; isNewUser: boolean }> {
     // 1. Existing OAuth link?
     const existing = await oauthRepository.findByProviderAccount(
@@ -152,26 +175,55 @@ export const oauthService = {
       return { user: toAuthUser(existingUser), tokens, isNewUser: false };
     }
 
-    // 3. Brand-new user
-    const tenant = await tenantRepository.create({
-      name: profile.displayName ?? profile.email.split('@')[0],
-      plan: 'free',
-    });
+    // 3. Brand-new user —— 建号之前先过年龄门，不能先建再补。
+    if (consent.ageConfirmed !== true) {
+      throw new BadRequestError('age_confirmation_required');
+    }
 
-    const newUser = await userRepository.create({
-      email: profile.email,
-      tenantId: tenant.id,
-      displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
-      emailVerified: true, // OAuth emails are pre-verified
-    } as any);
+    // 邀请码门：缺码在开事务之前就拒绝。
+    if (!normalizeInviteCode(consent.inviteCode)) {
+      throw new InviteCodeError('INVITE_CODE_REQUIRED');
+    }
 
-    await oauthRepository.create({
-      userId: newUser.id,
-      provider: profile.provider,
-      providerAccountId: profile.providerAccountId,
-      email: profile.email,
-    });
+    // 消费邀请码、建租户、建用户、绑定 OAuth、记录使用 在同一个事务里，
+    // 任何一步失败整体回滚，邀请码不会被白白扣掉。
+    const newUser = await inviteCodeService.createAccountWithInvite(
+      consent.inviteCode,
+      { source: 'oauth', provider: profile.provider, actorIp: consent.actorIp },
+      async (tx) => {
+        const tenant = await tenantRepository.create(
+          {
+            name: profile.displayName ?? profile.email.split('@')[0],
+            plan: 'free',
+          },
+          tx,
+        );
+
+        const created = await userRepository.create(
+          {
+            email: profile.email,
+            tenantId: tenant.id,
+            displayName: profile.displayName,
+            avatarUrl: profile.avatarUrl,
+            emailVerified: true, // OAuth emails are pre-verified
+            ...ageConfirmationFields(consent.actorIp),
+          } as any,
+          tx,
+        );
+
+        await oauthRepository.create(
+          {
+            userId: created.id,
+            provider: profile.provider,
+            providerAccountId: profile.providerAccountId,
+            email: profile.email,
+          },
+          tx,
+        );
+
+        return created;
+      },
+    );
 
     const tokens = await generateTokenPair(newUser.id, newUser.tenantId, newUser.email, newUser.role ?? 'user');
     return { user: toAuthUser(newUser), tokens, isNewUser: true };

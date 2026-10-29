@@ -55,7 +55,7 @@ export const updateCharacterSchema = z.object({
   avatarUrl: z.string().max(15_000_000).refine(
     (val) => val.startsWith('data:') || /^https?:\/\//.test(val),
     'Must be a valid URL or data URI'
-  ).optional(),
+  ).nullable().optional(),
   cardData: z.record(cardDataValueSchema).optional(),
   tags: z.array(z.string().max(200).trim()).max(100).optional(),
   category: z.string().max(50).trim().optional(),

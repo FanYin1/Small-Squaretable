@@ -1,0 +1,12 @@
+{
+  "result": "failed",
+  "message": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.characters-grid > div').filter({ hasText: '07AC机制1' }).getByRole('button', { name: '发布', exact: true })\u001b[22m\n",
+  "checks": [
+    "Two distinct native mechanisms import through the real file picker, persist privately and preserve unknown extensions",
+    "Preview is local, canceling navigation retains edits, clearing description really persists and unknown extensions survive editing"
+  ],
+  "screenshots": [
+    "editor-mobile-unsaved.png"
+  ],
+  "errors": []
+}

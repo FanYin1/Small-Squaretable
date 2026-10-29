@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Download, Delete, Setting } from '@element-plus/icons-vue';
+import { Download, Delete, Setting, Reading } from '@element-plus/icons-vue';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
+import ChatFontSizeSetting from '@client/components/chat/ChatFontSizeSetting.vue';
+import NsfwPreferenceCard from '@client/components/settings/NsfwPreferenceCard.vue';
 import { gdprApi } from '@client/services/gdpr.api';
+import { useModulesStore } from '@client/stores/modules';
 import { useToast } from '@client/composables/useToast';
 import type { DeletionStatus, ConsentPreferences } from '@client/services/gdpr.api';
 
 const { t } = useI18n();
 const toast = useToast();
+const modulesStore = useModulesStore();
 
 // ── Data Export ──
 const exporting = ref(false);
@@ -135,7 +139,10 @@ function formatDate(dateStr: string | null): string {
 
 onMounted(() => {
   fetchDeletionStatus();
-  fetchConsents();
+  // P2-1: 同意管理界面下线时不再请求（数据导出与账号删除保留）
+  if (modulesStore.isEnabled('gdpr_consent_ui')) {
+    fetchConsents();
+  }
 });
 </script>
 
@@ -145,6 +152,18 @@ onMounted(() => {
     <template #subtitle>{{ t('accountSettings.subtitle') }}</template>
 
     <div class="account-settings">
+      <!-- Chat Reading Section -->
+      <el-card class="settings-card" shadow="never">
+        <template #header>
+          <div class="card-header">
+            <el-icon :size="20"><Reading /></el-icon>
+            <span>{{ t('accountSettings.readingTitle') }}</span>
+          </div>
+        </template>
+        <p class="card-description">{{ t('accountSettings.readingDescription') }}</p>
+        <ChatFontSizeSetting />
+      </el-card>
+      <NsfwPreferenceCard />
       <!-- Data Export Section -->
       <el-card class="settings-card" shadow="never">
         <template #header>
@@ -240,7 +259,12 @@ onMounted(() => {
         </template>
       </el-dialog>
       <!-- Privacy Preferences Section -->
-      <el-card class="settings-card" shadow="never" v-loading="consentsLoading">
+      <el-card
+        v-if="modulesStore.isEnabled('gdpr_consent_ui')"
+        class="settings-card"
+        shadow="never"
+        v-loading="consentsLoading"
+      >
         <template #header>
           <div class="card-header">
             <el-icon :size="20"><Setting /></el-icon>
@@ -288,7 +312,7 @@ onMounted(() => {
     </div>
   </DashboardLayout>
 </template>
-<style scoped>
+<style scoped lang="scss">
 .account-settings {
   max-width: 800px;
   margin: 0 auto;
@@ -383,7 +407,7 @@ onMounted(() => {
   color: var(--text-secondary);
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .account-settings {
     padding: 16px;
     gap: 16px;

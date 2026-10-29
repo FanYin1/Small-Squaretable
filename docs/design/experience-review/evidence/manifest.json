@@ -1,0 +1,53 @@
+{
+  "sourceRun": "/tmp/squaretable-experience-review/08b2b093-4c39-4564-992b-90ccfc015fbd",
+  "images": [
+    {
+      "file": "pages-390-light.webp",
+      "sha256": "4cb147d69caf09687df1876c8a99f76c70a657272e246bb3432239f0e9918f43"
+    },
+    {
+      "file": "interaction-390-light.webp",
+      "sha256": "1ce4a4b9c74bdce148899a5cecd1a0687d0fef51a0e68d11ef4696ecc8392d68"
+    },
+    {
+      "file": "pages-390-dark.webp",
+      "sha256": "9a212d99e43ba50ae1ef67a23c0a3086a3d67d5bb534c10146cc97daba4e872f"
+    },
+    {
+      "file": "interaction-390-dark.webp",
+      "sha256": "9e240bd17551555447552b57aca9b07d41df161c8b86fc636cfd71521fb24b2b"
+    },
+    {
+      "file": "pages-768-light.webp",
+      "sha256": "6db395dba8ad48b535b257973e03eb5c1085bfb30305f482fa7b80fe44cbcf50"
+    },
+    {
+      "file": "interaction-768-light.webp",
+      "sha256": "59347ce70098dff46074106e82405ebe8764fc46162aa7376222ad9a34949250"
+    },
+    {
+      "file": "pages-768-dark.webp",
+      "sha256": "79b327b43d4fc43c41ac938790159daa1f9844612d40d65f938193bed73eff8f"
+    },
+    {
+      "file": "interaction-768-dark.webp",
+      "sha256": "60be91631a3e2a94a6b845ad7ebbee8d85aecdb3a145e50ffeefe0b5a96b7ef5"
+    },
+    {
+      "file": "pages-1440-light.webp",
+      "sha256": "777b48419ddc1516e1571489ccad512ed0048827ddcfec8005179714253f36a4"
+    },
+    {
+      "file": "interaction-1440-light.webp",
+      "sha256": "02db5a177e2f5857e3d0aeb783ddee7bb26dab40fde24f3b021377b0ede16eaf"
+    },
+    {
+      "file": "pages-1440-dark.webp",
+      "sha256": "1f1915e9797aa2e3e7c43301f97162b09fd04155bf932eb6a235db80a215c7a8"
+    },
+    {
+      "file": "interaction-1440-dark.webp",
+      "sha256": "36c39a1c981006201c53e12c39f3dacfd13d6ee52c217111f2f01cb0a593961b"
+    }
+  ]
+}

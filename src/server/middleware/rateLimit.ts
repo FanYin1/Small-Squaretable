@@ -23,6 +23,7 @@ declare module 'hono' {
  * Rate limit configuration
  */
 interface RateLimitOptions {
+  namespace?: string;
   /**
    * Maximum number of requests allowed
    */
@@ -207,7 +208,7 @@ function defaultKeyGenerator(c: any): string {
  * Default rate limit exceeded handler
  */
 function defaultRateLimitHandler(c: any, options: RateLimitOptions): Response {
-  const retryAfter = Math.ceil((c.get('rateLimit')?.reset || 0 - Date.now()) / 1000);
+  const retryAfter = Math.ceil(((c.get('rateLimit')?.reset || 0) - Date.now()) / 1000);
 
   return c.json(
     {
@@ -230,6 +231,7 @@ export function rateLimit(options: RateLimitOptions) {
     handler,
     skip,
     message = 'Too many requests',
+    namespace = `${options.limit}:${options.windowMs}`,
   } = options;
 
   return createMiddleware(async (c, next) => {
@@ -239,7 +241,7 @@ export function rateLimit(options: RateLimitOptions) {
       return;
     }
 
-    const key = keyGenerator(c);
+    const key = `${namespace}:${keyGenerator(c)}`;
     const entry = await rateLimitStore.increment(key, windowMs);
     const remaining = Math.max(0, limit - entry.count);
 
@@ -280,6 +282,8 @@ const isTestEnv = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'd
 
 // Strict rate limiter for authentication endpoints
 export const authRateLimit = rateLimit({
+  namespace: 'auth',
+  skip: (context) => context.req.method === 'GET' && context.req.path === '/api/v1/auth/me',
   limit: isTestEnv ? 100 : 5, // More lenient in test/dev
   windowMs: 60 * 1000, // per minute
   message: 'Too many authentication attempts, please try again later',
@@ -287,6 +291,7 @@ export const authRateLimit = rateLimit({
 
 // Registration rate limiter (more strict)
 export const registrationRateLimit = rateLimit({
+  namespace: 'registration',
   limit: isTestEnv ? 50 : 3, // More lenient in test/dev
   windowMs: 60 * 60 * 1000, // per hour
   message: 'Too many registration attempts, please try again later',
@@ -294,6 +299,7 @@ export const registrationRateLimit = rateLimit({
 
 // Password reset rate limiter
 export const passwordResetRateLimit = rateLimit({
+  namespace: 'password-reset',
   limit: 3,
   windowMs: 60 * 60 * 1000, // 3 requests per hour
   message: 'Too many password reset attempts, please try again later',
@@ -301,6 +307,7 @@ export const passwordResetRateLimit = rateLimit({
 
 // Email verification resend rate limiter
 export const emailVerificationRateLimit = rateLimit({
+  namespace: 'email-verification',
   limit: 3,
   windowMs: 60 * 60 * 1000, // 3 requests per hour
   keyGenerator: (c: any) => {
@@ -313,6 +320,7 @@ export const emailVerificationRateLimit = rateLimit({
 
 // General API rate limiter
 export const apiRateLimit = rateLimit({
+  namespace: 'api',
   limit: 100,
   windowMs: 60 * 1000, // 100 requests per minute
   message: 'API rate limit exceeded',
@@ -320,6 +328,7 @@ export const apiRateLimit = rateLimit({
 
 // LLM chat rate limiter (more generous)
 export const chatRateLimit = rateLimit({
+  namespace: 'chat',
   limit: 30,
   windowMs: 60 * 1000, // 30 messages per minute
   message: 'Too many messages, please slow down',
@@ -327,6 +336,7 @@ export const chatRateLimit = rateLimit({
 
 // Character search rate limiter
 export const searchRateLimit = rateLimit({
+  namespace: 'search',
   limit: isTestEnv ? 200 : 20, // More lenient in test/dev
   windowMs: 60 * 1000, // 20 searches per minute in production
   message: 'Too many search requests, please slow down',
@@ -334,6 +344,7 @@ export const searchRateLimit = rateLimit({
 
 // Webhook rate limiter
 export const webhookRateLimit = rateLimit({
+  namespace: 'webhook',
   limit: 100,
   windowMs: 60 * 1000, // 100 webhooks per minute
   message: 'Too many webhook deliveries',
@@ -341,6 +352,7 @@ export const webhookRateLimit = rateLimit({
 
 // API Key rate limiter - uses API key identifier as the rate limit key
 export const apiKeyRateLimit = rateLimit({
+  namespace: 'api-key',
   limit: 1000, // generous limit — actual per-key limits enforced at service level
   windowMs: 60 * 1000,
   keyGenerator: (c: any) => {
@@ -357,6 +369,7 @@ export const apiKeyRateLimit = rateLimit({
 
 // Plugin execution rate limiter - 100 executions per minute per user
 export const pluginExecutionRateLimit = rateLimit({
+  namespace: 'plugin',
   limit: isTestEnv ? 500 : 100,
   windowMs: 60 * 1000,
   keyGenerator: (c: any) => {
@@ -369,6 +382,7 @@ export const pluginExecutionRateLimit = rateLimit({
 
 // Social comment creation rate limiter
 export const socialCommentRateLimit = rateLimit({
+  namespace: 'comment',
   limit: isTestEnv ? 100 : 10,
   windowMs: 60 * 1000, // 10 comments per minute
   message: 'Too many comments, please slow down',
@@ -376,6 +390,7 @@ export const socialCommentRateLimit = rateLimit({
 
 // Report submission rate limiter
 export const reportRateLimit = rateLimit({
+  namespace: 'report',
   limit: isTestEnv ? 50 : 5,
   windowMs: 60 * 60 * 1000, // 5 reports per hour
   message: 'Too many reports, please try again later',
@@ -383,6 +398,7 @@ export const reportRateLimit = rateLimit({
 
 // Data export rate limiter (expensive operation)
 export const exportRateLimit = rateLimit({
+  namespace: 'export',
   limit: 3,
   windowMs: 60 * 60 * 1000, // 3 exports per hour
   message: 'Too many export requests, please try again later',
@@ -390,6 +406,7 @@ export const exportRateLimit = rateLimit({
 
 // Analytics event ingestion rate limiter
 export const analyticsIngestionRateLimit = rateLimit({
+  namespace: 'analytics',
   limit: isTestEnv ? 500 : 50,
   windowMs: 60 * 1000, // 50 batch ingestions per minute
   message: 'Analytics ingestion rate limit exceeded',
@@ -397,6 +414,7 @@ export const analyticsIngestionRateLimit = rateLimit({
 
 // MFA challenge rate limiter - strict per-IP to prevent brute force
 export const mfaChallengeRateLimit = rateLimit({
+  namespace: 'mfa',
   limit: isTestEnv ? 100 : 5,
   windowMs: 5 * 60 * 1000, // 5 attempts per 5 minutes
   keyGenerator: (c: any) => {

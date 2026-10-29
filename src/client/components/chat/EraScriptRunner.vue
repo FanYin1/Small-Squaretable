@@ -1,9 +1,10 @@
 <template>
   <div v-if="hasScripts" class="era-script-runner" style="display:none">
     <iframe
+      :key="chatId"
       ref="iframeRef"
       :srcdoc="srcdocContent"
-      sandbox="allow-scripts allow-same-origin"
+      sandbox="allow-scripts"
       style="width:0;height:0;border:none;position:absolute;left:-9999px"
       @load="onIframeLoad"
     />
@@ -18,17 +19,17 @@
  * API compatibility shim. Bridges ERA events between the script and the
  * parent page (which relays to status bar iframes).
  *
- * Security: allow-same-origin is needed for ESM CDN imports. The iframe
- * content is character card data (not user input), and the sandbox still
- * prevents navigation, form submission, and popups.
  */
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { generateSillyTavernShim } from '@client/utils/sillytavern-shim';
+import { buildCardSandboxDocument, flattenCardVariables } from '../../utils/card-sandbox';
 import {
   updateVariables,
   mergeVariables,
   deleteVariables,
   fetchVariables,
+  registerIframe,
+  unregisterIframe,
 } from '@client/utils/era-bridge';
 
 interface TavernHelperScript {
@@ -47,6 +48,12 @@ interface Props {
 
 const props = defineProps<Props>();
 const iframeRef = ref<HTMLIFrameElement | null>(null);
+let contextVersion = 0;
+watch(() => [props.chatId, props.scripts], () => { contextVersion++; }, { flush: 'sync', deep: true });
+watch(iframeRef, (frame, previous) => {
+  if (previous) unregisterIframe(previous);
+  if (frame) registerIframe(frame);
+});
 
 const hasScripts = computed(() => {
   return props.scripts.some(s => s.enabled && s.type === 'script');
@@ -64,15 +71,18 @@ const srcdocContent = computed(() => {
   // Build HTML document with shim + all enabled scripts
   const scriptTags = props.scripts
     .filter(s => s.enabled && s.type === 'script')
+    // 必须转义：原样的结束标签会提前结束 SFC 的 <script> 块
+    // eslint-disable-next-line no-useless-escape
     .map(s => `<script type="module">${s.content}<\/script>`)
     .join('\n');
 
-  return `<!doctype html>
+  return buildCardSandboxDocument(`<!doctype html>
 <html><head><meta charset="UTF-8">${shim}</head>
-<body>${scriptTags}</body></html>`;
+<body>${scriptTags}</body></html>`, true);
 });
 
 function onMessage(event: MessageEvent) {
+  if (event.origin !== 'null') return;
   if (!iframeRef.value) return;
   if (event.source !== iframeRef.value.contentWindow) return;
 
@@ -81,7 +91,8 @@ function onMessage(event: MessageEvent) {
 
   switch (data.type) {
     case 'era-script-event':
-      handleScriptEvent(data.event, data.payload);
+      try { handleScriptEvent(data.event, data.payload); }
+      catch { iframeRef.value.contentWindow?.postMessage({ type: 'era-event', event: 'era:error', payload: 'INVALID_VARIABLE_OPERATION' }, '*'); }
       break;
     case 'era-getVar':
       handleGetVar(data.requestId, data.payload);
@@ -96,41 +107,45 @@ function onMessage(event: MessageEvent) {
 }
 
 function handleScriptEvent(event: string, payload: unknown) {
-  // ERA variable operations — bridge to our variable store
   if (event === 'era:insertByObject' || event === 'era:updateByObject') {
-    const obj = payload as Record<string, unknown>;
-    const flat = flattenObject(obj);
-    mergeVariables(flat);
+    mergeVariables(flattenCardVariables(payload));
   } else if (event === 'era:insertByPath') {
     const { path, value } = payload as { path: string; value: unknown };
-    mergeVariables({ [path]: typeof value === 'string' ? value : JSON.stringify(value) });
+    if (typeof path !== 'string') throw new Error('INVALID_VARIABLE_PATH');
+    mergeVariables(flattenCardVariables({ [path]: value }));
   } else if (event === 'era:updateByPath') {
     const { path, value } = payload as { path: string; value: unknown };
-    mergeVariables({ [path]: typeof value === 'string' ? value : JSON.stringify(value) });
+    if (typeof path !== 'string') throw new Error('INVALID_VARIABLE_PATH');
+    mergeVariables(flattenCardVariables({ [path]: value }));
   } else if (event === 'era:deleteByPath') {
     const { path } = payload as { path: string };
+    if (typeof path !== 'string') throw new Error('INVALID_VARIABLE_PATH');
+    flattenCardVariables({ [path]: null });
     deleteVariables([path]);
   } else if (event === 'era:forceSync') {
     // Re-fetch all variables from server
-    if (props.chatId) {
-      fetchVariables(props.chatId).then(vars => updateVariables(vars));
-    }
+    void onShimReady();
   }
   // Relay writeDone events to status bar iframes (handled by era-bridge)
 }
 
 async function handleGetVar(requestId: string, payload: { name: string }) {
   if (!iframeRef.value?.contentWindow) return;
+  const frame = iframeRef.value.contentWindow;
+  const version = contextVersion;
+  if (typeof requestId !== 'string' || typeof payload?.name !== 'string') return;
   try {
     const vars = await fetchVariables(props.chatId);
+    if (version !== contextVersion || frame !== iframeRef.value?.contentWindow) return;
     const value = vars[payload.name] ?? '';
-    iframeRef.value.contentWindow.postMessage({
+    frame.postMessage({
       type: 'era-response',
       requestId,
       result: value,
     }, '*');
   } catch {
-    iframeRef.value.contentWindow.postMessage({
+    if (version !== contextVersion || frame !== iframeRef.value?.contentWindow) return;
+    frame.postMessage({
       type: 'era-response',
       requestId,
       error: 'Failed to get variable',
@@ -140,19 +155,23 @@ async function handleGetVar(requestId: string, payload: { name: string }) {
 
 async function handleGetChatMessages(requestId: string, _payload: { index: number }) {
   if (!iframeRef.value?.contentWindow) return;
-  // Return empty array — full message access not implemented yet
   iframeRef.value.contentWindow.postMessage({
     type: 'era-response',
     requestId,
-    result: [],
+    error: 'UNSUPPORTED_API: getChatMessages is unavailable in the legacy card bridge',
   }, '*');
 }
 
 async function onShimReady() {
-  // Send initial variables to the script
+  const version = contextVersion;
+  const frame = iframeRef.value?.contentWindow;
   if (props.chatId) {
-    const vars = await fetchVariables(props.chatId);
-    updateVariables(vars);
+    try {
+      const vars = await fetchVariables(props.chatId);
+      if (version === contextVersion && frame === iframeRef.value?.contentWindow) updateVariables(vars);
+    } catch {
+      if (version === contextVersion && frame === iframeRef.value?.contentWindow) frame?.postMessage({ type: 'era-event', event: 'era:error', payload: 'VARIABLES_UNAVAILABLE' }, '*');
+    }
   }
 }
 
@@ -160,27 +179,13 @@ function onIframeLoad() {
   // iframe loaded, shim will send era-shim-ready when initialized
 }
 
-/**
- * Flatten a nested object to dot-notation key-value pairs.
- */
-function flattenObject(obj: Record<string, unknown>, prefix = ''): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      Object.assign(result, flattenObject(value as Record<string, unknown>, fullKey));
-    } else {
-      result[fullKey] = typeof value === 'string' ? value : JSON.stringify(value);
-    }
-  }
-  return result;
-}
-
 onMounted(() => {
   window.addEventListener('message', onMessage);
 });
 
 onBeforeUnmount(() => {
+  contextVersion++;
+  if (iframeRef.value) unregisterIframe(iframeRef.value);
   window.removeEventListener('message', onMessage);
 });
 </script>

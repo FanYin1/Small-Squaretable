@@ -1,0 +1,429 @@
+{
+  "date": "2026-10-24T10:37:38.083Z",
+  "result": "native_provider_integrated_longrun_budget_limited",
+  "task": "EXP-05B",
+  "taskClosed": false,
+  "configuration": {
+    "changedField": "CUSTOM_LLM_API_FORMAT",
+    "value": "gemini",
+    "credentialsAndModelUnchanged": true,
+    "runningCandidatesUpdated": false
+  },
+  "nativeNodeProbe": {
+    "date": "2026-10-24T10:09:40.070Z",
+    "scope": "native Gemini with application Node fetch transport",
+    "maxOutputTokens": 32,
+    "status": 200,
+    "usable": true
+  },
+  "shortProviderAttempts": [
+    {
+      "date": "2026-10-24T10:15:47.048Z",
+      "scope": "real provider adapter, streaming and five-turn synthetic extraction; not long-run acceptance",
+      "model": "gemini-3.8-flash",
+      "apiFormat": "gemini",
+      "calls": [
+        {
+          "kind": "nonstream",
+          "maxOutputTokens": 128,
+          "stream": false,
+          "usable": true,
+          "status": 200,
+          "finishReason": "length",
+          "outputCharacters": 7,
+          "usage": {
+            "prompt_tokens": 285,
+            "completion_tokens": 124,
+            "total_tokens": 409
+          }
+        },
+        {
+          "kind": "stream",
+          "maxOutputTokens": 128,
+          "stream": true,
+          "usable": true,
+          "status": 200,
+          "outputCharacters": 8,
+          "usage": {
+            "prompt_tokens": 285,
+            "completion_tokens": 124,
+            "total_tokens": 409
+          }
+        },
+        {
+          "kind": "memory-extraction",
+          "maxOutputTokens": 2000,
+          "stream": false,
+          "usable": true,
+          "status": 200,
+          "finishReason": "stop",
+          "outputCharacters": 611,
+          "usage": {
+            "prompt_tokens": 828,
+            "completion_tokens": 879,
+            "total_tokens": 1707
+          }
+        }
+      ],
+      "checks": [
+        "Native response converts to a nonempty chat completion",
+        "Native SSE converts to readable content, terminal completion and usage"
+      ],
+      "taskClosed": false,
+      "result": "failed",
+      "error": "PROVIDER_CHECK_FAILED",
+      "sourceHashes": {
+        "src/server/services/gemini-adapter.ts": "5d163829b30e77e9f8979e6f7316e14ce6af8bd1333d3ecbfba9889f760f648d",
+        "src/server/services/llm.service.ts": "18909fb41c54ffee63941a7f48422c545f33aa7a339a54fbfaed8afaae26acc4",
+        "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+        "src/server/services/story-memory-extraction.ts": "e1e5d8de5c99c8067d2848b31ee58aa7d09269d0525b5d1fac33d4dd0ee4fc54",
+        "scripts/story-memory-real-provider-check.mjs": "36ff4d6f550440cde7ca8ffaa02a8322f18bc3a4e895867a870dc86d04941b53"
+      }
+    },
+    {
+      "date": "2026-10-24T10:16:44.477Z",
+      "scope": "real provider adapter, streaming and five-turn synthetic extraction; not long-run acceptance",
+      "model": "gemini-3.8-flash",
+      "apiFormat": "gemini",
+      "calls": [
+        {
+          "kind": "nonstream",
+          "maxOutputTokens": 128,
+          "stream": false,
+          "usable": true,
+          "status": 200,
+          "finishReason": "length",
+          "outputCharacters": 4,
+          "usage": {
+            "prompt_tokens": 285,
+            "completion_tokens": 124,
+            "total_tokens": 409
+          }
+        },
+        {
+          "kind": "stream",
+          "maxOutputTokens": 128,
+          "stream": true,
+          "usable": true,
+          "status": 200,
+          "outputCharacters": 2,
+          "usage": {
+            "prompt_tokens": 285,
+            "completion_tokens": 124,
+            "total_tokens": 409
+          }
+        },
+        {
+          "kind": "memory-extraction",
+          "maxOutputTokens": 2000,
+          "stream": false,
+          "usable": true,
+          "status": 200,
+          "finishReason": "stop",
+          "outputCharacters": 618,
+          "usage": {
+            "prompt_tokens": 828,
+            "completion_tokens": 1009,
+            "total_tokens": 1837
+          }
+        }
+      ],
+      "checks": [
+        "Native response converts to a nonempty chat completion",
+        "Native SSE converts to readable content, terminal completion and usage"
+      ],
+      "taskClosed": false,
+      "extractionFormat": {
+        "startsWithFence": true,
+        "startsWithObject": false
+      },
+      "phase": "parse-extraction",
+      "result": "failed",
+      "error": "EXTRACTION_JSON_INVALID",
+      "sourceHashes": {
+        "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+        "src/server/services/llm.service.ts": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890",
+        "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+        "src/server/services/story-memory-extraction.ts": "e1e5d8de5c99c8067d2848b31ee58aa7d09269d0525b5d1fac33d4dd0ee4fc54",
+        "scripts/story-memory-real-provider-check.mjs": "f914b5a911743e10157f35206e7acd72036a366bab99d09c3443cd4ab0161a83"
+      }
+    },
+    {
+      "date": "2026-10-24T10:18:48.616Z",
+      "scope": "real provider adapter, streaming and five-turn synthetic extraction; not long-run acceptance",
+      "model": "gemini-3.8-flash",
+      "apiFormat": "gemini",
+      "calls": [
+        {
+          "kind": "nonstream",
+          "maxOutputTokens": 128,
+          "stream": false,
+          "usable": true,
+          "status": 200,
+          "finishReason": "length",
+          "outputCharacters": 3,
+          "usage": {
+            "prompt_tokens": 285,
+            "completion_tokens": 124,
+            "total_tokens": 409
+          }
+        },
+        {
+          "kind": "stream",
+          "maxOutputTokens": 128,
+          "stream": true,
+          "usable": true,
+          "status": 200,
+          "outputCharacters": 1,
+          "usage": {
+            "prompt_tokens": 285,
+            "completion_tokens": 124,
+            "total_tokens": 409
+          }
+        },
+        {
+          "kind": "memory-extraction",
+          "maxOutputTokens": 2000,
+          "stream": false,
+          "usable": true,
+          "status": 200,
+          "finishReason": "stop",
+          "outputCharacters": 562,
+          "usage": {
+            "prompt_tokens": 828,
+            "completion_tokens": 1032,
+            "total_tokens": 1860
+          }
+        }
+      ],
+      "checks": [
+        "Native response converts to a nonempty chat completion",
+        "Native SSE converts to readable content, terminal completion and usage",
+        "Real extraction passes the production versioned schema and source-ID validation"
+      ],
+      "taskClosed": false,
+      "extractionFormat": {
+        "startsWithFence": true,
+        "startsWithObject": false
+      },
+      "phase": "complete",
+      "extraction": {
+        "facts": 3,
+        "sourceValidationPassed": true,
+        "anchorKeywordSignals": [
+          {
+            "marker": "第三夜",
+            "present": true
+          },
+          {
+            "marker": "北门",
+            "present": true
+          },
+          {
+            "marker": "蓝色票据",
+            "present": true
+          }
+        ],
+        "summaryCharacters": 95,
+        "outputSha256": "41ba030eeb7c3105d8a5a170e6d6f308ea1f8c34ad290620b46e39169c9a7c95",
+        "semanticReview": "not performed; keyword signals do not prove correctness"
+      },
+      "result": "provider_integration_verified_longrun_pending",
+      "sourceHashes": {
+        "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+        "src/server/services/llm.service.ts": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890",
+        "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+        "src/server/services/story-memory-extraction.ts": "8f2daf0e8279ec811f50194fcb3e3aa293defdbdb656177e9bf962b3ce324ea9",
+        "scripts/story-memory-real-provider-check.mjs": "6b5c9f2e442905ad864351fe9eb01b1df0de94a2bbd792f126639a488198c135"
+      }
+    }
+  ],
+  "longrunAttempts": [
+    {
+      "date": "2026-10-24T10:23:02.709Z",
+      "scope": "real model and local multilingual embeddings with production state, memory worker, context and provider services; no HTTP/WebSocket/browser acceptance",
+      "model": "gemini-3.8-flash",
+      "embedding": "Xenova/paraphrase-multilingual-MiniLM-L12-v2, real 384-dimensional embeddings",
+      "limits": {
+        "providerCalls": 145,
+        "platformTokens": 100000,
+        "perRequestTimeoutMs": 60000
+      },
+      "taskClosed": false,
+      "sourceHashes": {
+        "scripts/story-memory-real-longrun.mjs": "8cf8deec7efee6161a0450f2a81838e4fb3413a16a17e6deea2f5e7c86151d62",
+        "scripts/story-memory-real-longrun-fixture.mjs": "d594f5c228712814c78085d451d35a2d9f4cb83d1431320bbbb12b1d0cd1491b",
+        "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+        "src/server/services/llm.service.ts": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890",
+        "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+        "src/server/jobs/story-memory.job.ts": "ab9b94ae68c8a09783e2e17ea80f1d152165654c01034e18e488046fbb481c9c",
+        "src/server/services/story-memory-extraction.ts": "8f2daf0e8279ec811f50194fcb3e3aa293defdbdb656177e9bf962b3ce324ea9",
+        "src/server/services/story-memory-worker.service.ts": "2cfb837f7fb788bfe43da9e9b85c4d89dc2f37e058a06db87233037a0ae526d4",
+        "src/server/services/story-state.service.ts": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f",
+        "src/server/services/context-manager.service.ts": "c5aec3b505d8a7699ea4c41e1a3821bf2d472910e9df8e076ce1498f58ae654b",
+        "src/server/services/story-summary-context.ts": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b",
+        "src/server/services/story-summary.service.ts": "6636ddff69daf82be03d1ec190a3e525736ee08a3011a6eed4aa5a42dc80adec",
+        "src/db/repositories/memory.repository.ts": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+      },
+      "result": "failed",
+      "behavior": {
+        "model": "gemini-3.8-flash",
+        "generatedTurns": 5,
+        "providerCalls": 6,
+        "extractionCalls": 1,
+        "trimmedTurns": 0,
+        "recapTurns": 0,
+        "checks": [],
+        "taskClosed": false,
+        "result": "failed",
+        "phase": "parallel-story",
+        "error": "ERR_ASSERTION",
+        "assertion": "Real memory derivation failed\n+ actual - expected\n\n+ 'succeeded'\n- 'retry'\n"
+      },
+      "disposableServicesRemoved": true
+    },
+    {
+      "date": "2026-10-24T10:25:42.909Z",
+      "scope": "real model and local multilingual embeddings with production state, memory worker, context and provider services; no HTTP/WebSocket/browser acceptance",
+      "model": "gemini-3.8-flash",
+      "embedding": "Xenova/paraphrase-multilingual-MiniLM-L12-v2, real 384-dimensional embeddings",
+      "limits": {
+        "providerCalls": 145,
+        "platformTokens": 100000,
+        "perRequestTimeoutMs": 60000
+      },
+      "taskClosed": false,
+      "sourceHashes": {
+        "scripts/story-memory-real-longrun.mjs": "8cf8deec7efee6161a0450f2a81838e4fb3413a16a17e6deea2f5e7c86151d62",
+        "scripts/story-memory-real-longrun-fixture.mjs": "d0008e86804a71a0b500b2a5ed077d048ecaa6deda387b9e1cae12ad6b42b216",
+        "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+        "src/server/services/llm.service.ts": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890",
+        "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+        "src/server/jobs/story-memory.job.ts": "ab9b94ae68c8a09783e2e17ea80f1d152165654c01034e18e488046fbb481c9c",
+        "src/server/services/story-memory-extraction.ts": "8f2daf0e8279ec811f50194fcb3e3aa293defdbdb656177e9bf962b3ce324ea9",
+        "src/server/services/story-memory-worker.service.ts": "2cfb837f7fb788bfe43da9e9b85c4d89dc2f37e058a06db87233037a0ae526d4",
+        "src/server/services/story-state.service.ts": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f",
+        "src/server/services/context-manager.service.ts": "c5aec3b505d8a7699ea4c41e1a3821bf2d472910e9df8e076ce1498f58ae654b",
+        "src/server/services/story-summary-context.ts": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b",
+        "src/server/services/story-summary.service.ts": "6636ddff69daf82be03d1ec190a3e525736ee08a3011a6eed4aa5a42dc80adec",
+        "src/db/repositories/memory.repository.ts": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+      },
+      "result": "failed",
+      "behavior": {
+        "model": "gemini-3.8-flash",
+        "generatedTurns": 0,
+        "providerCalls": 1,
+        "extractionCalls": 0,
+        "trimmedTurns": 0,
+        "recapTurns": 0,
+        "checks": [],
+        "taskClosed": false,
+        "result": "failed",
+        "phase": "parallel-story",
+        "error": "REAL_MEMORY_ACCEPTANCE_FAILED"
+      },
+      "disposableServicesRemoved": true
+    },
+    {
+      "date": "2026-10-24T10:28:43.390Z",
+      "scope": "real model and local multilingual embeddings with production state, memory worker, context and provider services; no HTTP/WebSocket/browser acceptance",
+      "model": "gemini-3.8-flash",
+      "embedding": "Xenova/paraphrase-multilingual-MiniLM-L12-v2, real 384-dimensional embeddings",
+      "limits": {
+        "providerCalls": 145,
+        "platformTokens": 100000,
+        "perRequestTimeoutMs": 60000
+      },
+      "taskClosed": false,
+      "sourceHashes": {
+        "scripts/story-memory-real-longrun.mjs": "8cf8deec7efee6161a0450f2a81838e4fb3413a16a17e6deea2f5e7c86151d62",
+        "scripts/story-memory-real-longrun-fixture.mjs": "54c4c95dea75d8912b9e01556707b472804433ea772218636c4f7755ef98e34a",
+        "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+        "src/server/services/llm.service.ts": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890",
+        "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+        "src/server/jobs/story-memory.job.ts": "ab9b94ae68c8a09783e2e17ea80f1d152165654c01034e18e488046fbb481c9c",
+        "src/server/services/story-memory-extraction.ts": "8f2daf0e8279ec811f50194fcb3e3aa293defdbdb656177e9bf962b3ce324ea9",
+        "src/server/services/story-memory-worker.service.ts": "2cfb837f7fb788bfe43da9e9b85c4d89dc2f37e058a06db87233037a0ae526d4",
+        "src/server/services/story-state.service.ts": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f",
+        "src/server/services/context-manager.service.ts": "c5aec3b505d8a7699ea4c41e1a3821bf2d472910e9df8e076ce1498f58ae654b",
+        "src/server/services/story-summary-context.ts": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b",
+        "src/server/services/story-summary.service.ts": "6636ddff69daf82be03d1ec190a3e525736ee08a3011a6eed4aa5a42dc80adec",
+        "src/db/repositories/memory.repository.ts": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+      },
+      "result": "failed",
+      "behavior": {
+        "model": "gemini-3.8-flash",
+        "generatedTurns": 43,
+        "providerCalls": 51,
+        "extractionCalls": 8,
+        "trimmedTurns": 30,
+        "recapTurns": 26,
+        "checks": [],
+        "taskClosed": false,
+        "lastRequest": {
+          "startedAt": "2026-10-24T10:33:33.547Z",
+          "streaming": true,
+          "status": 200
+        },
+        "lastExtraction": {
+          "status": 200,
+          "finishReason": "STOP",
+          "characters": 1069,
+          "fenced": true,
+          "schemaValid": true
+        },
+        "lastJob": {
+          "status": "succeeded",
+          "errorCode": null,
+          "attempts": 1
+        },
+        "result": "failed",
+        "phase": "main-first-half",
+        "error": "PLATFORM_SPEND_LIMIT",
+        "errorName": "AppError",
+        "status": 503
+      },
+      "disposableServicesRemoved": true
+    }
+  ],
+  "checks": {
+    "relatedUnitRegression": 110,
+    "additionalTextTemplateUnitChecks": 2,
+    "durableMemoryDatabase": 65,
+    "restoredStoryBehaviors": 19,
+    "evidenceGuards": 14,
+    "corruptionProbes": 2,
+    "typecheck": "passed",
+    "serverBuild": "passed",
+    "lint": {
+      "errors": 0,
+      "existingWarnings": 1
+    },
+    "controlledDatabaseReport": "/tmp/squaretable-story-restore-evidence/1d3018e4-5b13-4c72-b613-eaa2c3809a97/report.json"
+  },
+  "limitations": [
+    "Short responses with small output limits sometimes ended at the length limit; they are not narrative quality acceptance.",
+    "Latest real run ended after 38 main-story and 5 parallel-story turns at the configured 100000-token threshold.",
+    "Real embedding outage, 50-turn dump/restore and 100-turn return checks were not reached.",
+    "No semantic/style/player-agency signoff, HTTP/WebSocket/browser real-provider acceptance or candidate deployment.",
+    "Budget is per isolated run; it does not include previous probes or runs. No larger-budget run was authorized or executed.",
+    "Future harness reads the configured token budget and accepts an explicit per-run override; completed runs retain their original source hashes."
+  ],
+  "currentSourceHashes": {
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+    "src/server/services/llm.service.ts": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890",
+    "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+    "src/types/llm.ts": "99afa3b4cf921a254ed7de0b97c40bf49b6ba2775a434ffd727a1e689da63096",
+    "src/server/routes/llm.ts": "303a2ca003165368bb49a1f602e4d25c2be7aef650221a32e4cca8b885909306",
+    "src/server/jobs/story-memory.job.ts": "ab9b94ae68c8a09783e2e17ea80f1d152165654c01034e18e488046fbb481c9c",
+    "src/server/services/story-memory-extraction.ts": "8f2daf0e8279ec811f50194fcb3e3aa293defdbdb656177e9bf962b3ce324ea9",
+    "scripts/story-memory-provider-probe.mjs": "0b1360c038966a4810e0b5db8416bc5c4774c9ea09d6147b1324438d27e72f93",
+    "scripts/story-memory-real-provider-check.mjs": "6b5c9f2e442905ad864351fe9eb01b1df0de94a2bbd792f126639a488198c135",
+    "scripts/story-memory-real-longrun.mjs": "8423cdbe69a93502afe1a1e74e612bd518852b4fe24451b10aab7a792e26d1a4",
+    "scripts/story-memory-real-longrun-fixture.mjs": "c2b71c09ec741c0afe9d6057f310e38e30c0b654a6426305801bf38acb153329",
+    "scripts/beta-config.mjs": "dad82f53a172a140a2e62e5ce2153f7a3b089bec6e052ae27f3d22f25bb5c035",
+    "compose.beta.yml": "5595e3dbf5ed6c4087d61e2c5b345a5b087b80af32c93cdaaa8d2180bba389bd",
+    ".env.example": "cbf5ad95da4cc8ab7b40e83db9046da7a3e3bc98d24fe60bdba3ae233ea3c36a",
+    "dist/server/index.js": "b9e33f90813d59b863b203b62b6780174696314540f3dc3e275e028360ff8128"
+  }
+}

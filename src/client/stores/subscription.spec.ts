@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useSubscriptionStore } from './subscription';
 import { subscriptionApi } from '@client/services/subscription.api';
+import { useUserStore } from './user';
 
 
 vi.mock('@client/services/subscription.api', () => ({
@@ -23,6 +24,39 @@ describe('Subscription Store', () => {
   });
 
   describe('fetchStatus', () => {
+    it('shares a pending status read and reuses only a successfully loaded result', async () => {
+      const store = useSubscriptionStore();
+      vi.mocked(subscriptionApi.getStatus).mockResolvedValue({ subscription: null });
+      await Promise.all([store.ensureStatus(), store.ensureStatus()]);
+      await store.ensureStatus();
+      expect(subscriptionApi.getStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it('discards a late entitlement response after switching accounts', async () => {
+      const user = useUserStore();
+      user.user = { id: 'first', tenantId: 'tenant-first' } as any;
+      const store = useSubscriptionStore();
+      let finish!: (result: any) => void;
+      vi.mocked(subscriptionApi.getStatus).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+      const old = store.ensureStatus();
+      user.user = { id: 'second', tenantId: 'tenant-second' } as any;
+      vi.mocked(subscriptionApi.getStatus).mockResolvedValueOnce({ subscription: null });
+      await store.ensureStatus();
+      finish({ subscription: { plan: 'pro', status: 'active' } });
+      await old;
+      expect(store.currentPlan).toBe('free');
+      expect(store.subscription).toBeNull();
+    });
+
+    it('clears previous privileges when a refresh fails', async () => {
+      const store = useSubscriptionStore();
+      store.subscription = { plan: 'pro', status: 'active' } as any;
+      vi.mocked(subscriptionApi.getStatus).mockRejectedValueOnce(new Error('offline'));
+      await expect(store.fetchStatus()).rejects.toThrow('offline');
+      expect(store.currentPlan).toBe('free');
+      expect(store.statusLoaded).toBe(false);
+    });
+
     it('should fetch subscription status successfully', async () => {
       const mockSubscription = {
         id: 'sub_123',

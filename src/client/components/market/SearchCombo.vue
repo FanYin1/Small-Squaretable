@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Search, Plus } from '@element-plus/icons-vue';
-import { useRouter } from 'vue-router';
+import { Search } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 
-const router = useRouter();
 
 interface Props {
   modelValue: string;
@@ -17,13 +14,10 @@ interface Emits {
   (e: 'search'): void;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-const localValue = ref(props.modelValue);
-
 const handleInput = (value: string) => {
-  localValue.value = value;
   emit('update:modelValue', value);
 };
 
@@ -31,13 +25,10 @@ const handleSearch = () => {
   emit('search');
 };
 
-const handleKeyEnter = () => {
-  emit('search');
+const handleKeyEnter = (event: KeyboardEvent) => {
+  if (!event.isComposing && event.keyCode !== 229) emit('search');
 };
 
-const handleNewChat = () => {
-  router.push({ name: 'Chat' });
-};
 </script>
 
 <template>
@@ -51,6 +42,7 @@ const handleNewChat = () => {
         type="text"
         class="search-input"
         :placeholder="$t('market.searchPlaceholder')"
+        :aria-label="t('market.discovery.searchLabel')"
         @input="handleInput(($event.target as HTMLInputElement).value)"
         @keyup.enter="handleKeyEnter"
       />
@@ -60,14 +52,10 @@ const handleNewChat = () => {
       {{ $t('market.searchBtn') }}
     </button>
 
-    <button class="new-chat-btn" @click="handleNewChat">
-      <el-icon><Plus /></el-icon>
-      {{ $t('market.newChat') }}
-    </button>
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 /*
  * 取值全部改走令牌。原先硬编码 white / #3B82F6（蓝）/ #10B981（绿），
  * 既在深色表面上整块发白，也和琥珀品牌色冲突——搜索按钮是蓝的、
@@ -172,31 +160,30 @@ const handleNewChat = () => {
 }
 
 /* 移动端适配 */
-@media (max-width: 767px) {
+@include below(md) {
   .search-combo {
-    flex-direction: column;
+    flex-direction: row;
     border-radius: 12px;
   }
 
   .search-input-wrapper {
-    width: 100%;
-    padding: 12px 16px;
+    padding: 0 12px;
   }
 
   .search-btn,
   .new-chat-btn {
-    width: 100%;
+    min-height: 48px;
     justify-content: center;
-    padding: 14px 24px;
+    padding: 12px 16px;
     border-radius: 0;
   }
 
   .search-btn {
-    border-top: 1px solid #E5E7EB;
+    border-top: 1px solid var(--border-default);
   }
 
   .new-chat-btn {
-    border-top: 1px solid #E5E7EB;
+    border-top: 1px solid var(--border-default);
     border-radius: 0 0 12px 12px;
   }
 }

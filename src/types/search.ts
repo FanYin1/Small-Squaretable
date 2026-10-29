@@ -31,6 +31,11 @@ export interface SearchOptions {
   category?: string;
   tags?: string[];
   isNsfw?: boolean;
+  /**
+   * 观看者此刻能否看到 NSFW。必须由服务端从偏好 + 平台开关得出
+   * （resolveShowNsfw），不得取自请求参数。缺省视为 false。
+   */
+  showNsfw?: boolean;
   tenantId?: string;
   userId?: string;
   page: number;

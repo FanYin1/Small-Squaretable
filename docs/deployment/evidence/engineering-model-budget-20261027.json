@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-27",
+  "parent": "EXP-ADAPT",
+  "acceptance": "AD-4 engineering budget foundation",
+  "parentComplete": false,
+  "scope": "Enrolled engineering gateway, controlled tests and first real source-excerpt batch; not a production global limiter",
+  "checks": {
+    "controlledTests": 28,
+    "passed": 28,
+    "failed": 0,
+    "syntaxFiles": 10,
+    "enrolledExistingPaidEntryPoints": 5,
+    "newPresentationEntryPoints": 1
+  },
+  "behavior": [
+    "Durable batch allocation and request reservation before upstream dispatch",
+    "Receipt replacement without double counting, unknown holds and overrun halt",
+    "Cross-process CLI ownership and no redispatch of persisted pending requests",
+    "Shared foreground/background request serialization",
+    "Text-only OpenAI/Gemini JSON and SSE validation",
+    "Five existing paid scripts reject direct upstream configurations"
+  ],
+  "historical": {
+    "authorization": 1450000,
+    "known": 448496,
+    "unreceiptedAtLeast": 6591,
+    "additionalFailedUsage": "unknown; not zero or reconciled",
+    "actualLedgerInitialized": true,
+    "additionalUnknownReserve": 198000,
+    "reserveIsReceipt": false
+  },
+  "deployment": {
+    "changed": false,
+    "candidatePort": 3081,
+    "image": "small-squaretable:exploration-20261027-adapter"
+  },
+  "realPaidCalls": 3,
+  "personalCreditAdjustments": 0,
+  "limitations": [
+    "Enrolled engineering paths only; arbitrary clients and production requests are outside this gateway",
+    "UTF-8 bytes plus configured output and margin are an estimate, not a supplier billing guarantee",
+    "CLI does not enroll paid embedding models",
+    "Historical failed extraction has no billing receipt; additional 198000 is a conservative reserve, not settlement",
+    "Model organizing, existing third-party finite conversion and real gameplay remain open"
+  ],
+  "sourceHashes": {
+    "scripts/engineering-model-budget.mjs": "20f0bf88f2d347a6ac3712ca276d804ed952e847d7bcbfd4491c4b66aec0c1fa",
+    "scripts/engineering-model-budget.test.mjs": "f3eeb3ae83b8efdc3d56e61a411b9dc866cd069f4ddf79465893d71a21a7d380",
+    "scripts/lib/engineering-model-budget.mjs": "cce9d968ee62340c3b8d3a958af5db02320ddc6d8647bbe8998625489ba422b4",
+    "scripts/lib/engineering-model-gateway.mjs": "1222e7e4b6fdf3a53fd34dd002bc66dcd6c1cea5e661547441ac84857d00cf99",
+    "scripts/lib/engineering-model-client.mjs": "bab19a707c7b1ca64a1912b2814bb946261a88392b2cf6f4fa54d210961dfeb8",
+    "scripts/character-journey-model-check.mjs": "021205c1a3bd4f914d8c47f95ad898e6c0399075c06c125ceca4acc3709ef517",
+    "scripts/story-memory-real-provider-check.mjs": "1819965dd8f8389b54aac19614c97afdc6cffb95bafb70c104e8f2a9e37fbdd2",
+    "scripts/story-memory-provider-probe.mjs": "e9ef8dea083d07f03d48d57fc4271510e2d05ec3f37e92cee89a0fcfc984755d",
+    "scripts/story-memory-real-longrun.mjs": "e33315279a1391ae3d65ace0bcf981591d882efc40cbf7dcdc780263b8309617",
+    "scripts/story-intent-real-check.mjs": "03bac9dfb6648594265e0e6e6e3160ffb2a67b1da0c8a92e0a19bc06dde4a90f"
+  },
+  "realKnownTokens": 15440,
+  "currentAccounting": {
+    "authorization": 1450000,
+    "known": 463936,
+    "historicalUnreceipted": 6591,
+    "additionalUnknownReserve": 198000,
+    "occupied": 668527,
+    "available": 781473,
+    "pending": 0,
+    "newUnknown": 0,
+    "batchClosed": true
+  }
+}

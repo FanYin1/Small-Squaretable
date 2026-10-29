@@ -38,8 +38,8 @@ export const characterCollectionApi = {
   removeCharacter: (collectionId: string, characterId: string) =>
     api.delete(`/character-collections/${collectionId}/characters/${characterId}`),
 
-  getCollectionCharacters: (collectionId: string) =>
-    api.get<Character[]>(`/character-collections/${collectionId}/characters`),
+  getCollectionCharacters: (collectionId: string, options?: Pick<RequestInit, 'signal'>) =>
+    api.get<Character[]>(`/character-collections/${collectionId}/characters`, options),
 
   getPublicCollections: (userId: string) =>
     api.get<CharacterCollection[]>(`/character-collections/public/${userId}`),

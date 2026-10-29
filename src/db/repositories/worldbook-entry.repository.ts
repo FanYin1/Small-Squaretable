@@ -33,6 +33,8 @@ export class WorldBookEntryRepository extends BaseRepository {
     matchWholeWords?: boolean;
     recursive?: boolean;
     preventRecursion?: boolean;
+    /** 不参与递归扫描（SillyTavern exclude_recursion），存于 settings JSONB，无独立列 */
+    excludeRecursion?: boolean;
     /** 0=system, 1=user, 2=assistant (SillyTavern convention) */
     role?: number;
   }) {
@@ -62,6 +64,7 @@ export class WorldBookEntryRepository extends BaseRepository {
           delay: data.delay,
           caseSensitive: data.caseSensitive,
           matchWholeWords: data.matchWholeWords,
+          excludeRecursion: data.excludeRecursion,
           role: data.role,
         },
       })

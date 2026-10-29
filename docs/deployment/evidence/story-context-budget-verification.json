@@ -1,0 +1,176 @@
+{
+  "date": "2026-10-24T06:57:55.381Z",
+  "result": "passed",
+  "backend": "current built server with disposable PostgreSQL/Redis",
+  "model": "controlled loopback provider; beta-smoke uses the existing unknown-model 4096/2048 metadata fallback",
+  "scope": "real API, WebSocket, browser, database and credit effects; synthetic histories and provider output, not real long-form quality",
+  "checks": [
+    {
+      "case": "oversized accepted input is retained without body generation, credit hold or story effects",
+      "result": "passed"
+    },
+    {
+      "case": "input recovery appends to an existing draft without resending",
+      "result": "passed"
+    },
+    {
+      "case": "edited input generates once with frozen identity and saved style; oversized older input stays stored",
+      "result": "passed"
+    },
+    {
+      "case": "nonempty long history is trimmed by whole turns while saved notes and current input reach the real provider boundary",
+      "result": "passed",
+      "syntheticHistoricalTurns": 25
+    },
+    {
+      "case": "mobile critical depth material is preserved and rejected before generation; error metadata contains no private prompt",
+      "result": "passed"
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/story-context-browser-check.mjs",
+      "sha256": "d9cbe811f7f39465f4c1f9b507e9509f05b9882362f333630f8fa18a8d736a11"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "cd5601f852b346ce69c1f01d96442759d91263a1ac45ebf695a715d9aa105017"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "4eeebd8c2192d5e27a278d24afe784be4e75655dfb1ae220a46375c76f423828"
+    },
+    {
+      "path": "src/server/services/context-budget.ts",
+      "sha256": "6cb9822fd1445f129d7c8eac8ced481a283db71bd9ba81a7d264c6382a655959"
+    },
+    {
+      "path": "src/server/services/context-manager.service.ts",
+      "sha256": "c5aec3b505d8a7699ea4c41e1a3821bf2d472910e9df8e076ce1498f58ae654b"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "5fa0a7e637232b91973639dda069e0ce3067799be2cbde1b208036e076076078"
+    },
+    {
+      "path": "src/types/context-budget.ts",
+      "sha256": "96fdf94abee07109188ce5c7564fac6c304b9c6f1d820b1c8685ab92ff06c809"
+    },
+    {
+      "path": "src/client/stores/chat.ts",
+      "sha256": "b161a6c97735d7d015d3fe9a7f9a477dfd5702b760f9e649ba6da7ae97dc0133"
+    },
+    {
+      "path": "src/client/components/chat/ChatWindow.vue",
+      "sha256": "0ebd82cd30e3745ba94bf8f701cc953b3e5b7643a64ac69febe547c7bd5b43f5"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "5bc469584c0de314623e5e8ff2fae1d3a67fe16a8ac877b940a4ad0d3a3281b6"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "8f522643f7c5583ae81744564fe487903541fe8ed524ae20434ef6117153598a"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "745a51a395e04b26aead456cf49047b18aa624d6df9fe1d09c3b67af1b473de5"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "6b7f8bc063ad2e7831981f745788a854931c75b26d87bdf8c644740463c3c39c"
+    },
+    {
+      "path": "package.json",
+      "sha256": "160820edaeb79b4c6afabcf47503b0e1486a9a09f3a70c5d55f05e244bdb0809"
+    },
+    {
+      "path": "src/client/components/chat/MessageInput.vue",
+      "sha256": "4faf9a4829b29e8c0001d6fe0c62b9cf7d11755a845f386f627178e2b294119f"
+    },
+    {
+      "path": "src/server/config/llm.config.ts",
+      "sha256": "2fe5420dac036fdc8127a7920f1a847fe97f21e063736237665c0cc4727668c7"
+    },
+    {
+      "path": "src/server/services/prompt-assembly.ts",
+      "sha256": "8a25c0def3e6ede8266ffe8fffb4a2d3b969357bf7e147cea2062d65adfe564b"
+    },
+    {
+      "path": "src/server/services/chat.service.ts",
+      "sha256": "5c932a7fc62f25bd29a50196555349b907c2cd22449fd6fc52933bbf6f0bb61f"
+    },
+    {
+      "path": "src/server/services/context-budget.spec.ts",
+      "sha256": "fb8cf7295a8a74db942da42bea74ef50cf2b045f6261c08133129ab0b413acca"
+    },
+    {
+      "path": "src/server/services/context-manager.service.spec.ts",
+      "sha256": "86d6c1d99d623b8bb4888b950ebe021085f8f8698eee94adc5fbbbfc10d59193"
+    },
+    {
+      "path": "src/server/routes/websocket-credits.spec.ts",
+      "sha256": "ad260bd9d6f0f11e3fdc25c1713207cf7e573b2f026509e565a8b98fee5df54f"
+    },
+    {
+      "path": "src/server/routes/websocket-metering.spec.ts",
+      "sha256": "1e19b7535fa41af45af103ffb683bf2f26b68c4548771ae268a1e90cbd4142a5"
+    },
+    {
+      "path": "src/client/stores/chat.spec.ts",
+      "sha256": "e796d6d84b8963a918066289d814f5f97a75cd1d5814b34ac5ba7b7bff57846e"
+    },
+    {
+      "path": "src/client/components/chat/ChatWindow.spec.ts",
+      "sha256": "5fbabd283738226a499ede23cdca1126ee844765562c1314f3009e20c9fd5bfa"
+    },
+    {
+      "path": "src/client/components/chat/MessageInput.spec.ts",
+      "sha256": "de2e6e63143c0b112c2b5107e083acfbbfbaa2e4f734ababb1ed74a6e6829836"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "/tmp/squaretable-context-evidence/18c5caee-ad4b-40b2-a505-3e388253bbd1/desktop-overflow.png",
+      "sha256": "70c2fa160494b2f6f77a88ffe086e363979ade4200f87d89e8f408dd38b63f5a"
+    },
+    {
+      "path": "/tmp/squaretable-context-evidence/18c5caee-ad4b-40b2-a505-3e388253bbd1/mobile-critical-overflow.png",
+      "sha256": "9b4609d7db941edfe5e456a0096f9e2be48421dc8d5372aea8f44d60da615fb8"
+    }
+  ],
+  "verification": {
+    "targetedVitest": {
+      "files": 7,
+      "passed": 171
+    },
+    "browserChecks": 5,
+    "typeCheck": "passed",
+    "productionServerAndClientBuild": "passed",
+    "scriptSyntax": "passed",
+    "targetedLint": {
+      "errors": 0,
+      "existingWarnings": 8
+    },
+    "baselineSmoke": "passed: readiness, invitation, creation idempotency, streaming, settlement/replay, tenant/story ledger isolation, stop and failure hold release",
+    "visualReview": "desktop 1440x1000 and mobile viewport 390x844: error text and recovery action visible",
+    "unexpectedBrowserExceptionsAnd429Or5xx": 0
+  },
+  "deployment": {
+    "updated": false,
+    "unchangedPorts": [
+      3080,
+      3081,
+      5188
+    ],
+    "disposableServicesCleaned": true
+  },
+  "limitations": [
+    "Heuristic capacity estimates, not a provider tokenizer.",
+    "Automatic summarization is not wired into the WebSocket path.",
+    "25 historical turns are synthetic database fixtures, not 25 provider conversations.",
+    "No real provider long-form quality verification.",
+    "Rejected input remains stored and message quota metered; prior group replies and costs remain; auxiliary work may have run.",
+    "EXP-05B, EXP-07D and OPEN-01 through OPEN-07 remain open."
+  ]
+}

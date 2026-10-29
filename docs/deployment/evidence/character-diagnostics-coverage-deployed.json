@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-25T05:47:20.746Z",
+  "result": "passed",
+  "base": "http://127.0.0.1:3081",
+  "image": "sha256:a19eb377c82324ed45dc50f473331a2d48284e882363d60e5e60e2eeb790f538",
+  "screenshots": [
+    "03c-detail-390-light.png",
+    "03c-detail-390-dark.png",
+    "03c-story-390-light.png",
+    "03c-story-390-dark.png",
+    "03c-detail-1440-light.png",
+    "03c-detail-1440-dark.png",
+    "03c-story-1440-light.png",
+    "03c-story-1440-dark.png",
+    "03c-unset-detail-390.png",
+    "03c-unset-story-390.png",
+    "03c-unset-detail-1440.png",
+    "03c-unset-story-1440.png"
+  ],
+  "artifacts": {
+    "characterId": "bc1628dc-65be-41e4-abdb-73322106a3df",
+    "personaId": "19d3f5a7-ee97-4fa8-8b62-fb02f88a29ba",
+    "storyId": "d0b9f3de-1c7e-47b6-a61e-6d6fc377c26b"
+  },
+  "unsetArtifacts": {
+    "characterId": "9e1b7e4d-a9b7-4399-a384-ed668f6e8d5e",
+    "storyId": "7cf058cb-7b43-4cd8-be08-574b664847ba"
+  },
+  "htmlSha256": "17af692c57fa72c069edcb5e684a9d478e3df971bb5114fed06805ab36ed00ad",
+  "paidProviderTokens": 0,
+  "generationAttempts": 0,
+  "checks": [
+    "actual private author card, bound knowledge book and compatible persona",
+    "frozen diagnostic data matches entry",
+    "application container restart preserves new and old stories",
+    "old snapshots do not acquire invented diagnostics",
+    "390/1440 light/dark production pages without overflow or page errors",
+    "deployed HTML matches locally validated build",
+    "actual file import preserves null timing source fields and maps runtime settings to zero",
+    "undeclared identity/purpose remain explicit before entry and in a restored story"
+  ],
+  "limits": [
+    "No paid generation or real-device/user acceptance",
+    "Private owned sample under the existing acceptance account; not a public launch card"
+  ]
+}

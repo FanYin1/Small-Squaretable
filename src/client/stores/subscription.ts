@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { Subscription, SubscriptionConfig, PlanType, Entitlement } from '@client/types';
 import { subscriptionApi } from '@client/services/subscription.api';
+import { useUserStore } from './user';
 
 /** 没有订阅记录时的兜底状态，也用于后端还没返回 entitlement 的情况 */
 const ACTIVE_STATUSES = new Set(['active', 'trialing']);
@@ -12,6 +13,21 @@ export const useSubscriptionStore = defineStore('subscription', () => {
   const config = ref<SubscriptionConfig | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const statusLoaded = ref(false);
+  const userStore = useUserStore();
+  let requestVersion = 0;
+  let pendingStatus: Promise<void> | null = null;
+  const owner = computed(() => userStore.user ? JSON.stringify([userStore.user.tenantId, userStore.user.id]) : null);
+  watch(owner, () => {
+    requestVersion += 1;
+    subscription.value = null;
+    entitlement.value = null;
+    config.value = null;
+    statusLoaded.value = false;
+    pendingStatus = null;
+    error.value = null;
+    loading.value = false;
+  }, { flush: 'sync' });
 
   /**
    * 当前生效的套餐。
@@ -45,18 +61,35 @@ export const useSubscriptionStore = defineStore('subscription', () => {
   const isPro = computed(() => currentPlan.value === 'pro' || currentPlan.value === 'team');
 
   async function fetchStatus(): Promise<void> {
+    const version = ++requestVersion;
     loading.value = true;
     error.value = null;
     try {
       const response = await subscriptionApi.getStatus();
+      if (version !== requestVersion) return;
       subscription.value = response.subscription;
       entitlement.value = response.entitlement ?? null;
+      statusLoaded.value = true;
     } catch (e) {
+      if (version !== requestVersion) return;
+      statusLoaded.value = false;
+      subscription.value = null;
+      entitlement.value = null;
       error.value = e instanceof Error ? e.message : 'Failed to fetch subscription';
       throw e;
     } finally {
-      loading.value = false;
+      if (version === requestVersion) loading.value = false;
     }
+  }
+
+  function ensureStatus(): Promise<void> {
+    if (pendingStatus) return pendingStatus;
+    if (statusLoaded.value) return Promise.resolve();
+    const pending = fetchStatus().finally(() => {
+      if (pendingStatus === pending) pendingStatus = null;
+    });
+    pendingStatus = pending;
+    return pending;
   }
 
   async function fetchConfig(): Promise<void> {
@@ -114,6 +147,8 @@ export const useSubscriptionStore = defineStore('subscription', () => {
     isSuspended,
     isRevoked,
     fetchStatus,
+    ensureStatus,
+    statusLoaded,
     fetchConfig,
     startCheckout,
     openPortal,

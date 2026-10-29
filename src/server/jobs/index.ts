@@ -17,13 +17,17 @@ import { memoryService } from '../services/memory.service';
 import { memoryRepository } from '../../db/repositories/memory.repository';
 import { runNotificationDigest } from './notification-digest.job';
 import { runNotificationCleanup } from './notification-cleanup.job';
+import { creditBilling } from '../services/credit-billing.service';
+import { runStoryMemory } from './story-memory.job';
 
+const FIVE_MINUTES = 5 * 60 * 1000;
 const ONE_HOUR = 60 * 60 * 1000;
 const SIX_HOURS = 6 * ONE_HOUR;
 const ONE_DAY = 24 * ONE_HOUR;
 const ONE_WEEK = 7 * ONE_DAY;
 
 export function registerJobs(scheduler: SchedulerService): void {
+  scheduler.register('story-memory', runStoryMemory, 15000);
   scheduler.register('gdpr-deletion', async () => {
     const count = await gdprService.processExpiredDeletions();
     if (count > 0) jobLogger.info('Deleted expired accounts', { job: 'gdpr-deletion', count });
@@ -85,4 +89,9 @@ export function registerJobs(scheduler: SchedulerService): void {
   scheduler.register('notification-cleanup', async () => {
     await runNotificationCleanup();
   }, ONE_DAY);
+
+  // P3-1：清扫过期未结算的点数冻结。订阅模式下没有冻结，job 是空转的一条 UPDATE。
+  scheduler.register('credit-reservation-sweep', async () => {
+    await creditBilling.sweepExpired();
+  }, FIVE_MINUTES);
 }

@@ -1,0 +1,76 @@
+{
+  "workPackage": "EXP-05A",
+  "status": "engineering-delivered",
+  "at": "2026-10-25T10:39:16.083Z",
+  "originalRequirements": [
+    "source/versioned experiences, agreements and preferences",
+    "write, merge, retrieve and cleanup isolation",
+    "long-run continuity and return"
+  ],
+  "changes": [
+    "single-story version-enforced provenance gate",
+    "shared fact/recap source and audience validation",
+    "typed exact dedup with retained source links",
+    "bounded preference retrieval and retention",
+    "owned legacy API access and global-only default scope"
+  ],
+  "verification": {
+    "unitTests": 259,
+    "unitFiles": 16,
+    "durableMemoryGroups": 76,
+    "newlyAddedMemoryGroups": 11,
+    "restoredStoryGroups": 19,
+    "portableStoryGroups": 22,
+    "readingExportGroups": 20,
+    "evidenceGuards": 14,
+    "corruptionProbes": 2,
+    "finalApiWebsocketBrowserGroups": 10,
+    "typecheck": "passed",
+    "targetedLint": {
+      "errors": 0,
+      "warnings": 9
+    }
+  },
+  "evidence": {
+    "units": "story-memory-05a-unit.json",
+    "persistence": "story-memory-05a-restore.json",
+    "actualProviderBoundary": "story-memory-05a-context.json",
+    "upgrade": "story-memory-05a-upgrade.json",
+    "deployedRestartAndUi": "story-memory-05a-deployed.json",
+    "deployedApi": "story-memory-05a-runtime.json",
+    "existingRealLongRun": "story-memory-real-longrun-450k.json"
+  },
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261025-05a",
+    "imageId": "sha256:113b972d8b00b5ed69b6be4165f3bd3b212ec1e993eef7c2904db5c43fe84ad4",
+    "migrationCount": 12,
+    "newMigrations": 0,
+    "comparedTables": 71,
+    "health": {
+      "candidateReady": 200,
+      "historical": 200,
+      "prototype": 200
+    },
+    "restartAndBuildVerified": true,
+    "prewrittenFixturesOnly": true
+  },
+  "modelBudget": {
+    "newCalls": 0,
+    "newTokens": 0,
+    "knownCumulative": 439863,
+    "priorUnreceiptedReservation": 6591,
+    "authorization": 450000,
+    "remaining": 3546
+  },
+  "preservedFailures": [
+    "First two new database fixture runs failed because of JSON parameter serialization; corrected test binding, not counted as passing",
+    "First real browser continuation missed sourced style because the single-story route omitted isolation; fixed route and service-level version enforcement, then all 10 groups passed"
+  ],
+  "limits": [
+    "Bounded retrieval and batch recaps, not unlimited recall or automatic semantic truth checking",
+    "Existing real 100+5 rounds reused as historical evidence, not new provider calls",
+    "No automatic existing-memory rewriting or legacy archive upgrade",
+    "EXP-06, complete EXP-07D, OPEN decisions and human narrative/visual acceptance remain separate"
+  ]
+}

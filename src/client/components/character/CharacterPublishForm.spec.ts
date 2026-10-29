@@ -13,11 +13,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import CharacterPublishForm from './CharacterPublishForm.vue';
 import i18n from '../../i18n';
+import { collectPresentationSources, verifyPresentationSelection } from '../../../server/services/story-presentation-workflow';
 
-const { mockApi, messageWarning, messageError } = vi.hoisted(() => ({
-  mockApi: { patch: vi.fn(), post: vi.fn() },
+const { mockApi, messageWarning, messageError, hasFeature } = vi.hoisted(() => ({
+  mockApi: { get: vi.fn(), patch: vi.fn(), post: vi.fn() },
   messageWarning: vi.fn(),
   messageError: vi.fn(),
+  hasFeature: vi.fn(() => true),
 }));
 
 vi.mock('@client/services/api', () => ({ api: mockApi }));
@@ -32,14 +34,14 @@ vi.mock('element-plus', () => ({
 
 vi.mock('@client/composables/useFeatureGate', () => ({
   useFeatureGate: () => ({
-    hasFeature: () => true,
+    hasFeature,
     getUpgradeMessage: () => 'upgrade',
   }),
 }));
 
 const elStubs = {
   'el-dialog': { template: '<div v-if="modelValue"><slot /><slot name="footer" /></div>', props: ['modelValue', 'title', 'width'] },
-  'el-form': { template: '<form><slot /></form>', props: ['model', 'labelWidth'] },
+  'el-form': { name: 'PublishFormStub', template: '<form><slot /></form>', props: ['model', 'labelWidth', 'disabled'] },
   'el-form-item': { template: '<div class="form-item" :data-label="label"><slot /></div>', props: ['label'] },
   'el-input': { template: '<input />', props: ['modelValue', 'placeholder', 'type', 'rows'] },
   'el-select': { template: '<select><slot /></select>', props: ['modelValue', 'placeholder', 'multiple'] },
@@ -68,8 +70,87 @@ function mountForm(overrides: Record<string, unknown> = {}) {
 describe('CharacterPublishForm NSFW 边界', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hasFeature.mockReturnValue(true);
+    // 读不到平台开关 -> 按「不允许」处理（既有用例的前提）
+    mockApi.get.mockRejectedValue(new Error('preferences unavailable'));
     mockApi.patch.mockResolvedValue({});
     mockApi.post.mockResolvedValue({});
+  });
+
+  it('allows local public-preview editing without publication entitlement and keeps writes gated', async () => {
+    hasFeature.mockReturnValue(false);
+    const wrapper = mountForm();
+    await flushPromises();
+    expect(wrapper.findComponent({ name: 'PublishFormStub' }).props('disabled')).toBe(false);
+    expect(wrapper.get('[data-testid="publish-preview"]').text()).toContain('不会保存或发布');
+    expect(wrapper.find('form').attributes('disabled')).toBeUndefined();
+    await wrapper.vm.handlePublish();
+    expect(mockApi.patch).not.toHaveBeenCalled();
+    expect(mockApi.post).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('previews a sourced excerpt before explicitly saving it as the public introduction, without changing input props', async () => {
+    const source = { id: '4c22c229-e092-4312-ae4f-61ca678c29b8', name: '测试角色', description: null,
+      cardData: { first_mes: '你站在暮色中的港口，船长等待你的回应。' } };
+    const candidates = collectPresentationSources(source);
+    const draft = verifyPresentationSelection(source, candidates, { version: 1, candidateId: candidates.candidates[0].id });
+    const presentation = { id: '09ae3db3-f8ab-4f8a-ac61-2f957aa514f5', draft };
+    const wrapper = mountForm({ ...source, presentation });
+    expect(wrapper.get('[data-testid="publish-preview"]').text()).toContain(draft.text);
+    expect(wrapper.props('character').description).toBeNull();
+    expect(mockApi.patch).not.toHaveBeenCalled();
+    await wrapper.vm.handlePublish();
+    expect(mockApi.patch).toHaveBeenCalledWith(`/characters/${source.id}`, expect.objectContaining({ description: draft.text }));
+    wrapper.unmount();
+  });
+
+  it('preserves a user introduction and abandons a pending publish if the selected character changes', async () => {
+    const wrapper = mountForm();
+    expect(wrapper.get('[data-testid="publish-preview"]').text()).toContain(character.description);
+    let finish!: (result: object) => void;
+    mockApi.patch.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const pending = wrapper.vm.handlePublish();
+    await wrapper.setProps({ character: { ...character, id: 'other', description: '另一张卡的介绍' } as never });
+    finish({}); await pending;
+    expect(mockApi.post).not.toHaveBeenCalled();
+    expect(wrapper.get('[data-testid="publish-preview"]').text()).toContain('另一张卡的介绍');
+    expect(wrapper.emitted('success')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('reports review submission rather than public visibility', async () => {
+    const { ElMessage } = await import('element-plus');
+    mockApi.post.mockResolvedValueOnce({ moderationStatus: 'pending' });
+    const wrapper = mountForm();
+    await wrapper.vm.handlePublish();
+    expect(ElMessage.success).toHaveBeenCalledWith(i18n.global.t('characterPublish.submitted'));
+    wrapper.unmount();
+  });
+
+  it('retains the saved boundary when publishing fails after PATCH', async () => {
+    mockApi.post.mockRejectedValueOnce(new Error('offline'));
+    const wrapper = mountForm();
+    await wrapper.vm.handlePublish();
+    await flushPromises();
+    expect(wrapper.emitted('success')).toBeUndefined();
+    expect(wrapper.get('[data-testid="publish-state"]').text()).toBe(i18n.global.t('characterPublish.savedBeforePublish'));
+    wrapper.unmount();
+  });
+
+  it('does not submit twice or close while a publish is pending', async () => {
+    let finish!: (result: object) => void;
+    mockApi.patch.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const wrapper = mountForm();
+    const pending = wrapper.vm.handlePublish();
+    await wrapper.vm.handlePublish();
+    wrapper.vm.handleClose();
+    expect(wrapper.emitted('close')).toBeUndefined();
+    finish({});
+    await pending;
+    expect(mockApi.patch).toHaveBeenCalledTimes(1);
+    expect(mockApi.post).toHaveBeenCalledTimes(1);
+    wrapper.unmount();
   });
 
   it('NSFW 开着时不提交——服务端会拒，先在本地说清楚', async () => {
@@ -122,5 +203,52 @@ describe('CharacterPublishForm NSFW 边界', () => {
     await flushPromises();
 
     expect(messageError).toHaveBeenCalledWith(expect.stringContaining('NSFW'));
+  });
+});
+
+describe('CharacterPublishForm NSFW 平台开关（P2-6）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockApi.patch.mockResolvedValue({});
+    mockApi.post.mockResolvedValue({});
+  });
+
+  it('平台开启 NSFW：带 NSFW 标记的卡可以发布，标记照常提交', async () => {
+    mockApi.get.mockResolvedValue({ nsfwEnabled: true, showNsfw: false, ageConfirmed: true });
+    const wrapper = mountForm({ isNsfw: true });
+    await flushPromises();
+
+    await wrapper.vm.handlePublish();
+    await flushPromises();
+
+    expect(mockApi.patch).toHaveBeenCalledWith(
+      '/characters/char-1',
+      expect.objectContaining({ isNsfw: true }),
+    );
+    expect(mockApi.post).toHaveBeenCalledWith('/characters/char-1/publish');
+    expect(messageWarning).not.toHaveBeenCalled();
+  });
+
+  it('平台开启 NSFW：提示文案换成「可以发布但只对打开偏好的用户展示」', async () => {
+    mockApi.get.mockResolvedValue({ nsfwEnabled: true, showNsfw: false, ageConfirmed: true });
+    const wrapper = mountForm({ isNsfw: true });
+    await flushPromises();
+
+    const allowed = i18n.global.t('characterPublish.nsfwAllowed') as string;
+    expect(allowed).not.toBe('characterPublish.nsfwAllowed');
+    expect(wrapper.text()).toContain(allowed);
+  });
+
+  it('平台关闭 NSFW：仍在本地拦住，不写任何字段', async () => {
+    mockApi.get.mockResolvedValue({ nsfwEnabled: false, showNsfw: false, ageConfirmed: true });
+    const wrapper = mountForm({ isNsfw: true });
+    await flushPromises();
+
+    await wrapper.vm.handlePublish();
+    await flushPromises();
+
+    expect(mockApi.patch).not.toHaveBeenCalled();
+    expect(mockApi.post).not.toHaveBeenCalled();
+    expect(messageWarning).toHaveBeenCalled();
   });
 });

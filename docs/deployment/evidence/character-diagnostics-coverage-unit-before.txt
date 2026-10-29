@@ -1,0 +1,132 @@
+[dotenv@17.3.1] injecting env (30) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+
+ RUN  v4.0.18 /var/aichat/Small-Squaretable
+
+ ❯ |server| src/types/character-worldbook.spec.ts (16 tests | 2 failed) 56ms
+     ✓ keeps original unknown settings while mapping extension precedence 11ms
+     ✓ does not require secondary keys when selective matching is disabled 1ms
+     ✓ maps enabled secondary logic from card extensions 9ms
+     ✓ rejects malformed embedded books: {} 1ms
+     ✓ rejects malformed embedded books: {"entries":{}} 0ms
+     ✓ rejects malformed embedded books: {"entries":[null]} 0ms
+     ✓ rejects malformed embedded books: {"entries":[{"content":42}]} 0ms
+     ✓ rejects malformed embedded books: {"entries":[{"content":"Gate","keys":[42]}]} 0ms
+     ✓ allows an explicitly empty world book 1ms
+     × accepts unset timing extensions from external cards without losing the original nulls 8ms
+     × does not let unset timing extensions override explicitly configured entry values 6ms
+     ✓ still rejects invalid timer values -1 4ms
+     ✓ still rejects invalid timer values 1.5 2ms
+     ✓ still rejects invalid timer values "3" 2ms
+     ✓ still rejects invalid timer values false 1ms
+     ✓ still rejects invalid timer values {} 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |server| src/types/character-worldbook.spec.ts > embedded character world books > accepts unset timing extensions from external cards without losing the original nulls
+ZodError: [
+  {
+    "code": "invalid_type",
+    "expected": "number",
+    "received": "null",
+    "path": [
+      "entries",
+      0,
+      "extensions",
+      "sticky"
+    ],
+    "message": "Expected number, received null"
+  },
+  {
+    "code": "invalid_type",
+    "expected": "number",
+    "received": "null",
+    "path": [
+      "entries",
+      0,
+      "extensions",
+      "cooldown"
+    ],
+    "message": "Expected number, received null"
+  },
+  {
+    "code": "invalid_type",
+    "expected": "number",
+    "received": "null",
+    "path": [
+      "entries",
+      0,
+      "extensions",
+      "delay"
+    ],
+    "message": "Expected number, received null"
+  }
+]
+ ❯ Object.get error [as error] node_modules/zod/v3/types.js:39:31
+ ❯ ZodObject.parse node_modules/zod/v3/types.js:114:22
+ ❯ src/types/character-worldbook.spec.ts:48:43
+     46|   it('accepts unset timing extensions from external cards without losi…
+     47|     const source = { entries: [{ content: 'Owned timing fixture', exte…
+     48|     const book = characterWorldbookSchema.parse(source);
+       |                                           ^
+     49|     expect(book.entries[0].extensions).toEqual(source.entries[0].exten…
+     50|     expect(mapCharacterWorldbookEntry(book.entries[0]).settings).toMat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |server| src/types/character-worldbook.spec.ts > embedded character world books > does not let unset timing extensions override explicitly configured entry values
+ZodError: [
+  {
+    "code": "invalid_type",
+    "expected": "number",
+    "received": "null",
+    "path": [
+      "entries",
+      0,
+      "extensions",
+      "sticky"
+    ],
+    "message": "Expected number, received null"
+  },
+  {
+    "code": "invalid_type",
+    "expected": "number",
+    "received": "null",
+    "path": [
+      "entries",
+      0,
+      "extensions",
+      "cooldown"
+    ],
+    "message": "Expected number, received null"
+  },
+  {
+    "code": "invalid_type",
+    "expected": "number",
+    "received": "null",
+    "path": [
+      "entries",
+      0,
+      "extensions",
+      "delay"
+    ],
+    "message": "Expected number, received null"
+  }
+]
+ ❯ Object.get error [as error] node_modules/zod/v3/types.js:39:31
+ ❯ ZodObject.parse node_modules/zod/v3/types.js:114:22
+ ❯ src/types/character-worldbook.spec.ts:54:43
+     52| 
+     53|   it('does not let unset timing extensions override explicitly configu…
+     54|     const book = characterWorldbookSchema.parse({ entries: [{ content:…
+       |                                           ^
+     55|       extensions: { sticky: null, cooldown: null, delay: null } }] });
+     56|     expect(mapCharacterWorldbookEntry(book.entries[0]).settings).toMat…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 14 passed (16)
+   Start at  13:32:48
+   Duration  457ms (transform 101ms, setup 71ms, import 80ms, tests 56ms, environment 0ms)
+

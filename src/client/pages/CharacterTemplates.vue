@@ -304,7 +304,7 @@ onMounted(loadTemplates);
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .character-templates-page {
   max-width: 1200px;
   margin: 0 auto;
@@ -403,7 +403,7 @@ onMounted(loadTemplates);
   padding: 40px 0;
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .character-templates-page {
     padding: 16px;
   }

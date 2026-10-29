@@ -1,0 +1,660 @@
+{
+  "date": "2026-10-25T09:44:52.858Z",
+  "result": "passed",
+  "database": "two disposable PostgreSQL/pgvector containers with full beta migrations",
+  "scope": "whole-database dump/restore and current service/repository behavior; not HTTP/browser or model-quality validation",
+  "memoryFixture": "synthetic memory and fixed nonzero vector, explicitly linked to a confirmed synthetic reply; no model or embedding provider called",
+  "fingerprints": {
+    "tables": {
+      "books": {
+        "rows": 1,
+        "digest": "5db417243120d33f6b7bb44d06a4b25a"
+      },
+      "chats": {
+        "rows": 2,
+        "digest": "4301093555a291f47e85df09f97b0324"
+      },
+      "notes": {
+        "rows": 1,
+        "digest": "94b9d5d40d9777042b5ae0251e729812"
+      },
+      "state": {
+        "rows": 2,
+        "digest": "8f2d29c0d6026a70989a6200f0d22b94"
+      },
+      "users": {
+        "rows": 2,
+        "digest": "2854601eb4a30e0265614c81c1d326cb"
+      },
+      "events": {
+        "rows": 3,
+        "digest": "425b5e8bad042281f52b84477f26f844"
+      },
+      "content": {
+        "rows": 2,
+        "digest": "9f0737c6e12a9908423bba7f6c6dfb96"
+      },
+      "entries": {
+        "rows": 1,
+        "digest": "a5dc7d8ee9b5e5409e4b388b480dbfae"
+      },
+      "lineage": {
+        "rows": 1,
+        "digest": "0de56bccd1f20f6fc1183a61862e2fcf"
+      },
+      "tenants": {
+        "rows": 1,
+        "digest": "843b063baa56207c3349f95137049116"
+      },
+      "vectors": {
+        "rows": 2,
+        "digest": "c9b156fb431d078659338442dd78cc9c"
+      },
+      "memories": {
+        "rows": 2,
+        "digest": "b660cc8936fb56539c435ed5db635c22"
+      },
+      "messages": {
+        "rows": 6,
+        "digest": "8e4d4944dbe1aad82521908c97aa933f"
+      },
+      "personas": {
+        "rows": 1,
+        "digest": "17819b419fae3b093866719dcff197f2"
+      },
+      "deletions": {
+        "rows": 1,
+        "digest": "a4805f4b67c3775ec4f93d4d62e51c24"
+      },
+      "characters": {
+        "rows": 1,
+        "digest": "325ecfbcb065a0af55a5833737d2a7cb"
+      },
+      "memoryJobs": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "migrations": {
+        "rows": 12,
+        "digest": "63f9f3fc396d1504c3bc3d2a9bbfcc76"
+      },
+      "worldbooks": {
+        "rows": 2,
+        "digest": "d3142101d1b31e02db057ccdd09d4052"
+      },
+      "memoryLinks": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "participants": {
+        "rows": 2,
+        "digest": "51c75b506f684d296738055f63916187"
+      },
+      "reservations": {
+        "rows": 3,
+        "digest": "6227f8b8badebcf166a011cc834a26eb"
+      },
+      "memoryProgress": {
+        "rows": 2,
+        "digest": "4ebbd1f7b604ba2226d6bf748768e468"
+      },
+      "creationRequests": {
+        "rows": 3,
+        "digest": "fe55dc3602424148c1ac767f5b142f3a"
+      }
+    },
+    "coverage": {
+      "identities": 2,
+      "boundEntries": 2,
+      "confirmedEvents": 2,
+      "sourcedMemories": 2,
+      "interruptedEvents": 1,
+      "invalidMemoryLinks": 0,
+      "invalidEventSources": 0,
+      "invalidStateSources": 0,
+      "invalidMemorySources": 0
+    },
+    "protocol": 2
+  },
+  "allPublicTables": [
+    {
+      "name": "activities",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "api_keys",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "audit_logs",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "backup_codes",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_collaborators",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_collection_items",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_collections",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_emotions",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_growth",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_import_repairs",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_memories",
+      "count": 2,
+      "digest": "44b0be14943835c3b686378a80596758"
+    },
+    {
+      "name": "character_memory_vectors",
+      "count": 2,
+      "digest": "bc5a1683593946bcc7680510d493b6d0"
+    },
+    {
+      "name": "character_presets",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_relationships",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_templates",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "character_versions",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "characters",
+      "count": 1,
+      "digest": "8a65986cfed620fb900a2da9c7d48195"
+    },
+    {
+      "name": "chat_characters",
+      "count": 2,
+      "digest": "672e7afd2b96033f51c8ba6187f2b35f"
+    },
+    {
+      "name": "chat_creation_requests",
+      "count": 3,
+      "digest": "d2f109c02cc8996a83b63a7213374620"
+    },
+    {
+      "name": "chat_overrides",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "chat_snapshots",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "chat_templates",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "chats",
+      "count": 2,
+      "digest": "d6839319350478da7e4ecaa13e729c59"
+    },
+    {
+      "name": "comment_likes",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "comments",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "credit_ledger",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "credit_reservations",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "experiments",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "favorites",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "follows",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "generation_requests",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "invite_code_uses",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "invite_codes",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "legacy_chat_variables",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "message_bookmarks",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "message_reactions",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "messages",
+      "count": 6,
+      "digest": "888cae94fd85ba4d5e4cb4914886c91d"
+    },
+    {
+      "name": "moderation_actions",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "notification_preferences",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "notifications",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "oauth_accounts",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "password_reset_tokens",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "plugin_installs",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "plugin_kv_store",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "plugins",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "quick_replies",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "ratings",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "reports",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "story_content",
+      "count": 2,
+      "digest": "4d9d8f8b3204257884141c25e0d8379d"
+    },
+    {
+      "name": "story_deletions",
+      "count": 1,
+      "digest": "5b7842391ec185eb4c5b501ada9c05f3"
+    },
+    {
+      "name": "story_events",
+      "count": 3,
+      "digest": "0a81a3f9fdf3e7c70ec62426aa17bd7e"
+    },
+    {
+      "name": "story_id_reservations",
+      "count": 3,
+      "digest": "cb1a64a036e7a7243029ea62098895b4"
+    },
+    {
+      "name": "story_memory_jobs",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "story_memory_links",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "story_memory_progress",
+      "count": 2,
+      "digest": "c2d30aa33af9c062d1ccee9546a2a66a"
+    },
+    {
+      "name": "story_notes",
+      "count": 1,
+      "digest": "5d5bc2a700b741a9547e3f4acb78e9df"
+    },
+    {
+      "name": "story_restore_lineage",
+      "count": 1,
+      "digest": "db74361e640e7dc2981db0331736a34e"
+    },
+    {
+      "name": "story_states",
+      "count": 2,
+      "digest": "aec71a6716e88d82e57fd42ee2d02ff0"
+    },
+    {
+      "name": "story_worldbooks",
+      "count": 2,
+      "digest": "5f018603283b52b0fc3fc8b96aba407f"
+    },
+    {
+      "name": "stripe_webhook_events",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "subscriptions",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "template_ratings",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "tenants",
+      "count": 1,
+      "digest": "32cec024d5df849f1e0cd4f7100a3119"
+    },
+    {
+      "name": "usage",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "user_consents",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "user_personas",
+      "count": 1,
+      "digest": "acb9f55a202b0e375afbf2e3d3e85e51"
+    },
+    {
+      "name": "users",
+      "count": 2,
+      "digest": "3b11f70efa3d8de761e8308e515d56dc"
+    },
+    {
+      "name": "webhook_deliveries",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "webhook_endpoints",
+      "count": 0,
+      "digest": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "name": "worldbook_entries",
+      "count": 1,
+      "digest": "b2350a45c2bc05d9019ef8248f751f97"
+    },
+    {
+      "name": "worldbooks",
+      "count": 1,
+      "digest": "5331b300879262a9f1f7c735065bf8c1"
+    }
+  ],
+  "guardTests": 14,
+  "corruptionProbes": [
+    "changed vector with same row count rejected",
+    "wrong-story message provenance rejected"
+  ],
+  "sourceUnchangedAfterTargetDeletion": true,
+  "checks": [
+    "A mismatched tenant cannot delete the story or generate a receipt",
+    "Rolled-back deletion leaves no receipt and preserves the story and memory",
+    "Normal repository deletion atomically captures owner and creation request without story text",
+    "A story created and deleted after the backup retains its creation replay evidence",
+    "Deleted story IDs cannot be reused by a late insert",
+    "A transaction with an older snapshot cannot reinsert an ID deleted after that snapshot",
+    "Receipts, reserved IDs and restore lineage reject ordinary alteration or removal",
+    "A cascaded account deletion preserves its story receipt after the owner disappears",
+    "Restored old backup no longer contains stories deleted after it was taken",
+    "Replayed deletion cascades all restored text, state, sources, notes, memory and vectors",
+    "Original and post-backup creation requests both report deleted",
+    "Replaying a creation request absent from the old backup cannot recreate its deleted story",
+    "Post-backup story IDs remain reserved after restoration",
+    "Exports, late generation and late memory writes cannot restore the deleted content",
+    "Deleted memory is absent from vector retrieval after old-backup cleanup",
+    "Other stories and their source-backed memory survive replay unchanged"
+  ],
+  "deletion": {
+    "messages": 0,
+    "events": 0,
+    "state": 0,
+    "notes": 0,
+    "content": 0,
+    "worldbooks": 0,
+    "memories": 0,
+    "vectors": 0
+  },
+  "deletionReplay": {
+    "protocol": 1,
+    "result": "replayed",
+    "receipts": 5,
+    "deletedStories": 1,
+    "restoredRequests": 1,
+    "requestsWithoutOwner": 0,
+    "checks": [
+      "Preflight identifies database clusters and refuses to overwrite the authoritative deletion source",
+      "Unrelated database lineage is rejected without mutation",
+      "A source missing existing target deletion evidence is rejected",
+      "A creation-request conflict rolls back deletion, receipts and reservations together",
+      "Ownership conflicts reject the entire replay",
+      "Active source writers and active target readers prevent replay",
+      "Private independent deletion artifact replays later deletions into old backup without a source connection",
+      "Preflight rejects a trusted but stale journal missing deletions already present in the target",
+      "Repeating deletion replay is idempotent"
+    ]
+  },
+  "restoreScriptTests": 16,
+  "sources": [
+    {
+      "path": "scripts/story-nonempty-restore-check.mjs",
+      "sha256": "949765602ffa985c97253c9c1966a2cdc7a87017c9d7eaed6d6ee125316c471a"
+    },
+    {
+      "path": "scripts/story-restore-fixture.mjs",
+      "sha256": "7dbfc79dd2602c4da34c02a8fbba8978cd18ea34f79912aacbb29991c0270d40"
+    },
+    {
+      "path": "scripts/story-restore-evidence.mjs",
+      "sha256": "c9317c706bd67f7e06945f53a9d8d896246c8173ab7541c35b40d22b2b5f373d"
+    },
+    {
+      "path": "scripts/story-restore-evidence.test.mjs",
+      "sha256": "719553edc73cffbed8550c75977a8d10fb1a457a8ee1debf4d2df417de83213d"
+    },
+    {
+      "path": "scripts/exploration-restore-check.mjs",
+      "sha256": "855e39688fb02853057ddeb5cc8ff8d218cb2b0a09251cb934c316e01174413f"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "7158fe20d45fb258b60f5e1a611da3b5cc7a5009c257556514808b104288d35f"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "333cd1a957178cc8fdf02db804ecf004a498ed9840fc1e117f149713d6dac0c6"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "537886a0e6ad6e717e85c28351dd63a33e5c570e6cd0ad2bac8dde33b1f0970e"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "4bc33b4b83a586e6ddb1513a85f259e5616547d80d89bf8ba755c87db57ac919"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+    },
+    {
+      "path": "src/db/migrate.ts",
+      "sha256": "91bbac98d250f3c2f89edf6511b80f674fa0db55ec428abbd2f4c6daedb93e57"
+    },
+    {
+      "path": "src/db/beta-migrations/0000_beta_schema.sql",
+      "sha256": "1d21eaef4b6c561bd431924a45533480ce328510a7e3ef2ac4a2d4d2be7c163a"
+    },
+    {
+      "path": "src/db/beta-migrations/0001_beta_invariants.sql",
+      "sha256": "b77d1ccea176602d34da511f7e1242fdedd9c71963b8a3b4902d6b307d6a8c16"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/db/beta-migrations/0004_story_content.sql",
+      "sha256": "3c09875fe35c43e68d2f0bd4e03044253b9bf879c16c1c564dfa6898f5e1648b"
+    },
+    {
+      "path": "src/db/beta-migrations/0005_story_state.sql",
+      "sha256": "09cae5255133b9fe58a981ee3cadda43210de96a5abfd70a233aead9350b1b89"
+    },
+    {
+      "path": "src/db/beta-migrations/0006_story_memory_scope.sql",
+      "sha256": "4d9519301750da6ad4bb4bba825feee3be843d47dfb9313d6a06d9b2455974e3"
+    },
+    {
+      "path": "src/db/beta-migrations/0007_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/beta-migrations/0008_story_memory_jobs.sql",
+      "sha256": "919011023b56c679a08abd2d220458de35796005d5749ccaa025615ac2a7f8e6"
+    },
+    {
+      "path": "src/db/beta-migrations/0009_character_import_repairs.sql",
+      "sha256": "45d9d83bc16ad11f97874a756a271b696d112fb6ecc458700843a0d4a2d8a79d"
+    },
+    {
+      "path": "src/db/beta-migrations/0010_legacy_chat_variables.sql",
+      "sha256": "5cc94519d21a4ac2c5268ab90403921755ba5045fc194243d01f52d5b49c2a39"
+    },
+    {
+      "path": "src/db/beta-migrations/0011_story_intent_proposals.sql",
+      "sha256": "076208bd2d3387db1f82ee8ea8e7fff4511f3dce4a2aaae9607d0d6608bc1132"
+    },
+    {
+      "path": "src/db/beta-migrations/meta/_journal.json",
+      "sha256": "418c1b3b678cf842223a6d52f8477e52fda5650b06134afda405511be6838c34"
+    },
+    {
+      "path": "scripts/story-deletion-replay.mjs",
+      "sha256": "9459012dd6f217012268e44a1b476aab29aef928c96a6959e08fbfe183fc9fa5"
+    },
+    {
+      "path": "src/db/migrations/0047_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/schema/story-lifecycle.ts",
+      "sha256": "2e6ed153e51a28617cb2feb32f8474afb00217a35c90d435fea60044acb324cf"
+    },
+    {
+      "path": "scripts/story-deletion-fixture.mjs",
+      "sha256": "0a68a5c27e85c9b28f37804384e95cfd1e6d3f814333820d9f1c7b04ff0df4d6"
+    },
+    {
+      "path": "scripts/restore-db.sh",
+      "sha256": "bf644b02edd8cffb530c8c685855bed0091091c05118dff3712a7ac4483f6743"
+    },
+    {
+      "path": "scripts/story-deletion-restore.test.mjs",
+      "sha256": "ebe40113f860844325bc67e90308ff07165474ac660af388c9fde00595b13e10"
+    },
+    {
+      "path": "scripts/story-deletion-journal.mjs",
+      "sha256": "970ef0d9fa689b9196de5c485bdec46679fbe9742a09f1a2b6170f925948b3c1"
+    }
+  ]
+}

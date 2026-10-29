@@ -40,6 +40,10 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
+  /** 满 18 岁声明，必填：服务端 registerSchema 要求它必须为 true。 */
+  ageConfirmed: boolean;
+  /** 邀请码，必填：注册采用邀请码制，服务端缺码或无效码一律 400。 */
+  inviteCode: string;
 }
 
 export interface RegisterResponse {

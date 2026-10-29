@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "at": "2026-10-25T12:45:10.976Z",
+  "checks": [
+    {
+      "case": "old field source opens in one actual request beyond the recent event window; raw text available; browsing the map does not travel or disclose undiscovered nodes",
+      "result": "passed"
+    },
+    {
+      "case": "390px source failure is explicit and retry uses the real endpoint; Escape restores focus; no generation or state mutation",
+      "result": "passed"
+    },
+    {
+      "case": "actual story memory tool reads scoped progress without legacy memory requests or errors",
+      "result": "passed"
+    },
+    {
+      "case": "actual restart preserves state, map, source lookup and event version; no generation requests",
+      "result": "passed"
+    }
+  ],
+  "artifacts": {
+    "cardId": "ecab1a9c-0ace-4dd4-8ed9-c822c7b728ec",
+    "storyId": "ae191e83-836f-4b14-bb74-0b9b45f695b6",
+    "sourceEventId": "b70512ee-f586-4075-92ca-0309a6a2714b"
+  },
+  "hashes": {
+    "dist/server/index.js": "adae00ea5ef3cbaa9788e65d2cdb0d1bff31ebb1c5e4aabbf65d215ffc5159fb",
+    "dist/client/index.html": "4ef402431083070158801b565bba475425169e5b2f7bc357ef395cf05f5dee74"
+  },
+  "errors": [],
+  "screenshots": [
+    "source-desktop.png",
+    "source-mobile.png",
+    "story-memory-drawer.png"
+  ],
+  "provider": "not called; explicitly prewritten fixtures",
+  "faultInjection": "one 503 source read; all successful responses use actual API",
+  "paidProviderTokens": 0,
+  "memoryFixtureIsolation": {
+    "jobs": {
+      "count": 7,
+      "attempts": 0,
+      "due": 0
+    },
+    "availableAt": "2099-01-01T00:00:00Z",
+    "atomicWithSeed": true
+  },
+  "migrationCount": 12,
+  "image": "sha256:e36464956e1d614641bd853a37edff2ec7da5ff29ac8c0bf95b0804d306e3bdf"
+}

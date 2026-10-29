@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-24T10:01:40.127Z",
+  "scope": "synthetic provider availability recheck after user configuration update; not long-form memory acceptance",
+  "task": "EXP-05B",
+  "taskClosed": false,
+  "configurationModifiedAt": "2026-10-24T17:58:20.705053504+08:00",
+  "requests": [
+    {
+      "date": "2026-10-24T10:01:03.277Z",
+      "kind": "existing availability probe",
+      "script": "scripts/story-memory-provider-probe.mjs",
+      "scriptSha256": "9abb5c76c5bd943919c2bfaf27f11edbb8a59c93f99adb09caa31ddd80c9581b",
+      "configured": true,
+      "maxOutputTokens": 32,
+      "status": 403,
+      "retryAfter": null,
+      "usable": false
+    },
+    {
+      "date": "2026-10-24T10:01:40.127Z",
+      "kind": "one-off diagnostic request with sanitized response classification",
+      "maxOutputTokens": 32,
+      "status": 403,
+      "responseFormat": "non-json",
+      "errorCategories": ["unclassified_provider_rejection"],
+      "usable": false
+    }
+  ],
+  "configChecks": {
+    "validHttpsEndpoint": true,
+    "embeddedCredentials": false,
+    "duplicateCompletionPath": false,
+    "keyOuterWhitespace": false,
+    "keyHasBearerPrefix": false,
+    "defaultInModelList": true
+  },
+  "limitations": [
+    "Checks do not prove credential validity, model authorization or endpoint correctness.",
+    "Non-JSON 403 does not identify whether rejection originated from the provider, gateway or access policy.",
+    "No real long-form generation, extraction or memory quality acceptance ran.",
+    "No deployment, environment modification or user database operation was performed.",
+    "Credentials, endpoint URL and response bodies are excluded from this report."
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "date": "2026-10-24T10:43:24.971Z",
+  "scope": "real model and local multilingual embeddings with production state, memory worker, context and provider services; no HTTP/WebSocket/browser acceptance",
+  "model": "gemini-3.8-flash",
+  "embedding": "Xenova/paraphrase-multilingual-MiniLM-L12-v2, real 384-dimensional embeddings",
+  "limits": {
+    "providerCalls": 145,
+    "platformTokens": 300000,
+    "perRequestTimeoutMs": 60000
+  },
+  "taskClosed": false,
+  "sourceHashes": {
+    "scripts/story-memory-real-longrun.mjs": "8423cdbe69a93502afe1a1e74e612bd518852b4fe24451b10aab7a792e26d1a4",
+    "scripts/story-memory-real-longrun-fixture.mjs": "c2b71c09ec741c0afe9d6057f310e38e30c0b654a6426305801bf38acb153329",
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+    "src/server/services/llm.service.ts": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890",
+    "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+    "src/server/jobs/story-memory.job.ts": "ab9b94ae68c8a09783e2e17ea80f1d152165654c01034e18e488046fbb481c9c",
+    "src/server/services/story-memory-extraction.ts": "8f2daf0e8279ec811f50194fcb3e3aa293defdbdb656177e9bf962b3ce324ea9",
+    "src/server/services/story-memory-worker.service.ts": "2cfb837f7fb788bfe43da9e9b85c4d89dc2f37e058a06db87233037a0ae526d4",
+    "src/server/services/story-state.service.ts": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f",
+    "src/server/services/context-manager.service.ts": "c5aec3b505d8a7699ea4c41e1a3821bf2d472910e9df8e076ce1498f58ae654b",
+    "src/server/services/story-summary-context.ts": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b",
+    "src/server/services/story-summary.service.ts": "6636ddff69daf82be03d1ec190a3e525736ee08a3011a6eed4aa5a42dc80adec",
+    "src/db/repositories/memory.repository.ts": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+  },
+  "result": "failed",
+  "behavior": {
+    "model": "gemini-3.8-flash",
+    "generatedTurns": 55,
+    "providerCalls": 65,
+    "extractionCalls": 10,
+    "trimmedTurns": 41,
+    "recapTurns": 36,
+    "checks": [
+      "50 real model turns and a parallel five-turn story persisted; embedding outage retained extraction checkpoint"
+    ],
+    "taskClosed": false,
+    "lastRequest": {
+      "startedAt": "2026-10-24T10:51:28.642Z",
+      "streaming": true,
+      "status": 200
+    },
+    "lastExtraction": {
+      "status": 200,
+      "finishReason": "STOP",
+      "characters": 1141,
+      "fenced": true,
+      "schemaValid": true
+    },
+    "lastJob": {
+      "status": "retry",
+      "errorCode": "EMBEDDING_FAILED",
+      "attempts": 1
+    },
+    "derivationFailures": [
+      {
+        "status": "retry",
+        "errorCode": "EMBEDDING_FAILED",
+        "attempts": 1,
+        "injected": true,
+        "generatedTurns": 50,
+        "extraction": {
+          "status": 200,
+          "finishReason": "STOP",
+          "characters": 1141,
+          "fenced": true,
+          "schemaValid": true
+        }
+      }
+    ],
+    "result": "ready_for_restore",
+    "tokens": 131182,
+    "phase": "main-first-half"
+  },
+  "disposableServicesRemoved": true,
+  "postRunReview": {
+    "originalReportSha256": "010b39f94ccf4941ea47d77d156287e83c21c12e6c74a83f5c3b304f215dc874",
+    "failureBoundary": "After first-half process completed; no restore acceptance or continuation to turn 51. Original parent omitted exception details.",
+    "reproducedFixtureDefect": {
+      "mode": "controlled",
+      "phase": "source-coverage",
+      "assertion": "Missing restore coverage: boundEntries",
+      "coverage": {
+        "identities": 2,
+        "boundEntries": 0,
+        "confirmedEvents": 55,
+        "sourcedMemories": 4,
+        "interruptedEvents": 1,
+        "invalidMemoryLinks": 0,
+        "invalidEventSources": 0,
+        "invalidStateSources": 0,
+        "invalidMemorySources": 0
+      },
+      "providerCalls": 0
+    },
+    "batchSnapshot": {
+      "capturedAt": "2026-10-24T10:51:34.659Z",
+      "jobs": 11,
+      "succeeded": 9,
+      "retry": 1,
+      "pending": 1
+    },
+    "semanticResult": "failed_on_sampled_grounding",
+    "findings": [
+      {
+        "id": "MEM-SEM-01",
+        "story": "main",
+        "jobId": "2f00549d-8f48-4919-ae02-35050bfc4338",
+        "sourceMessageIds": [
+          11,
+          12
+        ],
+        "sourceInput": "我们约好第三夜在北门见面，凭证是蓝色票据。今天第一夜，尚未赴约。",
+        "sourceReply": "小禾合上手中的旧账本，抬头看过来。\n\n“票据收好，还有两天。今晚先在店里避避风吧。”",
+        "derived": "双方约定于第三夜在北门凭蓝色票据见面；当前处于第一夜，尚未赴约，主角留在书店内避雨留宿。",
+        "issue": "An invitation to shelter was expanded into an unconfirmed overnight stay."
+      },
+      {
+        "id": "MEM-SEM-02",
+        "story": "parallel",
+        "jobId": "a2e9027b-c05f-4fb3-b630-eba5890b418a",
+        "sourceMessageIds": [
+          6
+        ],
+        "sourceReply": "小禾微微探身看了一眼摊开的纸页。\n\n“收来时里头便有了，多半是原主人的随笔。”\n“字迹有些乱，我也没仔细辨认过。”",
+        "derived": "书店那一排旧志带有原主人的手写随笔批注；柜台角落的木匣内备有骨刀、麻线与浆糊等修书工具。",
+        "summary": "第一夜，主角留在书店内避雨并与小禾交谈。双方约定于第五夜在南门见面，凭证为红色缎带，目前该约定尚未赴约。期间窗外密雨不断，主角在店内查看了落灰的旧志封面，询问了书页上原主人的手写批注，并了解了柜台木匣中存放的骨刀、麻线和浆糊等修书工具。",
+        "issue": "Tentative authorship was promoted to definite authorship in both fact and summary."
+      }
+    ],
+    "limitations": [
+      "No real turn-100 return",
+      "No completed real post-restore checkpoint recovery",
+      "Narrow repetitive bookstore scenario; not broad plot or character-card quality",
+      "No deployment or user signoff"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints } from './utils/helpers';
+import { setupAuth, clearSession, mockApiResponse, waitForNetworkIdle, mockCommonEndpoints, mockModules } from './utils/helpers';
 
 /**
  * E2E Tests: Analytics Dashboard
@@ -69,6 +69,11 @@ async function mockAllAnalyticsEndpoints(page: import('@playwright/test').Page, 
 }
 
 test.describe('Analytics Dashboard', () => {
+  // P2-1：这些页面属于默认关闭的模块，测试里显式打开
+  test.beforeEach(async ({ page }) => {
+    await mockModules(page, ['analytics']);
+  });
+
   test('analytics dashboard loads for team user', async ({ page }) => {
     await setupAuth(page, { plan: 'team' });
     await mockCommonEndpoints(page);

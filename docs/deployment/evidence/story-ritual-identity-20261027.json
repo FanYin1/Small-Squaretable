@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-27",
+  "result": "RI-01-through-05-reviewed-identity-condition-deployed",
+  "scope": "Exact reviewed Kakaa source only: persist a direct player self-description, hide until triggered, replay from saved input; not world identity verification or whole AD-3/5 acceptance",
+  "effectVersion": "kakaa-ritual-v2",
+  "legacyEffectVersion": "kakaa-ritual-v1",
+  "unitTests": {
+    "vitestPassed": 129,
+    "vitestFiles": 8,
+    "transferStateNodeTestsPassed": 20,
+    "fullRepositorySuite": false
+  },
+  "typecheck": "passed",
+  "focusedLint": "passed",
+  "isolated": {
+    "focusedGroups": 10,
+    "focusedScreenshots": 8,
+    "fullGroupsIncludingFocused": 36,
+    "fullScreenshotsIncludingFocused": 26,
+    "browserErrors": 0,
+    "narration": "Controlled service replies, not real supplier quality acceptance",
+    "savedInputMismatchRejectedAtomically": true,
+    "duplicateReceiptAppliedOnce": true,
+    "negativeQuotedHypotheticalQuestionCompoundInput": "Rejected by exact-input recognizer",
+    "pendingInterruptedMalformedTurns": "No new condition or strength change",
+    "parent": { "strength": 9, "claim": true },
+    "beforeClaimBranch": { "strength": 6, "claim": false },
+    "afterClaimBranch": { "strength": 6, "claim": true },
+    "historicalV1Fixture": { "strength": 6, "claimFieldPresent": false },
+    "historicalV1FixtureScope": "Inserted directly into disposable database; no real user old-story mutation",
+    "restartPassed": true,
+    "obsoleteReadyReceipt": "Revalidation rejects v1 for new adoption, leaves receipt unchanged",
+    "reference": "backups/exploration/ritual-identity-20261027/isolated/result.json",
+    "fullReference": "backups/exploration/ritual-identity-20261027/full-isolated/result.json"
+  },
+  "restoreTransfer": {
+    "publicTablesCompared": 76,
+    "restoredBehaviorChecks": 22,
+    "portableStoryChecks": 31,
+    "memoryChecks": 76,
+    "evidenceGuards": 14,
+    "corruptionProbes": 2,
+    "claimPreservedAcrossTransferAndRestart": true,
+    "preClaimBranchDoesNotInheritClaim": true,
+    "strengthContinuation": [6, 9, 12],
+    "realUserStoryTransfer": false,
+    "reference": "backups/exploration/ritual-identity-20261027/restore-transfer/report.json"
+  },
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261027-identity",
+    "imageId": "sha256:adeb2597559fa33042f992981e2c662285180c3ec85b38e8e39ef77055519397",
+    "migrationCount": 16,
+    "newMigrations": 0,
+    "rehearsalComparedTables": 76,
+    "existingRowsPreserved": true,
+    "backup": "backups/exploration/upgrade-984559c3-0792-40de-b731-aa77bcdc5316",
+    "historical3080Changed": false,
+    "rollback": "New v2 enum is not guaranteed readable by older images; require compatible code or matched application/data restoration"
+  },
+  "deployedIdentity": {
+    "source": "Original reviewed PNG temporarily imported into private engineering account",
+    "ruleFields": 2,
+    "initialVisibleFields": 1,
+    "screenshots": 2,
+    "restartPassed": true,
+    "browserErrors": 0,
+    "storyCreation": false,
+    "unchangedBusinessTablesAfterCleanup": 16,
+    "reference": "backups/exploration/ritual-identity-20261027/deployed-identity/report.json"
+  },
+  "deployedReadOnly": {
+    "groups": 7,
+    "libraryRecoveryCases": 4,
+    "libraryRecoveryScope": "Browser-injected timeout/429 followed by actual reads; not intermittent failure root-cause reproduction",
+    "screenshots": 34,
+    "runtimeFilesMatched": 242,
+    "unchangedBusinessTables": 20,
+    "browserErrors": 0,
+    "businessMutationRequests": 0,
+    "publicationPreviewsBlocked": 3,
+    "reference": "backups/exploration/ritual-identity-20261027/deployed-readonly/report.json",
+    "recoveryReference": "backups/exploration/ritual-identity-20261027/deployed-readonly/library-recovery.json"
+  },
+  "health": { "3080": 200, "3081": 200, "5188": 200 },
+  "testHarnessFailures": [
+    "First historical fixture attempted UPDATE of immutable story content and correctly failed; fixture changed to independent INSERT without weakening production protection; original evidence retained"
+  ],
+  "budget": {
+    "paidCalls": 0,
+    "ledgerUnchanged": true,
+    "authorization": 1450000,
+    "occupied": 692784,
+    "available": 757216
+  },
+  "pointChanges": 0,
+  "humanAcceptance": false,
+  "privateManifest": "backups/exploration/ritual-identity-20261027/manifest.json",
+  "remaining": [
+    "AD-3 further complete source-backed condition/set/one-time reward/full transaction conversion",
+    "AD-5 sustained mechanics and real model quality on four user cards",
+    "Universal semantic adaptation agent, including LangGraph workflow",
+    "EXP-07D-LOAD historical intermittent failures root cause",
+    "Human visual and real-device acceptance"
+  ]
+}

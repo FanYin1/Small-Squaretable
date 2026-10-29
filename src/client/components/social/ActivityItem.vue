@@ -62,8 +62,6 @@ function handleClick() {
     router.push({ name: 'UserProfile', params: { userId: targetId } });
   } else if (targetType === 'character' || type === 'favorite' || type === 'create_character') {
     router.push({ name: 'CharacterDetail', params: { id: targetId } });
-  } else if (type === 'comment' && targetType === 'character') {
-    router.push({ name: 'CharacterDetail', params: { id: targetId } });
   }
 }
 </script>
@@ -90,7 +88,7 @@ function handleClick() {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .activity-item {
   display: flex;
   align-items: center;
@@ -154,7 +152,7 @@ function handleClick() {
   color: var(--text-secondary);
 }
 
-@media (max-width: 767px) {
+@include below(md) {
   .activity-item {
     padding: 12px;
   }

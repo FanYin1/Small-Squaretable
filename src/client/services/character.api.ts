@@ -5,6 +5,9 @@
  */
 
 import { api } from './api';
+import type { StoryEntryProfile } from '../../types/story-opening';
+import type { AdapterJobView } from '../../types/story-adapter';
+import type { PresentationJobView } from '../../types/presentation-job';
 import type { Character, CharacterCardData } from '@client/types';
 import type { SearchResult, SearchResultItem } from '@/types/search';
 import type { ModerationStatusValue, ViolationCategory } from '@/types/moderation';
@@ -66,7 +69,7 @@ export interface CreateCharacterRequest {
 export interface UpdateCharacterRequest {
   name?: string;
   description?: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   cardData?: CharacterCardData;
   tags?: string[];
   category?: string;
@@ -75,6 +78,7 @@ export interface UpdateCharacterRequest {
 
 // Backend character format
 interface BackendCharacter {
+  presentation?: import('../../types/story-presentation').PresentationVersion;
   id: string;
   tenantId: string;
   creatorId?: string | null;
@@ -115,6 +119,7 @@ export function transformCharacter(item: BackendCharacter): Character {
   return {
     id: item.id,
     name: item.name,
+    creatorId: item.creatorId ?? undefined,
     description: item.description || undefined,
     avatar: item.avatarUrl || undefined,
     tags: item.tags || undefined,
@@ -130,6 +135,7 @@ export function transformCharacter(item: BackendCharacter): Character {
     violationCategory: item.violationCategory || undefined,
     moderationNote: item.moderationNote || undefined,
     cardData: item.cardData || undefined,
+    ...(item.presentation ? { presentation: item.presentation } : {}),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
@@ -159,10 +165,19 @@ export interface VersionDiff {
 }
 
 export const characterApi = {
+  getAdaptations: (id: string) => api.get<AdapterJobView[]>(`/characters/${id}/adaptations`),
+  getPresentationJobs: (id: string) => api.get<PresentationJobView[]>(`/characters/${id}/presentation-jobs`),
+  cancelPresentationJob: (id: string, jobId: string) => api.post<PresentationJobView>(`/characters/${id}/presentation-jobs/${jobId}/cancel`),
+  prepareAdaptation: (id: string, requestId: string) => api.post<AdapterJobView>(`/characters/${id}/adaptations`, { requestId }),
+  cancelAdaptation: (id: string, jobId: string) => api.post<AdapterJobView>(`/characters/${id}/adaptations/${jobId}/cancel`),
+  getStoryEntry: async (id: string): Promise<StoryEntryProfile> => {
+    const response = await api.get<StoryEntryProfile>(`/characters/${id}/story-entry`);
+    return response;
+  },
   /**
    * 获取角色列表
    */
-  getCharacters: async (params?: GetCharactersParams): Promise<{ characters: Character[] }> => {
+  getCharacters: async (params?: GetCharactersParams, options?: Pick<RequestInit, 'signal'>): Promise<{ characters: Character[]; pagination: BackendPaginatedResponse['pagination'] }> => {
     const searchParams = new URLSearchParams();
     if (params?.search) searchParams.set('search', params.search);
     if (params?.tags?.length) searchParams.set('tags', params.tags.join(','));
@@ -171,10 +186,11 @@ export const characterApi = {
 
     const query = searchParams.toString();
     const response = await api.get<BackendPaginatedResponse>(
-      `/characters${query ? `?${query}` : ''}`
+      `/characters${query ? `?${query}` : ''}`, options
     );
     return {
       characters: (response.items || []).map(transformCharacter),
+      pagination: response.pagination,
     };
   },
 
@@ -190,8 +206,8 @@ export const characterApi = {
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.category) searchParams.set('category', params.category);
     if (params?.tags?.length) searchParams.set('tags', params.tags.join(','));
-    // 不发送 isNsfw：平台不允许色情内容，服务端无条件排除，
-    // 这个参数已经无法影响结果，发出去只会让人以为它可切换
+    // 不发送 isNsfw：NSFW 可见性由服务端按「平台开关 + 用户偏好（设置页）」判断，
+    // 客户端传参不会影响结果，发出去只会让人以为它可切换
 
     const query = searchParams.toString();
     return api.get<SearchResult>(
@@ -207,6 +223,7 @@ export const characterApi = {
     const raw = await api.get<BackendCharacter>(`/characters/${id}`);
     return transformCharacter(raw);
   },
+  getCompatibility: (id: string) => api.get<import('../../types/story-diagnostics').StoryDiagnostics>(`/characters/${id}/compatibility`),
 
   /**
    * 创建角色

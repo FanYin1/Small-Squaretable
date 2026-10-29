@@ -1,0 +1,143 @@
+✔ accepts matching nonempty story evidence (4.1788ms)
+✔ rejects matching empty messages evidence (1.4701ms)
+✔ rejects matching empty events evidence (0.285ms)
+✔ rejects matching empty memories evidence (0.2762ms)
+✔ rejects matching empty vectors evidence (0.364ms)
+✔ requires interruptedEvents in the source sample (0.3971ms)
+✔ requires sourcedMemories in the source sample (0.2676ms)
+✔ requires boundEntries in the source sample (0.2982ms)
+✔ rejects invalidMemorySources even when restored data matches (1.0364ms)
+✔ rejects invalidEventSources even when restored data matches (0.810699ms)
+✔ rejects invalidStateSources even when restored data matches (1.7377ms)
+✔ rejects invalidMemoryLinks even when restored data matches (0.3522ms)
+✔ detects corrupted vectors with unchanged row counts (2.2265ms)
+✔ rejects the old count-free evidence format (0.3078ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 110.281696
+8f83d107e3463deee87eca31bce7b0ad888fcb2ff6d336c8a41fbc1357f51a48
+542fcc018a2bd5b314e19c73ab7a9466606f78390a5772f1d34693bc272e8d8f
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42622',
+  message: 'identifier "character_collection_items_collection_id_character_collections_id_fk" will be truncated to "character_collection_items_collection_id_character_collections_"',
+  file: 'scansup.c',
+  line: '99',
+  routine: 'truncate_identifier'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "search_vector" of relation "messages" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7272',
+  routine: 'check_for_column_name_collision'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'trigger "trg_messages_search_vector" for relation "messages" does not exist, skipping',
+  file: 'dropcmds.c',
+  line: '492',
+  routine: 'does_not_exist_skipping'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42710',
+  message: 'extension "pg_trgm" already exists, skipping',
+  file: 'extension.c',
+  line: '1962',
+  routine: 'CreateExtension'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "idx_character_memories_char_user" already exists, skipping',
+  file: 'index.c',
+  line: '865',
+  routine: 'index_create'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "idx_character_memories_source_chat" already exists, skipping',
+  file: 'index.c',
+  line: '865',
+  routine: 'index_create'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "idx_characters_public_downloads" already exists, skipping',
+  file: 'index.c',
+  line: '865',
+  routine: 'index_create'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "search_vector" of relation "worldbook_entries" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7272',
+  routine: 'check_for_column_name_collision'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'trigger "trg_worldbook_entries_search_vector" for relation "worldbook_entries" does not exist, skipping',
+  file: 'dropcmds.c',
+  line: '492',
+  routine: 'does_not_exist_skipping'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'trigger "trg_credit_ledger_no_update" for relation "credit_ledger" does not exist, skipping',
+  file: 'dropcmds.c',
+  line: '492',
+  routine: 'does_not_exist_skipping'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'constraint "unique_memory" of relation "character_memories" does not exist, skipping',
+  file: 'tablecmds.c',
+  line: '12257',
+  routine: 'ATExecDropConstraint'
+}
+Database migrations completed
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+null !== 'harbor'
+
+    at <anonymous> (/var/aichat/Small-Squaretable/scripts/story-restore-fixture.mjs:74:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: null,
+  expected: 'harbor',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.13.0

@@ -2,8 +2,8 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs';
-import en from 'element-plus/dist/locale/en.mjs';
+import zhCn from 'element-plus/es/locale/lang/zh-cn';
+import en from 'element-plus/es/locale/lang/en';
 import LoadingOverlay from './components/ui/LoadingOverlay.vue';
 import ToastContainer from './components/ui/ToastContainer.vue';
 import SearchCommandPalette from './components/search/SearchCommandPalette.vue';

@@ -2,10 +2,11 @@
  * 角色服务测试
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CharacterService } from './character.service';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { NotFoundError, ForbiddenError } from '../../core/errors';
+import { config } from '../../core/config';
 
 vi.mock('../../db/repositories/character.repository');
 
@@ -309,6 +310,52 @@ describe('CharacterService', () => {
       await expect(
         characterService.fork('char-123', 'user-456', 'tenant-456')
       ).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe('fork NSFW 可见性', () => {
+    const nsfwSource = {
+      id: 'nsfw-1',
+      name: 'Spicy',
+      tenantId: 'tenant-123',
+      creatorId: 'author',
+      isPublic: true,
+      isNsfw: true,
+    };
+
+    beforeEach(() => {
+      vi.mocked(characterRepository.findById).mockResolvedValue(nsfwSource as any);
+      vi.mocked(characterRepository.incrementDownloadCount).mockResolvedValue(undefined);
+      vi.mocked(characterRepository.create).mockResolvedValue({ id: 'forked' } as any);
+    });
+
+    afterEach(() => {
+      config.nsfwEnabled = true;
+    });
+
+    it('偏好关的观看者 fork NSFW 卡：按「不存在」处理，且不累加下载数', async () => {
+      await expect(characterService.fork('nsfw-1', 'viewer', 'tenant-456', { showNsfw: false })).rejects.toThrow(
+        NotFoundError,
+      );
+      expect(characterRepository.incrementDownloadCount).not.toHaveBeenCalled();
+      expect(characterRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('不传 viewer（旧调用方式）按偏好关处理', async () => {
+      await expect(characterService.fork('nsfw-1', 'viewer', 'tenant-456')).rejects.toThrow(NotFoundError);
+    });
+
+    it('开关开 + 偏好开：可以 fork', async () => {
+      config.nsfwEnabled = true;
+      await characterService.fork('nsfw-1', 'viewer', 'tenant-456', { showNsfw: true });
+      expect(characterRepository.create).toHaveBeenCalled();
+    });
+
+    it('开关关 + 偏好开：不能 fork', async () => {
+      config.nsfwEnabled = false;
+      await expect(characterService.fork('nsfw-1', 'viewer', 'tenant-456', { showNsfw: true })).rejects.toThrow(
+        NotFoundError,
+      );
     });
   });
 

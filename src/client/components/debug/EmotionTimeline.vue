@@ -48,7 +48,7 @@
             <span class="history-values">
               V:{{ formatValue(item.valence) }} A:{{ formatValue(item.arousal) }}
             </span>
-            <span class="history-time">{{ formatTime(item.timestamp) }}</span>
+            <span v-if="item.timestamp" class="history-time">{{ formatTime(item.timestamp) }}</span>
           </div>
         </div>
       </div>

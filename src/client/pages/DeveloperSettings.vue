@@ -6,17 +6,22 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { useDeveloperStore } from '@client/stores/developer';
 import { useDateTime } from '@client/composables';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
-import type { ApiKeyInfo, ApiKeyCreatedResponse } from '@/types/apiKey';
+import { API_KEY_SCOPES } from '@/types/apiKey';
+import type { ApiKeyInfo, ApiKeyCreatedResponse, ApiKeyScope } from '@/types/apiKey';
 
 const { t } = useI18n();
 const developerStore = useDeveloperStore();
 const { formatRelativeTime } = useDateTime();
 
+// ApiKeyInfo.scopes 是 string[]，提交更新前收窄为服务端接受的枚举值
+const isApiKeyScope = (scope: string): scope is ApiKeyScope =>
+  (API_KEY_SCOPES as readonly string[]).includes(scope);
+
 // Create dialog
 const showCreateDialog = ref(false);
 const createForm = ref({
   name: '',
-  scopes: [] as string[],
+  scopes: [] as ApiKeyScope[],
   rateLimitPerMinute: 60,
   hasExpiry: false,
   expiresAt: '',
@@ -27,7 +32,7 @@ const showEditDialog = ref(false);
 const editForm = ref({
   id: '',
   name: '',
-  scopes: [] as string[],
+  scopes: [] as ApiKeyScope[],
   rateLimitPerMinute: 60,
 });
 
@@ -68,7 +73,7 @@ function openEditDialog(key: ApiKeyInfo) {
   editForm.value = {
     id: key.id,
     name: key.name,
-    scopes: [...key.scopes],
+    scopes: key.scopes.filter(isApiKeyScope),
     rateLimitPerMinute: key.rateLimitPerMinute,
   };
   showEditDialog.value = true;
@@ -301,7 +306,7 @@ onMounted(() => {
     </el-dialog>
   </DashboardLayout>
 </template>
-<style scoped>
+<style scoped lang="scss">
 .developer-settings {
   max-width: 960px;
   margin: 0 auto;
@@ -450,7 +455,7 @@ onMounted(() => {
 }
 
 /* Mobile */
-@media (max-width: 767px) {
+@include below(md) {
   .key-card {
     padding: 16px;
   }

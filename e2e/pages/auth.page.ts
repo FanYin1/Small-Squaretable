@@ -68,8 +68,15 @@ export class AuthPage {
     const confirmPasswordInput = this.page.getByPlaceholder('Re-enter your password');
     await confirmPasswordInput.fill(password);
 
-    // Accept terms checkbox — click the inner visual checkbox element
-    await this.page.locator('.el-checkbox__inner').first().click();
+    // 注册需要邀请码（P0-6）。E2E 环境需预置一个多次可用的码并通过 E2E_INVITE_CODE 传入
+    const inviteCodeInput = this.page.getByPlaceholder('Enter your invite code');
+    await inviteCodeInput.fill(process.env.E2E_INVITE_CODE ?? '');
+
+    // 服务条款 + 满 18 岁声明两个复选框都必须勾选 — click the inner visual checkbox elements
+    const checkboxes = this.page.locator('.el-checkbox:not(.is-checked) .el-checkbox__inner');
+    while ((await checkboxes.count()) > 0) {
+      await checkboxes.first().click();
+    }
   }
 
   // ---------------------------------------------------------------------------

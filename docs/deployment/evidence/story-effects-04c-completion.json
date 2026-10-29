@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-25T06:53:50.480Z",
+  "task": "EXP-04C",
+  "result": "completed against original state-effect and recovery requirements",
+  "requirements": {
+    "stop": "Interrupted assistant fragments do not commit ERA/native effects or assistant memory; a complete group commit finishes before later speakers are stopped",
+    "replay": "Legacy response plus ERA transaction, request/character replay, concurrent mutation, corruption/Redis failure and partial group failure verified",
+    "conflict": "Original stale-version draft retention and explicit reconfirmation rerun against final build",
+    "recovery": "Lost acknowledgements, whole-group and observer recovery, 105-message pagination, cache removal and process restart verified"
+  },
+  "validation": {
+    "unit": {
+      "result": "passed",
+      "files": 10,
+      "totalTests": 292,
+      "newTests": 12,
+      "regressionTests": 280,
+      "typecheck": "passed",
+      "targetedLint": {
+        "errors": 0,
+        "existingWarnings": 10
+      },
+      "scope": [
+        "WebSocket prepaid credits and metering",
+        "chat store and message transport",
+        "ERA parsing and macro behavior",
+        "interrupted memory extraction",
+        "prompt layout and legacy/frozen macro persistence",
+        "group chat selection"
+      ],
+      "newTestCoverage": [
+        "stop during commit, stop after last commit, failed legacy commit notification",
+        "whole-group recovery, failed group reconciliation, missing completion and observer request identity",
+        "forward pagination and page failure",
+        "zero forward cursor transport",
+        "legacy/frozen macro writes"
+      ]
+    },
+    "combinedGroups": 22,
+    "newEffectsGroups": 16,
+    "nativeRecoveryGroups": 6,
+    "build": "passed",
+    "sourceAndImageFingerprints": "matched",
+    "existingTablesPreserved": 70,
+    "deployedScreenshots": 4
+  },
+  "deployment": {
+    "port": 3081,
+    "image": "small-squaretable:exploration-20261025-04c",
+    "imageId": "sha256:64062113a7ac131113772e764e3b13ef683e00f6576e520a68faf04bb5454b31",
+    "previousImage": "sha256:a19eb377c82324ed45dc50f473331a2d48284e882363d60e5e60e2eeb790f538",
+    "migrationCount": 11,
+    "artifacts": {
+      "cardId": "35f75269-b4ad-4897-a813-b403cafb883d",
+      "legacyId": "fcc1b884-bcd9-4977-9794-4a1922632d7b",
+      "currentId": "a8a36c31-cd49-4e3a-aecc-57fe808e74ce"
+    },
+    "health": "200",
+    "unchangedPorts": [
+      3080,
+      5188
+    ]
+  },
+  "paidModel": {
+    "newTokens": 0,
+    "knownCumulative": 436728,
+    "unreturnedReservation": 6591,
+    "accounted": 443319,
+    "authorization": 450000,
+    "remaining": 6681
+  },
+  "limits": [
+    "Controlled provider tests and owned prewritten deployed samples; no real narrative-quality claim",
+    "Legacy variables migrate on first access from available Redis values; no reconstruction of expired history",
+    "Legacy prompt/global macro semantics remain; no arbitrary framework-wide transaction",
+    "Identifier-free legacy HTTP posts cannot be correlated across requests; billing is not part of the response/variable transaction",
+    "EXP-04D, correction/branch decisions, full product acceptance and human/device signoff remain open"
+  ],
+  "nextWorkPackage": "EXP-04D"
+}

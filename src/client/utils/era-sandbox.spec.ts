@@ -82,8 +82,9 @@ describe('sillytavern-shim', () => {
       userName: 'B',
       chatId: 'c',
     });
-    expect(shim).toContain('window.getWorldbook');
-    expect(shim).toContain('window.createWorldbookEntries');
+    expect(shim).toContain("'getWorldbook'");
+    expect(shim).toContain("'createWorldbookEntries'");
+    expect(shim).toContain('UNSUPPORTED_API:');
     expect(shim).toContain('window.isCharacterTavernRegexesEnabled');
   });
 

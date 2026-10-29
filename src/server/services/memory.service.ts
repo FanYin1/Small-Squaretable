@@ -44,6 +44,11 @@ const MEMORY_LIMITS: Record<string, number> = {
 };
 
 export class MemoryService {
+  async retrieveStoryPreferences(characterId: string, userId: string, chatId: string): Promise<ScoredMemory[]> {
+    const memories = await memoryRepository.findStoryPreferences(characterId, userId, chatId);
+    return memories.map(memory => ({ id: memory.id, content: memory.content, type: memory.type, score: 0 }));
+  }
+
   async retrieveMemories(query: MemoryQuery): Promise<ScoredMemory[]> {
     const { characterId, userId, query: queryText, chatId, limit = 10 } = query;
 
@@ -55,7 +60,7 @@ export class MemoryService {
       characterId,
       userId,
       embedding,
-      chatId,
+      chatId: chatId ?? null,
       limit,
     });
 
@@ -86,7 +91,7 @@ export class MemoryService {
 
     // Check for semantic duplicates (similarity >= 0.85)
     const similar = await memoryRepository.findSimilar(
-      characterId, userId, embedding, 0.85, 1
+      characterId, userId, embedding, 0.85, 1, chatId ?? null
     );
 
     if (similar.length > 0) {
@@ -102,16 +107,16 @@ export class MemoryService {
         : existing.content;
 
       await memoryRepository.updateContent(existing.id, mergedContent, String(mergedImportance));
-      await memoryRepository.updateVector(existing.id, embedding);
+      if (mergedContent === memory.content) await memoryRepository.updateVector(existing.id, embedding);
       return;
     }
 
     // Check memory limit
-    const currentCount = await memoryRepository.countByCharacterUser(characterId, userId);
+    const currentCount = await memoryRepository.countByCharacterUser(characterId, userId, chatId ?? null);
     const limit = MEMORY_LIMITS[subscriptionTier] ?? MEMORY_LIMITS.free;
 
     if (currentCount >= limit) {
-      await memoryRepository.deleteOldest(characterId, userId, 1);
+      await memoryRepository.deleteOldest(characterId, userId, 1, chatId ?? null);
     }
 
     // Create memory record
@@ -136,14 +141,17 @@ export class MemoryService {
     userId: string,
     messages: Message[]
   ): Promise<MemoryFact[]> {
-    if (messages.length === 0) return [];
+    const confirmedMessages = messages.filter(message =>
+      !['interrupted', 'proposed'].includes(String((message.extra as Record<string, unknown> | null)?.stateStatus))
+    );
+    if (confirmedMessages.length === 0) return [];
 
     // Format messages for LLM
-    const conversationText = messages
+    const conversationText = confirmedMessages
       .map((m) => `${m.role}: ${m.content}`)
       .join('\n');
 
-    const prompt = `分析以下对话，提取关于用户的记忆信息。
+    const prompt = `分析以下对话，只提取这次故事内有明确依据的连续性信息。角色身份、资产与经历属于此次虚构故事，不是用户在现实世界的个人事实。
 
 对话内容:
 ${conversationText}
@@ -156,7 +164,7 @@ ${conversationText}
   "events": ["重要事件..."]
 }
 
-只提取明确或可合理推断的信息，不要编造。每个类别最多3条。`;
+只提取明确表达的信息，不要推断玩家的情绪、同意或关系。传闻标注为传闻，意图和未完成行动不能写成事实；中止片段不得提取为已完成事件。摘要不能覆盖结构化确认状态。每个类别最多3条。`;
 
     try {
       const response = await llmService.chatCompletion({
@@ -202,15 +210,15 @@ ${conversationText}
   }
 
   async clearAllMemories(characterId: string, userId: string, chatId?: string): Promise<void> {
-    await memoryRepository.deleteAllForCharacterUser(characterId, userId, chatId);
+    await memoryRepository.deleteAllForCharacterUser(characterId, userId, chatId ?? null);
   }
 
   async getMemories(characterId: string, userId: string, limit = 100, chatId?: string) {
-    return await memoryRepository.findByCharacterAndUser(characterId, userId, limit, chatId);
+    return await memoryRepository.findByCharacterAndUser(characterId, userId, limit, chatId ?? null);
   }
 
   async getMemoryCount(characterId: string, userId: string, chatId?: string): Promise<number> {
-    return await memoryRepository.countByCharacterUser(characterId, userId, chatId);
+    return await memoryRepository.countByCharacterUser(characterId, userId, chatId ?? null);
   }
 
   async promoteSessionMemories(

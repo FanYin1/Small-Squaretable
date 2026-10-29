@@ -85,11 +85,41 @@ describe('User Store', () => {
       vi.mocked(authApi.register).mockResolvedValue(mockResponse);
 
       const store = useUserStore();
-      await store.register('new@example.com', 'password', 'New User');
+      await store.register('new@example.com', 'password', 'New User', true);
 
       expect(store.user).toEqual(mockResponse.user);
       expect(store.token).toBe(mockResponse.token);
       expect(store.isAuthenticated).toBe(true);
+    });
+
+    it('成年声明要透传到接口 —— 漏了这个字段后端会直接 400', async () => {
+      vi.mocked(authApi.register).mockResolvedValue({
+        user: { id: '1', email: 'new@example.com', name: 'New User', tenantId: 'tenant-1', createdAt: '2024-01-01' },
+        token: 'new-token',
+        refreshToken: 'new-refresh-token',
+      } as never);
+
+      const store = useUserStore();
+      await store.register('new@example.com', 'password', 'New User', true);
+
+      expect(authApi.register).toHaveBeenCalledWith(
+        expect.objectContaining({ ageConfirmed: true })
+      );
+    });
+
+    it('邀请码要透传到接口 —— 漏了这个字段后端会直接 400', async () => {
+      vi.mocked(authApi.register).mockResolvedValue({
+        user: { id: '1', email: 'new@example.com', name: 'New User', tenantId: 'tenant-1', createdAt: '2024-01-01' },
+        token: 'new-token',
+        refreshToken: 'new-refresh-token',
+      } as never);
+
+      const store = useUserStore();
+      await store.register('new@example.com', 'password', 'New User', true, 'ABCD-1234-EFGH');
+
+      expect(authApi.register).toHaveBeenCalledWith(
+        expect.objectContaining({ inviteCode: 'ABCD-1234-EFGH' })
+      );
     });
 
     it('should handle registration error', async () => {
@@ -97,7 +127,9 @@ describe('User Store', () => {
       vi.mocked(authApi.register).mockRejectedValue(error);
 
       const store = useUserStore();
-      await expect(store.register('existing@example.com', 'password', 'User')).rejects.toThrow();
+      await expect(
+        store.register('existing@example.com', 'password', 'User', true)
+      ).rejects.toThrow();
 
       expect(store.error).toBe('Email already exists');
       expect(store.user).toBeNull();
@@ -211,8 +243,8 @@ describe('User Store', () => {
       expect(store.user).toEqual(mockUser);
     });
 
-    it('should clear auth on fetch failure', async () => {
-      vi.mocked(authApi.getMe).mockRejectedValue(new Error('Invalid token'));
+    it('should clear auth when the server rejects authentication', async () => {
+      vi.mocked(authApi.getMe).mockRejectedValue(new ApiError(401, 'UNAUTHORIZED', 'Invalid token'));
 
       localStorage.setItem('token', 'invalid-token');
 
@@ -221,6 +253,31 @@ describe('User Store', () => {
 
       expect(store.user).toBeNull();
       expect(store.token).toBeNull();
+    });
+
+    it.each([
+      new ApiError(429, 'RATE_LIMITED', 'Try again later'),
+      new ApiError(503, 'UNAVAILABLE', 'Service unavailable'),
+      new Error('Network unavailable'),
+    ])('preserves credentials after temporary profile failure: %s', async (failure) => {
+      localStorage.setItem('token', 'valid-token');
+      localStorage.setItem('refreshToken', 'refresh-token');
+      localStorage.setItem('tenantId', 'tenant-id');
+      vi.mocked(authApi.getMe).mockRejectedValueOnce(failure);
+      const store = useUserStore();
+
+      await store.initialize();
+
+      expect(store.token).toBe('valid-token');
+      expect(store.refreshToken).toBe('refresh-token');
+      expect(localStorage.getItem('tenantId')).toBe('tenant-id');
+      expect(localStorage.getItem('token')).toBe('valid-token');
+      expect(store.error).toBe(failure.message);
+      const mockUser = { id: '1', email: 'test@example.com', name: 'Test', createdAt: '2024-01-01' };
+      vi.mocked(authApi.getMe).mockResolvedValueOnce({ user: mockUser });
+      await store.initialize();
+      expect(store.user).toEqual(mockUser);
+      expect(store.error).toBeNull();
     });
 
     it('should not fetch if no token', async () => {

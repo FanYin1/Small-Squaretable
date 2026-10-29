@@ -69,9 +69,78 @@ describe('OAuth Routes', () => {
       );
       expect(redis.set).toHaveBeenCalledWith(
         'oauth_state:abc123',
-        JSON.stringify({ codeVerifier: 'verifier123', provider: 'google' }),
+        JSON.stringify({ codeVerifier: 'verifier123', provider: 'google', ageConfirmed: false }),
         { EX: 300 },
       );
+    });
+
+    it('成年声明随 state 存进 Redis，不留在回调 URL 上让用户能自己改', async () => {
+      const { oauthService } = await import('../services/oauth.service');
+      const { redis } = await import('../../core/redis');
+      vi.mocked(oauthService.getAuthorizationUrl).mockReturnValue({
+        url: 'https://accounts.google.com/o/oauth2/v2/auth?state=abc123',
+        state: 'abc123',
+        codeVerifier: 'verifier123',
+      });
+      vi.mocked(redis.set).mockResolvedValue('OK');
+
+      await app.request('/api/v1/auth/oauth/google?ageConfirmed=1', {
+        method: 'GET',
+        redirect: 'manual',
+      });
+
+      expect(redis.set).toHaveBeenCalledWith(
+        'oauth_state:abc123',
+        JSON.stringify({ codeVerifier: 'verifier123', provider: 'google', ageConfirmed: true }),
+        { EX: 300 },
+      );
+    });
+
+    it('邀请码随 state 存进 Redis，不出现在回调 URL 上', async () => {
+      const { oauthService } = await import('../services/oauth.service');
+      const { redis } = await import('../../core/redis');
+      vi.mocked(oauthService.getAuthorizationUrl).mockReturnValue({
+        url: 'https://accounts.google.com/o/oauth2/v2/auth?state=abc123',
+        state: 'abc123',
+        codeVerifier: 'verifier123',
+      });
+      vi.mocked(redis.set).mockResolvedValue('OK');
+
+      const res = await app.request('/api/v1/auth/oauth/google?ageConfirmed=1&inviteCode=ABCD-2345-WXYZ', {
+        method: 'GET',
+        redirect: 'manual',
+      });
+
+      expect(redis.set).toHaveBeenCalledWith(
+        'oauth_state:abc123',
+        JSON.stringify({
+          codeVerifier: 'verifier123',
+          provider: 'google',
+          ageConfirmed: true,
+          inviteCode: 'ABCD-2345-WXYZ',
+        }),
+        { EX: 300 },
+      );
+      expect(res.headers.get('location')).not.toContain('ABCD-2345-WXYZ');
+    });
+
+    it('超长邀请码不写进 state（合法码不会超过 64 位），避免被当作 Redis 灌数据入口', async () => {
+      const { oauthService } = await import('../services/oauth.service');
+      const { redis } = await import('../../core/redis');
+      vi.mocked(oauthService.getAuthorizationUrl).mockReturnValue({
+        url: 'https://accounts.google.com/o/oauth2/v2/auth?state=abc123',
+        state: 'abc123',
+        codeVerifier: 'verifier123',
+      });
+      vi.mocked(redis.set).mockResolvedValue('OK');
+
+      await app.request(`/api/v1/auth/oauth/google?inviteCode=${'A'.repeat(65)}`, {
+        method: 'GET',
+        redirect: 'manual',
+      });
+
+      const stored = JSON.parse(vi.mocked(redis.set).mock.calls[0][1] as string);
+      expect(stored.inviteCode).toBeUndefined();
     });
 
     it('should return error for unsupported provider', async () => {
@@ -142,6 +211,71 @@ describe('OAuth Routes', () => {
         expect.any(String),
         { EX: 30 },
       );
+    });
+
+    it('回调把 state 里的邀请码交给 authenticateWithOAuth', async () => {
+      const { oauthService } = await import('../services/oauth.service');
+      const { redis } = await import('../../core/redis');
+      vi.mocked(redis.get).mockResolvedValue(
+        JSON.stringify({ codeVerifier: 'v', provider: 'google', ageConfirmed: true, inviteCode: 'ABCD-2345-WXYZ' }),
+      );
+      vi.mocked(redis.del).mockResolvedValue(1);
+      vi.mocked(redis.set).mockResolvedValue('OK');
+      vi.mocked(oauthService.handleCallback).mockResolvedValue({
+        provider: 'google',
+        providerAccountId: 'goog-123',
+        email: 'user@example.com',
+        displayName: 'Test User',
+        avatarUrl: null,
+      });
+      vi.mocked(oauthService.authenticateWithOAuth).mockResolvedValue({
+        user: { id: 'u1', tenantId: 't1', email: 'user@example.com', displayName: null, avatarUrl: null, role: 'user' },
+        tokens: { accessToken: 'at', refreshToken: 'rt', expiresIn: 3600 },
+        isNewUser: true,
+      });
+
+      await app.request('/api/v1/auth/oauth/google/callback?code=authcode&state=abc123', {
+        method: 'GET',
+        redirect: 'manual',
+      });
+
+      expect(oauthService.authenticateWithOAuth).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ ageConfirmed: true, inviteCode: 'ABCD-2345-WXYZ' }),
+      );
+    });
+
+    it.each([
+      ['INVITE_CODE_REQUIRED', 'invite_code_required'],
+      ['INVITE_CODE_INVALID', 'invite_code_invalid'],
+    ])('邀请码校验失败（%s）→ 重定向回注册页并带 error=%s', async (code, param) => {
+      const { oauthService } = await import('../services/oauth.service');
+      const { redis } = await import('../../core/redis');
+      vi.mocked(redis.get).mockResolvedValue(
+        JSON.stringify({ codeVerifier: 'v', provider: 'google', ageConfirmed: true }),
+      );
+      vi.mocked(redis.del).mockResolvedValue(1);
+      vi.mocked(redis.set).mockResolvedValue('OK');
+      vi.mocked(oauthService.handleCallback).mockResolvedValue({
+        provider: 'google',
+        providerAccountId: 'goog-123',
+        email: 'user@example.com',
+        displayName: null,
+        avatarUrl: null,
+      });
+      vi.mocked(oauthService.authenticateWithOAuth).mockRejectedValue(
+        Object.assign(new Error('invite'), { statusCode: 400, code }),
+      );
+
+      const res = await app.request('/api/v1/auth/oauth/google/callback?code=authcode&state=abc123', {
+        method: 'GET',
+        redirect: 'manual',
+      });
+
+      expect(res.status).toBe(302);
+      expect(res.headers.get('location')).toBe(`http://localhost:5173/auth/register?error=${param}`);
+      // 没建号就不该签发一次性登录码
+      expect(redis.set).not.toHaveBeenCalled();
     });
 
     it('should redirect with error when state is invalid', async () => {

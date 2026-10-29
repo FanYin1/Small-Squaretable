@@ -6,11 +6,14 @@
  * Supports automatic summarization for long conversations.
  */
 
-import { countTokens } from '../utils/tokens';
+import { countTokens, countMessagesTokens } from '../utils/tokens';
+import { AppError } from '../../core/errors';
+import { assertContextBudget, estimateContextMessages } from './context-budget';
 import { getModelMeta } from '../config/llm.config';
 import { createLogger } from './logger.service';
 import { summarizationService } from './summarization.service';
 import type { Message } from '../../db/schema/chats';
+import { injectAtDepth as injectAtDepthPure, type AtDepthEntry } from './prompt-assembly';
 
 const logger = createLogger({ service: 'context-manager' });
 
@@ -35,182 +38,79 @@ export class ContextManager {
   /**
    * Build a context-aware message array that fits within the model's token budget.
    *
-   * Strategy:
-   * 1. System prompt is always included (never truncated)
-   * 2. Calculate remaining budget: contextWindow - systemTokens - maxOutputTokens - buffer
-   * 3. Always include pinned messages (highest priority)
-   * 4. Sort remaining messages by importance score (default: 5)
-   * 5. Add messages from highest importance to lowest until budget is exhausted
-   * 6. Preserve user/assistant pairs for coherence
-   * 7. If messages were truncated, prepend a notice
-   *
    * @param systemPrompt - The system prompt text
    * @param messages - All chat messages in chronological order
    * @param model - Model name to look up context window size
+   * @param reservedTokens - Estimated budget for all content injected after history selection.
    * @returns ContextBuildResult with trimmed messages and metadata
    */
   buildContext(
     systemPrompt: string,
     messages: LLMMessage[],
-    model: string
+    model: string,
+    reservedTokens: number = 0
   ): ContextBuildResult {
     const meta = getModelMeta(model);
-    const BUFFER_TOKENS = 100; // safety buffer
-
-    const systemTokens = countTokens(systemPrompt) + 4; // +4 for message overhead
-    const maxResponseTokens = meta.maxOutputTokens;
-    const availableBudget = meta.contextWindow - systemTokens - maxResponseTokens - BUFFER_TOKENS;
-
-    if (availableBudget <= 0) {
-      logger.warn('System prompt exceeds context budget', {
-        systemTokens,
-        contextWindow: meta.contextWindow,
-        model,
-      });
-      // Still include system prompt and last message at minimum
-      const result: LLMMessage[] = [{ role: 'system', content: systemPrompt }];
-      if (messages.length > 0) {
-        result.push(messages[messages.length - 1]);
-      }
-      return {
-        messages: result,
-        totalTokens: systemTokens + (messages.length > 0 ? countTokens(messages[messages.length - 1].content) + 4 : 0),
-        truncated: messages.length > 1,
-        truncatedCount: Math.max(0, messages.length - 1),
-      };
+    if (!Number.isSafeInteger(reservedTokens) || reservedTokens < 0) {
+      throw new AppError('The reserved context budget is invalid.', 500, 'CONTEXT_CONFIG_INVALID');
+    }
+    const system: LLMMessage = { role: 'system', content: systemPrompt };
+    const fixedTokens = estimateContextMessages([system]) + 2 + reservedTokens;
+    const availableTokens = assertContextBudget(fixedTokens, meta, 'critical');
+    const allTokens = fixedTokens + estimateContextMessages(messages);
+    if (allTokens <= availableTokens) {
+      const complete = [system, ...messages];
+      return { messages: complete, totalTokens: countMessagesTokens(complete), truncated: false, truncatedCount: 0 };
     }
 
-    // Separate pinned and unpinned messages
-    const pinnedMessages = messages.filter(m => m.pinned);
-    const unpinnedMessages = messages.filter(m => !m.pinned);
-
-    // Calculate tokens for pinned messages
-    let pinnedTokens = 0;
-    for (const msg of pinnedMessages) {
-      pinnedTokens += countTokens(msg.content) + 4;
+    const turns: LLMMessage[][] = [];
+    for (const message of messages) {
+      if (message.role === 'user' || turns.length === 0) turns.push([]);
+      turns[turns.length - 1].push(message);
     }
-
-    // Check if pinned messages exceed budget
-    if (pinnedTokens > availableBudget) {
-      logger.warn('Pinned messages exceed context budget', {
-        pinnedTokens,
-        availableBudget,
-        pinnedCount: pinnedMessages.length,
-      });
-      // Include system prompt + pinned messages anyway (they're critical)
-      const result: LLMMessage[] = [{ role: 'system', content: systemPrompt }, ...pinnedMessages];
-      return {
-        messages: result,
-        totalTokens: systemTokens + pinnedTokens,
-        truncated: unpinnedMessages.length > 0,
-        truncatedCount: unpinnedMessages.length,
-      };
+    const latest = turns.length - 1;
+    const selected = new Set<number>();
+    let usedTokens = fixedTokens;
+    if (latest >= 0) {
+      usedTokens += estimateContextMessages(turns[latest]);
+      assertContextBudget(usedTokens, meta, 'latest');
+      selected.add(latest);
     }
+    for (const [index, turn] of turns.entries()) {
+      if (index === latest || !turn.some(message => message.pinned)) continue;
+      usedTokens += estimateContextMessages(turn);
+      selected.add(index);
+    }
+    assertContextBudget(usedTokens, meta, 'pinned');
 
-    // Remaining budget for unpinned messages
-    const remainingBudget = availableBudget - pinnedTokens;
-
-    // Smart selection: prioritize recent messages and high importance
-    // Strategy: Take the most recent N messages, then sort by importance
-    const RECENT_WINDOW = 20; // Always consider the last 20 messages
-    const recentMessages = unpinnedMessages.slice(-RECENT_WINDOW);
-    const olderMessages = unpinnedMessages.slice(0, -RECENT_WINDOW);
-
-    // Sort older messages by importance (descending)
-    const sortedOlderMessages = [...olderMessages].sort((a, b) => {
-      const importanceA = a.importance ?? 5;
-      const importanceB = b.importance ?? 5;
-      return importanceB - importanceA;
+    const notice = (count: number): LLMMessage => ({ role: 'system',
+      content: `[${count} earlier messages are omitted from this request only. The saved history remains available. Do not infer events from the omission.]` });
+    const noticeTokens = estimateContextMessages([notice(messages.length)]);
+    assertContextBudget(usedTokens + noticeTokens, meta, 'payload');
+    usedTokens += noticeTokens;
+    const recentBoundary = Math.max(0, messages.length - 20);
+    let position = 0;
+    const ranked = turns.map((turn, index) => {
+      position += turn.length;
+      return { index, turn, recent: position > recentBoundary,
+        importance: Math.max(...turn.map(message => message.importance ?? 5)) };
+    }).filter(candidate => !selected.has(candidate.index)).sort((left, right) =>
+      Number(right.recent) - Number(left.recent) ||
+      (left.recent ? right.index - left.index : right.importance - left.importance || right.index - left.index));
+    for (const candidate of ranked) {
+      const tokens = estimateContextMessages(candidate.turn);
+      if (usedTokens + tokens > availableTokens) continue;
+      selected.add(candidate.index);
+      usedTokens += tokens;
+    }
+    const included = turns.flatMap((turn, index) => selected.has(index) ? turn : []);
+    const truncatedCount = messages.length - included.length;
+    const result = [system, ...(truncatedCount ? [notice(truncatedCount)] : []), ...included];
+    assertContextBudget(estimateContextMessages(result) + 2 + reservedTokens, meta);
+    logger.info('Context built within estimated budget', {
+      model, includedMessages: included.length, truncatedCount,
     });
-
-    // Combine: recent messages (in order) + important older messages
-    const candidateMessages = [...sortedOlderMessages, ...recentMessages];
-
-    // Select messages that fit in budget, preserving user/assistant pairs
-    const selectedMessages: LLMMessage[] = [];
-    let usedTokens = 0;
-    const selectedIndices = new Set<number>();
-
-    // First pass: add messages from newest to oldest
-    for (let i = candidateMessages.length - 1; i >= 0; i--) {
-      const msg = candidateMessages[i];
-      const msgTokens = countTokens(msg.content) + 4;
-
-      if (usedTokens + msgTokens <= remainingBudget) {
-        selectedIndices.add(i);
-        usedTokens += msgTokens;
-      }
-    }
-
-    // Second pass: ensure user/assistant pairs are preserved
-    // If we have an assistant message, try to include its preceding user message
-    for (let i = 0; i < candidateMessages.length; i++) {
-      if (selectedIndices.has(i) && candidateMessages[i].role === 'assistant' && i > 0) {
-        const prevMsg = candidateMessages[i - 1];
-        if (prevMsg.role === 'user' && !selectedIndices.has(i - 1)) {
-          const msgTokens = countTokens(prevMsg.content) + 4;
-          if (usedTokens + msgTokens <= remainingBudget) {
-            selectedIndices.add(i - 1);
-            usedTokens += msgTokens;
-          }
-        }
-      }
-    }
-
-    // Build selected messages in chronological order
-    for (let i = 0; i < candidateMessages.length; i++) {
-      if (selectedIndices.has(i)) {
-        selectedMessages.push(candidateMessages[i]);
-      }
-    }
-
-    // Merge pinned and selected messages, maintaining chronological order
-    // We need to interleave them based on their original positions
-    const allSelectedMessages: LLMMessage[] = [];
-    let pinnedIdx = 0;
-    let selectedIdx = 0;
-
-    for (const msg of messages) {
-      if (msg.pinned && pinnedIdx < pinnedMessages.length && msg === pinnedMessages[pinnedIdx]) {
-        allSelectedMessages.push(msg);
-        pinnedIdx++;
-      } else if (!msg.pinned && selectedIdx < selectedMessages.length && msg === selectedMessages[selectedIdx]) {
-        allSelectedMessages.push(msg);
-        selectedIdx++;
-      }
-    }
-
-    const truncatedCount = messages.length - allSelectedMessages.length;
-    const truncated = truncatedCount > 0;
-
-    // Build final message array
-    const result: LLMMessage[] = [{ role: 'system', content: systemPrompt }];
-
-    if (truncated) {
-      result.push({
-        role: 'system',
-        content: `[Earlier ${truncatedCount} messages were omitted due to context length limits. ${pinnedMessages.length} pinned messages are always included.]`,
-      });
-    }
-
-    result.push(...allSelectedMessages);
-
-    const totalTokens = systemTokens + pinnedTokens + usedTokens + (truncated ? 30 : 0); // 30 for truncation notice
-
-    logger.info('Context built with smart trimming', {
-      model,
-      contextWindow: meta.contextWindow,
-      systemTokens,
-      pinnedMessages: pinnedMessages.length,
-      pinnedTokens,
-      selectedMessages: selectedMessages.length,
-      messageTokens: usedTokens,
-      totalMessages: messages.length,
-      includedMessages: allSelectedMessages.length,
-      truncated,
-    });
-
-    return { messages: result, totalTokens, truncated, truncatedCount };
+    return { messages: result, totalTokens: countMessagesTokens(result), truncated: truncatedCount > 0, truncatedCount };
   }
 
   /**
@@ -219,25 +119,8 @@ export class ContextManager {
    * (after the system prompt). Entries are sorted by depth descending
    * so deeper entries don't shift shallower ones.
    */
-  injectAtDepth(
-    messages: LLMMessage[],
-    entries: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }>,
-  ): LLMMessage[] {
-    if (!entries || entries.length === 0) return messages;
-
-    const result = [...messages];
-    // Sort by depth descending so insertions don't shift indices
-    const sorted = [...entries].sort((a, b) => b.depth - a.depth);
-
-    for (const entry of sorted) {
-      // Find the insertion point: depth N = N messages from the end
-      // The first element is the system prompt, so conversation starts at index 1
-      const conversationEnd = result.length;
-      const insertIdx = Math.max(1, conversationEnd - entry.depth);
-      result.splice(insertIdx, 0, { role: entry.role, content: entry.content });
-    }
-
-    return result;
+  injectAtDepth(messages: LLMMessage[], entries: AtDepthEntry[]): LLMMessage[] {
+    return injectAtDepthPure(messages, entries);
   }
 
   /**
@@ -248,16 +131,18 @@ export class ContextManager {
     systemPrompt: string,
     messages: LLMMessage[],
     model: string,
-    enableSummarization: boolean = true
+    enableSummarization: boolean = true,
+    reservedTokens: number = 0
   ): Promise<ContextBuildResult> {
     const meta = getModelMeta(model);
     const BUFFER_TOKENS = 100;
     const systemTokens = countTokens(systemPrompt) + 4;
     const maxResponseTokens = meta.maxOutputTokens;
-    const availableBudget = meta.contextWindow - systemTokens - maxResponseTokens - BUFFER_TOKENS;
+    const availableBudget =
+      meta.contextWindow - systemTokens - maxResponseTokens - BUFFER_TOKENS - reservedTokens;
 
     // First try without summarization
-    const initialResult = this.buildContext(systemPrompt, messages, model);
+    const initialResult = this.buildContext(systemPrompt, messages, model, reservedTokens);
 
     // If not truncated or summarization disabled, return as-is
     if (!initialResult.truncated || !enableSummarization) {
@@ -302,7 +187,7 @@ export class ContextManager {
       ];
 
       // Build context with summarized messages
-      const result = this.buildContext(systemPrompt, messagesWithSummary, model);
+      const result = this.buildContext(systemPrompt, messagesWithSummary, model, reservedTokens);
 
       logger.info('Context built with summarization', {
         originalMessages: messages.length,

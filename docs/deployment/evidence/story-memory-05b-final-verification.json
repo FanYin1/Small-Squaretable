@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-24T11:41:45.809Z",
+  "task": "EXP-05B",
+  "result": "bounded_engineering_and_real_continuity_acceptance_passed",
+  "taskClosed": true,
+  "scope": "Version-1 confirmed-story memory durability and the documented single-card 100-turn service-level continuity case; production truncation policy checked separately against real local HTTP/WebSocket/browser and database with controlled generation",
+  "evidence": {
+    "realLongrun": "story-memory-real-longrun-450k.json",
+    "truncation": "story-output-truncation-verification.json",
+    "previousRealFailure": "story-memory-real-longrun-300k.json",
+    "promptRegression": "story-memory-semantic-followup.json",
+    "harnessRegression": "story-memory-harness-followup.json"
+  },
+  "verification": {
+    "realMainTurns": 100,
+    "realParallelTurns": 5,
+    "realProviderCalls": 127,
+    "realExtractionCalls": 22,
+    "successfulMemoryJobs": 21,
+    "mainStoryBatches": 20,
+    "realRestoreFingerprintsMatched": true,
+    "checkpointRecoveredWithoutReextraction": true,
+    "earlyAppointmentReturnedAfterTrimming": true,
+    "unitTests": 161,
+    "newTruncationUnitTests": 10,
+    "realHttpWebSocketBrowserCases": 6,
+    "controlledProviderForBrowser": true,
+    "typecheck": "passed",
+    "serverBuild": "passed",
+    "clientBuild": "passed",
+    "targetedLint": {
+      "errors": 0,
+      "warnings": 5
+    },
+    "deploymentUpdated": false,
+    "userSignoff": false
+  },
+  "qualityLimits": [
+    "One real reply reached its output cap; the raw run remains unchanged. Later production handling saves it as interrupted with no state or memory effects, verified separately.",
+    "The synthetic prompt sentence-count instruction is not followed perfectly. Short dialogue continuity was reviewed; universal style obedience is not claimed.",
+    "Repeated bookstore topics and sampled extraction review do not demonstrate all-card gameplay or universal semantic correctness."
+  ],
+  "remainingSeparateScopes": [
+    "EXP-03B third-party runtime compatibility",
+    "EXP-04D free actions and character knowledge",
+    "EXP-05A legacy conversion and full summary lifecycle",
+    "EXP-06 correction and branching",
+    "EXP-07D deployment, multi-card experience and user signoff",
+    "OPEN product decisions"
+  ],
+  "budget": {
+    "authorized": 450000,
+    "previousRecorded": 140607,
+    "currentRealRunRecorded": 257395,
+    "cumulativeRecorded": 398002,
+    "remaining": 51998,
+    "onlineTokenLimit": 100000
+  },
+  "sourceHashes": {
+    "src/server/routes/websocket.ts": "911afd894f781d551ea5464a6e95335c8d5273e085a5c1e2feba4221e4b6670d",
+    "src/server/routes/websocket-credits.spec.ts": "a1bf55ae539b90facfd899533b4ca7e4e22a9b8c479e306f557f7853300f8ffe",
+    "src/client/stores/chat.ts": "09a06d66a070c70e00b97d1e8941333573db168dbf58801e0552ef1dba0455f9",
+    "src/client/stores/chat.spec.ts": "069204650088eedb469e6f3bb6ffff1fad9fc60edb19f71cb097769e243c2e97",
+    "src/client/i18n/locales/zh-CN.json": "fc15e471e4a14e9036a005569eb3813bcf52793d1d487a9195ee4f88f247d59e",
+    "src/client/i18n/locales/en-US.json": "bd605d81cfa5f6419501a3d13c71bc534bb4950bd7bfda606be8000fb0713108",
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+    "src/server/services/story-memory-extraction.ts": "96098d151b9a8d59e9ad18bd2e9ccce86f676d7a0ff10302cafd0797602eb63b",
+    "scripts/beta-smoke-check.mjs": "abeda6e18523069c9b16b7c51af6e5fc7d70bbca60dd81ff0f622a6d65d6c6b0",
+    "scripts/exploration-recovery-check.mjs": "9330c8ac463da26bbae365d88531a967061931a24ca88f9efbe0013d99619b15",
+    "dist/server/index.js": "89fa3ee2a98ac6528a86c3e8dc68d4bc91e24ed78963c906b92906b7bceba276",
+    "dist/client/index.html": "07aaa1846ddb630f4f6a02aaf2d2431d41d6e1c8e65060b9c61ebf634b5ec76d"
+  }
+}

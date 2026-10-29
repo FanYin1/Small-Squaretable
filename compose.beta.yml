@@ -1,0 +1,100 @@
+name: squaretable-beta
+
+x-app: &app
+  image: ${BETA_IMAGE:-small-squaretable:0.1.0-beta.2-r5}
+  build: .
+  environment: &environment
+    NODE_ENV: production
+    EXPLORATION_CANDIDATE: ${EXPLORATION_CANDIDATE:-0}
+    HOST: 0.0.0.0
+    PORT: 3000
+    DATABASE_URL: postgresql://squaretable:${BETA_DB_PASSWORD:?Set BETA_DB_PASSWORD}@postgres:5432/squaretable_beta
+    REDIS_URL: redis://redis:6379
+    JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+    JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET}
+    TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:?Set TOTP_ENCRYPTION_KEY}
+    PLATFORM_DAILY_TOKEN_LIMIT: ${PLATFORM_DAILY_TOKEN_LIMIT:?Set PLATFORM_DAILY_TOKEN_LIMIT}
+    APP_URL: ${APP_URL:?Set APP_URL}
+    CORS_ORIGINS: ${APP_URL:?Set APP_URL}
+    OAUTH_CALLBACK_BASE: ${APP_URL}/api/v1/auth/oauth
+    BILLING_MODE: ${BILLING_MODE:-credits}
+    NSFW_ENABLED: "false"
+    MODULES_ENABLED: ""
+    STORAGE_PATH: /app/uploads
+    SMTP_HOST: ${SMTP_HOST:-localhost}
+    SMTP_PORT: ${SMTP_PORT:-587}
+    SMTP_USER: ${SMTP_USER:-}
+    SMTP_PASS: ${SMTP_PASS:-}
+    SMTP_FROM: ${SMTP_FROM:-Small Squaretable <noreply@localhost>}
+    CUSTOM_LLM_API_KEY: ${CUSTOM_LLM_API_KEY:-}
+    CUSTOM_LLM_BASE_URL: ${CUSTOM_LLM_BASE_URL:-}
+    CUSTOM_LLM_API_FORMAT: ${CUSTOM_LLM_API_FORMAT:-openai}
+    CUSTOM_LLM_MODELS: ${CUSTOM_LLM_MODELS:-}
+    CUSTOM_LLM_DEFAULT_MODEL: ${CUSTOM_LLM_DEFAULT_MODEL:-}
+    CUSTOM_LLM_MODEL_LIMITS: ${CUSTOM_LLM_MODEL_LIMITS:-}
+    OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+    OLLAMA_MODELS: ${OLLAMA_MODELS:-}
+    OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL:-}
+  networks:
+    - beta
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_USER: squaretable
+      POSTGRES_PASSWORD: ${BETA_DB_PASSWORD:?Set BETA_DB_PASSWORD}
+      POSTGRES_DB: squaretable_beta
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks:
+      - beta
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U squaretable -d squaretable_beta"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis:/data
+    networks:
+      - beta
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    <<: *app
+    command: ["npm", "run", "db:migrate:beta"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    <<: *app
+    ports:
+      - "127.0.0.1:${BETA_PORT:-3080}:3000"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres:
+  redis:
+  uploads:
+
+networks:
+  beta:

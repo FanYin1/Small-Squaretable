@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-24T16:29:40.876Z",
+  "mode": "real-provider-owned-prompts",
+  "result": "terminated-duplicate-scheduler-process",
+  "tokenBudget": 30000,
+  "tokens": 11479,
+  "calls": [
+    {
+      "scenario": "fog-harbor",
+      "turn": 1,
+      "status": "completed",
+      "reservation": 5824,
+      "promptSha256": "7cbd77a7905f19ba75648c7eba95202c5d679ce11bb78685f3614384a1736bf6",
+      "httpStatus": 200,
+      "tokens": 1760,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "fog-harbor",
+      "turn": 2,
+      "status": "completed",
+      "reservation": 6327,
+      "promptSha256": "fdd994fb74a93fc6640e332afff994818349ae6750a6246010c50755d3244439",
+      "httpStatus": 200,
+      "tokens": 1599,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "fog-harbor",
+      "turn": 3,
+      "status": "completed",
+      "reservation": 7160,
+      "promptSha256": "ff952af25c6197dbc8b383f25a33c3a9248fc173ef17c964a1361aadbe4a8316",
+      "httpStatus": 200,
+      "tokens": 2182,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "fog-harbor",
+      "turn": 4,
+      "status": "completed",
+      "reservation": 8165,
+      "promptSha256": "c7a0d8be0449a851ef9d8fd8b4d22eb7a768e9b22e0fb56c0697f1c808ebb335",
+      "httpStatus": 200,
+      "tokens": 2658,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "late-bookshop",
+      "turn": 1,
+      "status": "completed",
+      "reservation": 5370,
+      "promptSha256": "f527c67eed5bf03b4ab5fccfdfc9758e21694699959d3967d81bf924f583a125",
+      "httpStatus": 200,
+      "tokens": 1489,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "late-bookshop",
+      "turn": 2,
+      "status": "completed",
+      "reservation": 5754,
+      "promptSha256": "227def6a2fe44b74bc5e30ce270faeae0dabde8ac4e28edf83c76d1c898a6f9c",
+      "httpStatus": 200,
+      "tokens": 1791,
+      "finishReason": "stop"
+    },
+    {
+      "scenario": "late-bookshop",
+      "turn": 3,
+      "status": "pending",
+      "reservation": 6591,
+      "promptSha256": "c3a7ab1e0545f3baafb2d5d7976ae8ae4105973f17c85eaa061022637e3bf3b9"
+    }
+  ],
+  "inputSha256": "79e3829af785331b78e574d6cd8a00ddc9deb9fdac99262a74ef1a87c248f20b",
+  "limits": [
+    "Production context replay with earlier controlled assistant messages replaced by real replies",
+    "Real replies are not persisted in app; browser/state/restart evidence is separate",
+    "Original third-party source and author code are not sent",
+    "Short two-mechanism sample, not long-term or human acceptance"
+  ],
+  "sourceHashes": {
+    "scripts/character-journey-model-check.mjs": "17b3b7a9324b9a196429e2e290b54edd365bfa8ddd15a79104e170d9c68c79fd",
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd"
+  },
+  "unreturnedUsageReservation": 6591,
+  "accountedTokens": 18070,
+  "incident": {
+    "cause": "Two asynchronous filesystem watch callbacks passed the launch check before either completed reading the ready file",
+    "resolution": "Terminated duplicate; replaced watch-based scheduling with a serial one-shot poll; added an exclusive request-file lock, signal accounting and controlled concurrency test",
+    "knownUsageIsActual": true,
+    "unreturnedUsageIsConservative": true
+  }
+}

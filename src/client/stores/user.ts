@@ -82,11 +82,17 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function register(email: string, password: string, name: string): Promise<void> {
+  async function register(
+    email: string,
+    password: string,
+    name: string,
+    ageConfirmed: boolean,
+    inviteCode: string,
+  ): Promise<void> {
     loading.value = true;
     error.value = null;
     try {
-      const response = await authApi.register({ email, password, name });
+      const response = await authApi.register({ email, password, name, ageConfirmed, inviteCode });
 
       // 保存用户信息和令牌
       user.value = response.user;
@@ -195,9 +201,10 @@ export const useUserStore = defineStore('user', () => {
     if (token.value && !user.value) {
       try {
         await fetchProfile();
-      } catch {
-        // 如果获取失败，清除认证状态
-        clearAuth();
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          clearAuth();
+        }
       }
     }
   }

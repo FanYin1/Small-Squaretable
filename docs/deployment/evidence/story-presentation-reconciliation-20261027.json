@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "date": "2026-10-27",
+  "scope": "EXP-ADAPT bounded offline presentation receipt recovery, not finite-rule compatibility or parent acceptance",
+  "result": "passed",
+  "unit": {
+    "vitestFiles": 8,
+    "vitestTests": 119,
+    "nodeTests": 37,
+    "typeCheck": "passed",
+    "focusedLint": "passed"
+  },
+  "isolated": {
+    "groups": 25,
+    "screenshots": 10,
+    "browserErrors": 0,
+    "paidSupplierCalls": 0,
+    "receiptFixtures": "synthetic plus local controlled HTTP archive/lost-database-receipt scenario",
+    "reference": "backups/exploration/presentation-reconciliation-20261027/isolated/result.json"
+  },
+  "actualAudit": {
+    "ownerScope": "configured test account only",
+    "matchedJobs": 0,
+    "tablesUnchanged": 11,
+    "ledgerBytesAndMtimeUnchanged": true,
+    "appliedRealJobs": 0
+  },
+  "actualCandidate": {
+    "groups": 6,
+    "screenshots": 26,
+    "comparedBuildFiles": 242,
+    "businessTablesUnchanged": 20,
+    "migrations": 16,
+    "publicTables": 76,
+    "browserErrors": 0,
+    "mutations": 0,
+    "image": "sha256:1e51399b44127960be42e57d3b3354e3dd13dc2fe5c788155b3b26170758d808",
+    "imageChanged": false,
+    "reference": "backups/exploration/presentation-reconciliation-20261027/deployed-readonly/report.json"
+  },
+  "budget": {
+    "authorization": 1450000,
+    "occupied": 673338,
+    "available": 776662,
+    "newPaidCalls": 0,
+    "personalCreditsChanged": false,
+    "standingPaidWorker": false
+  },
+  "firstFailure": "First isolated apply failed; explicit read committed transaction replaces empty configuration. Failure retained privately; full rerun plus additional controlled lost-receipt scenario passed.",
+  "remaining": [
+    "Existing third-party finite rules and four-card continuous mechanics",
+    "Responses never received or not archived",
+    "Unknown billing requires external evidence, no automatic release",
+    "Graphical reconciliation and public operating budget/scheduling",
+    "Human visual and gameplay acceptance"
+  ],
+  "sourceSha256": {
+    "src/server/services/presentation-reconciliation.service.ts": "db959d0aedd788f4ea3d51c714afb344cab722df9d3e44f5f4d87ae4288d5db4",
+    "src/server/services/presentation-reconciliation.service.spec.ts": "bb78b852a9481ee5a087547f8323e3602f1f7f3ceca86bb7472c166a5501773f",
+    "scripts/lib/engineering-model-budget.mjs": "6037b44fd624ac1ec512bebc712003f0b56462d4dc19edcf55d17701b412b522",
+    "scripts/lib/presentation-queue-provider.mjs": "08679cc37764dd2f396df18771a28bc22c2a6f83b4b70bfa3e63345a72ba03f6",
+    "scripts/lib/presentation-receipts.mjs": "96e0ec873d5806ca93a89001d606533436f2f3dcdaadf6b9baa627456c294c2d",
+    "scripts/lib/presentation-worker-config.mjs": "3d68b78b39c6b1f30f024e9ecacd3b30f41dacde0f157ffde503069530744352",
+    "scripts/story-presentation-worker.mjs": "23e6af2a102aa13e07b605dbf2869b85fd8b3483fa5adb0ce25740c1f7a8fd7b",
+    "scripts/story-presentation-reconcile.mjs": "f6ff9aa42b2ef4b167b4c7fe7a49011f8f33b1ba994dbe39d84076954a768f7b",
+    "scripts/presentation-queue-provider.test.mjs": "547ca445da1d06a64dfeb6444a5ac39a9f58cfb23ad60ef9e3bc66ed7c5b4a09",
+    "scripts/presentation-receipts.test.mjs": "3cde1bf9d5da30b467b92ba7933d9d0732e26f373d28051d367ca9286401a8bf",
+    "scripts/story-presentation-reconciliation-check.mjs": "b3a460b09e7894a7ffcf635560c85663b1c59d07c163367c3f2eff3e454a5a2a",
+    "scripts/story-presentation-queue-cli-check.mjs": "bf0f45330823b444c3a98bfdf7a3abb2a39832298eb30c99ba36906239baea23",
+    "scripts/story-presentation-queue-check.mjs": "5afa0299397337d318299ec0089f7af1ca206284d2bed3407757b677dc06a7c7"
+  }
+}

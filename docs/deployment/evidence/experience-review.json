@@ -1,0 +1,63 @@
+{
+  "result": "passed",
+  "at": "2026-10-25T15:38:58.140Z",
+  "checks": [
+    "Static loopback server denies API, secrets, traversal and POST; CSP disallows connections",
+    "All 72 archived comparison images are served and match the original manifest hashes",
+    "Seven page selectors × three source widths × two themes load real images; play explicitly discloses the absent matching prototype",
+    "Feedback is separated by page/width/theme, survives reload and treats markup as text",
+    "Draft-first mode does not submit on recommendation click; existing draft replacement is explicit and Escape preserves input",
+    "IME composition Enter does not submit; normal Enter submits and pending controls prevent duplicate activation",
+    "Direct mode submits the recommendation without overwriting free input; only an explicit preference action records a tentative choice",
+    "Annotation and wording previews preserve original text/state; dialogs restore keyboard focus after Escape",
+    "Fact preview rejects missing evidence; scripted correction and branch show different outcomes while original story stays unchanged",
+    "Relationship/appointment scene uses its own meaningful state without fabricated money or relationship scores",
+    "Local export includes page/interaction feedback and explicit unconfirmed status, without a false acceptance flag",
+    "Both review views fit 390/768/1440 widths in light/dark themes; 12 screenshots recorded",
+    "Corrupted stored draft is not overwritten; new in-memory feedback remains exportable",
+    "Storage write failure is disclosed rather than reporting a successful save"
+  ],
+  "screenshots": [
+    "pages-390-light.png",
+    "interaction-390-light.png",
+    "pages-390-dark.png",
+    "interaction-390-dark.png",
+    "pages-768-light.png",
+    "interaction-768-light.png",
+    "pages-768-dark.png",
+    "interaction-768-dark.png",
+    "pages-1440-light.png",
+    "interaction-1440-light.png",
+    "pages-1440-dark.png",
+    "interaction-1440-dark.png"
+  ],
+  "sources": [
+    {
+      "path": "docs/design/experience-review/index.html",
+      "sha256": "a717c4e6cd000928bfa41c13c09e6e1d3c8bfece8f5bb0b3d5168fccb3f5cf14"
+    },
+    {
+      "path": "docs/design/experience-review/style.css",
+      "sha256": "8a5aba4c8f671123b008bab1507d3459869ceaffc2b71208f53a49f2898ba65a"
+    },
+    {
+      "path": "docs/design/experience-review/app.js",
+      "sha256": "fc0d334ba5e56f7fef04936cb07957b790657f6c479e4bc7c4733bf9ee93d9c4"
+    },
+    {
+      "path": "scripts/exploration-review-server.mjs",
+      "sha256": "fe7150cf50bebe622c60ee8e5ca135ac208c11a3e53ef922f7b1c5f98019a5c1"
+    },
+    {
+      "path": "scripts/exploration-review-check.mjs",
+      "sha256": "afac300776e3dccfa48ff59afdc3b241ba12fec78d137e6bbd81743992a95395"
+    }
+  ],
+  "browserErrors": [],
+  "network": {
+    "requests": 158,
+    "businessRequests": 0,
+    "externalRequests": 0
+  },
+  "scope": "static review and scripted interactions; no production corrections, branches, memory rebuild or human acceptance verified"
+}

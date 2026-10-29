@@ -5,11 +5,17 @@
  */
 
 import { api } from './api';
+import type { OpeningSelection } from '../../types/story-opening';
 import type { Chat, Message } from '@client/types';
+import { chatCreationStatusSchema, type ChatCreationStatus } from '../../types/chat';
+import { storyIdentitySnapshotSchema, type StoryIdentitySnapshot } from '../../types/story-identity';
 
 export interface CreateChatRequest {
+  opening?: OpeningSelection;
+  clientRequestId?: string;
   characterId?: string;
   characterIds?: string[];
+  personaId?: string;
   title?: string;
 }
 
@@ -31,6 +37,10 @@ interface BackendChat {
   tenantId: string;
   userId: string;
   characterId: string;
+  personaId?: string | null;
+  identitySnapshot?: StoryIdentitySnapshot | null;
+  worldbookSnapshotVersion?: number | null;
+  contentSnapshotVersion?: number | null;
   title: string;
   summary?: string | null;
   metadata?: Record<string, any>;
@@ -84,6 +94,10 @@ function transformChat(item: BackendChat): Chat {
     id: item.id,
     title: item.title,
     characterId: item.characterId,
+    personaId: item.personaId,
+    identitySnapshot: item.identitySnapshot == null ? null : storyIdentitySnapshotSchema.parse(item.identitySnapshot),
+    worldbookSnapshotVersion: item.worldbookSnapshotVersion ?? null,
+    contentSnapshotVersion: item.contentSnapshotVersion ?? null,
     characterName: item.characterName || '',
     characterAvatar: item.characterAvatar || undefined,
     lastMessage: item.summary || undefined,
@@ -109,6 +123,10 @@ function transformMessage(item: BackendMessage): Message {
 }
 
 export const chatApi = {
+  getCreationStatus: async (requestId: string): Promise<ChatCreationStatus> => {
+    const response = await api.get<unknown>(`/chats/creation-requests/${encodeURIComponent(requestId)}`);
+    return chatCreationStatusSchema.parse(response);
+  },
   /**
    * 获取聊天列表
    */
@@ -155,7 +173,7 @@ export const chatApi = {
   getMessages: async (chatId: string, params?: GetMessagesParams): Promise<{ messages: Message[]; hasMore: boolean }> => {
     const searchParams = new URLSearchParams();
     if (params?.before) searchParams.set('before', params.before.toString());
-    if (params?.after) searchParams.set('after', params.after.toString());
+    if (params?.after != null) searchParams.set('after', params.after.toString());
     if (params?.limit) searchParams.set('limit', params.limit.toString());
 
     const query = searchParams.toString();
@@ -204,7 +222,7 @@ export const chatApi = {
    * 获取聊天角色列表（群聊）
    */
   getChatCharacters: (chatId: string) =>
-    api.get<{ id: string; name: string; avatarUrl?: string; cardData?: Record<string, unknown>; sortOrder: number }[]>(`/chats/${chatId}/characters`),
+    api.get<{ id: string; name: string; avatarUrl?: string; cardData?: Record<string, unknown>; diagnostics?: import('../../types/story-diagnostics').StoryDiagnostics; compatibility?: import('../../types/story-capabilities').StoryCapabilities; sortOrder: number }[]>(`/chats/${chatId}/characters`),
 
   /**
    * 添加角色到聊天（群聊）

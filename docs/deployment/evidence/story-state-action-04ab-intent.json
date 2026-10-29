@@ -1,0 +1,75 @@
+{
+  "generatedAt": "2026-10-25T11:39:33.270Z",
+  "model": "controlled fixture, not a real provider",
+  "checks": [
+    {
+      "case": "paraphrase proposal, regex cannot erase protocol, explicit confirmation, immutable input and duplicate replay",
+      "result": "passed"
+    },
+    {
+      "case": "refusal plus inquiry, rumor attribution and unchanged assets",
+      "result": "passed"
+    },
+    {
+      "case": "off-menu exploration uses reviewed request and confirmed event without fabricated resources",
+      "result": "passed"
+    },
+    {
+      "case": "ordered compound action and grounded different choice consequences in isolated stories",
+      "result": "passed"
+    },
+    {
+      "case": "clarification, unknown rule, stale proposal and cross-story proposal fail closed",
+      "result": "passed"
+    },
+    {
+      "case": "compound preconditions rechecked after each step, insufficient total cost commits nothing",
+      "result": "passed"
+    },
+    {
+      "case": "late database failure rolls back body/event/all effects; explicit fresh request succeeds; truncated metadata cannot be confirmed",
+      "result": "passed"
+    },
+    {
+      "case": "recorded real-model premature narrative replay is withheld and cannot enter confirmed memory",
+      "result": "passed",
+      "paidCalls": 0
+    },
+    {
+      "case": "private audience, public context exclusion, own private recall and invalid recipient rejection",
+      "result": "passed"
+    },
+    {
+      "case": "whole extraction-batch audience checks for durable memories and summaries",
+      "result": "passed"
+    },
+    {
+      "case": "browser audience selection, reload and private/public draft separation on desktop/mobile",
+      "result": "passed"
+    },
+    {
+      "case": "real browser proposal confirmation changes authoritative state",
+      "result": "passed"
+    },
+    {
+      "case": "restart preserves confirmed consequences and private knowledge boundary",
+      "result": "passed"
+    },
+    {
+      "case": "35 service-committed rounds retain first state provenance; cross-story event lookup rejected",
+      "result": "passed"
+    },
+    {
+      "case": "old field source opens in one actual request beyond the recent event window; raw text available; browsing the map does not travel or disclose undiscovered nodes",
+      "result": "passed"
+    },
+    {
+      "case": "390px source failure is explicit and retry uses the real endpoint; Escape restores focus; no generation or state mutation",
+      "result": "passed"
+    },
+    {
+      "case": "state load failure disables proposal confirmation and shows failure; explicit refresh restores it without generation",
+      "result": "passed"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "result": "failed",
+  "path": "/chat/d187b8bc-03f5-41c3-9457-d30bae07f4bf",
+  "failures": [
+    {
+      "path": "/api/v1/characters/ca93708d-e91b-4082-ab94-44a42f8c3a4d/intelligence/system-prompt",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/ca93708d-e91b-4082-ab94-44a42f8c3a4d/intelligence/debug",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/ca93708d-e91b-4082-ab94-44a42f8c3a4d/intelligence/debug",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/ca93708d-e91b-4082-ab94-44a42f8c3a4d/intelligence/debug",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/ca93708d-e91b-4082-ab94-44a42f8c3a4d/intelligence/debug",
+      "status": 409
+    },
+    {
+      "path": "/api/v1/characters/ca93708d-e91b-4082-ab94-44a42f8c3a4d/intelligence/system-prompt",
+      "status": 409
+    }
+  ],
+  "checks": [
+    "six-page production/reference comparison: 390/1440, dark/light; view-only creates no chats or charges",
+    "market quick start: stored default persona, distinct save, matching opening, refresh without another POST",
+    "real WebSocket generation and one ledger charge; resume and reload retain exactly the selected opening and one user/assistant turn",
+    "same-card new run creates a distinct chat without copying or deleting the original messages",
+    "identity snapshot survives persona edit/deletion, a new story uses edited identity, and the actual model request uses the original name/biography",
+    "saved worldbook rules reach real model requests after source edit/deletion; new stories use edited rules; global books and hidden snapshot contents stay excluded",
+    "optional identity setup cancellation does not create a chat",
+    "after a real committed POST response is dropped, reload queries its request ID and opens the original chat without another POST",
+    "missing saved worldbooks stop generation visibly, release the held balance and create no generated assistant response or charge",
+    "real action UI: filling does not submit, negated purchase leaves resources intact, execution spends once, map browsing does not move and travel commits a known destination",
+    "per-story style note survives reload without appearing in another story; recorded event opens its actual saved response",
+    "production exploration page at 390/768/1440 in dark/light, no horizontal overflow",
+    "relationship card completes free-input boundary plus recommended introduction/appointment with three settlements, source links and reload continuity; no map/affection number or cross-story changes"
+  ]
+}

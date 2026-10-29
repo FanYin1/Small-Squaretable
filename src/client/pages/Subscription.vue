@@ -6,10 +6,14 @@ import { Check, CreditCard, Calendar, TrendCharts, User, ChatDotRound, Cpu, Pict
 import { useSubscriptionStore } from '@client/stores/subscription';
 import { useUsageStore } from '@client/stores/usage';
 import { useToast } from '@client/composables/useToast';
-import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
+import ExplorationLayout from '@client/components/layout/ExplorationLayout.vue';
 import UsageDashboard from '@client/components/subscription/UsageDashboard.vue';
+import CreditsBalance from '@client/components/subscription/CreditsBalance.vue';
+import { safeReturnPath } from '@client/utils/safeReturnPath';
 
 const route = useRoute();
+const returnTo = computed(() => safeReturnPath(route.query.returnTo, ''));
+const billingMode = ref<'credits' | 'subscription' | null>(null);
 const subscriptionStore = useSubscriptionStore();
 const usageStore = useUsageStore();
 const toast = useToast();
@@ -162,7 +166,7 @@ onMounted(async () => {
   }
 
   if (route.query.success === 'true') {
-    toast.success(t('subscription.subscribeSuccess'), { message: t('subscription.thankYou') });
+    toast.info(t('subscription.checkoutReturned'));
   } else if (route.query.canceled === 'true') {
     toast.info(t('subscription.cancelled'));
   }
@@ -198,7 +202,7 @@ const comparisonData = computed(() => {
   const per = t('subscription.perMonth');
   return [
     { feature: t('subscription.compMessages'), free: `100${per}`, pro: `10,000${per}`, team: `100,000${per}` },
-    { feature: t('subscription.compTokens'), free: '50K', pro: '1M', team: '10M' },
+    { feature: t('subscription.compTokens'), free: '170K', pro: '17M', team: '170M' },
     { feature: t('subscription.compImages'), free: `10${per}`, pro: `500${per}`, team: `5,000${per}` },
     { feature: t('subscription.compModels'), free: t('subscription.compBasic'), pro: t('subscription.compAll'), team: t('subscription.compAll') },
     { feature: t('subscription.compSharing'), free: '—', pro: '✓', team: '✓' },
@@ -220,11 +224,14 @@ function formatNumber(num: number): string {
 </script>
 
 <template>
-  <DashboardLayout>
-    <template #title>{{ t('subscription.title') }}</template>
+  <ExplorationLayout>
+    <RouterLink v-if="returnTo" class="story-return-link" :to="returnTo">← {{ t('credits.openStory') }}</RouterLink>
+    <section class="story-page-intro"><h1>{{ t('storyShell.credits') }}</h1><p>{{ t('storyShell.creditsDescription') }}</p></section>
+    <CreditsBalance @mode="billingMode = $event" />
+    <p v-if="billingMode === 'subscription' && subscriptionStore.error" role="alert">{{ t('subscription.statusLoadFailed') }} <el-button @click="subscriptionStore.fetchStatus().catch(() => undefined)">{{ t('credits.refresh') }}</el-button></p>
 
     <!-- Loading skeleton -->
-    <div v-if="loading" class="content-wrapper">
+    <div v-if="loading && billingMode === 'subscription'" class="content-wrapper">
       <section class="current-status-section">
         <div class="section-header">
           <el-skeleton-item variant="h3" style="width: 220px; margin-bottom: 8px" />
@@ -258,7 +265,7 @@ function formatNumber(num: number): string {
       </section>
     </div>
 
-    <div v-else class="content-wrapper">
+    <div v-else-if="billingMode === 'subscription' && !subscriptionStore.error" class="content-wrapper">
       <section class="current-status-section">
         <div class="section-header">
           <h2>{{ t('subscription.currentPlan') }}</h2>
@@ -436,10 +443,10 @@ function formatNumber(num: number): string {
           </el-collapse>
         </div>
     </div>
-  </DashboardLayout>
+  </ExplorationLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 /* 内容包装器 */
 .content-wrapper {
   flex: 1;
@@ -827,7 +834,7 @@ function formatNumber(num: number): string {
 }
 
 /* 平板端适配 */
-@media (max-width: 1023px) {
+@include below(lg) {
   .status-cards {
     grid-template-columns: 1fr;
   }
@@ -838,7 +845,7 @@ function formatNumber(num: number): string {
 }
 
 /* 移动端适配 */
-@media (max-width: 767px) {
+@include below(md) {
   .section-header h2 {
     font-size: 18px;
   }

@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-27",
+  "result": "capacity-config-deployed-and-GP01-04-live-short-chain-passed",
+  "capacity": { "source": "user-declared", "model": "gemini-3.8-flash", "contextWindow": 1000000, "outputCapabilityTokens": 64000, "requestOutputTokens": 2048, "providerBoundaryVerified": false },
+  "unitTests": { "passedFocused": 103, "budgetCliControlled": 28, "extendedMeteringFailures": 19, "failure": "database transaction method absent in existing test double; full suite not passed" },
+  "typecheck": "passed",
+  "focusedSourceLint": "passed",
+  "controlled": { "groups": 4, "screenshots": 4, "reference": "backups/exploration/capacity-gameplay-20261027/controlled/result.json" },
+  "live": { "groups": 4, "requests": 4, "screenshots": 4, "browserErrors": 0, "tokens": [2430, 2841, 2449, 2654], "totalTokens": 10374, "parentStrength": [3, 3, 6], "branchStrength": [3, 6], "requestOutputCaps": [2048, 2048, 2048, 2048], "reference": "backups/exploration/capacity-gameplay-20261027/live/result.json", "humanAcceptance": false },
+  "budget": { "batchId": "ed2a4ea9-b548-4d15-b295-b42548b91ecf", "batchClosed": true, "gatewayStopped": true, "authorization": 1450000, "knownTotal": 488193, "historicalUnknownReserved": 204591, "occupied": 692784, "available": 757216, "newPending": 0, "newUnknown": 0 },
+  "deployment": { "port": 3081, "image": "small-squaretable:exploration-20261027-capacity", "imageId": "sha256:c7fa6ed9935ebaa5d43c1feb0727021fa6d4e96e91bbdd36b6710bdeb8ace700", "migrationCount": 16, "rehearsalComparedTables": 76, "existingRowsPreserved": true, "backup": "backups/exploration/upgrade-a0e7af8b-73d2-4427-970d-baa5ee371493", "historical3080Changed": false },
+  "pointChanges": 0,
+  "privateManifest": "backups/exploration/capacity-gameplay-20261027/manifest.json",
+  "deployedReadOnly": { "groups": 7, "screenshots": 26, "runtimeFilesMatched": 242, "unchangedBusinessTables": 20, "paidCalls": 0, "mutations": 0, "publicationPreviewsBlocked": 3, "reference": "backups/exploration/capacity-gameplay-20261027/deployed/report.json" },
+  "firstDeployedFailure": { "type": "private library card locator timeout", "metadataPassed": true, "businessTablesUnchanged": true, "rootCause": "unconfirmed", "reference": "backups/exploration/capacity-gameplay-20261027/deployed-first-failure/failure.json", "fullRecheck": "passed; does not establish intermittent loading defect fixed" },
+  "remaining": ["AD-3 additional source-backed mechanics", "four user cards sustained mechanics and live gameplay", "EXP-07D-LOAD", "extended metering test transaction fixture", "human acceptance"],
+  "sources": [
+    {"path":"src/server/config/llm.config.ts","sha256":"0c33d3a4f7f4da1847b0c282b365e4af524ed4f1ea8f5b7fc929e913e4282fef"},
+    {"path":"src/server/config/llm.config.spec.ts","sha256":"615eb695c5babe40190975bd2a26455191e766ced1ba0d6dc8cc213370158225"},
+    {"path":"src/server/routes/websocket-credits.spec.ts","sha256":"14479c32fba562cfb55da52ada4fb953b1e314d11475a0e84a265c1e8f8922c6"},
+    {"path":"src/types/llm.ts","sha256":"55f6ad5a297bb1a766e6f8fce890a2a354a5aeec1ef0e11de06fe4b140bf29c7"},
+    {"path":"compose.beta.yml","sha256":"ff4096fffcf813345e91984f682b255c1a44b6e83f1d6a1fb581a19e7caeda8c"},
+    {"path":"scripts/engineering-model-budget.mjs","sha256":"0b07f3a925723fb7886ba026715ea2c76b9e5f7788595da7fed1a1a5d77decee"},
+    {"path":"scripts/engineering-model-budget.test.mjs","sha256":"ef043ff6d91c4e7e796ae1f18eefe8296da1c2e19e2a128ac59d564360d26d9d"},
+    {"path":"scripts/upgrade-exploration-candidate.mjs","sha256":"06eb44096798c3ca5f9d120987bd046e8f30d7625b2b33aea68fed1e7cdad181"},
+    {"path":"scripts/story-ritual-gameplay-check.mjs","sha256":"e55c73235043082fc96d97a87d96ded7fa5d7a3ac3b673560597f475aa12d125"},
+    {"path":"scripts/story-overview-deployed-check.mjs","sha256":"ca8c66574d79ab43a78b33e4d586108d4e0acc32244cd2bacd7eda96ec74875f"},
+    {"path":"scripts/story-presentation-deployed-check.mjs","sha256":"ebc011cefcfaf5f459f18ca1d65d414b437bd057c166085b8504deeee1ea99aa"}
+  ]
+}

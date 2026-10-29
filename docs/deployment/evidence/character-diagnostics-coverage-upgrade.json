@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-25T05:43:22.688Z",
+  "image": "small-squaretable:exploration-20261025-03c-coverage",
+  "imageId": "sha256:a19eb377c82324ed45dc50f473331a2d48284e882363d60e5e60e2eeb790f538",
+  "previousImage": "sha256:66428c8babd13a3af996453c1bb2c77352c794b1ed92ae45a3db3a4573ca95d4",
+  "historicalImage": "sha256:b65d1767ba17bfcb751e851c9c3c8dc5aac4f432e7c30cd6ac80ec06bda6fec3",
+  "port": 3081,
+  "rehearsal": {
+    "passed": true,
+    "comparedTables": 70,
+    "existingRowsPreserved": true,
+    "migrationCount": 10
+  },
+  "deployed": true,
+  "paidProviderTokens": 0,
+  "limits": [
+    "Migration rehearsal preserves existing rows; it is not complete semantic restore/continuation acceptance",
+    "No third-party scripts or paid model probes",
+    "User visual and real-device acceptance remain open"
+  ],
+  "htmlSha256": "17af692c57fa72c069edcb5e684a9d478e3df971bb5114fed06805ab36ed00ad",
+  "migrationCount": 10
+}

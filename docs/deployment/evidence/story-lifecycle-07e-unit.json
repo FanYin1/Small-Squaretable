@@ -1,0 +1,11 @@
+{
+  "result": "passed",
+  "vitest": { "files": 19, "tests": 375, "scope": "Existing protocol, generation, memory and UI regressions; new lifecycle behavior is exercised by actual database suites" },
+  "restoreControlFlowTests": { "total": 16, "new": 8, "scope": "SQL/custom restore with live source or independent deletion journal; preflight failure, replay failure, success and dry-run" },
+  "nonemptyEvidenceGuards": 14,
+  "databaseCorruptionProbes": 2,
+  "typecheck": "passed",
+  "targetedLint": { "errors": 0, "warnings": 0 },
+  "scriptSyntax": "passed",
+  "limits": ["Do not add repeated guard/regression runs to the number of distinct tests", "Database and browser suites use controlled providers, not real narrative quality"]
+}

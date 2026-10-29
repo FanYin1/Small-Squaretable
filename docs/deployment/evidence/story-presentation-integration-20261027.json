@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-27",
+  "parent": "EXP-ADAPT",
+  "parentComplete": false,
+  "scope": "Immutable source-backed presentation versions, product UI and new-story snapshots, three private real-card adoptions, source-proof transfer and deployed read-only verification; automatic paid import workflow remains open",
+  "deployment": {
+    "imageTag": "small-squaretable:exploration-20261027-presentation",
+    "imageId": "sha256:e8a4d12a25be8864340a3695aec3afea001ba463dec4ce9fae4b3a524a1c046f",
+    "backup": "backups/exploration/upgrade-5f8a752b-4ea1-40fb-b12e-c125c84cbb7d",
+    "migrationCount": 15,
+    "publicTables": 75,
+    "comparedBuildFiles": 242,
+    "historicalImageUnchanged": "sha256:b65d1767ba17bfcb751e851c9c3c8dc5aac4f432e7c30cd6ac80ec06bda6fec3",
+    "health": {
+      "3080": 200,
+      "3081": 200,
+      "5188": 200
+    }
+  },
+  "checks": {
+    "focusedUnitFiles": 6,
+    "focusedUnit": 102,
+    "typeCheck": "passed",
+    "focusedLintFiles": 15,
+    "lintErrors": 0,
+    "existingLintWarnings": 6,
+    "presentationCli": 9,
+    "presentationTransferUnit": 3,
+    "isolatedDatabaseAssertions": 101,
+    "isolatedBrowserGroups": 12,
+    "isolatedScreenshots": 8,
+    "restoredStoryBehavior": 21,
+    "evidenceGuards": 14,
+    "corruptionProbes": 2,
+    "export": 20,
+    "durableMemory": 76,
+    "portableStory": 28,
+    "deployedGroups": 6,
+    "deployedScreenshots": 26,
+    "deployedBusinessTablesUnchanged": 19,
+    "browserErrors": 0,
+    "businessMutationAttempts": 0
+  },
+  "adoption": {
+    "privateDerivedVersionsAdded": 3,
+    "otherPublicTablesUnchanged": 74,
+    "originalCardsUnchanged": true,
+    "oldStoriesUnchanged": true,
+    "versionsSurviveRestart": true,
+    "authorIntroductionPreserved": "t3",
+    "additionalSupplierCalls": 0,
+    "personalCreditAdjustments": 0
+  },
+  "actualOwnerVerification": {
+    "authentication": "Ten-minute local engineering access token; not a password-login test for this owner",
+    "publicationPreviewsPassed": 0,
+    "publicationPreviewsUnavailableByAccountFeatureGate": 3,
+    "createdStories": 0,
+    "publishedCards": 0
+  },
+  "realProvider": {
+    "additionalCallsInIntegration": 0,
+    "priorSelectionCalls": 3,
+    "priorSettledTokens": 15440,
+    "batchClosed": true
+  },
+  "budget": {
+    "ledgerReused": true,
+    "authorization": 1450000,
+    "occupied": 668527,
+    "available": 781473,
+    "combinedKnownUsage": 463936,
+    "historicalUnreceipted": 6591,
+    "extraUnknownReserve": 198000,
+    "unknownReserveIsReceipt": false
+  },
+  "privateArchive": "backups/exploration/presentation-integration-20261027/",
+  "limitations": [
+    "Bounded single public scene excerpt, not complete card analysis or free-form summary",
+    "No automatic paid production import queue, durable dispatch reservation or unknown-call recovery yet",
+    "Existing third-party finite-rule conversion and real-card continuous mechanisms remain open",
+    "Actual publishing preview unavailable for the owner; controlled component coverage only",
+    "No new real gameplay or human visual and mobile-device acceptance",
+    "Prior source-map mismatch corrected by rebuilding current host server, full deployed check rerun without weakening comparison"
+  ],
+  "sourceHashes": {
+    "src/types/story-presentation.ts": "4ffa75eaa09a02ca301a573f447fef81d17e026470fd4c1326c60d5cce09b26a",
+    "src/types/story-opening.ts": "89adbd74c1ae80781f4e72abecd6d2a7fa95edb1aa8d68ad36331ce4bb11bf8f",
+    "src/types/story-content.ts": "0df94a26b59f7a812e9343c62207b22643c722962b9447cc177622d238ef01ee",
+    "src/db/schema/character-presentations.ts": "98a1e0473fd30fc8a63d6b35f52d2a245b72bdee0b717bffac43d3d9ed8feb45",
+    "src/db/beta-migrations/0014_character_presentations.sql": "8a6a509c5814e4c0eb6c49ec916269e4e9457d192b9258c52eec9d6c29862956",
+    "src/db/migrations/0054_character_presentations.sql": "8a6a509c5814e4c0eb6c49ec916269e4e9457d192b9258c52eec9d6c29862956",
+    "src/server/services/character-presentation.service.ts": "c9f170eb09e5b8bf5adaf842369be3bcab43e2d4aea3fce8702e7adf7923e4a3",
+    "src/server/services/story-presentation-workflow.ts": "6cadf04f39e786602851a4606aa02b10ae61ccb6b2146d7d597c19c0cf8b7745",
+    "src/server/services/story-entry.service.ts": "429fc5c09980aadbb25154068a0b24f5f0e917f51e5600c5d7d68366b0b7beb7",
+    "src/server/services/chat-creation.service.ts": "9d8e9b418ed1fc002ca0a2ed62147ef7e767725e4eb6f3a89ffea3d5bbb0439f",
+    "src/server/routes/characters.ts": "076b5e89340561735148c0bf980203f08222573b14d07ab5c14a5381efed2448",
+    "src/client/components/character/PresentationSource.vue": "bc9fe270cc6aaae13d7eadf813688de6ff380c38dfbad3f4ac7bc3ff46cfa8fb",
+    "src/client/components/character/CharacterPublishForm.vue": "984db9ba4f25ca642e09ed90372669a41000f8a2ecb0865ac67b2ed9856462bb",
+    "src/client/pages/CharacterEditor.vue": "0d4761743738070af210e3f16d618d91a105edfcb1173201163605ef888a808b",
+    "src/client/pages/CharacterDetail.vue": "c5432b3549848bc06bfaaec3d957e6f2ac9de9b97bc2950f5509b7da9466c516",
+    "scripts/story-presentation-transfer.mjs": "458805d1113ba35716ee02d1c12b8893b001ec89cea34ae62fdfce82c72a2ca2",
+    "scripts/story-presentation-adopt.ts": "78b7698fffd59a04c4994e1157935bb765e293e222d52792c75e45e4a3682c62",
+    "scripts/story-presentation-deployed-check.mjs": "e4c18d16c9b5cd3aa0bab15afa66d72c9aab035b734bfcfc5e42f8a6bb92c5c0",
+    "scripts/story-overview-deployed-check.mjs": "c15f759f1034ed04661391288810dc847e96cf820a3cbc31a6fad7b5315239fb"
+  }
+}

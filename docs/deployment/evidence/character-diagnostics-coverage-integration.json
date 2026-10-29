@@ -1,0 +1,283 @@
+{
+  "date": "2026-10-25T05:42:38.283Z",
+  "result": "passed",
+  "scope": "focused diagnostic integration, not full library regression",
+  "groups": 12,
+  "checks": [
+    "Legacy/V2/V3 real file imports have identical dependency and alternate-opening diagnostics, with source hashes and no hidden payload in reports",
+    "Real binding service distinguishes missing, enabled, disabled, empty and ambiguous references; explicit knowledge purpose survives import; unbound same-name books never load",
+    "Conflicting or malformed explicit identities fail transactionally before chat/request creation; compatible persona retries succeed; per-character group bindings stay separate",
+    "Production mobile quick-start shows actionable identity error, preserves selection, and opens with a matching persona; author script remains inactive",
+    "Group free input uses its bound owned content; source edits and actual API restart do not alter frozen reports; mobile/desktop reading settings show historical scope",
+    "Compatibility endpoint rejects private cards not owned by the viewer and unauthenticated access",
+    "Unannotated prose identity, multi-person prose and four undeclared book purposes retain their original data; reports do not claim semantic validation or create extra agents",
+    "Actual production generation keeps unannotated author identity, player claim and constant book material; keyword entry triggers only when requested; unrelated books stay out",
+    "Mobile detail explicitly marks identity unverified and purpose undeclared; opening uses the chosen saved name without an extra world-selection step",
+    "Source card, persona and book edits affect a new story; old frozen sources and actual resumed generation survive an API restart unchanged",
+    "Native-rule multi-card stories reject transactionally; one prose card with several people remains one card, distinct from ordinary multi-card generation",
+    "Selected external structures pass real import, binding diagnosis, frozen source and safe-preview checks without generation"
+  ],
+  "externalCoverage": {
+    "checks": [
+      "Selected external structures pass real import, binding diagnosis, frozen source and safe-preview checks without generation"
+    ],
+    "samples": [
+      {
+        "sha256": "7f2959bb28a6d495da6d32e753ebe7287f650c09089250d9ac293af0d976560d",
+        "categories": [
+          "v2"
+        ],
+        "issues": [],
+        "boundBooks": 0,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      },
+      {
+        "sha256": "ae1e237c1895dbc5eda3f1f5c290b563bef87100ddf32039dea2f6d58ac18ef3",
+        "categories": [
+          "embedded-book",
+          "named-book"
+        ],
+        "issues": [],
+        "boundBooks": 1,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      },
+      {
+        "sha256": "c2a9c52dbd7b4f4e0fae6dcfe9068b4336ecca3459b1fe59992e48f87bab6d76",
+        "categories": [
+          "alternate-openings"
+        ],
+        "issues": [],
+        "boundBooks": 0,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      },
+      {
+        "sha256": "07398fc142120d887d3560da9308bc4a21de8665c5d188cb2e833be587b0245b",
+        "categories": [
+          "legacy"
+        ],
+        "issues": [
+          "unknown_extensions"
+        ],
+        "boundBooks": 0,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      },
+      {
+        "sha256": "68f1f21ae9ab66b593155a49c5ae2c969adb1c71cff2f63f8896cda988c7db38",
+        "categories": [
+          "v3"
+        ],
+        "issues": [],
+        "boundBooks": 0,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      },
+      {
+        "sha256": "0c7fb7a001219980b617f6544ada6a79779fa4e26b93a08932addfa31558a386",
+        "categories": [
+          "helper-scripts",
+          "regex"
+        ],
+        "issues": [
+          "author_scripts",
+          "regex_rules"
+        ],
+        "boundBooks": 1,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      },
+      {
+        "sha256": "5989ef8b2e026e9e1bc472e0c77bcdf7812b8af8cf4d8d645236914f3264a34a",
+        "categories": [
+          "author-html"
+        ],
+        "issues": [
+          "author_scripts",
+          "regex_rules"
+        ],
+        "boundBooks": 1,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      },
+      {
+        "sha256": "dd10fda914f380b82ebcfe73370a6480d203eaafd33354f69558e66cda8fa72a",
+        "categories": [
+          "mvu"
+        ],
+        "issues": [
+          "author_scripts",
+          "regex_rules",
+          "variable_framework"
+        ],
+        "boundBooks": 1,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      },
+      {
+        "sha256": "84c2e54c16940e9ce2236e4464676180e30c71bf2a8584f3c8c0c284457ec326",
+        "categories": [
+          "helper-tuples"
+        ],
+        "issues": [
+          "author_scripts",
+          "regex_rules",
+          "variable_framework"
+        ],
+        "boundBooks": 1,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      },
+      {
+        "sha256": "1314e21e612929c5f859daf451be67dafc0505d907978a50a85292f4b149b814",
+        "categories": [
+          "era"
+        ],
+        "issues": [
+          "variable_framework"
+        ],
+        "boundBooks": 1,
+        "checks": [
+          "original preserved in database",
+          "API diagnosis agrees with production normalization",
+          "story freezes original and diagnostic",
+          "safe preview contains no additional card fields",
+          "no generation or author execution"
+        ]
+      }
+    ],
+    "provider": "not called for external sources",
+    "paidProviderTokens": 0
+  },
+  "undeclared": {
+    "checks": [
+      "Unannotated prose identity, multi-person prose and four undeclared book purposes retain their original data; reports do not claim semantic validation or create extra agents",
+      "Actual production generation keeps unannotated author identity, player claim and constant book material; keyword entry triggers only when requested; unrelated books stay out",
+      "Mobile detail explicitly marks identity unverified and purpose undeclared; opening uses the chosen saved name without an extra world-selection step",
+      "Source card, persona and book edits affect a new story; old frozen sources and actual resumed generation survive an API restart unchanged",
+      "Native-rule multi-card stories reject transactionally; one prose card with several people remains one card, distinct from ordinary multi-card generation"
+    ],
+    "pageErrors": [],
+    "provider": "controlled loopback",
+    "paidProviderTokens": 0,
+    "limits": [
+      "Prose conflicts remain unverified and explicitly disclosed; preserving both inputs does not prove resolution",
+      "No real-model narrative or character-knowledge isolation claim"
+    ],
+    "source": "owned unannotated legacy card and owned books; no third-party text sent to provider"
+  },
+  "sources": [
+    {
+      "path": "scripts/character-library-check.mjs",
+      "sha256": "57a8db778c327e0911615364215bd6e6ef914b5df904e2a802a8da1d69e9d066"
+    },
+    {
+      "path": "scripts/character-diagnostics-check.mjs",
+      "sha256": "5e7abc9cc57917359ccd2711fd70304e2e2a74c7d7a2fe92108f283ada61bf4b"
+    },
+    {
+      "path": "scripts/character-undeclared-check.mjs",
+      "sha256": "a039d66b68a196e53ac481aca3e83d993fd5342360245ddafb6b4fb6e4c9952c"
+    },
+    {
+      "path": "scripts/character-coverage-integration.mjs",
+      "sha256": "d8fd206cc23ed6b2bb0aae3e9c78a99b798b1e5e18d357fae6a9d829a7c81f26"
+    },
+    {
+      "path": "src/types/story-diagnostics.ts",
+      "sha256": "7b4bfb7552e85b7aeb22e0e1d8d79b08e0560bd024f0199f0aee8db2c9ab4b21"
+    },
+    {
+      "path": "src/types/story-capabilities.ts",
+      "sha256": "1e87ecdc837463f90378991528c6803e74ad5d5b458b3645f288b0e6d2c4476b"
+    },
+    {
+      "path": "src/types/card-fields.ts",
+      "sha256": "7ce5ace55ffb2820e9331fdc501cbc5d8b7d18c5f60614f6653afce7fd0bb539"
+    },
+    {
+      "path": "src/types/character-worldbook.ts",
+      "sha256": "c03faa3659f2fffc87071615310090721697fddc39019d7ce33a16857e1638df"
+    },
+    {
+      "path": "src/types/worldbook-import.ts",
+      "sha256": "e2e93d3d16cfd18b8530960be435756976ed632e9658d9f3e1322aa2ad75edcc"
+    },
+    {
+      "path": "src/server/services/chat.service.ts",
+      "sha256": "bb90701278e0f2765e0eea05abeee2859e0b22c980b2d9b3e7caf9eefc9712e9"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "7158fe20d45fb258b60f5e1a611da3b5cc7a5009c257556514808b104288d35f"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "537886a0e6ad6e717e85c28351dd63a33e5c570e6cd0ad2bac8dde33b1f0970e"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "4bc33b4b83a586e6ddb1513a85f259e5616547d80d89bf8ba755c87db57ac919"
+    },
+    {
+      "path": "src/client/components/character/StoryDiagnosticsView.vue",
+      "sha256": "cf67cc9f0431bf72b828f127fa946a5664c9f93686cff768a886946d0aaf5e1f"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "99671d75f05faddba6078f3cd3fe6f9dbba6a252347bb4ea42419fee7a191b3e"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "f5ddcd00f275adb2150afb7e530ab25a444acaad464d3387f0e2975c36507bbe"
+    }
+  ],
+  "paidProviderTokens": 0
+}

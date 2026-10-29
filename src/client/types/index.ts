@@ -1,4 +1,5 @@
 import type { ModerationStatusValue, ViolationCategory } from '@/types/moderation';
+import type { StoryIdentitySnapshot } from '@/types/story-identity';
 
 export interface User {
   id: string;
@@ -19,6 +20,10 @@ export interface Chat {
   title: string;
   characterId: string;
   characterName: string;
+  personaId?: string | null;
+  identitySnapshot?: StoryIdentitySnapshot | null;
+  worldbookSnapshotVersion?: number | null;
+  contentSnapshotVersion?: number | null;
   characterAvatar?: string;
   lastMessage?: string;
   lastMessageAt?: string;
@@ -64,6 +69,7 @@ export interface CharacterCardData {
   first_mes?: string;
   mes_example?: string;
   system_prompt?: string;
+  character_author_note?: string;
   creator_notes?: string;
   creator?: string;
   character_version?: string;
@@ -85,6 +91,9 @@ export interface CharacterCardData {
 }
 
 export interface Character {
+  presentation?: import('../../types/story-presentation').PresentationVersion;
+  diagnostics?: import('../../types/story-diagnostics').StoryDiagnostics;
+  compatibility?: import('../../types/story-capabilities').StoryCapabilities;
   id: string;
   name: string;
   description?: string;
@@ -95,6 +104,10 @@ export interface Character {
   ratingCount?: number;
   downloadCount?: number;
   viewCount?: number;
+  /** 服务端返回角色行时附带的统计字段（ratingAvg 为 decimal，序列化后是字符串） */
+  favoriteCount?: number;
+  commentCount?: number;
+  ratingAvg?: string | number | null;
   isPublic: boolean;
   isNsfw?: boolean;
   /**

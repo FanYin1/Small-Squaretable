@@ -1,0 +1,278 @@
+{
+  "scope": "real-source display projection only; not gameplay or numerical adaptation",
+  "modelCallsInitiated": 0,
+  "networkRequests": 0,
+  "results": [
+    {
+      "filename": "t1.png",
+      "name": "与钟桃的双人终末旅行",
+      "sha256": "e8031fa775dbd5e8130ef0767dd69dceca5353eacf8b8b6cba7e66a600d19c77",
+      "openings": [
+        {
+          "index": 0,
+          "originalLength": 523,
+          "previewLength": 5,
+          "readingLength": 24,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": true
+        },
+        {
+          "index": 1,
+          "originalLength": 2519,
+          "previewLength": 1414,
+          "readingLength": 1653,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 2,
+          "originalLength": 3008,
+          "previewLength": 1601,
+          "readingLength": 2148,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 3,
+          "originalLength": 3079,
+          "previewLength": 1601,
+          "readingLength": 2209,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 4,
+          "originalLength": 2663,
+          "previewLength": 1576,
+          "readingLength": 1799,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 5,
+          "originalLength": 2654,
+          "previewLength": 1549,
+          "readingLength": 1782,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 6,
+          "originalLength": 2853,
+          "previewLength": 1601,
+          "readingLength": 1993,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 7,
+          "originalLength": 3102,
+          "previewLength": 1601,
+          "readingLength": 2236,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 8,
+          "originalLength": 3638,
+          "previewLength": 1601,
+          "readingLength": 2774,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 9,
+          "originalLength": 2788,
+          "previewLength": 1601,
+          "readingLength": 1926,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        }
+      ]
+    },
+    {
+      "filename": "t2.png",
+      "name": "实教瞎创版v1.4",
+      "sha256": "5192599a51c1c270824a9bf97c99c2aa6c63207d345bb379c037ca66dbccdf75",
+      "openings": [
+        {
+          "index": 0,
+          "originalLength": 317,
+          "previewLength": 199,
+          "readingLength": 317,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 1,
+          "originalLength": 5295,
+          "previewLength": 1601,
+          "readingLength": 5295,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 2,
+          "originalLength": 4810,
+          "previewLength": 1601,
+          "readingLength": 4810,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 3,
+          "originalLength": 4666,
+          "previewLength": 1601,
+          "readingLength": 4666,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 4,
+          "originalLength": 4710,
+          "previewLength": 1601,
+          "readingLength": 4710,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        }
+      ]
+    },
+    {
+      "filename": "t3.png",
+      "name": "绝世唐门V3.0",
+      "sha256": "25f26cf85ee19de5c834f24e10efb094baf2c4963af7c87acdc77a5ed7403b45",
+      "openings": [
+        {
+          "index": 0,
+          "originalLength": 317,
+          "previewLength": 199,
+          "readingLength": 317,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 1,
+          "originalLength": 79,
+          "previewLength": 58,
+          "readingLength": 79,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        }
+      ]
+    },
+    {
+      "filename": "蔚蓝星域.png",
+      "name": "蔚蓝星域二创（真实的宇宙）",
+      "sha256": "68b4c886ce67b078d58f4cd4b04ce4c19ff576d397bde0cc3f6503b518e6260f",
+      "openings": [
+        {
+          "index": 0,
+          "originalLength": 5248,
+          "previewLength": 286,
+          "readingLength": 305,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 1,
+          "originalLength": 16161,
+          "previewLength": 1601,
+          "readingLength": 4614,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 2,
+          "originalLength": 6958,
+          "previewLength": 1601,
+          "readingLength": 1989,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 3,
+          "originalLength": 6958,
+          "previewLength": 1601,
+          "readingLength": 1988,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 4,
+          "originalLength": 8003,
+          "previewLength": 1407,
+          "readingLength": 1495,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 5,
+          "originalLength": 7183,
+          "previewLength": 1601,
+          "readingLength": 2278,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 6,
+          "originalLength": 7624,
+          "previewLength": 1601,
+          "readingLength": 1887,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 7,
+          "originalLength": 9109,
+          "previewLength": 1601,
+          "readingLength": 2536,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 8,
+          "originalLength": 18952,
+          "previewLength": 1601,
+          "readingLength": 3102,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        },
+        {
+          "index": 9,
+          "originalLength": 12741,
+          "previewLength": 1601,
+          "readingLength": 3197,
+          "controlLeaked": false,
+          "markupLeakedInPreview": false,
+          "veryShortPreview": false
+        }
+      ]
+    }
+  ]
+}

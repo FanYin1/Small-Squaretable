@@ -2,7 +2,7 @@
   <div class="markdown-content">
     <template v-for="(seg, i) in displaySegments" :key="i">
       <div v-if="seg.type === 'markdown'" v-html="seg.html" @click="handleContentClick"></div>
-      <SandboxedHtml v-else :html="seg.html" :variables="eraVars" />
+      <SandboxedHtml v-else :html="seg.html" :interactive="interactiveHtml" :variables="interactiveHtml ? eraVars : undefined" />
     </template>
   </div>
 </template>
@@ -10,11 +10,13 @@
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { marked, Renderer } from 'marked';
+import { Renderer } from 'marked';
+import { createStoryMarkdown } from '@client/utils/story-markdown';
 import DOMPurify from 'dompurify';
 import { applyMarkdownOnlyScripts, type RegexScript } from '@client/utils/regex-scripts';
 import SandboxedHtml from './SandboxedHtml.vue';
 import { eraVariables as eraVars } from '@client/utils/era-bridge';
+import { stripStoryControlBlocks } from '@client/utils/story-display';
 
 // Configure DOMPurify hook to sanitize dangerous CSS in style attributes
 DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
@@ -86,6 +88,7 @@ interface Props {
   content: string;
   streaming?: boolean;
   regexScripts?: RegexScript[];
+  interactiveHtml?: boolean;
 }
 
 interface ContentSegment {
@@ -95,6 +98,7 @@ interface ContentSegment {
 
 const props = withDefaults(defineProps<Props>(), {
   streaming: false,
+  interactiveHtml: false,
 });
 
 const { t } = useI18n();
@@ -117,6 +121,8 @@ renderer.code = function ({ text, lang }: { text: string; lang?: string }) {
     <pre><code class="hljs${language ? ` language-${language}` : ''}">${highlighted}</code></pre>
   </div>`;
 };
+
+const markdown = createStoryMarkdown({ renderer, breaks: true, gfm: true });
 
 function handleContentClick(event: MouseEvent): void {
   const btn = (event.target as HTMLElement).closest('.code-copy-btn') as HTMLElement | null;
@@ -157,10 +163,7 @@ function closeUnfinishedCodeBlocks(text: string): string {
 }
 
 function renderMarkdown(content: string): string {
-  let text = content;
-
-  // Strip ERA framework XML blocks that are functional, not display content
-  text = text.replace(/<(?:VariableInsert|VariableEdit|VariableDelete|era_data|variablethink)[\s>][\s\S]*?<\/(?:VariableInsert|VariableEdit|VariableDelete|era_data|variablethink)>/gi, '');
+  let text = stripStoryControlBlocks(content);
 
   // KaTeX preprocessing: replace math expressions BEFORE marked processes them
   // Block math: $$...$$
@@ -181,7 +184,7 @@ function renderMarkdown(content: string): string {
     }
   });
 
-  const html = marked.use({ renderer, breaks: true, gfm: true }).parse(text) as string;
+  const html = markdown.parse(text, { async: false });
 
   return DOMPurify.sanitize(html, {
     ADD_TAGS: ['button', 'details', 'summary'],
@@ -267,7 +270,7 @@ function extractHtmlDocuments(text: string): ContentSegment[] {
  */
 function processContent(content: string, regexScripts?: RegexScript[]): ContentSegment[] {
   // Apply markdownOnly regex_scripts
-  let text = applyMarkdownOnlyScripts(content, regexScripts);
+  const text = stripStoryControlBlocks(applyMarkdownOnlyScripts(content, regexScripts));
 
   // Check if regex_scripts produced any HTML documents
   const segments = extractHtmlDocuments(text);
@@ -402,6 +405,33 @@ const displaySegments = computed<ContentSegment[]>(() => {
   display: block;
   text-align: center;
   margin: 12px 0;
+}
+
+/*
+ * 聊天叙事正文排版（P1-2）。
+ * 放在 .markdown-content 本身而不是外层气泡上，因为它同时被三处使用：
+ * MessageBubble 里的历史消息、ChatWindow 里的流式消息和开场白。
+ * 外层容器各不相同，排版跟着组件走，流式结束换成正式气泡时才不会字体字号一跳。
+ *
+ * 令牌见 variables.css；不要改成全局 --font-size-body。
+ */
+.markdown-content {
+  font-family: var(--font-reading);
+  font-size: var(--chat-font-size);
+  line-height: var(--chat-line-height);
+  /* em 相对上一行设的 --chat-font-size，所以行宽随字号档位同比缩放 */
+  max-width: var(--chat-measure);
+}
+
+/*
+ * *动作* → <em>。
+ * 中文字体没有斜体字形，浏览器默认会把字形硬掰歪来伪造倾斜；
+ * font-synthesis: none 关掉伪造：中文保持直立，西文仍用 Newsreader 自带的真斜体。
+ * 动作与对话的区分交给次要文字色（对比度见 variables.css --chat-action-color）。
+ */
+.markdown-content em {
+  font-synthesis: none;
+  color: var(--chat-action-color);
 }
 
 /* Markdown content typography */

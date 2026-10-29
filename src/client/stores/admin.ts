@@ -155,8 +155,8 @@ export const useAdminStore = defineStore('admin', () => {
     error.value = null;
     try {
       const result = await adminApi.getAuditLogs(params);
-      auditLogs.value = result.logs;
-      auditLogsTotal.value = result.total;
+      auditLogs.value = result.items;
+      auditLogsTotal.value = result.pagination.total;
     } catch (e: unknown) {
       error.value = 'Failed to load audit logs';
       console.error('Failed to fetch audit logs', e);

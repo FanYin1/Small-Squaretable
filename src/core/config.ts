@@ -86,9 +86,71 @@ const configSchema = z.object({
 
   // CORS
   corsOrigins: z.string().default('http://localhost:5173'),
+
+  // Platform spend breaker (P0-7)
+  // 全平台每日 token 上限；空串视为未配置。production 必须配置（见下方 superRefine）
+  platformDailyTokenLimit: z.preprocess(
+    (value) => (value === '' || value === null ? undefined : value),
+    z.coerce.number().int().positive().optional()
+  ),
+  // 「自然日」所用的 IANA 时区
+  spendBreakerTz: z
+    .string()
+    .default('Asia/Shanghai')
+    .refine(isValidTimeZone, { message: 'must be a valid IANA timezone' }),
+
+  // 计费模式（P3-1）。subscription = 现有 Stripe 套餐配额；
+  // credits = 预付点数：生成类请求改走点数账本，messages / llm_tokens 套餐配额不再拦截。
+  // 默认 subscription，不设置时现有行为完全不变。
+  billingMode: z.enum(['subscription', 'credits']).default('subscription'),
+  // 1 点 = 多少 token。账本以 token 为整数单位记账，点数只是展示换算，避免小数。
+  creditTokensPerPoint: z.coerce.number().int().positive().default(10000),
+  // 预扣冻结的存活时间（秒）。必须明显长于一次生成的最长耗时：
+  // 过期的冻结会被清扫任务释放，其间仍在进行的生成就不再占用额度。
+  creditReservationTtlSeconds: z.coerce.number().int().positive().default(900),
+
+  // NSFW 平台开关（P2-6）。默认开：由运营者决定平台是否允许 NSFW 内容。
+  // 开关只决定「能不能有」，每个用户是否看到由其自己的偏好决定（默认关）。
+  // 不能用 z.coerce.boolean()：它把字符串 'false' 也转成 true。
+  nsfwEnabled: z.preprocess(parseBooleanEnv, z.boolean().default(true)),
 });
 
 export type Config = z.infer<typeof configSchema>;
+
+/**
+ * 解析布尔环境变量：未设置/空串返回 undefined（交给 schema 默认值），
+ * 'false' / '0' / 'no' / 'off'（不区分大小写）为 false，其余为 true。
+ */
+function parseBooleanEnv(value: unknown): unknown {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') return value;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === '') return undefined;
+  return !['false', '0', 'no', 'off'].includes(normalized);
+}
+
+function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 跨字段校验：production 未设置 PLATFORM_DAILY_TOKEN_LIMIT 时启动失败。
+ * 没有这道闸，推理账单在生产环境没有任何上限。
+ */
+const checkedConfigSchema = configSchema.superRefine((cfg, ctx) => {
+  if (cfg.nodeEnv === 'production' && cfg.platformDailyTokenLimit === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['platformDailyTokenLimit'],
+      message: 'PLATFORM_DAILY_TOKEN_LIMIT is required in production',
+    });
+  }
+});
 
 /**
  * 加载并验证配置
@@ -143,10 +205,16 @@ export function loadConfig(): Config {
     memoryImportanceWeight: process.env.MEMORY_IMPORTANCE_WEIGHT,
     memoryRecencyWeight: process.env.MEMORY_RECENCY_WEIGHT,
     memoryDecayHalfLifeDays: process.env.MEMORY_DECAY_HALF_LIFE_DAYS,
+    platformDailyTokenLimit: process.env.PLATFORM_DAILY_TOKEN_LIMIT,
+    spendBreakerTz: process.env.SPEND_BREAKER_TZ || undefined,
+    billingMode: process.env.BILLING_MODE || undefined,
+    creditTokensPerPoint: process.env.CREDIT_TOKENS_PER_POINT || undefined,
+    creditReservationTtlSeconds: process.env.CREDIT_RESERVATION_TTL_SECONDS || undefined,
+    nsfwEnabled: process.env.NSFW_ENABLED,
   };
 
   try {
-    return configSchema.parse(rawConfig);
+    return checkedConfigSchema.parse(rawConfig);
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('Configuration validation failed:');

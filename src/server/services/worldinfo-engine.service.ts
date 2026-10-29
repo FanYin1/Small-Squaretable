@@ -10,6 +10,7 @@ import { worldBookRepository } from '../../db/repositories/worldbook.repository'
 import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.repository';
 import { logger } from './logger.service';
 import { applyMacros, type MacroContext } from './macro.service';
+import type { StoryWorldbookEntry } from '../../types/story-worldbooks';
 
 const wiLogger = logger.child({ module: 'worldinfo-engine' });
 
@@ -24,14 +25,26 @@ export interface WorldInfoDebugInfo {
   skippedByDelay: number;
 }
 
-export interface WorldInfoResult {
+/** 非 atDepth 的 6 个位置，按位置合并后的文本 */
+export interface WorldInfoPositionGroups {
   before?: string;
   after?: string;
   EMTop?: string;
   EMBottom?: string;
   ANTop?: string;
   ANBottom?: string;
+}
+
+export interface WorldInfoResult extends WorldInfoPositionGroups {
   atDepth?: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }>;
+  /**
+   * P3-3：同样的内容按「是否跨轮稳定」拆成两份（上面的合并字段不变，legacy 布局只读它们）。
+   * stable = constant 且无概率抽样（probability >= 100）：只要世界书没改，每轮内容与顺序都一样，
+   * 可以放在历史之前参与前缀缓存。volatile = 其余（关键词触发、概率抽样）：随用户消息变化。
+   * atDepth 条目不拆分——它们本来就按 depth 落在历史里。
+   */
+  stable?: WorldInfoPositionGroups;
+  volatile?: WorldInfoPositionGroups;
   debugInfo?: WorldInfoDebugInfo;
 }
 
@@ -42,6 +55,7 @@ export interface WorldInfoScanParams {
   chatId: string;
   maxContext: number;
   macroCtx?: MacroContext;
+  entries?: StoryWorldbookEntry[];
 }
 
 const DEFAULT_BUDGET = 2048;
@@ -79,6 +93,14 @@ function keywordMatches(text: string, keyword: string, caseSensitive: boolean, w
     return re.test(text);
   }
   return text.includes(k);
+}
+
+function joinPositions(map: Record<string, string[]>): WorldInfoPositionGroups {
+  const out: Record<string, string> = {};
+  for (const [key, contents] of Object.entries(map)) {
+    out[key] = contents.join('\n');
+  }
+  return out;
 }
 
 function escapeRegex(s: string): string {
@@ -158,20 +180,17 @@ class WorldInfoEngine {
     const recentMessages = chat.slice(-msgLimit);
     const scanText = recentMessages.map((m) => m.content).join('\n');
 
-    // 2. Fetch world books: character-scoped + global for user
-    const [charBooks, userBooks] = await Promise.all([
-      worldBookRepository.findByCharacter(characterId),
-      worldBookRepository.findByUser(userId),
-    ]);
-    const globalBooks = userBooks.filter((b) => b.scope === 'global');
-    const allBooks = [...charBooks, ...globalBooks];
-    const enabledBooks = allBooks.filter((b) => b.isEnabled);
-
-    // 3. Fetch all entries from enabled books
-    const entryArrays = await Promise.all(
-      enabledBooks.map((book) => worldBookEntryRepository.findByWorldBook(book.id)),
-    );
-    const allEntries = entryArrays.flat().filter((e) => e.isEnabled);
+    let entries = params.entries;
+    if (entries === undefined) {
+      const [charBooks, userBooks] = await Promise.all([
+        worldBookRepository.findByCharacter(characterId), worldBookRepository.findByUser(userId),
+      ]);
+      const enabledBooks = [...charBooks, ...userBooks.filter(book => book.scope === 'global')]
+        .filter(book => book.isEnabled);
+      entries = (await Promise.all(enabledBooks.map(book => worldBookEntryRepository.findByWorldBook(book.id))))
+        .flat() as StoryWorldbookEntry[];
+    }
+    const allEntries = entries.filter(entry => entry.isEnabled);
 
     // 4. Sort by insertion_order (position) ascending, then priority descending
     allEntries.sort((a, b) => {
@@ -222,6 +241,8 @@ class WorldInfoEngine {
     // 6. Group by position
     const result: WorldInfoResult = {};
     const positionMap: Record<string, string[]> = {};
+    const stableMap: Record<string, string[]> = {};
+    const volatileMap: Record<string, string[]> = {};
 
     for (const { entry } of activated) {
       const settings = (entry.settings ?? {}) as EntrySettings;
@@ -239,12 +260,21 @@ class WorldInfoEngine {
           : 'before';
         if (!positionMap[key]) positionMap[key] = [];
         positionMap[key].push(content);
+
+        // P3-3：同时记一份按稳定性拆分的副本，不影响上面的合并结果
+        const splitMap = (settings.constant ?? false) && (settings.probability ?? 100) >= 100
+          ? stableMap
+          : volatileMap;
+        if (!splitMap[key]) splitMap[key] = [];
+        splitMap[key].push(content);
       }
     }
 
     for (const [key, contents] of Object.entries(positionMap)) {
       (result as Record<string, unknown>)[key] = contents.join('\n');
     }
+    result.stable = joinPositions(stableMap);
+    result.volatile = joinPositions(volatileMap);
 
     // 7. Debug info
     const scanTimeMs = Date.now() - startTime;

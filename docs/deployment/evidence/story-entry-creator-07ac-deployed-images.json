@@ -1,0 +1,45 @@
+{
+  "sourceRun": "/tmp/squaretable-07ac-deployed-fadc6692-9cdd-4329-84e7-b7c2564eeafa",
+  "images": [
+    {
+      "file": "story-entry-creator-07ac-deployed-create-390.webp",
+      "sha256": "49a6d048e86ce85598f98c9958da5a5d8a78380e90df6e315f947878b32c2923"
+    },
+    {
+      "file": "story-entry-creator-07ac-deployed-edit-390.webp",
+      "sha256": "935758084743eefaf995949e870899d9dce693046e7c224a2f55593b396a7458"
+    },
+    {
+      "file": "story-entry-creator-07ac-deployed-works-390.webp",
+      "sha256": "878b495d0002464d930dd92478655c27861abfbec4d19a50e01ff70f30618b92"
+    },
+    {
+      "file": "story-entry-creator-07ac-deployed-account-390.webp",
+      "sha256": "f731f290392421bc783b4e6e99f8b49ca6ba03eb032509d173d5778245b1b3e1"
+    },
+    {
+      "file": "story-entry-creator-07ac-deployed-balance-390.webp",
+      "sha256": "e778181a91d52210d062f236e723d39bbff5ab720c49cc5a2f59d1ef6caa04a0"
+    },
+    {
+      "file": "story-entry-creator-07ac-deployed-create-1440.webp",
+      "sha256": "3215ae081d829eb64356bb25f3ec1735d071f595411a03956e5a92caad19c1c5"
+    },
+    {
+      "file": "story-entry-creator-07ac-deployed-edit-1440.webp",
+      "sha256": "c8cb2fdfbdc6cbe9950c7dc709e8c37fa456bcd1de1b73c983ac3bb498d2c046"
+    },
+    {
+      "file": "story-entry-creator-07ac-deployed-works-1440.webp",
+      "sha256": "750f2ec4a19431f6139b4065174768d0f7f05b4aae93702a2871cf59ac8cc3d5"
+    },
+    {
+      "file": "story-entry-creator-07ac-deployed-account-1440.webp",
+      "sha256": "12d9657ed59f6ea9772a463c44c44a3e5d81b4edfcdb471526ed0d7d60b0b945"
+    },
+    {
+      "file": "story-entry-creator-07ac-deployed-balance-1440.webp",
+      "sha256": "99b4d53d9a1a7ffd42fa027e7d0364e82ae88a94730f98628668c767d41ea864"
+    }
+  ]
+}

@@ -37,6 +37,7 @@ vi.mock('./logger.service', () => ({
 
 import { worldInfoEngine } from './worldinfo-engine.service';
 import type { WorldInfoScanParams } from './worldinfo-engine.service';
+import type { StoryWorldbookEntry } from '../../types/story-worldbooks';
 
 // ── Helpers ──
 const makeBook = (id: string, scope: string = 'character', isEnabled = true) => ({
@@ -90,6 +91,24 @@ describe('WorldInfoEngine', () => {
     vi.clearAllMocks();
     mockFindByCharacter.mockResolvedValue([makeBook('book-1')]);
     mockFindByUser.mockResolvedValue([]);
+  });
+
+  it('uses saved entries without fetching edited character books or global books', async () => {
+    const entry = { ...makeEntry('saved', 'world', 'Saved setting', { settings: { keys: ['world'], position: 'before' } }),
+      characterFilter: [], scanDepth: null, contextPercentage: null, recursive: true, preventRecursion: false,
+    } as StoryWorldbookEntry;
+    const result = await worldInfoEngine.scan({ ...baseParams, entries: [entry] });
+    expect(result.before).toBe('Saved setting');
+    expect(mockFindByCharacter).not.toHaveBeenCalled();
+    expect(mockFindByUser).not.toHaveBeenCalled();
+    expect(mockFindByWorldBook).not.toHaveBeenCalled();
+  });
+
+  it('preserves an explicitly empty binding without falling back to the library', async () => {
+    const result = await worldInfoEngine.scan({ ...baseParams, entries: [] });
+    expect(result.debugInfo?.activatedCount).toBe(0);
+    expect(mockFindByCharacter).not.toHaveBeenCalled();
+    expect(mockFindByUser).not.toHaveBeenCalled();
   });
 
   it('activates entry when keyword found in messages', async () => {
@@ -584,5 +603,67 @@ describe('WorldInfoEngine', () => {
       expect(result.debugInfo?.matches).toContainEqual({ entryId: 'e1', keyword: 'monsters' });
       expect(result.debugInfo?.matches).toContainEqual({ entryId: 'e2', keyword: '(constant)' });
     });
+  });
+});
+
+describe('WorldInfoEngine stable/volatile split (P3-3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFindByCharacter.mockResolvedValue([makeBook('book-1')]);
+    mockFindByUser.mockResolvedValue([]);
+  });
+
+  it('puts constant entries in stable and keyword-triggered entries in volatile, per position', async () => {
+    mockFindByWorldBook.mockResolvedValueOnce([
+      makeEntry('c1', 'zzz', 'CONST-before', { settings: { keys: ['zzz'], constant: true, position: 'before' } }),
+      makeEntry('c2', 'zzz', 'CONST-ANTop', { settings: { keys: ['zzz'], constant: true, position: 'ANTop' } }),
+      makeEntry('k1', 'world', 'KEY-before', { settings: { keys: ['world'], position: 'before' } }),
+      makeEntry('k2', 'world', 'KEY-after', { settings: { keys: ['world'], position: 'after' } }),
+    ]);
+
+    const result = await worldInfoEngine.scan(baseParams);
+
+    expect(result.stable).toEqual({ before: 'CONST-before', ANTop: 'CONST-ANTop' });
+    expect(result.volatile).toEqual({ before: 'KEY-before', after: 'KEY-after' });
+  });
+
+  it('leaves the merged per-position fields unchanged (legacy layout reads these)', async () => {
+    mockFindByWorldBook.mockResolvedValueOnce([
+      makeEntry('c1', 'zzz', 'CONST-before', { priority: 5, settings: { keys: ['zzz'], constant: true, position: 'before' } }),
+      makeEntry('k1', 'world', 'KEY-before', { priority: 1, settings: { keys: ['world'], position: 'before' } }),
+    ]);
+
+    const result = await worldInfoEngine.scan(baseParams);
+
+    expect(result.before).toBe('CONST-before\nKEY-before');
+  });
+
+  it('treats a constant entry with probability < 100 as volatile (its presence changes between turns)', async () => {
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+    mockFindByWorldBook.mockResolvedValueOnce([
+      makeEntry('c1', 'zzz', 'CONST-sampled', {
+        settings: { keys: ['zzz'], constant: true, position: 'before', probability: 50 },
+      }),
+    ]);
+
+    const result = await worldInfoEngine.scan(baseParams);
+    random.mockRestore();
+
+    expect(result.stable).toEqual({});
+    expect(result.volatile).toEqual({ before: 'CONST-sampled' });
+  });
+
+  it('does not split atDepth entries (they stay in result.atDepth)', async () => {
+    mockFindByWorldBook.mockResolvedValueOnce([
+      makeEntry('d1', 'zzz', 'CONST-depth', {
+        settings: { keys: ['zzz'], constant: true, position: 'atDepth', depth: 3 },
+      }),
+    ]);
+
+    const result = await worldInfoEngine.scan(baseParams);
+
+    expect(result.atDepth).toEqual([{ depth: 3, content: 'CONST-depth', role: 'system' }]);
+    expect(result.stable).toEqual({});
+    expect(result.volatile).toEqual({});
   });
 });

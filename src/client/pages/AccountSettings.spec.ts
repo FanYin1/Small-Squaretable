@@ -5,6 +5,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { useModulesStore } from '@client/stores/modules';
+import { gdprApi } from '@client/services/gdpr.api';
 import AccountSettings from './AccountSettings.vue';
 import i18n from '../i18n';
 
@@ -80,12 +82,33 @@ describe('AccountSettings Page', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    // Should have multiple settings cards (export, deletion, consents)
+    // Should have multiple settings cards (export, deletion); consents card is behind gdpr_consent_ui
     const cards = wrapper.findAll('.el-card');
-    expect(cards.length).toBeGreaterThanOrEqual(3);
+    expect(cards.length).toBeGreaterThanOrEqual(2);
 
     // Should have buttons for export and deletion actions
     const buttons = wrapper.findAll('button');
     expect(buttons.length).toBeGreaterThanOrEqual(2);
+  });
+
+  describe('gdpr_consent_ui module (P2-1)', () => {
+    it('hides the consent card and skips the consent request when closed', async () => {
+      const wrapper = mountPage();
+      await flushPromises();
+
+      expect(wrapper.find('.consent-list').exists()).toBe(false);
+      expect(gdprApi.getConsents).not.toHaveBeenCalled();
+      // 数据导出与账号删除保留
+      expect(gdprApi.getDeletionStatus).toHaveBeenCalled();
+    });
+
+    it('shows the consent card when the module is open', async () => {
+      useModulesStore().flags.gdpr_consent_ui = true;
+      const wrapper = mountPage();
+      await flushPromises();
+
+      expect(wrapper.find('.consent-list').exists()).toBe(true);
+      expect(gdprApi.getConsents).toHaveBeenCalled();
+    });
   });
 });

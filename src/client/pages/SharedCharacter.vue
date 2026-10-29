@@ -4,7 +4,7 @@
     <el-empty v-else-if="error" :description="t('share.characterNotFound') || 'Character not found'" />
     <div v-else-if="character" class="shared-character-content">
       <div class="character-header">
-        <el-avatar :size="100" :src="character.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${token}`">
+        <el-avatar :size="100" :src="avatarSrc">
           {{ character.name?.[0]?.toUpperCase() || '?' }}
         </el-avatar>
         <h1>{{ character.name }}</h1>
@@ -56,6 +56,10 @@ const character = ref<Character | null>(null);
 const loading = ref(true);
 const error = ref(false);
 const isAuthenticated = computed(() => userStore.isAuthenticated);
+// 头像兜底地址放在脚本中拼接：模板属性里的 https:// 模板字符串会让 vue-tsc 丢失 v-else-if 的类型收窄
+const avatarSrc = computed(
+  () => character.value?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${token.value}`
+);
 
 onMounted(async () => {
   try {

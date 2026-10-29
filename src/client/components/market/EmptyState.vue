@@ -78,31 +78,25 @@ const handleActionSecondary = () => {
 </script>
 
 <template>
-  <div class="empty-state" :class="{ 'error-variant': type === 'error' }">
-    <div class="empty-illustration">
-      <!-- no-results: Robot with speech bubble -->
+  <div class="empty-state" :class="{ 'error-variant': type === 'error' }" :data-type="type" :role="type === 'error' || type === 'permission-denied' ? 'alert' : 'status'">
+    <div class="empty-illustration" aria-hidden="true">
       <svg v-if="type === 'no-results'" width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="30" y="30" width="60" height="50" rx="8" class="svg-fill-accent-light" stroke="var(--accent-purple)" stroke-width="2"/>
-        <circle cx="45" cy="50" r="6" fill="var(--accent-purple)"/>
-        <circle cx="75" cy="50" r="6" fill="var(--accent-purple)"/>
-        <line x1="60" y1="30" x2="60" y2="15" stroke="var(--accent-purple)" stroke-width="2" stroke-linecap="round"/>
-        <circle cx="60" cy="12" r="4" fill="var(--accent-purple)"/>
-        <path d="M 45 65 Q 60 70 75 65" stroke="var(--accent-purple)" stroke-width="2" stroke-linecap="round" fill="none"/>
-        <ellipse cx="95" cy="45" rx="18" ry="15" class="svg-fill-accent-subtle" stroke="var(--accent-purple)" stroke-width="2"/>
-        <path d="M 85 52 L 80 58 L 88 55 Z" class="svg-fill-accent-subtle" stroke="var(--accent-purple)" stroke-width="2"/>
-        <text x="95" y="50" text-anchor="middle" font-size="20" fill="var(--accent-purple)">?</text>
+        <circle cx="60" cy="60" r="38" class="svg-fill-accent-light" stroke="currentColor" stroke-width="2" />
+        <path d="M72 38 65 65 38 72 45 45Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+        <circle cx="55" cy="55" r="3" fill="currentColor" />
+        <path d="M60 14V22M98 60H106M60 98V106M14 60H22" stroke="currentColor" stroke-width="2" />
       </svg>
 
       <!-- no-data: Empty box with dust -->
       <svg v-else-if="type === 'no-data'" width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="30" y="40" width="60" height="50" rx="4" class="svg-fill-accent-light" stroke="var(--accent-purple)" stroke-width="2"/>
-        <line x1="30" y1="55" x2="90" y2="55" stroke="var(--accent-purple)" stroke-width="2"/>
-        <line x1="60" y1="40" x2="60" y2="90" stroke="var(--accent-purple)" stroke-width="2"/>
-        <circle cx="45" cy="30" r="2" fill="var(--accent-purple)" opacity="0.4"/>
-        <circle cx="75" cy="25" r="2" fill="var(--accent-purple)" opacity="0.4"/>
-        <circle cx="55" cy="35" r="1.5" fill="var(--accent-purple)" opacity="0.4"/>
-        <circle cx="70" cy="32" r="1" fill="var(--accent-purple)" opacity="0.3"/>
-        <circle cx="50" cy="28" r="1.5" fill="var(--accent-purple)" opacity="0.25"/>
+        <rect x="30" y="40" width="60" height="50" rx="4" class="svg-fill-accent-light" stroke="currentColor" stroke-width="2"/>
+        <line x1="30" y1="55" x2="90" y2="55" stroke="currentColor" stroke-width="2"/>
+        <line x1="60" y1="40" x2="60" y2="90" stroke="currentColor" stroke-width="2"/>
+        <circle cx="45" cy="30" r="2" fill="currentColor" opacity="0.4"/>
+        <circle cx="75" cy="25" r="2" fill="currentColor" opacity="0.4"/>
+        <circle cx="55" cy="35" r="1.5" fill="currentColor" opacity="0.4"/>
+        <circle cx="70" cy="32" r="1" fill="currentColor" opacity="0.3"/>
+        <circle cx="50" cy="28" r="1.5" fill="currentColor" opacity="0.25"/>
       </svg>
 
       <!-- error: Warning triangle -->
@@ -114,10 +108,10 @@ const handleActionSecondary = () => {
 
       <!-- permission-denied: Lock -->
       <svg v-else-if="type === 'permission-denied'" width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="40" y="60" width="40" height="30" rx="4" class="svg-fill-accent-light" stroke="var(--accent-purple)" stroke-width="2"/>
-        <path d="M 50 60 L 50 45 Q 50 35 60 35 Q 70 35 70 45 L 70 60" stroke="var(--accent-purple)" stroke-width="2" fill="none"/>
-        <circle cx="60" cy="72" r="3" fill="var(--accent-purple)"/>
-        <rect x="58" y="72" width="4" height="8" fill="var(--accent-purple)"/>
+        <rect x="40" y="60" width="40" height="30" rx="4" class="svg-fill-accent-light" stroke="currentColor" stroke-width="2"/>
+        <path d="M 50 60 L 50 45 Q 50 35 60 35 Q 70 35 70 45 L 70 60" stroke="currentColor" stroke-width="2" fill="none"/>
+        <circle cx="60" cy="72" r="3" fill="currentColor"/>
+        <rect x="58" y="72" width="4" height="8" fill="currentColor"/>
       </svg>
     </div>
 
@@ -144,20 +138,24 @@ const handleActionSecondary = () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 80px 20px;
+  padding: 48px 24px;
   text-align: center;
-  min-height: 400px;
+  min-height: 320px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card, 12px);
+  background: var(--bg-surface);
 }
 
 .empty-illustration {
-  margin-bottom: 24px;
-  animation: float 3s ease-in-out infinite;
+  margin-bottom: 16px;
+  color: var(--accent-text);
 }
 
 .empty-illustration :deep(svg) {
@@ -178,9 +176,10 @@ const handleActionSecondary = () => {
 }
 
 .empty-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
   margin: 0 0 8px 0;
 }
 
@@ -189,6 +188,8 @@ const handleActionSecondary = () => {
   color: var(--text-tertiary);
   margin: 0 0 24px 0;
   max-width: 400px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
 }
 
 .empty-actions {
@@ -198,20 +199,21 @@ const handleActionSecondary = () => {
   justify-content: center;
 }
 
+.empty-actions .el-button { min-height: 44px; margin: 0; white-space: normal; }
+
 /* Error variant specific styling */
 .empty-state.error-variant .empty-title {
   color: var(--color-danger-text);
 }
 
 .empty-state.error-variant .empty-description {
-  color: var(--color-danger-text);
-  opacity: 0.7;
+  color: var(--text-secondary);
 }
 
 /* 移动端适配 */
-@media (max-width: 767px) {
+@include below(md) {
   .empty-state {
-    padding: 60px 20px;
+    padding: 32px 20px;
   }
 
   .empty-illustration svg {

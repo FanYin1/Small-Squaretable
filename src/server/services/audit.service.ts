@@ -4,7 +4,7 @@
  * Provides fire-and-forget audit logging. Never throws, never blocks the caller.
  */
 
-import crypto from 'crypto';
+import { hashIp } from '../utils/ip-hash';
 import { auditRepository } from '../../db/repositories/audit.repository';
 import { logger } from './logger.service';
 
@@ -28,9 +28,7 @@ export const auditService = {
    * Log an audit event. Fire-and-forget — never throws, never blocks the request.
    */
   log(event: AuditEvent): void {
-    const hashedIp = event.actorIp
-      ? crypto.createHash('sha256').update(event.actorIp).digest('hex').slice(0, 16)
-      : null;
+    const hashedIp = event.actorIp ? hashIp(event.actorIp) : null;
 
     // Fire-and-forget: don't await, catch errors silently
     auditRepository.create({

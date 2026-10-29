@@ -7,6 +7,7 @@
 import { sql, and, or, eq, desc, type SQL } from 'drizzle-orm';
 import { db } from '@/db';
 import { characters } from '@/db/schema/characters';
+import { nsfwVisibilityCondition } from '@/db/repositories/nsfw-visibility';
 import type { SearchOptions, SearchResult, SearchResultItem } from '@/types/search';
 
 export class SearchService {
@@ -17,7 +18,7 @@ export class SearchService {
    * @returns 搜索结果
    */
   async searchCharacters(options: SearchOptions): Promise<SearchResult> {
-    const { query, sort, filter, category, tags, isNsfw, userId, page, limit, dateFrom, dateTo } = options;
+    const { query, sort, filter, category, tags, isNsfw, showNsfw, userId, page, limit, dateFrom, dateTo } = options;
     const offset = (page - 1) * limit;
 
     // 检查是否为通配符查询或空查询（浏览所有角色）
@@ -73,16 +74,16 @@ export class SearchService {
       conditions.push(eq(characters.category, category));
     }
 
-    // NSFW 排除：平台不允许色情内容，所以这是硬性条件而不是用户偏好。
+    // NSFW 可见性：由平台开关 + 观看者偏好共同决定（见 nsfw-visibility.ts）。
+    // 开关关闭或偏好关闭（含未登录）时与改动前一致：硬性排除 NSFW。
     //
-    // 原先是 `if (isNsfw !== undefined) push(eq(isNsfw, isNsfw))`，有两个问题：
-    // 调用方不传就完全不过滤（客户端传的正是 `showNsfw || undefined`，
-    // false || undefined === undefined，于是默认搜索返回 NSFW）；
-    // 传 true 时反而变成「只返回 NSFW」。
-    //
-    // isNsfw 入参因此不再被采纳——保留在签名里只为不破坏现有调用方。
+    // showNsfw 必须是服务端从数据库读出的结论，不能取自客户端参数。
+    // 客户端传来的 isNsfw 不参与判断：历史上 `if (isNsfw !== undefined) push(eq(isNsfw, isNsfw))`
+    // 会在不传时完全不过滤、传 true 时变成「只返回 NSFW」。isNsfw 保留在签名里
+    // 只为不破坏现有调用方。
     if (!isOwnScope) {
-      conditions.push(eq(characters.isNsfw, false));
+      const nsfwCondition = nsfwVisibilityCondition(showNsfw);
+      if (nsfwCondition) conditions.push(nsfwCondition);
     }
 
     // 标签过滤 - 使用数组重叠操作符

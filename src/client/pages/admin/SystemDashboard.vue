@@ -259,7 +259,7 @@ onMounted(() => refresh());
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .system-dashboard {
   max-width: 1200px;
   margin: 0 auto;
@@ -412,7 +412,7 @@ onMounted(() => refresh());
   margin-top: 4px;
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .detail-section {
     grid-template-columns: 1fr;
   }

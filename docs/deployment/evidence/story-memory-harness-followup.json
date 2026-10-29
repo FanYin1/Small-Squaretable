@@ -1,0 +1,325 @@
+{
+  "date": "2026-10-24T10:58:24.921Z",
+  "mode": "controlled",
+  "scope": "controlled provider (no paid calls) and local multilingual embeddings with production state, memory worker, context and provider services; no HTTP/WebSocket/browser acceptance",
+  "model": "controlled-memory-model",
+  "embedding": "Xenova/paraphrase-multilingual-MiniLM-L12-v2, real 384-dimensional embeddings",
+  "limits": {
+    "providerCalls": 145,
+    "platformTokens": 100000,
+    "perRequestTimeoutMs": 60000
+  },
+  "taskClosed": false,
+  "sourceHashes": {
+    "scripts/story-memory-real-longrun.mjs": "335d689d33f9d70346a507f0d06624becf3d98c5e2426f0edc9962ba26026f38",
+    "scripts/story-memory-real-longrun-fixture.mjs": "c2b60ea6955568f3a98ca4d39896a5d2dba257f9935b33c875d2788e71b4939d",
+    "scripts/story-memory-controlled-provider.mjs": "b9dc75447070a66e038a6f1170cf128c810a06af36ffb384a2db7e91f51ed67d",
+    "scripts/story-restore-evidence.mjs": "c9317c706bd67f7e06945f53a9d8d896246c8173ab7541c35b40d22b2b5f373d",
+    "src/server/services/gemini-adapter.ts": "da5ad30b2625c7ea7c2b1ab20f240ae27e056b34461a30412191237cf03dd8bd",
+    "src/server/services/llm.service.ts": "d9ee82e3d108840f18d5a914d519e02d5c2c9010d8239daf8b9cfd8225976890",
+    "src/server/config/llm.config.ts": "b44b633b1ae9487e9e1953227821ed79bc9e14feac50fb73d728239127584916",
+    "src/server/jobs/story-memory.job.ts": "ab9b94ae68c8a09783e2e17ea80f1d152165654c01034e18e488046fbb481c9c",
+    "src/server/services/story-memory-extraction.ts": "96098d151b9a8d59e9ad18bd2e9ccce86f676d7a0ff10302cafd0797602eb63b",
+    "src/server/services/story-memory-worker.service.ts": "2cfb837f7fb788bfe43da9e9b85c4d89dc2f37e058a06db87233037a0ae526d4",
+    "src/server/services/story-state.service.ts": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f",
+    "src/server/services/context-manager.service.ts": "c5aec3b505d8a7699ea4c41e1a3821bf2d472910e9df8e076ce1498f58ae654b",
+    "src/server/services/story-summary-context.ts": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b",
+    "src/server/services/story-summary.service.ts": "6636ddff69daf82be03d1ec190a3e525736ee08a3011a6eed4aa5a42dc80adec",
+    "src/db/repositories/memory.repository.ts": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+  },
+  "phase": "second-half",
+  "sourceFingerprint": {
+    "tables": {
+      "books": {
+        "rows": 1,
+        "digest": "7ed4752266093ae16fad78e09bb40170"
+      },
+      "chats": {
+        "rows": 2,
+        "digest": "d38950deea9863a15c9a3d60da3bc6fd"
+      },
+      "notes": {
+        "rows": 2,
+        "digest": "114209e6d9b7c509d20335786cd56659"
+      },
+      "state": {
+        "rows": 2,
+        "digest": "f230ab74b96af954775b31942e59fe63"
+      },
+      "users": {
+        "rows": 1,
+        "digest": "eea157d4fdd054c1979b65baaedd17ea"
+      },
+      "events": {
+        "rows": 56,
+        "digest": "e40d8831da9eb9c94f3ae75277f322db"
+      },
+      "content": {
+        "rows": 2,
+        "digest": "3fd47d06547f136f697a537a903feee8"
+      },
+      "entries": {
+        "rows": 1,
+        "digest": "a69e17b845807867bf5075571a8c1c28"
+      },
+      "lineage": {
+        "rows": 1,
+        "digest": "e363bf7b4aaf9ed5c3ac7ee03fb6b076"
+      },
+      "tenants": {
+        "rows": 1,
+        "digest": "a740d1d7680bedef098a3960ced7c033"
+      },
+      "vectors": {
+        "rows": 4,
+        "digest": "db4d4f8cf020101fd32e19b6d09e225e"
+      },
+      "memories": {
+        "rows": 4,
+        "digest": "9e76425cb47fd16dc38a8df224abcd75"
+      },
+      "messages": {
+        "rows": 112,
+        "digest": "3a07eddebc5dfa360a57dde519036731"
+      },
+      "personas": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "deletions": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "characters": {
+        "rows": 1,
+        "digest": "3ad5b2c69ed534cd37fee7d8b15413d4"
+      },
+      "memoryJobs": {
+        "rows": 11,
+        "digest": "2d7ec701fbbdeff168ee690fb62fa9e9"
+      },
+      "migrations": {
+        "rows": 9,
+        "digest": "bd362cc73769b56fd68a4402280d8dec"
+      },
+      "worldbooks": {
+        "rows": 2,
+        "digest": "3d3a45d76c28bd2eb13513e754bd65eb"
+      },
+      "memoryLinks": {
+        "rows": 9,
+        "digest": "43f60ec574301c5f7b3fd9495b207cd6"
+      },
+      "participants": {
+        "rows": 2,
+        "digest": "e417c9f291b470803dc14f242658c420"
+      },
+      "reservations": {
+        "rows": 2,
+        "digest": "aa952d777e1803c4935d5a9b4cb4bcf0"
+      },
+      "memoryProgress": {
+        "rows": 2,
+        "digest": "03a17f0ef1b4e966ccae391f3374decd"
+      },
+      "creationRequests": {
+        "rows": 2,
+        "digest": "6362a9d503e2d4504564678607ccc6c1"
+      }
+    },
+    "coverage": {
+      "identities": 2,
+      "boundEntries": 2,
+      "confirmedEvents": 55,
+      "sourcedMemories": 4,
+      "interruptedEvents": 1,
+      "invalidMemoryLinks": 0,
+      "invalidEventSources": 0,
+      "invalidStateSources": 0,
+      "invalidMemorySources": 0
+    },
+    "protocol": 2
+  },
+  "restoredFingerprint": {
+    "tables": {
+      "books": {
+        "rows": 1,
+        "digest": "7ed4752266093ae16fad78e09bb40170"
+      },
+      "chats": {
+        "rows": 2,
+        "digest": "d38950deea9863a15c9a3d60da3bc6fd"
+      },
+      "notes": {
+        "rows": 2,
+        "digest": "114209e6d9b7c509d20335786cd56659"
+      },
+      "state": {
+        "rows": 2,
+        "digest": "f230ab74b96af954775b31942e59fe63"
+      },
+      "users": {
+        "rows": 1,
+        "digest": "eea157d4fdd054c1979b65baaedd17ea"
+      },
+      "events": {
+        "rows": 56,
+        "digest": "e40d8831da9eb9c94f3ae75277f322db"
+      },
+      "content": {
+        "rows": 2,
+        "digest": "3fd47d06547f136f697a537a903feee8"
+      },
+      "entries": {
+        "rows": 1,
+        "digest": "a69e17b845807867bf5075571a8c1c28"
+      },
+      "lineage": {
+        "rows": 1,
+        "digest": "e363bf7b4aaf9ed5c3ac7ee03fb6b076"
+      },
+      "tenants": {
+        "rows": 1,
+        "digest": "a740d1d7680bedef098a3960ced7c033"
+      },
+      "vectors": {
+        "rows": 4,
+        "digest": "db4d4f8cf020101fd32e19b6d09e225e"
+      },
+      "memories": {
+        "rows": 4,
+        "digest": "9e76425cb47fd16dc38a8df224abcd75"
+      },
+      "messages": {
+        "rows": 112,
+        "digest": "3a07eddebc5dfa360a57dde519036731"
+      },
+      "personas": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "deletions": {
+        "rows": 0,
+        "digest": "d41d8cd98f00b204e9800998ecf8427e"
+      },
+      "characters": {
+        "rows": 1,
+        "digest": "3ad5b2c69ed534cd37fee7d8b15413d4"
+      },
+      "memoryJobs": {
+        "rows": 11,
+        "digest": "2d7ec701fbbdeff168ee690fb62fa9e9"
+      },
+      "migrations": {
+        "rows": 9,
+        "digest": "bd362cc73769b56fd68a4402280d8dec"
+      },
+      "worldbooks": {
+        "rows": 2,
+        "digest": "3d3a45d76c28bd2eb13513e754bd65eb"
+      },
+      "memoryLinks": {
+        "rows": 9,
+        "digest": "43f60ec574301c5f7b3fd9495b207cd6"
+      },
+      "participants": {
+        "rows": 2,
+        "digest": "e417c9f291b470803dc14f242658c420"
+      },
+      "reservations": {
+        "rows": 2,
+        "digest": "aa952d777e1803c4935d5a9b4cb4bcf0"
+      },
+      "memoryProgress": {
+        "rows": 2,
+        "digest": "03a17f0ef1b4e966ccae391f3374decd"
+      },
+      "creationRequests": {
+        "rows": 2,
+        "digest": "6362a9d503e2d4504564678607ccc6c1"
+      }
+    },
+    "coverage": {
+      "identities": 2,
+      "boundEntries": 2,
+      "confirmedEvents": 55,
+      "sourcedMemories": 4,
+      "interruptedEvents": 1,
+      "invalidMemoryLinks": 0,
+      "invalidEventSources": 0,
+      "invalidStateSources": 0,
+      "invalidMemorySources": 0
+    },
+    "protocol": 2
+  },
+  "restoreFingerprintMatched": true,
+  "result": "controlled_harness_passed_not_real_quality",
+  "behavior": {
+    "model": "controlled-memory-model",
+    "mode": "controlled",
+    "tokenAccounting": "synthetic usage, not provider spend",
+    "generatedTurns": 105,
+    "providerCalls": 0,
+    "controlledCalls": 126,
+    "extractionCalls": 21,
+    "trimmedTurns": 84,
+    "recapTurns": 81,
+    "checks": [
+      "50 controlled turns and a parallel five-turn story persisted; embedding outage retained extraction checkpoint",
+      "New process and restored database resume failed embedding without repeating extraction",
+      "100 controlled main-story turns span 20 source-checked batches; interrupted event excluded; retrieval and recaps used after trimming"
+    ],
+    "taskClosed": false,
+    "lastRequest": {
+      "startedAt": "2026-10-24T10:58:57.102Z",
+      "streaming": false,
+      "status": 200
+    },
+    "lastExtraction": {
+      "status": 200,
+      "finishReason": "STOP",
+      "characters": 323,
+      "fenced": false,
+      "schemaValid": true
+    },
+    "lastJob": {
+      "status": "succeeded",
+      "errorCode": null,
+      "attempts": 1
+    },
+    "derivationFailures": [
+      {
+        "status": "retry",
+        "errorCode": "EMBEDDING_FAILED",
+        "attempts": 1,
+        "injected": true,
+        "generatedTurns": 50,
+        "extraction": {
+          "status": 200,
+          "finishReason": "STOP",
+          "characters": 307,
+          "fenced": false,
+          "schemaValid": true
+        }
+      }
+    ],
+    "result": "controlled_harness_passed_not_real_quality",
+    "tokens": 25200,
+    "phase": "main-second-half",
+    "returnSignals": [
+      {
+        "marker": "第三夜",
+        "present": false
+      },
+      {
+        "marker": "北门",
+        "present": false
+      },
+      {
+        "marker": "蓝色票据",
+        "present": false
+      }
+    ]
+  },
+  "disposableServicesRemoved": true
+}

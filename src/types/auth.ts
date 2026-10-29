@@ -8,6 +8,19 @@ export const registerSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   displayName: z.string().min(1).max(100).optional(),
+  /**
+   * 满 18 岁声明。用 literal(true) 而不是 boolean()：
+   * 传 false 和不传都应该是 400，而不是「注册成功但没声明」。
+   */
+  ageConfirmed: z.literal(true, {
+    errorMap: () => ({ message: 'You must confirm you are at least 18 years old' }),
+  }),
+  /** 邀请码（注册采用邀请码制）。大小写不敏感，归一化在 service 层做。 */
+  inviteCode: z
+    .string({ required_error: 'Invite code is required' })
+    .trim()
+    .min(1, 'Invite code is required')
+    .max(64, 'Invite code is too long'),
 });
 
 export const loginSchema = z.object({

@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "date": "2026-10-27",
+  "result": "passed-with-stated-scope",
+  "scope": "One reviewed exact-version third-party NPC ritual counter; platform confirmed-turn convention, not general rule compilation or real-model gameplay acceptance",
+  "newReviewedMechanisms": 1,
+  "parentTasksRemainOpen": [
+    "EXP-ADAPT",
+    "AD-1",
+    "AD-2",
+    "AD-3",
+    "AD-4",
+    "AD-5"
+  ],
+  "sample": {
+    "name": "kakaa.png",
+    "sha256": "f11040eeb4ac883009ebb51cb9d3b1a2702f36da19d3b9a9600aa218d57c411e",
+    "mechanism": "NPC strength starts at 0; +3 per successfully saved confirmed response; no opening, proposal, interrupted, malformed-protocol or duplicate increments",
+    "sourceFingerprint": "88d1cf8a78492cb789044515306572eb0862c5b308471afb1ad31839259ed00c",
+    "sourceEntryDigest": "abff9569b80f2c95e544aee43cb03bcac172e45794f6827988998b6c10e74265"
+  },
+  "unit": {
+    "files": 10,
+    "tests": 98,
+    "newTests": 31,
+    "typeCheck": "passed",
+    "focusedLintFiles": 15,
+    "focusedLint": "passed"
+  },
+  "isolated": {
+    "groups": 31,
+    "screenshots": 22,
+    "browserErrors": 0,
+    "paidSupplierCalls": 0,
+    "reference": "backups/exploration/ritual-20261027/isolated/result.json",
+    "counterPackage": [
+      "RT-01",
+      "RT-02",
+      "RT-03",
+      "RT-04",
+      "RT-05"
+    ],
+    "finalParent": 12,
+    "finalBranch": 6,
+    "narration": "Controlled service commits, not live supplier output",
+    "originalFourCards": "Still unsupported for sustained third-party mechanics"
+  },
+  "deployment": {
+    "port": 3081,
+    "imageTag": "small-squaretable:exploration-20261027-ritual",
+    "image": "sha256:afe5522e11e1c1a18baaadd5fdd1b4778cdf196405be2bb7cd9efa71f4a335b7",
+    "migrations": 16,
+    "publicTables": 76,
+    "newMigrations": 0,
+    "rehearsalUnchangedTables": 76,
+    "rollbackReference": "backups/exploration/upgrade-72dafb7a-e934-49b1-a994-58484b64feaa",
+    "historical3080ImageUnchanged": "sha256:b65d1767ba17bfcb751e851c9c3c8dc5aac4f432e7c30cd6ac80ec06bda6fec3",
+    "rollbackLimit": "Old application cannot read new turnEffect artifacts; after new stories exist, rollback needs compatible reader or coordinated application/data recovery"
+  },
+  "actualOriginal": {
+    "reference": "backups/exploration/ritual-20261027/deployed-original/report.json",
+    "scope": "Engineering-account private original PNG import/check/detail/restart/cleanup; no story creation or paid generation",
+    "screenshots": 2,
+    "restartPreserved": true,
+    "businessTablesUnchangedAfterCleanup": 16,
+    "browserErrors": 0
+  },
+  "actualReadonly": {
+    "reference": "backups/exploration/ritual-20261027/deployed-readonly/report.json",
+    "groups": 6,
+    "screenshots": 26,
+    "comparedBuildFiles": 242,
+    "businessTablesUnchanged": 20,
+    "mutations": 0,
+    "browserErrors": 0,
+    "healthPorts": [
+      3080,
+      3081,
+      5188
+    ],
+    "publicationPreviewsBlockedByAccountFeatureGate": 3,
+    "htmlSha256": "140d4089bce5228bed991dc0a1b2a96463a0e5cc3058fddc14e7f06180e1cfce",
+    "serverSha256": "a22e508f18642cfc75f720a23fb3364ce8d29fe29371603113a38d2c3912d7d1"
+  },
+  "budget": {
+    "additionalPaidCalls": 0,
+    "additionalPaidTokens": 0,
+    "occupied": 673338,
+    "available": 776662,
+    "unknownHistoricalReservePreserved": true,
+    "personalPointsChanged": false
+  },
+  "observedFailures": {
+    "fixed": [
+      "Database default prompt-template identifier differed from pure-parser fixture; default/null accepted, custom templates still rejected",
+      "Malformed-protocol fixture lacked required newline marker; corrected fixture",
+      "Deployed test assumed intro queued; authored introduction correctly skipped, now accepted without payment"
+    ],
+    "notClaimedFixed": [
+      "One early transport disconnect",
+      "One isolated detail blank-page timeout, not reproduced in final complete run or deployed read-only checks; retained for follow-up"
+    ],
+    "reference": "docs/product/backlog.md"
+  },
+  "limits": [
+    "Exact reviewed source version only; no generic natural-language agent",
+    "No combat, damage, inventory, price, conditional transaction or one-time reward inferred",
+    "No third-party full-card compatibility claim for Azure/t1/t2/t3",
+    "No live-model narrative, complete single-story restore/transfer, real-device or human acceptance claim"
+  ],
+  "sourceHashes": {
+    "src/types/story-ritual.ts": "3f8b747c1109696db8ad1964dd487f46ff7662b630ff391fe49b56ded8acc428",
+    "src/types/story-adapter.ts": "a2c77f23bba990875cbadc4126131fb5b81643ac2a2507535ebb671cd5f40010",
+    "src/types/story-adaptation.ts": "65a90965a2225f9abb88c0491b289d2f94c380f447d998663bb18951cc66c1e0",
+    "src/server/services/story-ritual-adapter.ts": "27405adcb4ca5a4fa48a86358c7ca0886361073c81e7c3985cce37739856df68",
+    "src/server/services/story-ritual-adapter.spec.ts": "47ac7af2300d481a66056433ed37b423beb4c702c88b3d5ff4cce6b7242fb9de",
+    "src/server/services/story-adapter-compiler.ts": "64ca6f7fb889a5e73ca2831e291b9b7be8d4cc449191d77e4bec2f37b523eab6",
+    "src/server/services/story-state.service.ts": "5d15042053bcb077779290c3d3e85813f7f60eb580003fd31d2e9f32e68d224f",
+    "src/server/services/story-prefix.ts": "5edc957dd353ef41e947f5af664a35742b09c75a21257f99557f4e2d6a151ecc",
+    "src/server/services/story-prefix.spec.ts": "b1f3101f7e6eece95a8fb94a753df2819abccc5768895b0bc5624e60118e2e83",
+    "src/server/services/story-entry.service.ts": "50d1500db7b0463c996a742dd0e5cdd9be57dfd56d0963187bbcc4b60407e703",
+    "src/client/components/character/StoryAdapterPanel.vue": "c1a1c8a5b48d1b2fa6f18b9e09eaf58dd86b440beb197bfa7a42bf5c0adc857b",
+    "src/client/components/character/StoryCompatibility.vue": "7f69bc9070ec37a6a8ffaddb20d5dbfd5a6e48aafa4024a5a018564d44db15bc",
+    "src/client/components/character/StoryCompatibility.spec.ts": "de05bdc34794a0283ce803eabc6cb30ec9d12a0479576a771dd45a53c9a99ba1",
+    "src/client/components/chat/StoryAdaptationReport.vue": "8a900a7c920cf63aad07a129d4b3b7da6ab33f5620099e6133431daac6341318",
+    "src/client/components/chat/StoryAdaptationReport.spec.ts": "bd0dbfe4b1204de397a9193eb576da96fdc24be883d62f94a0d80c9c1a18efda",
+    "scripts/story-ritual-check.mjs": "831e79c69d0ee52993052b414b56cd2a545b2d35f5cf173ecba1a3213c2696a5",
+    "scripts/story-ritual-deployed-check.mjs": "a1d1603b34259cd509ada93ea94a7837018c0796614c3226f8198d2c0351c1c0",
+    "scripts/story-adapter-check.mjs": "072f5fc04760217e521cf37937d68d0963c1bc4a7dc7ebd85fce85942f040c48"
+  }
+}

@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Hono } from 'hono';
 import { characterRoutes } from './characters';
 import { characterService } from '../services/character.service';
+import { characterVersionService } from '../services/character-version.service';
 import { errorHandler } from '../middleware/error-handler';
 
 vi.mock('../services/character.service');
@@ -132,6 +133,48 @@ describe('PATCH /api/v1/characters/:id', () => {
       isActive: true,
     } as any);
   }
+
+  it.each(['tenant-123', 'tenant-other'])('does not write a private version when an unauthorized editor belongs to %s', async tenantId => {
+    await setupAuth({ userId: 'not-the-author', tenantId });
+    vi.mocked(characterService.getById).mockResolvedValue({ id: 'char-1', creatorId: 'author', tenantId: 'tenant-123', cardData: { first_mes: 'private original' } } as any);
+    mockLimit.mockResolvedValue([]);
+    const response = await app.request('/api/v1/characters/char-1', {
+      method: 'PATCH', headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'unauthorized edit' }),
+    });
+    expect(response.status).toBe(403);
+    expect(characterVersionService.saveVersion).not.toHaveBeenCalled();
+    expect(characterService.update).not.toHaveBeenCalled();
+    expect(mockDbUpdate).not.toHaveBeenCalled();
+  });
+
+  it('retains an authorized author version before applying the edit', async () => {
+    await setupAuth();
+    const character = { id: 'char-1', creatorId: 'user-123', tenantId: 'tenant-123', cardData: { first_mes: 'original' } };
+    vi.mocked(characterService.getById).mockResolvedValue(character as any);
+    vi.mocked(characterService.update).mockResolvedValue({ ...character, name: 'updated' } as any);
+    const response = await app.request('/api/v1/characters/char-1', {
+      method: 'PATCH', headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'updated' }),
+    });
+    expect(response.status).toBe(200);
+    expect(characterVersionService.saveVersion).toHaveBeenCalledExactlyOnceWith('char-1', character.cardData, 'user-123', 'Auto-save before edit');
+    expect(vi.mocked(characterVersionService.saveVersion).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(characterService.update).mock.invocationCallOrder[0]);
+  });
+
+  it('allows an author to remove a cover while keeping omitted covers unchanged', async () => {
+    await setupAuth();
+    const character = { id: 'char-1', creatorId: 'user-123', tenantId: 'tenant-123', avatarUrl: '/uploads/cover.png', cardData: {} };
+    vi.mocked(characterService.getById).mockResolvedValue(character as any);
+    vi.mocked(characterService.update).mockResolvedValue(character as any);
+    for (const payload of [{ avatarUrl: null }, { description: 'Changed introduction' }]) {
+      const response = await app.request('/api/v1/characters/char-1', {
+        method: 'PATCH', headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      expect(response.status).toBe(200);
+      const update = vi.mocked(characterService.update).mock.lastCall!;
+      expect(update[3]).toMatchObject(payload);
+      if (!('avatarUrl' in payload)) expect(update[3]).not.toHaveProperty('avatarUrl');
+    }
+  });
 
   it('should strip isNsfw from collaborator updates', async () => {
     await setupAuth({ userId: 'collab-1', tenantId: 'tenant-123' });

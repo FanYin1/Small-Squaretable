@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-25T14:10:41.829Z",
+  "typecheck": "> small-squaretable@0.1.0 type-check\n> vue-tsc --noEmit",
+  "lintSummary": "✖ 247 problems (0 errors, 247 warnings)",
+  "comparisonControls": "six pages at 768/light load both local archived images",
+  "scope": "static and unit results; candidate/full entry tracked separately"
+}

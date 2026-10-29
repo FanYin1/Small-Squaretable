@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-24T12:32:21.945Z",
+  "task": "EXP-07C-CSRF",
+  "result": "passed",
+  "backend": "production HTTP and actual disposable PostgreSQL/Redis",
+  "browser": "three Chromium contexts, two accounts, no API interception",
+  "checks": [
+    "Authenticated issuance only; shared-prefix accounts isolated; concurrent Redis issuance reuses one token; separate same-account login gets distinct credentials",
+    "Cached tokens remain usable after other logins; cross-session CSRF tokens are rejected",
+    "Three isolated Chromium contexts across two accounts perform concurrent real UI writes without CSRF failures or token refresh workarounds",
+    "Reloaded pages and a live page with a refreshed access credential unbind concurrently; first post-refresh write obtains the matching CSRF token",
+    "Real Redis expiry rejects the old token before mutation; reacquisition works and another session stays valid"
+  ],
+  "mutationStatuses": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "pageErrors": [],
+  "paidProviderTokens": 0,
+  "sources": [
+    {
+      "path": "src/server/middleware/csrf.ts",
+      "sha256": "9265367ac3f3efcf006c935ddb6dcd6b7fbf4714a9e49b98abc00d46fefd5b26"
+    },
+    {
+      "path": "src/core/jwt.ts",
+      "sha256": "27a31531f4db8f0496d3f2e3993fc335377e8ef41c51ce5f0903ca16625e960b"
+    },
+    {
+      "path": "src/server/index.ts",
+      "sha256": "cc36159f36508b5032d33f6ff87248410ec86339ce4a57cef5de32f2819d082e"
+    },
+    {
+      "path": "src/client/services/api.ts",
+      "sha256": "979abb773c980afc25346c5842c21c42072a58c51d216a19a696e155afd466c1"
+    },
+    {
+      "path": "scripts/csrf-session-check.mjs",
+      "sha256": "f171f6f43ff88294710ac555ce6d6112c71d8c4de489a3de03a1f22190921ec1"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "192d212b8052c06cb223a50c8beb9412ac0a75bd971ec97c597c81bce8640efd"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "f8c205abd6919190e8bf04ebbedea7f6d4f6654e62552d53c97830d9eb32241e"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "30b949d2643b681160797d8ed70345d7344dcf9aba2fbbc9ed3350f658d2f165"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "d9550e3a44fa11f8e2b0cc0fa69bc3a30cc8856d4703b33c999f57a7819aa0b1"
+    }
+  ],
+  "limits": [
+    "Redis expiry forced with a short TTL; not a one-hour wall-clock endurance test",
+    "Access refresh endpoint used and credential installed in the live page; automatic expired-access recovery separately unit tested",
+    "Existing refresh-token per-user policy and CSRF-exempt route coverage unchanged; no live candidate deployment"
+  ]
+}

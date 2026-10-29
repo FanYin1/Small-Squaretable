@@ -264,7 +264,7 @@ async function handleImportFile(event: Event) {
   </DashboardLayout>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .worldbooks-page {
   display: flex;
   flex-direction: column;
@@ -289,7 +289,7 @@ async function handleImportFile(event: Event) {
   font-weight: 500;
 }
 
-@media (max-width: 640px) {
+@include below(md) {
   .search-input {
     max-width: 100%;
   }

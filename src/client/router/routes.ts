@@ -1,8 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 // Define preload/prefetch hints for performance
-// @ts-ignore - Custom webpackChunkName comment for code splitting
-const loadHome = () => import(/* webpackPrefetch: true */ '../pages/Home.vue');
 const loadLogin = () => import(/* webpackPrefetch: true */ '../pages/auth/Login.vue');
 const loadRegister = () => import(/* webpackPrefetch: true */ '../pages/auth/Register.vue');
 const loadForgotPassword = () => import('../pages/auth/ForgotPassword.vue');
@@ -42,6 +40,8 @@ const loadAdminSystem = () => import(/* webpackChunkName: "admin" */ '../pages/a
 const loadAdminAuditLogs = () => import(/* webpackChunkName: "admin" */ '../pages/admin/AuditLogs.vue');
 const loadAdminExperiments = () => import(/* webpackChunkName: "admin" */ '../pages/admin/Experiments.vue');
 const loadAdminGdpr = () => import(/* webpackChunkName: "admin" */ '../pages/admin/GdprManagement.vue');
+const loadAdminInviteCodes = () => import(/* webpackChunkName: "admin" */ '../pages/admin/InviteCodes.vue');
+const loadAdminCredits = () => import(/* webpackChunkName: "admin" */ '../pages/admin/Credits.vue');
 const loadCharacterTemplates = () => import(/* webpackChunkName: "character-templates" */ '../pages/CharacterTemplates.vue');
 const loadChatTemplates = () => import(/* webpackChunkName: "chat-templates" */ '../pages/ChatTemplates.vue');
 
@@ -49,10 +49,10 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Home',
-    component: loadHome,
+    redirect: { name: 'Market' },
     meta: {
       requiresAuth: false,
-      guestOnly: true,
+      guestOnly: false,
     },
   },
   {
@@ -293,6 +293,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'ActivityFeed',
     component: loadActivityFeed,
     meta: {
+      module: 'social_follow',
       requiresAuth: true,
       guestOnly: false,
     },
@@ -311,6 +312,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'DeveloperSettings',
     component: loadDeveloperSettings,
     meta: {
+      module: 'webhooks_developer',
       requiresAuth: true,
       guestOnly: false,
     },
@@ -329,6 +331,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'PluginMarketplace',
     component: loadPluginMarketplace,
     meta: {
+      module: 'plugins',
       requiresAuth: true,
       guestOnly: false,
     },
@@ -338,6 +341,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'Analytics',
     component: loadAnalytics,
     meta: {
+      module: 'analytics',
       requiresAuth: true,
       guestOnly: false,
     },
@@ -377,6 +381,7 @@ export const routes: RouteRecordRaw[] = [
         name: 'AdminSystem',
         component: loadAdminSystem,
         meta: {
+          module: 'admin_advanced',
           requiresAuth: true,
           requiresRole: 'admin',
         },
@@ -386,6 +391,7 @@ export const routes: RouteRecordRaw[] = [
         name: 'AdminAuditLogs',
         component: loadAdminAuditLogs,
         meta: {
+          module: 'admin_advanced',
           requiresAuth: true,
           requiresRole: 'admin',
         },
@@ -395,6 +401,7 @@ export const routes: RouteRecordRaw[] = [
         name: 'AdminExperiments',
         component: loadAdminExperiments,
         meta: {
+          module: 'analytics',
           requiresAuth: true,
           requiresRole: 'admin',
         },
@@ -403,6 +410,25 @@ export const routes: RouteRecordRaw[] = [
         path: 'gdpr',
         name: 'AdminGdpr',
         component: loadAdminGdpr,
+        meta: {
+          module: 'admin_advanced',
+          requiresAuth: true,
+          requiresRole: 'admin',
+        },
+      },
+      {
+        path: 'invite-codes',
+        name: 'AdminInviteCodes',
+        component: loadAdminInviteCodes,
+        meta: {
+          requiresAuth: true,
+          requiresRole: 'admin',
+        },
+      },
+      {
+        path: 'credits',
+        name: 'AdminCredits',
+        component: loadAdminCredits,
         meta: {
           requiresAuth: true,
           requiresRole: 'admin',

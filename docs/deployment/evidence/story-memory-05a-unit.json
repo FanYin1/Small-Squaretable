@@ -1,0 +1,146 @@
+{
+  "date": "2026-10-25T10:35:11.681Z",
+  "result": "passed",
+  "tests": 259,
+  "files": [
+    {
+      "file": "src/db/repositories/memory.repository.spec.ts",
+      "status": "passed",
+      "tests": 2
+    },
+    {
+      "file": "src/server/jobs/story-memory.job.spec.ts",
+      "status": "passed",
+      "tests": 9
+    },
+    {
+      "file": "src/server/routes/intelligence-extract.spec.ts",
+      "status": "passed",
+      "tests": 10
+    },
+    {
+      "file": "src/server/routes/websocket-credits.spec.ts",
+      "status": "passed",
+      "tests": 48
+    },
+    {
+      "file": "src/server/routes/websocket-metering.spec.ts",
+      "status": "passed",
+      "tests": 36
+    },
+    {
+      "file": "src/server/services/chat.service.layout.spec.ts",
+      "status": "passed",
+      "tests": 29
+    },
+    {
+      "file": "src/server/services/context-budget.spec.ts",
+      "status": "passed",
+      "tests": 8
+    },
+    {
+      "file": "src/server/services/context-manager.service.spec.ts",
+      "status": "passed",
+      "tests": 12
+    },
+    {
+      "file": "src/server/services/intelligence-debug.service.spec.ts",
+      "status": "passed",
+      "tests": 8
+    },
+    {
+      "file": "src/server/services/memory-consolidation.service.spec.ts",
+      "status": "passed",
+      "tests": 6
+    },
+    {
+      "file": "src/server/services/memory.service.spec.ts",
+      "status": "passed",
+      "tests": 31
+    },
+    {
+      "file": "src/server/services/story-memory-extraction.spec.ts",
+      "status": "passed",
+      "tests": 28
+    },
+    {
+      "file": "src/server/services/story-memory-prompt.spec.ts",
+      "status": "passed",
+      "tests": 5
+    },
+    {
+      "file": "src/server/services/story-summary-context.spec.ts",
+      "status": "passed",
+      "tests": 7
+    },
+    {
+      "file": "src/server/services/story-turn-prompt.spec.ts",
+      "status": "passed",
+      "tests": 3
+    },
+    {
+      "file": "src/server/services/__tests__/intelligence.integration.spec.ts",
+      "status": "passed",
+      "tests": 17
+    }
+  ],
+  "sources": [
+    {
+      "path": "src/server/services/story-memory-provenance.ts",
+      "sha256": "5c2c79469c80a6d7a354b293d506fbc4cb611f6ed6b11e884f26adb9452f8304"
+    },
+    {
+      "path": "src/server/services/story-knowledge.service.ts",
+      "sha256": "7bcdab43f04beeb3a5900e1305ce2e58ddeff42077697cb2d41379c89826f011"
+    },
+    {
+      "path": "src/server/services/story-memory-selection.ts",
+      "sha256": "d922a306005a4d2c80f7ce31089bd439b5406f5f97a07a2caf2902aba4b20afb"
+    },
+    {
+      "path": "src/server/services/story-memory-worker.service.ts",
+      "sha256": "b45cdfe695f3fd9d352bcd9389f7856155ba12e4ae69a81979663a5e1dfe4219"
+    },
+    {
+      "path": "src/server/services/story-summary.service.ts",
+      "sha256": "07a251a377f98d5ab415646bace2fb73222f8cf2807d6704b3cf39a4d99fc516"
+    },
+    {
+      "path": "src/server/services/legacy-memory-access.service.ts",
+      "sha256": "96de533e184dfc3c5f8af1e451434d088d1378f226e9fbaadc209fab2ccc9d76"
+    },
+    {
+      "path": "src/server/services/chat.service.ts",
+      "sha256": "a8fabdbb8a7e0450d8b3b9902e87486a8f7852d9addff3195f0c2ffe2a0e5195"
+    },
+    {
+      "path": "src/server/services/memory.service.ts",
+      "sha256": "4750aa1ffb1678c7c0232e225643080ccfafb0bdd0bffbc37d09cf8911170c81"
+    },
+    {
+      "path": "src/server/services/prompt-assembly.ts",
+      "sha256": "ba94110bfbae2df6f3b074b13b85956869fdb490d9e92862ce612b4336865998"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "d79b82150e87b7e090f2d09b545a82310f8444d93ad271aff7683d88cb25bc0b"
+    },
+    {
+      "path": "src/server/routes/intelligence.ts",
+      "sha256": "8bd2a489e104797a8e739a8261314253bf32bb812534793fc27dade012f55020"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "a9ede9da758548a1a2608683acb6083623b26888fcb2ce28e42154f744b0086c"
+    }
+  ],
+  "typecheck": "passed",
+  "targetedLint": {
+    "errors": 0,
+    "warnings": 9
+  },
+  "limits": [
+    "Unit and service-mock regressions; actual database and browser checks have separate reports",
+    "Existing lint warnings in touched legacy modules remain"
+  ]
+}

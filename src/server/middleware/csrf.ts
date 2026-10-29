@@ -9,7 +9,7 @@ import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { randomBytes, createHash, timingSafeEqual } from 'crypto';
 import { config } from '../../core/config';
-import { redis } from '../../core/redis';
+import { redis, getRedisClient } from '../../core/redis';
 import { isCsrfExempt } from '../config/csrf-paths';
 
 declare module 'hono' {
@@ -36,9 +36,9 @@ function hashToken(token: string): string {
  * Constant-time string comparison to prevent timing attacks
  */
 function safeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
   const bufA = Buffer.from(a);
   const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
   return timingSafeEqual(bufA, bufB);
 }
 
@@ -47,7 +47,7 @@ function safeCompare(a: string, b: string): boolean {
  */
 interface CsrfStore {
   get(sessionId: string): Promise<string | null>;
-  set(sessionId: string, token: string, ttl?: number): Promise<void>;
+  getOrCreate(sessionId: string): Promise<string>;
   delete(sessionId: string): Promise<void>;
 }
 
@@ -55,17 +55,26 @@ interface CsrfStore {
  * Redis-backed CSRF token store (for production)
  */
 class RedisCsrfStore implements CsrfStore {
-  private prefix = 'csrf:';
+  private prefix = 'csrf:v2:';
   private defaultTtl = 3600; // 1 hour in seconds
 
   async get(sessionId: string): Promise<string | null> {
     return redis.get(`${this.prefix}${sessionId}`);
   }
 
-  async set(sessionId: string, token: string, ttl?: number): Promise<void> {
-    await redis.set(`${this.prefix}${sessionId}`, token, {
-      EX: ttl ? Math.ceil(ttl / 1000) : this.defaultTtl,
+  async getOrCreate(sessionId: string): Promise<string> {
+    const client = await getRedisClient();
+    const token = await client.eval(`
+      local existing = redis.call('GET', KEYS[1])
+      if existing then return existing end
+      redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])
+      return ARGV[1]
+    `, {
+      keys: [`${this.prefix}${sessionId}`],
+      arguments: [generateCsrfToken(), String(this.defaultTtl)],
     });
+    if (typeof token !== 'string') throw new Error('CSRF token storage failed');
+    return token;
   }
 
   async delete(sessionId: string): Promise<void> {
@@ -82,7 +91,7 @@ class InMemoryCsrfStore implements CsrfStore {
   private cleanup(): void {
     const now = Date.now();
     for (const [key, value] of this.store.entries()) {
-      if (value.expiresAt < now) {
+      if (value.expiresAt <= now) {
         this.store.delete(key);
       }
     }
@@ -91,17 +100,22 @@ class InMemoryCsrfStore implements CsrfStore {
   async get(sessionId: string): Promise<string | null> {
     this.cleanup();
     const entry = this.store.get(sessionId);
-    if (!entry || entry.expiresAt < Date.now()) {
+    if (!entry || entry.expiresAt <= Date.now()) {
       return null;
     }
     return entry.token;
   }
 
-  async set(sessionId: string, token: string, ttl = 3600000): Promise<void> {
+  async getOrCreate(sessionId: string): Promise<string> {
+    this.cleanup();
+    const existing = this.store.get(sessionId);
+    if (existing) return existing.token;
+    const token = generateCsrfToken();
     this.store.set(sessionId, {
       token,
-      expiresAt: Date.now() + ttl,
+      expiresAt: Date.now() + 3600000,
     });
+    return token;
   }
 
   async delete(sessionId: string): Promise<void> {
@@ -124,7 +138,7 @@ function extractSessionId(c: any): string | null {
   const match = authHeader.match(/^Bearer\s+(.+)$/);
   if (!match) return null;
 
-  return match[1].substring(0, 32); // Use first 32 chars of token as session ID
+  return hashToken(match[1]);
 }
 
 /**
@@ -188,8 +202,8 @@ export async function getCsrfToken(c: any): Promise<Response> {
     );
   }
 
-  const token = generateCsrfToken();
-  await csrfStore.set(sessionId, token);
+  const token = await csrfStore.getOrCreate(sessionId);
+  c.header('Cache-Control', 'no-store');
 
   c.set('csrfToken', token);
 

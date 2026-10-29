@@ -1,0 +1,380 @@
+{
+  "date": "2026-10-25T14:23:46.949Z",
+  "result": "passed",
+  "database": "disposable PostgreSQL",
+  "backend": "current built server",
+  "model": "local deterministic beta-smoke provider; not narrative-quality validation",
+  "networkInterception": "only drop one real committed creation response; no successful API responses fabricated",
+  "fixtures": [
+    "雾海之外",
+    "晚一点开门"
+  ],
+  "checks": [
+    "six-page production/reference comparison: 390/768/1440, dark/light; view-only creates no chats or charges",
+    "market quick start: stored default persona, distinct save, matching opening, refresh without another POST",
+    "real WebSocket generation and one ledger charge; resume and reload retain exactly the selected opening and one user/assistant turn",
+    "same-card new run creates a distinct chat without copying or deleting the original messages",
+    "identity snapshot survives persona edit/deletion, a new story uses edited identity, and the actual model request uses the original name/biography",
+    "saved worldbook rules reach real model requests after source edit/deletion; new stories use edited rules; global books and hidden snapshot contents stay excluded",
+    "optional identity setup cancellation does not create a chat",
+    "after a real committed POST response is dropped, reload queries its request ID and opens the original chat without another POST",
+    "missing saved worldbooks stop generation visibly, release the held balance and create no generated assistant response or charge",
+    "real action UI: filling does not submit, negated purchase leaves resources intact, execution spends once, map browsing does not move and travel commits a known destination",
+    "per-story style note survives reload without appearing in another story; recorded event opens its actual saved response",
+    "production exploration page at 390/768/1440 in dark/light, no horizontal overflow",
+    "relationship card completes free-input boundary plus recommended introduction/appointment with three settlements, source links and reload continuity; no map/affection number or cross-story changes",
+    "versioned story memory tool reads the current story progress, without legacy memory calls, stale character memories or fabricated emotion values"
+  ],
+  "screenshots": [
+    "production-discover-390-dark.png",
+    "reference-discover-390-dark.png",
+    "production-detail-390-dark.png",
+    "reference-detail-390-dark.png",
+    "production-identity-390-dark.png",
+    "reference-identity-390-dark.png",
+    "production-library-390-dark.png",
+    "reference-library-390-dark.png",
+    "production-create-390-dark.png",
+    "reference-create-390-dark.png",
+    "production-account-390-dark.png",
+    "reference-account-390-dark.png",
+    "production-discover-390-light.png",
+    "reference-discover-390-light.png",
+    "production-detail-390-light.png",
+    "reference-detail-390-light.png",
+    "production-identity-390-light.png",
+    "reference-identity-390-light.png",
+    "production-library-390-light.png",
+    "reference-library-390-light.png",
+    "production-create-390-light.png",
+    "reference-create-390-light.png",
+    "production-account-390-light.png",
+    "reference-account-390-light.png",
+    "production-discover-768-dark.png",
+    "reference-discover-768-dark.png",
+    "production-detail-768-dark.png",
+    "reference-detail-768-dark.png",
+    "production-identity-768-dark.png",
+    "reference-identity-768-dark.png",
+    "production-library-768-dark.png",
+    "reference-library-768-dark.png",
+    "production-create-768-dark.png",
+    "reference-create-768-dark.png",
+    "production-account-768-dark.png",
+    "reference-account-768-dark.png",
+    "production-discover-768-light.png",
+    "reference-discover-768-light.png",
+    "production-detail-768-light.png",
+    "reference-detail-768-light.png",
+    "production-identity-768-light.png",
+    "reference-identity-768-light.png",
+    "production-library-768-light.png",
+    "reference-library-768-light.png",
+    "production-create-768-light.png",
+    "reference-create-768-light.png",
+    "production-account-768-light.png",
+    "reference-account-768-light.png",
+    "production-discover-1440-dark.png",
+    "reference-discover-1440-dark.png",
+    "production-detail-1440-dark.png",
+    "reference-detail-1440-dark.png",
+    "production-identity-1440-dark.png",
+    "reference-identity-1440-dark.png",
+    "production-library-1440-dark.png",
+    "reference-library-1440-dark.png",
+    "production-create-1440-dark.png",
+    "reference-create-1440-dark.png",
+    "production-account-1440-dark.png",
+    "reference-account-1440-dark.png",
+    "production-discover-1440-light.png",
+    "reference-discover-1440-light.png",
+    "production-detail-1440-light.png",
+    "reference-detail-1440-light.png",
+    "production-identity-1440-light.png",
+    "reference-identity-1440-light.png",
+    "production-library-1440-light.png",
+    "reference-library-1440-light.png",
+    "production-create-1440-light.png",
+    "reference-create-1440-light.png",
+    "production-account-1440-light.png",
+    "reference-account-1440-light.png",
+    "play-390-light.png",
+    "play-390-dark.png",
+    "play-768-light.png",
+    "play-768-dark.png",
+    "play-1440-light.png",
+    "play-1440-dark.png",
+    "relationship-state.png",
+    "story-memory-drawer.png"
+  ],
+  "sources": [
+    {
+      "path": "docs/design/exploration-demo/app.js",
+      "sha256": "b7f220fbcb51edacee24ff6169f99a990a5330dfbf5156d175ece5b2a569202f"
+    },
+    {
+      "path": "src/client/pages/Chat.vue",
+      "sha256": "8d57847854b001184125567d6cf5b98e6bd8a210e8d9209c2b03b52e66ddac49"
+    },
+    {
+      "path": "src/client/pages/Market.vue",
+      "sha256": "0121e085be3b23b82c825960ab64c2f6b38de78711efdeac33820e132e649340"
+    },
+    {
+      "path": "src/client/pages/CharacterDetail.vue",
+      "sha256": "77dbdb6865e824e407b236446f7b26c20a1e938eac2dd85e185d1b371b8dd3cc"
+    },
+    {
+      "path": "src/client/components/layout/ExplorationLayout.vue",
+      "sha256": "cbebdb4d868af2aa742ebcf88616a04002b9daf4e125999bdd3646f8024510c9"
+    },
+    {
+      "path": "src/client/components/chat/PersonaSelector.vue",
+      "sha256": "e064365ab326d293f866aac8014d965c9ffe8bab29bc287ec60229bde674c8e2"
+    },
+    {
+      "path": "src/client/components/chat/StorySaveCard.vue",
+      "sha256": "b6aaaf6536d2bcfc36a55a9f805ca0265c58343c4c723da3341b965bbf7bfc9b"
+    },
+    {
+      "path": "src/client/styles/exploration-entry.css",
+      "sha256": "255f6b38dc1e6e68297d2d2f432c6cfab8aa28c2f6c0f519011a5be6c1f7ca9a"
+    },
+    {
+      "path": "src/client/main.ts",
+      "sha256": "9192d3fe1b216967567c1a577f6bf05b546e744be4b219ce390492fc2004a607"
+    },
+    {
+      "path": "src/client/router/index.ts",
+      "sha256": "939642490bc4f5b792ee99ffeb10baaf7608525fc967e11547c7adad229173ae"
+    },
+    {
+      "path": "src/client/stores/user.ts",
+      "sha256": "db63131b9e75da3464e26ba3c3dc1d1e4fabcde8e440a82d8420d762be5ac023"
+    },
+    {
+      "path": "src/server/middleware/rateLimit.ts",
+      "sha256": "c09c8602cc4409f5812140c8b9ba3c20e72bf4b5fafdbd23ca30973efd8000a3"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "978292d14632c26e461c931cf14d0a74c14ffa136413c54a18a5f80258f12cad"
+    },
+    {
+      "path": "scripts/exploration-entry-browser-check.mjs",
+      "sha256": "dd7025bcf806703c2055db5ff0093a4bea12ace1e7973f0c756b0b2b208bbe91"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "b503680ddb1b2194380a375481fa8a027056805ab6d6b53ba378157dfa8ee831"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "621eda5df8ec52ca6eb8c70d5162e80a750af5ed63a46db06682fd685f8d2748"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "5d4e29954bd8671d6c5a68af6c34c09171a6924dec4c73d848e41464bc34dd94"
+    },
+    {
+      "path": "src/types/story-identity.ts",
+      "sha256": "ad41fe44f8b2924d15fd3b52db33ae9de450a9357cc37e77514669ee3bb9bae8"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "e16be1f2b5adf821c6c3417a8b573793ebe3bee7a18ef3f28fd057100140ac47"
+    },
+    {
+      "path": "src/server/services/chat.service.ts",
+      "sha256": "a8fabdbb8a7e0450d8b3b9902e87486a8f7852d9addff3195f0c2ffe2a0e5195"
+    },
+    {
+      "path": "src/server/routes/chats.ts",
+      "sha256": "1617b46320915804842e8415f99c27ea8f7e5d158f8a5956c7a392f665a915a3"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "d79b82150e87b7e090f2d09b545a82310f8444d93ad271aff7683d88cb25bc0b"
+    },
+    {
+      "path": "src/client/composables/useStoryIdentity.ts",
+      "sha256": "b2b77d54e7b5e9c119925b74fe2e93a3982041f18f361e9dcde215ff241843aa"
+    },
+    {
+      "path": "src/client/services/chat.api.ts",
+      "sha256": "0f8061309b96408748e519f72f9210a6dd6f3062a064215fc7e16d92f00309f8"
+    },
+    {
+      "path": "src/client/stores/chat.ts",
+      "sha256": "216c847bfad245a76adca2afb787a0691fcfb4ee5c7c75da2f6c23f6c9e9d611"
+    },
+    {
+      "path": "src/db/schema/chats.ts",
+      "sha256": "7f52e2e280a8f71b40ebbf142559761e5f2408a3d09c58df3b12b3a468445a7b"
+    },
+    {
+      "path": "src/db/migrations/0042_story_identity_snapshot.sql",
+      "sha256": "734b9210b02986c25c35f4b4409135f51d5b97d5d7d35cb311602bb3875f457c"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "scripts/chat-creation-concurrency-check.ts",
+      "sha256": "da075bddb9f6a50e237ad88c51265e7c64bff43c6419db095ef835e69a9be331"
+    },
+    {
+      "path": "src/types/story-worldbooks.ts",
+      "sha256": "8622923b8a1fdf50dd80812290fe62be1a3f7d6622ad29591fc241b11590aa40"
+    },
+    {
+      "path": "src/db/schema/story-worldbooks.ts",
+      "sha256": "62474a8611c79106ffa90c7887f7cae767ab253997576f41008fae4737ab0fc0"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "2af30e7008a70c440243888704d6c288a6e464e6749259771247be6121b46378"
+    },
+    {
+      "path": "src/server/services/worldinfo-engine.service.ts",
+      "sha256": "1bdd6d18f64fd7485ee5882bd77469210c3232eb507f585f9edcf9de468a0b6a"
+    },
+    {
+      "path": "src/db/migrations/0043_story_worldbooks.sql",
+      "sha256": "533b9ebdca16ff103b331fab6cd3748234c0d7bd43235e131bed3fc10bee5d15"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/client/components/chat/ChatWindow.vue",
+      "sha256": "b40c40e1c6f053a91b7578b33aee71b3856a47f197b347286de3823eb314bdac"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "09e23cccb4da4aa05e956653d0e9459e982185128f7a72b506a86c9446069760"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "2dc6d92aeac35411c243f0ee6e4bcbbe7fc4e22bb35c56728b6ba497efc50601"
+    },
+    {
+      "path": "src/types/story-state.ts",
+      "sha256": "397eadb4707b81af9dfa0abe84a924501890529b78875406453dbb5f08cb32d4"
+    },
+    {
+      "path": "src/types/story-examples.ts",
+      "sha256": "0d9549eaddfe4835c1b188b053720b52a2417693e8529d1ef0d1647060fc5d93"
+    },
+    {
+      "path": "src/types/story-content.ts",
+      "sha256": "7cf0d1462c30f79eafa85cc2aea718fd9a88e4f68d72804837903b76bf444e19"
+    },
+    {
+      "path": "src/types/story-capabilities.ts",
+      "sha256": "1e87ecdc837463f90378991528c6803e74ad5d5b458b3645f288b0e6d2c4476b"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "7328982c64c64c3630a2582f527a29ef56306af4b5d481fd037cf158c6023310"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "e72147d99ca074981a5fb6fb4164bae35937195ef9864f6e2b8141be7f0c8c44"
+    },
+    {
+      "path": "src/client/components/chat/StoryDossier.vue",
+      "sha256": "6ff699cde36c53a004181212be9bd1e75256ca7b99af518f96a9db21c7837a85"
+    },
+    {
+      "path": "src/client/composables/useStoryState.ts",
+      "sha256": "ccd3a74e5f6a887627dc9b6ab0d0b67195a96e40cf9e758ca20035f903914887"
+    },
+    {
+      "path": "src/client/services/story.api.ts",
+      "sha256": "c00f73a86439d85f3fcf65359f355f570e4c3f2c6834f63b51d6cea4bd8c28ed"
+    },
+    {
+      "path": "src/db/migrations/0044_story_content.sql",
+      "sha256": "8826165a55427e17ac931271363ae0028e34aa2bf0570b8e10855a5fd3c8e358"
+    },
+    {
+      "path": "src/db/migrations/0045_story_state.sql",
+      "sha256": "e935306e6df0be1231795c7df57f5b3e32abb2b12b1658951d5c9a73403969bb"
+    },
+    {
+      "path": "src/db/migrations/0046_story_memory_scope.sql",
+      "sha256": "ffcda9283a2eea24380b4a91e260345066a221796f8efa8547bcd423d8c2549d"
+    },
+    {
+      "path": "src/server/services/memory.service.ts",
+      "sha256": "4750aa1ffb1678c7c0232e225643080ccfafb0bdd0bffbc37d09cf8911170c81"
+    },
+    {
+      "path": "src/server/services/memory-consolidation.service.ts",
+      "sha256": "d5eb243affb3f4796d9df0f822129cd36b9b22ad309a6b65648ef91a2e7d3cdd"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "a9ede9da758548a1a2608683acb6083623b26888fcb2ce28e42154f744b0086c"
+    },
+    {
+      "path": "src/client/pages/CharacterEditor.vue",
+      "sha256": "c29ec6d63280e54e6438c33c61b307b1bf1aff7c783e8673cd78649fef4c6914"
+    },
+    {
+      "path": "src/client/pages/MyCharacters.vue",
+      "sha256": "af0dc6de46335bcf9f794c41ab245f6976298b951a10a8df673b7ca259d28faa"
+    },
+    {
+      "path": "src/client/pages/Profile.vue",
+      "sha256": "d6617bffe5af9960f149bb72eddeef667746ef2ed488131837101c76cd428cb1"
+    },
+    {
+      "path": "src/client/pages/Subscription.vue",
+      "sha256": "a24591b0e0fd8d64810788e4081320a1d7747e7a79687a101db6c1a54db8d70d"
+    },
+    {
+      "path": "src/db/repositories/message.repository.ts",
+      "sha256": "eecdda47eba26e31617b0788d084d4d19ae55c9abaddd2ebf6c8fb9e560966fb"
+    },
+    {
+      "path": "src/client/components/layout/ExplorationPlayLayout.vue",
+      "sha256": "6871db32e7260c2d9fc940ec28b70d7b5f898ab993ae2bcb7deb768c9781e585"
+    },
+    {
+      "path": "src/client/components/chat/StoryEntryPreview.vue",
+      "sha256": "5320584f7b7f5f19cc31ed6d74a2fcf0df409f4c9f39ad36df0473b2db627771"
+    },
+    {
+      "path": "src/client/components/chat/StoryIdentitySurface.vue",
+      "sha256": "fb9a336230843a3eee3ba493998a27ab754fe6d8e05291316ff453a4328cb88c"
+    },
+    {
+      "path": "src/client/styles/_breakpoints.scss",
+      "sha256": "438b98aeeda59074e74d77a241f04a5ba00bdfadc987fa1603665df7f46cfefe"
+    },
+    {
+      "path": "vite.config.ts",
+      "sha256": "7b0595b180e4fae4e57c275cba304f8054021df0eea0fde3d609a3368dce9df6"
+    },
+    {
+      "path": "src/db/beta-migrations/0004_story_content.sql",
+      "sha256": "3c09875fe35c43e68d2f0bd4e03044253b9bf879c16c1c564dfa6898f5e1648b"
+    },
+    {
+      "path": "src/db/beta-migrations/0005_story_state.sql",
+      "sha256": "09cae5255133b9fe58a981ee3cadda43210de96a5abfd70a233aead9350b1b89"
+    },
+    {
+      "path": "src/db/beta-migrations/0006_story_memory_scope.sql",
+      "sha256": "4d9519301750da6ad4bb4bba825feee3be843d47dfb9313d6a06d9b2455974e3"
+    }
+  ]
+}

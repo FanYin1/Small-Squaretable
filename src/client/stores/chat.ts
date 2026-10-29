@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { Chat, Message, Character, MessageAttachment } from '@client/types';
 import type { ModelMeta } from '@client/services/llm.api';
 import { chatApi, ApiError, llmApi, characterApi, api } from '@client/services';
@@ -9,6 +9,12 @@ import { useCharacterIntelligenceStore } from './characterIntelligence';
 import { useNotificationStore } from './notification';
 import { useDeviceSync } from '@client/composables/useDeviceSync';
 import { createLogger } from '@client/utils/logger';
+import i18n from '@client/i18n';
+import { isInsufficientCredits, showInsufficientCreditsAlert } from '@client/utils/credit-alert';
+import { useUserStore } from './user';
+import { storyIdentitySnapshotSchema } from '../../types/story-identity';
+import type { OpeningSelection } from '../../types/story-opening';
+import { contextBudgetDetailsSchema } from '../../types/context-budget';
 
 const logger = createLogger('Chat');
 
@@ -27,12 +33,22 @@ export const useChatStore = defineStore('chat', () => {
   const streamingCharacterId = ref<string | null>(null);
   const streamingCharacterName = ref<string | null>(null);
   const isStreaming = ref(false);
+  const stopping = ref(false);
+  const billingRevision = ref(0);
   const hasMoreMessages = ref(true);
   const loadingOlder = ref(false);
   const searchResults = ref<Message[]>([]);
   const searchQuery = ref('');
   const searching = ref(false);
   const availableModels = ref<ModelMeta[]>([]);
+  const contextRecovery = ref<{ chatId: string; requestId: string; content: string } | null>(null);
+  const failedGeneration = ref<{
+    chatId: string;
+    requestId: string;
+    content: string;
+    attachments?: MessageAttachment[];
+    mentionedCharacterIds?: string[];
+  } | null>(null);
 
   // Reply-to-message state
   const replyingTo = ref<{ messageId: string; content: string; role: string } | null>(null);
@@ -48,6 +64,163 @@ export const useChatStore = defineStore('chat', () => {
 
   // WebSocket client
   let wsClient: WebSocketClient | null = null;
+  let selectionVersion = 0;
+  let accountVersion = 0;
+  let chatsVersion = 0;
+  let httpGenerationController: AbortController | null = null;
+  let pendingAcceptance: { messageId: string; accept: () => void } | null = null;
+  let activeRequestId: string | null = null;
+  let lastFinishedRequestId: string | null = null;
+  let generationRecoveryPending = false;
+  const requestPayloads = new Map<string, {
+    content: string;
+    attachments?: MessageAttachment[];
+    mentionedCharacterIds?: string[];
+    onAccepted?: () => void;
+    storyAction?: import('../../types/story-state').StoryActionRequest;
+    storyAudience?: import('../../types/story-knowledge').StoryAudience;
+  }>();
+
+  type GenerationState = { chatId: string; status: 'running' | 'idle'; requestId?: string };
+
+  const canRetryGeneration = computed(() => Boolean(
+    failedGeneration.value &&
+    failedGeneration.value.chatId === currentChatId.value &&
+    wsConnected.value &&
+    !sending.value &&
+    !isStreaming.value
+  ));
+
+  function takeContextInput(): string | null {
+    if (!contextRecovery.value || contextRecovery.value.chatId !== currentChatId.value || sending.value || isStreaming.value) return null;
+    const content = contextRecovery.value.content;
+    contextRecovery.value = null;
+    return content;
+  }
+
+  function rememberFailedGeneration(requestId?: string): void {
+    if (!requestId || !currentChatId.value) return;
+    const userMessage = messages.value.find(message =>
+      message.id === requestId || message.extra?.clientMessageId === requestId
+    );
+    const payload = requestPayloads.get(requestId);
+    if (!userMessage && !payload) return;
+
+    failedGeneration.value = {
+      chatId: currentChatId.value,
+      requestId,
+      content: payload?.content || userMessage?.content || '',
+      attachments: payload?.attachments || userMessage?.attachments,
+      mentionedCharacterIds: payload?.mentionedCharacterIds,
+    };
+  }
+
+  function clearStreamingState(): void {
+    streamingMessage.value = '';
+    streamingCharacterId.value = null;
+    streamingCharacterName.value = null;
+    isStreaming.value = false;
+  }
+
+  async function refreshLegacyVariables(chatId: string) {
+    if (currentChat.value?.id !== chatId || currentChat.value.contentSnapshotVersion != null) return;
+    try {
+      const { fetchVariables, updateVariables } = await import('@client/utils/era-bridge');
+      const variables = await fetchVariables(chatId);
+      if (currentChat.value?.id === chatId) updateVariables(variables);
+    } catch (variableError) {
+      logger.warn('Failed to recover legacy variables', { error: variableError });
+      if (currentChat.value?.id === chatId && !error.value) error.value = i18n.global.t('chat.replyRecoveryFailed');
+    }
+  }
+
+  async function reconcileMessages(chatId: string, includeLastMessage = false, recoveryRequestId = activeRequestId): Promise<{ assistantRecovered: boolean; failed?: boolean }> {
+    const version = selectionVersion;
+    const requestId = recoveryRequestId;
+    const numericIds = messages.value
+      .map(message => Number(message.id))
+      .filter(Number.isSafeInteger);
+    const lastMessageId = numericIds.length > 0 ? Math.max(...numericIds) : undefined;
+    const requestMessage = requestId ? messages.value.find(message => message.extra?.clientMessageId === requestId || message.id === requestId) : undefined;
+    const requestMessageId = requestMessage ? Number(requestMessage.id) : NaN;
+    const after = Number.isSafeInteger(requestMessageId)
+      ? Math.max(0, requestMessageId - 1)
+      : lastMessageId !== undefined ? (includeLastMessage ? Math.max(0, lastMessageId - 1) : lastMessageId) : undefined;
+
+    try {
+      const recovered: Message[] = [];
+      let cursor = after;
+      while (true) {
+        const response = await chatApi.getMessages(chatId, {
+          ...(cursor !== undefined ? { after: cursor } : {}), limit: 50,
+        });
+        if (version !== selectionVersion || currentChatId.value !== chatId) return { assistantRecovered: false };
+        recovered.push(...response.messages);
+        if (cursor === undefined || !response.hasMore) break;
+        const nextCursor = Math.max(...response.messages.map(message => Number(message.id)));
+        if (!Number.isSafeInteger(nextCursor) || nextCursor <= cursor) throw new Error('Message recovery cursor did not advance');
+        cursor = nextCursor;
+      }
+
+      const merged = [...messages.value];
+      let assistantRecovered = false;
+
+      for (const incoming of recovered) {
+        const incomingClientMessageId = incoming.extra?.clientMessageId;
+        let existingIndex = merged.findIndex(message => message.id === incoming.id);
+
+        if (existingIndex === -1 && incoming.role === 'user' && incomingClientMessageId) {
+          existingIndex = merged.findIndex(message => message.id === incomingClientMessageId);
+        }
+
+        if (existingIndex !== -1) {
+          const existingMessage = merged[existingIndex];
+          if (incoming.role === 'user' && existingMessage.id.startsWith('temp-') && pendingAcceptance?.messageId === existingMessage.id) {
+            const accept = pendingAcceptance.accept;
+            pendingAcceptance = null;
+            accept();
+          }
+          merged[existingIndex] = { ...merged[existingIndex], ...incoming };
+        } else {
+          merged.push(incoming);
+        }
+
+        if (incoming.role === 'assistant' && !messages.value.some(message => message.id === incoming.id)) {
+          assistantRecovered = true;
+        }
+      }
+
+      messages.value = merged.sort((first, second) => {
+        const firstId = Number(first.id);
+        const secondId = Number(second.id);
+        return Number.isSafeInteger(firstId) && Number.isSafeInteger(secondId) ? firstId - secondId : 0;
+      });
+      if (!assistantRecovered && requestId) {
+        const requestUserIndex = merged.findIndex(message =>
+          message.id === requestId || message.extra?.clientMessageId === requestId
+        );
+        if (requestUserIndex !== -1) {
+          assistantRecovered = merged
+            .slice(requestUserIndex + 1)
+            .some(message => message.role === 'assistant');
+        }
+      }
+      await refreshLegacyVariables(chatId);
+      return { assistantRecovered };
+    } catch (reconcileError) {
+      logger.warn('Failed to reconcile messages after WebSocket reconnect', { error: reconcileError });
+      if (version === selectionVersion && currentChatId.value === chatId && !error.value) error.value = i18n.global.t('chat.replyRecoveryFailed');
+      return { assistantRecovered: false, failed: true };
+    }
+  }
+
+  function acceptGenerationEvent(requestId?: string): boolean {
+    if (!requestId) return true;
+    if (requestId === lastFinishedRequestId || (activeRequestId && requestId !== activeRequestId)) return false;
+    activeRequestId = requestId;
+    sending.value = true;
+    return true;
+  }
 
   // Getters
   const currentChat = computed(() =>
@@ -106,6 +279,12 @@ export const useChatStore = defineStore('chat', () => {
     // 默认指令
     parts.push('Stay in character at all times. Respond naturally as this character would.');
 
+    const snapshot = currentChat.value?.identitySnapshot;
+    if (snapshot != null) {
+      const identity = storyIdentitySnapshotSchema.parse(snapshot);
+      parts.push(`[User Persona: ${identity.name}]${identity.description ? `\n${identity.description}` : ''}`);
+      return parts.join('\n\n').replace(/\{\{user\}\}/gi, () => identity.name);
+    }
     return parts.join('\n\n');
   }
 
@@ -124,6 +303,12 @@ export const useChatStore = defineStore('chat', () => {
     wsClient = new WebSocketClient({
       url: wsUrl,
       token,
+      refreshAccessToken: async () => {
+        const userStore = useUserStore();
+        await userStore.refreshAccessToken();
+        if (!userStore.token) throw new Error('Access token refresh returned no token');
+        return userStore.token;
+      },
       reconnectInterval: 3000,
       maxReconnectAttempts: 5,
       heartbeatInterval: 30000,
@@ -140,29 +325,75 @@ export const useChatStore = defineStore('chat', () => {
     wsClient.on('connected', () => {
       // 如果有当前聊天，加入聊天室
       if (currentChatId.value) {
-        wsClient?.joinChat(currentChatId.value);
+        const chatId = currentChatId.value;
+        generationRecoveryPending = !httpGenerationController && Boolean(activeRequestId || sending.value || isStreaming.value);
+        wsClient?.joinChat(chatId);
       }
     });
 
     // 断开连接
     wsClient.on('disconnected', () => {
-      // silently ignore
+      generationRecoveryPending = !httpGenerationController && Boolean(activeRequestId || sending.value || isStreaming.value);
+    });
+
+    wsClient.on('generationState', (data: unknown) => {
+      const state = data as GenerationState;
+      if (state.chatId !== currentChatId.value) return;
+      if (httpGenerationController) return;
+
+      if (state.status === 'running') {
+        generationRecoveryPending = true;
+        if (state.requestId) activeRequestId = state.requestId;
+        sending.value = true;
+        stopping.value = false;
+        void reconcileMessages(state.chatId).then(({ assistantRecovered }) => {
+          if (assistantRecovered && currentChatId.value === state.chatId) clearStreamingState();
+        });
+        return;
+      }
+
+      const wasGenerating = generationRecoveryPending || Boolean(activeRequestId || sending.value || isStreaming.value);
+      void reconcileMessages(state.chatId).then(({ assistantRecovered }) => {
+        if (currentChatId.value !== state.chatId || !wasGenerating) return;
+        failedGeneration.value = null;
+        if (assistantRecovered || isStreaming.value) clearStreamingState();
+        lastFinishedRequestId = state.requestId || activeRequestId;
+        activeRequestId = null;
+        generationRecoveryPending = false;
+        pendingAcceptance = null;
+        sending.value = false;
+        stopping.value = false;
+        if (!assistantRecovered) {
+          if (!error.value) error.value = i18n.global.t('chat.generationFailed');
+        }
+      });
     });
 
     // 接收用户消息（来自 WebSocket 广播，包含数据库真实 ID）
     wsClient.on('userMessage', (data: unknown) => {
-      const msgData = data as { messageId: string; chatId: string; content: string; attachments?: MessageAttachment[] };
+      const msgData = data as { messageId: string; chatId: string; content: string; clientMessageId?: string; attachments?: MessageAttachment[]; storyAudience?: string[] };
+      if (msgData.chatId !== currentChatId.value) return;
+      if (messages.value.some(message => message.id === msgData.messageId)) return;
 
       // 查找并替换临时消息，或添加新消息（如果是其他客户端发送的）
       const tempIndex = messages.value.findIndex(
-        m => m.id.startsWith('temp-') && m.content === msgData.content && m.chatId === msgData.chatId
+        m => m.chatId === msgData.chatId && (msgData.clientMessageId
+          ? m.id === msgData.clientMessageId
+          : m.id.startsWith('temp-') && m.content === msgData.content)
       );
 
       if (tempIndex !== -1) {
+        if (pendingAcceptance && pendingAcceptance.messageId === msgData.clientMessageId) {
+          const accept = pendingAcceptance.accept;
+          pendingAcceptance = null;
+          accept();
+        }
         // 替换临时消息为真实消息（更新 ID）
         messages.value[tempIndex] = {
           ...messages.value[tempIndex],
           id: msgData.messageId,
+          extra: { ...messages.value[tempIndex].extra, clientMessageId: msgData.clientMessageId,
+            ...(msgData.storyAudience ? { storyAudience: msgData.storyAudience } : {}) },
         };
       } else {
         // 新消息（可能来自其他客户端）
@@ -172,6 +403,8 @@ export const useChatStore = defineStore('chat', () => {
           role: 'user',
           content: msgData.content,
           attachments: msgData.attachments,
+          extra: { ...(msgData.clientMessageId ? { clientMessageId: msgData.clientMessageId } : {}),
+            ...(msgData.storyAudience ? { storyAudience: msgData.storyAudience } : {}) },
           createdAt: new Date().toISOString(),
         };
         messages.value.push(message);
@@ -180,7 +413,13 @@ export const useChatStore = defineStore('chat', () => {
 
     // 接收助手消息块（流式）
     wsClient.on('assistantMessageChunk', (data: unknown) => {
-      const chunkData = data as { chunk: string; characterId?: string; characterName?: string };
+      const chunkData = data as { chatId: string; requestId?: string; chunk: string; characterId?: string; characterName?: string };
+      if (chunkData.chatId !== currentChatId.value) return;
+      if (!acceptGenerationEvent(chunkData.requestId)) return;
+      if (isStreaming.value && (chunkData.characterId ?? null) !== streamingCharacterId.value) {
+        generationRecoveryPending = true;
+        isStreaming.value = false;
+      }
       if (!isStreaming.value) {
         isStreaming.value = true;
         streamingMessage.value = '';
@@ -192,8 +431,13 @@ export const useChatStore = defineStore('chat', () => {
 
     // 助手消息完成
     wsClient.on('assistantMessageDone', (data: unknown) => {
-      const doneData = data as { messageId: string; chatId: string; characterId?: string; characterName?: string; variablesChanged?: boolean };
-      if (isStreaming.value) {
+      const doneData = data as { messageId: string; chatId: string; requestId?: string; characterId?: string; characterName?: string; variablesChanged?: boolean; storyAudience?: string[];
+        storyIntent?: import('../../types/story-intent').StoredStoryIntent; storyConfirmedIntent?: import('../../types/story-intent').StoryIntent; storyIntentInvalid?: boolean; storyRecommendations?: Array<{ label: string; input: string }>; storyRecommendationsSource?: import('../../types/story-recommendations').StoryRecommendationsSource; stateStatus?: string };
+      if (doneData.chatId !== currentChatId.value) return;
+      if (!acceptGenerationEvent(doneData.requestId)) return;
+      if (doneData.variablesChanged) void refreshLegacyVariables(doneData.chatId);
+      if (!doneData.requestId) stopping.value = false;
+      if (isStreaming.value && streamingMessage.value && doneData.messageId) {
         const message: Message = {
           id: doneData.messageId,
           chatId: doneData.chatId,
@@ -201,31 +445,111 @@ export const useChatStore = defineStore('chat', () => {
           content: streamingMessage.value,
           characterId: doneData.characterId ?? streamingCharacterId.value ?? undefined,
           characterName: doneData.characterName ?? streamingCharacterName.value ?? undefined,
+          extra: { ...(doneData.storyAudience ? { storyAudience: doneData.storyAudience } : {}),
+            ...(doneData.stateStatus ? { stateStatus: doneData.stateStatus } : {}),
+            ...(doneData.storyIntent ? { storyIntent: doneData.storyIntent } : {}),
+            ...(doneData.storyConfirmedIntent ? { storyConfirmedIntent: doneData.storyConfirmedIntent } : {}),
+            ...(doneData.storyIntentInvalid ? { storyIntentInvalid: true } : {}),
+            ...(doneData.storyRecommendations ? { storyRecommendations: doneData.storyRecommendations } : {}),
+            ...(doneData.storyRecommendationsSource ? { storyRecommendationsSource: doneData.storyRecommendationsSource } : {}),
+          },
           createdAt: new Date().toISOString(),
         };
-        messages.value.push(message);
+        if (!messages.value.some(existing => existing.id === message.id)) messages.value.push(message);
         streamingMessage.value = '';
         streamingCharacterId.value = null;
         streamingCharacterName.value = null;
         isStreaming.value = false;
-        sending.value = false;
+        if (!doneData.requestId) sending.value = false;
 
-        // Refresh ERA variables if they changed
-        if (doneData.variablesChanged) {
-          import('@client/utils/era-bridge').then(({ fetchVariables, updateVariables }) => {
-            fetchVariables(doneData.chatId).then(vars => updateVariables(vars));
-          });
-        }
+      }
+      if (!doneData.requestId) {
+        sending.value = false;
+        isStreaming.value = false;
+        activeRequestId = null;
+      }
+    });
+
+    wsClient.on('generationFinished', (data: unknown) => {
+      const finished = data as { chatId: string; requestId: string; status: 'completed' | 'stopped' | 'failed'; retryable?: boolean };
+      if (finished.chatId === currentChatId.value) billingRevision.value += 1;
+      if (finished.chatId !== currentChatId.value || finished.requestId !== activeRequestId) return;
+      const needsReconciliation = generationRecoveryPending || finished.status !== 'completed';
+      const recoveryVersion = selectionVersion;
+      if (finished.status === 'failed' && finished.retryable === true && contextRecovery.value?.requestId !== finished.requestId) rememberFailedGeneration(finished.requestId);
+      else {
+        failedGeneration.value = null;
+        requestPayloads.delete(finished.requestId);
+      }
+      lastFinishedRequestId = finished.requestId;
+      activeRequestId = null;
+      generationRecoveryPending = false;
+      pendingAcceptance = null;
+      streamingMessage.value = '';
+      streamingCharacterId.value = null;
+      streamingCharacterName.value = null;
+      isStreaming.value = false;
+      sending.value = false;
+      stopping.value = false;
+      if (finished.status === 'failed' && !error.value) error.value = i18n.global.t('chat.generationFailed');
+      if (needsReconciliation) {
+        void reconcileMessages(finished.chatId, true, finished.requestId).then(({ failed }) => {
+          if (failed && recoveryVersion === selectionVersion && currentChatId.value === finished.chatId && !error.value) {
+            error.value = i18n.global.t('chat.replyRecoveryFailed');
+          }
+        });
       }
     });
 
     // 错误处理
     wsClient.on('error', (data: unknown) => {
-      const errorData = data as { message: string };
+      const errorData = data as { code?: string; message: string; details?: unknown; chatId?: string; requestId?: string };
+      if (errorData.chatId && errorData.chatId !== currentChatId.value) return;
+      if (errorData.requestId && errorData.requestId !== activeRequestId) return;
+      failedGeneration.value = null;
+      contextRecovery.value = null;
       logger.error('WebSocket error', undefined, { errorData });
-      error.value = errorData.message;
+      // 平台花费熔断（P0-7）：服务端消息是英文，这里换成本地化提示
+      // 点数不足（P3-1）：同样换成本地化提示
+      if (errorData.code === 'PLATFORM_SPEND_LIMIT') {
+        error.value = i18n.global.t('chat.platformSpendLimit');
+      } else if (errorData.code === 'PLATFORM_SPEND_UNAVAILABLE') {
+        error.value = i18n.global.t('chat.platformSpendUnavailable');
+      } else if (errorData.code === 'INSUFFICIENT_CREDITS') {
+        error.value = i18n.global.t('credits.insufficient');
+        void showInsufficientCreditsAlert(errorData.details);
+      } else if (errorData.code === 'GENERATION_ALREADY_ACCEPTED') {
+        error.value = i18n.global.t('chat.generationAlreadyAccepted');
+      } else if (errorData.code === 'GENERATION_OUTPUT_TRUNCATED') {
+        error.value = i18n.global.t('chat.generationTruncated');
+      } else if (errorData.code === 'CONTEXT_BUDGET_EXCEEDED') {
+        const details = contextBudgetDetailsSchema.safeParse(errorData.details);
+        const reason = details.success ? details.data.reason : 'payload';
+        const key = reason === 'latest' ? 'contextBudgetInput' : reason === 'pinned' ? 'contextBudgetPinned'
+          : reason === 'critical' ? 'contextBudgetCritical' : 'contextBudgetPayload';
+        error.value = i18n.global.t(`chat.${key}`);
+        const requestId = errorData.requestId ?? activeRequestId;
+        if (requestId && currentChatId.value) {
+          const saved = messages.value.find(message => message.id === requestId || message.extra?.clientMessageId === requestId);
+          contextRecovery.value = { chatId: currentChatId.value, requestId,
+            content: requestPayloads.get(requestId)?.content ?? saved?.content ?? '' };
+        }
+      } else if (['STORY_STATE_CONFLICT', 'STORY_ACTION_UNAVAILABLE', 'STORY_ACTION_PRECONDITION'].includes(errorData.code ?? '')) {
+        error.value = i18n.global.t('chat.storyActionChanged');
+        if (errorData.requestId) messages.value = messages.value.filter(message => message.id !== errorData.requestId);
+      } else {
+        error.value = errorData.message;
+      }
+      if (errorData.code === 'GENERATION_BUSY' && currentChatId.value) {
+        wsClient?.joinChat(currentChatId.value);
+        return;
+      }
+      if (activeRequestId) return;
+      pendingAcceptance = null;
       sending.value = false;
       isStreaming.value = false;
+      stopping.value = false;
+      generationRecoveryPending = false;
     });
 
     // Intelligence events - forward to intelligence store
@@ -303,12 +627,15 @@ export const useChatStore = defineStore('chat', () => {
 
   // Actions
   async function fetchChats(): Promise<void> {
+    const version = ++chatsVersion;
     loading.value = true;
     error.value = null;
     try {
       const response = await chatApi.getChats();
+      if (version !== chatsVersion) return;
       chats.value = response.chats;
     } catch (e) {
+      if (version !== chatsVersion) return;
       if (e instanceof ApiError) {
         error.value = e.message;
       } else {
@@ -316,18 +643,21 @@ export const useChatStore = defineStore('chat', () => {
       }
       throw e;
     } finally {
-      loading.value = false;
+      if (version === chatsVersion) loading.value = false;
     }
   }
 
   async function fetchMessages(chatId: string): Promise<void> {
+    const version = selectionVersion;
     loading.value = true;
     error.value = null;
     try {
       const response = await chatApi.getMessages(chatId, { limit: 30 });
+      if (version !== selectionVersion) return;
       messages.value = response.messages;
       hasMoreMessages.value = response.hasMore;
     } catch (e) {
+      if (version !== selectionVersion) return;
       if (e instanceof ApiError) {
         error.value = e.message;
       } else {
@@ -335,12 +665,13 @@ export const useChatStore = defineStore('chat', () => {
       }
       throw e;
     } finally {
-      loading.value = false;
+      if (version === selectionVersion) loading.value = false;
     }
   }
 
   async function fetchOlderMessages(): Promise<void> {
     if (!currentChatId.value || !hasMoreMessages.value || loadingOlder.value) return;
+    const version = selectionVersion;
 
     const oldestMessage = messages.value[0];
     if (!oldestMessage) return;
@@ -354,53 +685,91 @@ export const useChatStore = defineStore('chat', () => {
         before: oldestId,
         limit: 20,
       });
+      if (version !== selectionVersion) return;
 
       if (response.messages.length > 0) {
         messages.value = [...response.messages, ...messages.value];
       }
       hasMoreMessages.value = response.hasMore;
     } catch (e) {
+      if (version !== selectionVersion) return;
       error.value = e instanceof Error ? e.message : 'Failed to load older messages';
     } finally {
-      loadingOlder.value = false;
+      if (version === selectionVersion) loadingOlder.value = false;
     }
   }
 
-  async function sendMessage(content: string, attachments?: MessageAttachment[], mentionedCharacterIds?: string[]): Promise<void> {
+  async function sendMessage(
+    content: string,
+    attachments?: MessageAttachment[],
+    mentionedCharacterIds?: string[],
+    onAccepted?: () => void,
+    retryRequestId?: string,
+    storyAction?: import('../../types/story-state').StoryActionRequest,
+    storyAudience?: import('../../types/story-knowledge').StoryAudience
+  ): Promise<void> {
     if (!currentChatId.value) {
       throw new Error('No active chat');
     }
+    if (sending.value || isStreaming.value) return;
+    if ((currentChat.value?.worldbookSnapshotVersion != null || currentChat.value?.contentSnapshotVersion != null) && !(wsConnected.value && wsClient)) {
+      error.value = i18n.global.t('chat.savedSettingsConnectionRequired');
+      throw new Error(error.value);
+    }
+    stopping.value = false;
+    const requestChatId = currentChatId.value;
+    const requestVersion = selectionVersion;
+    failedGeneration.value = null;
+    contextRecovery.value = null;
 
     // Build extra field with replyTo if replying
-    const extra = replyingTo.value ? { replyTo: { ...replyingTo.value } } : undefined;
+    const extra = { ...(replyingTo.value ? { replyTo: { ...replyingTo.value } } : {}), ...(storyAudience ? { storyAudience } : {}) };
 
     // 如果 WebSocket 已连接，使用 WebSocket 发送
     if (wsConnected.value && wsClient) {
+      const localMessageId = retryRequestId || `temp-${crypto.randomUUID()}`;
       sending.value = true;
       error.value = null;
+      requestPayloads.set(localMessageId, { content, attachments, mentionedCharacterIds, onAccepted, storyAction, storyAudience });
 
-      // 立即添加用户消息到界面
-      const userMessage: Message = {
-        id: `temp-${Date.now()}`,
-        chatId: currentChatId.value,
-        role: 'user',
-        content,
-        attachments,
-        extra,
-        createdAt: new Date().toISOString(),
-      };
-      messages.value.push(userMessage);
+      const existingMessage = retryRequestId
+        ? messages.value.find(message => message.id === retryRequestId || message.extra?.clientMessageId === retryRequestId)
+        : undefined;
+      if (!existingMessage) {
+        // 立即添加用户消息到界面
+        const userMessage: Message = {
+          id: localMessageId,
+          chatId: currentChatId.value,
+          role: 'user',
+          content,
+          attachments,
+          extra,
+          createdAt: new Date().toISOString(),
+        };
+        messages.value.push(userMessage);
+        pendingAcceptance = onAccepted ? { messageId: userMessage.id, accept: onAccepted } : null;
+      } else {
+        pendingAcceptance = onAccepted && existingMessage.id.startsWith('temp-')
+          ? { messageId: existingMessage.id, accept: onAccepted }
+          : null;
+      }
+      activeRequestId = localMessageId;
+      lastFinishedRequestId = null;
       replyingTo.value = null;
 
       // 通过 WebSocket 发送 (包含附件和提及)
-      wsClient.sendMessage(currentChatId.value, content, attachments, mentionedCharacterIds);
+      wsClient.sendMessage(currentChatId.value, content, attachments, mentionedCharacterIds, localMessageId, storyAction, storyAudience);
     } else {
       // 降级到 HTTP API
       sending.value = true;
       error.value = null;
+      const controller = new AbortController();
+      httpGenerationController = controller;
       try {
         // 1. 保存用户消息
-        const response = await chatApi.sendMessage(currentChatId.value, { role: 'user', content, ...(extra && { extra }) });
+        const response = await chatApi.sendMessage(requestChatId, { role: 'user', content, ...(extra && { extra }) });
+        onAccepted?.();
+        if (requestVersion !== selectionVersion) return;
         messages.value.push(response.message);
         replyingTo.value = null;
 
@@ -409,6 +778,8 @@ export const useChatStore = defineStore('chat', () => {
         const respondents = isGroup ? chatCharacters.value : (currentCharacter.value ? [currentCharacter.value] : []);
 
         for (const character of respondents) {
+          if (controller.signal.aborted || requestVersion !== selectionVersion) break;
+          let responseContent = '';
           // 2. 调用 LLM 获取 AI 回复（流式）
           isStreaming.value = true;
           streamingMessage.value = '';
@@ -434,32 +805,34 @@ export const useChatStore = defineStore('chat', () => {
             },
             // onChunk
             (chunk: string) => {
-              streamingMessage.value += chunk;
+              responseContent += chunk;
+              if (requestVersion === selectionVersion) streamingMessage.value = responseContent;
             },
             // onDone
             async () => {
               // 保存 AI 回复到数据库
-              if (streamingMessage.value && currentChatId.value) {
+              if (responseContent) {
                 try {
-                  const aiResponse = await chatApi.sendMessage(currentChatId.value, {
+                  const aiResponse = await chatApi.sendMessage(requestChatId, {
                     role: 'assistant',
-                    content: streamingMessage.value,
+                    content: responseContent,
                   });
-                  messages.value.push(aiResponse.message);
+                  if (requestVersion === selectionVersion) messages.value.push(aiResponse.message);
                 } catch (saveError) {
                   const tempMessage: Message = {
                     id: `temp-ai-${Date.now()}`,
-                    chatId: currentChatId.value!,
+                    chatId: requestChatId,
                     role: 'assistant',
-                    content: streamingMessage.value,
+                    content: responseContent,
                     characterId: isGroup ? character.id : undefined,
                     characterName: isGroup ? character.name : undefined,
                     createdAt: new Date().toISOString(),
                   };
-                  messages.value.push(tempMessage);
+                  if (requestVersion === selectionVersion) messages.value.push(tempMessage);
                   logger.error('Failed to save AI message', saveError);
                 }
               }
+              if (requestVersion !== selectionVersion) return;
               streamingMessage.value = '';
               streamingCharacterId.value = null;
               streamingCharacterName.value = null;
@@ -467,6 +840,7 @@ export const useChatStore = defineStore('chat', () => {
             },
             // onError
             (err: Error) => {
+              if (requestVersion !== selectionVersion) return;
               logger.error('LLM stream error', err);
               error.value = err.message;
               streamingMessage.value = '';
@@ -474,13 +848,19 @@ export const useChatStore = defineStore('chat', () => {
               streamingCharacterName.value = null;
               isStreaming.value = false;
               sending.value = false;
-            }
+            },
+            controller.signal
           );
         }
         // All respondents done
-        sending.value = false;
+        if (requestVersion === selectionVersion) sending.value = false;
       } catch (e) {
-        if (e instanceof ApiError) {
+        if (requestVersion !== selectionVersion || controller.signal.aborted) return;
+        if (isInsufficientCredits(e)) {
+          // 点数不足（P3-1）：输入框处显示本地化文案，同时弹窗提醒充值
+          error.value = i18n.global.t('credits.insufficient');
+          void showInsufficientCreditsAlert(e.details);
+        } else if (e instanceof ApiError) {
           error.value = e.message;
         } else {
           error.value = e instanceof Error ? e.message : 'Failed to send message';
@@ -488,19 +868,43 @@ export const useChatStore = defineStore('chat', () => {
         isStreaming.value = false;
         sending.value = false;
         throw e;
+      } finally {
+        if (requestVersion === selectionVersion) {
+          httpGenerationController = null;
+          stopping.value = false;
+          isStreaming.value = false;
+          sending.value = false;
+        }
       }
     }
   }
 
-  async function createChat(characterId: string, title?: string, characterIds?: string[], personaId?: string): Promise<Chat> {
+  async function retryLastGeneration(): Promise<void> {
+    const failed = failedGeneration.value;
+    if (!failed || !canRetryGeneration.value) return;
+
+    await sendMessage(
+      failed.content,
+      failed.attachments,
+      failed.mentionedCharacterIds,
+      requestPayloads.get(failed.requestId)?.onAccepted,
+      failed.requestId,
+      requestPayloads.get(failed.requestId)?.storyAction,
+      requestPayloads.get(failed.requestId)?.storyAudience
+    );
+  }
+
+  async function createChat(characterId: string, title?: string, characterIds?: string[], personaId?: string, clientRequestId?: string, opening?: OpeningSelection): Promise<Chat> {
     loading.value = true;
     error.value = null;
     try {
       const payload = characterIds
-        ? { characterIds, title, personaId }
-        : { characterId, title, personaId };
-      const response = await chatApi.createChat(payload);
-      chats.value.unshift(response.chat);
+        ? { characterIds, title, personaId, clientRequestId }
+        : { characterId, title, personaId, clientRequestId };
+      const response = await chatApi.createChat({ ...payload, ...(opening ? { opening } : {}) });
+      const existingIndex = chats.value.findIndex(chat => chat.id === response.chat.id);
+      if (existingIndex === -1) chats.value.unshift(response.chat);
+      else chats.value[existingIndex] = response.chat;
       return response.chat;
     } catch (e) {
       if (e instanceof ApiError) {
@@ -620,22 +1024,60 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function setCurrentChat(chatId: string | null): Promise<void> {
+    const version = ++selectionVersion;
+    pendingAcceptance = null;
+    activeRequestId = null;
+    generationRecoveryPending = false;
+    failedGeneration.value = null;
+    contextRecovery.value = null;
+    requestPayloads.clear();
+    httpGenerationController?.abort();
+    httpGenerationController = null;
     // 离开当前聊天室
     if (currentChatId.value && wsClient && wsConnected.value) {
       wsClient.leaveChat(currentChatId.value);
     }
 
     currentChatId.value = chatId;
+    messages.value = [];
+    loadingOlder.value = false;
+    hasMoreMessages.value = true;
     chatCharacters.value = [];
+    streamingMessage.value = '';
+    streamingCharacterId.value = null;
+    streamingCharacterName.value = null;
+    isStreaming.value = false;
+    sending.value = false;
+    stopping.value = false;
+    replyingTo.value = null;
+    error.value = null;
+    loading.value = false;
     clearBranchCache();
 
     if (chatId) {
+      if (!chats.value.some(chat => chat.id === chatId)) {
+        loading.value = true;
+        try {
+          const response = await chatApi.getChat(chatId);
+          if (version !== selectionVersion) return;
+          if (!chats.value.some(chat => chat.id === response.chat.id)) chats.value.push(response.chat);
+        } catch (failure) {
+          if (version !== selectionVersion) return;
+          currentChatId.value = null;
+          error.value = failure instanceof Error ? failure.message : 'Failed to load chat';
+          throw failure;
+        } finally {
+          if (version === selectionVersion) loading.value = false;
+        }
+      }
       await fetchMessages(chatId);
+      if (version !== selectionVersion) return;
 
       // 加载聊天角色列表
       let loaded = false;
       try {
         const characters = await chatApi.getChatCharacters(chatId);
+        if (version !== selectionVersion) return;
         logger.debug('getChatCharacters result', { chatId, count: characters?.length });
         if (Array.isArray(characters) && characters.length > 0) {
           chatCharacters.value = characters.map(c => ({
@@ -643,6 +1085,8 @@ export const useChatStore = defineStore('chat', () => {
             name: c.name,
             avatar: c.avatarUrl,
             cardData: c.cardData as Character['cardData'],
+            compatibility: c.compatibility,
+            diagnostics: c.diagnostics,
             isPublic: false,
             createdAt: '',
           }));
@@ -650,7 +1094,12 @@ export const useChatStore = defineStore('chat', () => {
           logger.debug('Loaded characters from getChatCharacters', { count: chatCharacters.value.length });
         }
       } catch (err) {
+        if (version !== selectionVersion) return;
         logger.warn('getChatCharacters failed, will try fallback', { error: err });
+      }
+
+      if (!loaded && currentChat.value?.contentSnapshotVersion != null && currentChat.value?.characterId) {
+        throw new Error(i18n.global.t('chat.savedContentUnavailable'));
       }
 
       // Fallback: load single character from chat metadata
@@ -674,6 +1123,7 @@ export const useChatStore = defineStore('chat', () => {
         if (chat?.characterId) {
           try {
             const character = await characterApi.getCharacter(chat.characterId);
+            if (version !== selectionVersion) return;
             chatCharacters.value = [character];
             logger.debug('Loaded character from fallback', { characterId: character.id, name: character.name });
           } catch (err) {
@@ -685,6 +1135,7 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       // 加入新聊天室
+      if (version !== selectionVersion) return;
       if (wsClient && wsConnected.value) {
         wsClient.joinChat(chatId);
       }
@@ -698,12 +1149,13 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function addGreetingMessage(chatId: string, content: string): Promise<void> {
+    const version = selectionVersion;
     try {
       const response = await chatApi.sendMessage(chatId, {
         role: 'assistant',
         content,
       });
-      messages.value.push(response.message);
+      if (version === selectionVersion && currentChatId.value === chatId) messages.value.push(response.message);
     } catch (e) {
       logger.error('Failed to persist greeting message', e);
       throw e;
@@ -735,16 +1187,19 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function abortGeneration(): void {
-    if (!isStreaming.value || !currentChatId.value) return;
-    if (wsConnected.value && wsClient) {
-      wsClient.sendAbortGeneration(currentChatId.value);
+    if ((!isStreaming.value && !sending.value) || !currentChatId.value || stopping.value) return;
+    if (httpGenerationController) {
+      stopping.value = true;
+      httpGenerationController.abort();
+      return;
     }
-    // Reset streaming state immediately on client side
-    streamingMessage.value = '';
-    streamingCharacterId.value = null;
-    streamingCharacterName.value = null;
-    isStreaming.value = false;
-    sending.value = false;
+    if (wsConnected.value && wsClient) {
+      stopping.value = true;
+      if (activeRequestId) wsClient.sendAbortGeneration(currentChatId.value, activeRequestId);
+      else wsClient.sendAbortGeneration(currentChatId.value);
+      return;
+    }
+    error.value = i18n.global.t('chat.stopUnavailable');
   }
 
   async function rollbackToMessage(messageId: string) {
@@ -760,6 +1215,7 @@ export const useChatStore = defineStore('chat', () => {
   const MODELS_CACHE_TTL = 300000; // 5 minutes
 
   async function fetchModels(): Promise<void> {
+    const version = accountVersion;
     const now = Date.now();
     if (modelsCache.data && now - modelsCache.timestamp < MODELS_CACHE_TTL) {
       availableModels.value = modelsCache.data;
@@ -767,6 +1223,7 @@ export const useChatStore = defineStore('chat', () => {
     }
     try {
       const models = await llmApi.getModels();
+      if (version !== accountVersion) return;
       availableModels.value = models;
       modelsCache.data = models;
       modelsCache.timestamp = now;
@@ -932,11 +1389,13 @@ export const useChatStore = defineStore('chat', () => {
    * Fetch pinned messages for a chat
    */
   async function fetchPinnedMessages(chatId: string) {
+    const version = selectionVersion;
     try {
       const response = await api.get<any[]>(`/chats/${chatId}/pinned`);
+      if (version !== selectionVersion) return;
       pinnedMessages.value = response || [];
     } catch {
-      pinnedMessages.value = [];
+      if (version === selectionVersion) pinnedMessages.value = [];
     }
   }
 
@@ -970,6 +1429,19 @@ export const useChatStore = defineStore('chat', () => {
     replyingTo.value = message ? { messageId: message.id, content: message.content, role: message.role } : null;
   }
 
+  const userStore = useUserStore();
+  watch(() => userStore.user ? JSON.stringify([userStore.user.tenantId, userStore.user.id]) : null, () => {
+    accountVersion += 1;
+    chatsVersion += 1;
+    disconnectWebSocket();
+    void setCurrentChat(null);
+    chats.value = [];
+    availableModels.value = [];
+    modelsCache.data = null;
+    pinnedMessages.value = [];
+    searchResults.value = [];
+  }, { flush: 'sync' });
+
   return {
     chats,
     currentChatId,
@@ -986,6 +1458,8 @@ export const useChatStore = defineStore('chat', () => {
     streamingCharacterId,
     streamingCharacterName,
     isStreaming,
+    stopping,
+    billingRevision,
     hasMoreMessages,
     loadingOlder,
     searchResults,
@@ -994,10 +1468,14 @@ export const useChatStore = defineStore('chat', () => {
     availableModels,
     currentModel,
     currentModelContextWindow,
+    canRetryGeneration,
+    contextRecovery,
+    takeContextInput,
     fetchChats,
     fetchMessages,
     fetchOlderMessages,
     sendMessage,
+    retryLastGeneration,
     createChat,
     deleteChat,
     deleteMessage,

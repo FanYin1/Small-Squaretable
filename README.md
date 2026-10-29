@@ -1,16 +1,45 @@
-# Small Squaretable
+# 小方桌 Small Squaretable
 
-> SillyTavern SaaS — 企业级多租户 AI 角色聊天平台
+> 从一张角色卡开始，走进一段可以由你推动、也能在下次继续的故事。
+
+小方桌是一款角色卡驱动的互动故事应用。选择角色与开场后，你可以通过推荐行动或自由输入探索剧情；故事会保留重要状态与游玩记忆，让人物、地点和已经发生的事在多轮对话中保持连续。
+
+角色卡负责人物与故事设定，世界书可以补充人物、概念和常识。进入故事时会沿用角色卡已有设定，不要求用户先理解复杂配置。产品仍在积极开发中，部分卡片规则和状态适配能力尚有限，详见[当前开发状态](docs/product/current-work.md)。
+
+## 产品实机
+
+以下为产品页面的实际浏览器截图，展示角色发现、故事库和故事对话界面。
+
+### 发现角色
+
+![小方桌发现角色页面实机截图](docs/design/exploration-07ac-integration/production-discover-1440-dark.webp)
+
+### 我的故事
+
+![小方桌我的故事页面实机截图](docs/design/exploration-07ac-integration/production-library-1440-dark.webp)
+
+### 故事对话
+
+![小方桌故事对话页面实机截图](docs/deployment/evidence/story-entry-creator-07ac-play-1440-dark.webp)
 
 ## 项目概述
 
-将 SillyTavern (单用户 LLM 前端) 转换为企业级多租户 SaaS 平台，支持订阅计费、角色市场、实时聊天、智能角色系统、数据分析等功能。
+项目面向喜欢角色扮演与互动叙事的用户，重点探索快速进入故事、逐步推动剧情、保留世界状态，以及离开后延续同一段体验。产品决策、已交付能力与待验收事项见[产品体验基线](docs/product/exploration-experience-baseline.md)、[当前工作](docs/product/current-work.md)和[活动待办](docs/product/backlog.md)。
 
-**当前阶段**: 迭代 32 完成 (UI/UX 缺陷修复)
-**版本**: 0.1.0
-**最后更新**: 2026-02-28
+## 开发必读
 
-## 项目状态
+- [产品决策与讨论纪要](docs/product/exploration-experience-baseline.md)：已确认、推导约束和待讨论项。
+- [主开发计划](docs/product/story-development-plan.md) 与 [活动待办](docs/product/backlog.md)：当前工作与验收映射。
+- [正式实施计划](docs/product/exploration-implementation-plan.md)：七页生产落点、接口依赖、分批顺序与验收标准。
+- [七页示例](docs/design/exploration-demo/README.md) 与 [开发参考快照](docs/design/exploration-baseline/README.md)：获准使用的开发参考，包含源码归档、画面及校验命令。
+- [页面参考与讨论稿](docs/design/exploration-page-proposal.md)：保留研究来源、推导及尚未定案的交互。
+- [R5 验收记录](docs/deployment/frontend-r5-acceptance.md)：已部署版本、验证证据与未签收项。
+- [探索候选验收记录](docs/deployment/exploration-candidate.md)：当前3081入口、真实数据恢复、检查证据和剩余验收条件；取代历史记录作为当前交付入口。
+- [仓库协作规则](AGENTS.md)：后续任务如何保留决策与验收边界。
+
+以下阶段百分比、技术栈、功能和测试数来自旧工程说明，保留用于追溯；不是当前生产能力、发布进度或新体验完成率。当前结论以上述文档为准。
+
+## 历史工程状态
 
 ```
 Phase 1-7: 基础设施 → 生产部署    ████████████████████ 100% ✅

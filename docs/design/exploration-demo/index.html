@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>小方桌 · 下一段经历</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="demo-notice"><span class="notice-dot"></span>交互样例 <span class="notice-detail">· 预写剧情，不调用模型或收费 · 仅在此浏览器保存</span></div>
+  <header class="app-header">
+    <button class="brand" id="home-button" aria-label="返回样例故事"><span class="brand-mark">◇</span><span>小方桌<small>SMALL SQUARETABLE</small></span></button>
+    <div class="header-middle" id="header-context">让每一个选择，留下回声。</div>
+    <nav id="site-nav" class="site-nav" aria-label="主要导航"><a href="#stories">我的故事</a><a href="#discover">发现</a><a href="#create">创作</a><a href="#account">我的</a></nav>
+    <div class="header-actions"><span id="save-status" class="save-status" role="status"></span><button id="theme-button" class="icon-button" aria-label="切换明暗主题">◐</button><button id="settings-button" class="quiet-button">设置</button></div>
+  </header>
+
+  <main id="gallery" class="gallery">
+    <div class="gallery-heading"><p class="eyebrow">ANOTHER LIFE, YOUR WAY</p><h1>下一段经历，<br>由你开始。</h1><p class="lead">选择一个起点。与人相遇，循着线索探索，<br class="desktop-break">让故事记住你做过的选择。</p></div>
+    <div class="collection-heading"><h2>从这里开始</h2><span>两种设定 · 同一种自由</span></div>
+    <div id="story-cards" class="story-cards"></div>
+    <p class="gallery-footnote">样例均使用原创片段。人物、资源与地图只用于交互评审，不是真实角色卡或生产存档。</p>
+  </main>
+
+  <main id="page-detail" class="site-page" hidden></main>
+  <main id="page-setup" class="site-page" hidden></main>
+  <main id="page-stories" class="site-page" hidden></main>
+  <main id="page-create" class="site-page" hidden>
+    <div class="page-heading"><p class="eyebrow">MAKE ROOM FOR ANOTHER LIFE</p><h1 tabindex="-1">把一个想象，<br>变成可以走进去的故事。</h1><p>从一个人、一处地方，或一次值得回应的相遇开始。</p></div>
+    <div class="editor-layout">
+      <form id="creator-form" class="editor-form">
+        <section class="surface-section"><div class="section-number">01 / 故事的轮廓</div><label for="creator-title">故事名称</label><input id="creator-title" maxlength="48" required placeholder="例如：雨停之前"><label for="creator-description">一句话邀请</label><textarea id="creator-description" maxlength="240" rows="3" required placeholder="告诉来访者：在这里，他可以成为谁？"></textarea></section>
+        <section class="surface-section"><div class="section-number">02 / 第一眼的相遇</div><label for="creator-role">玩家身份</label><input id="creator-role" maxlength="64" placeholder="例如：回到故乡的旅人"><label for="creator-opening">开场正文</label><textarea id="creator-opening" maxlength="2000" rows="6" placeholder="不必讲完整个世界。先给他一个愿意参与的瞬间。"></textarea></section>
+        <section class="surface-section"><div class="section-number">03 / 随卡携带的设定</div><p class="section-copy">默认先使用卡内设定。额外资料应由作者明确绑定，并说明它补充的是背景、常识还是规则。</p><div class="binding-row"><span>◇</span><div><strong>卡内设定</strong><small>此示例仅展示编辑结构，尚不支持导入或绑定文件。</small></div></div></section>
+        <div class="editor-save"><span id="creator-save-status" role="status">尚未保存</span><button type="submit" class="primary-button">保存本地草稿</button></div>
+      </form>
+      <aside class="creator-preview" aria-label="草稿预览"><p class="eyebrow">YOUR STORY, AT FIRST GLANCE</p><div class="draft-cover"><span>◇</span><small>一个尚未命名的世界，正在等你。</small></div><div class="preview-copy"><span class="status-pill">仅你可见 · 本地草稿</span><h2 id="preview-title"></h2><p id="preview-description"></p><div class="preview-role" id="preview-role"></div><h3>开场预览</h3><p id="preview-opening" class="preview-opening"></p></div><p class="preview-note">保存不会发布到角色库，也不会替换两张游玩示例卡。</p></aside>
+    </div>
+  </main>
+  <main id="page-account" class="site-page" hidden></main>
+
+  <main id="reader" class="reader" hidden>
+    <section class="reader-main" aria-label="剧情与行动">
+      <div class="scene-header"><div><p class="eyebrow" id="scene-eyebrow"></p><h1 id="scene-title" tabindex="-1"></h1><p id="scene-context" class="scene-context"></p></div><button id="state-button" class="state-button" aria-haspopup="dialog">查看状态 <span>↗</span></button></div>
+      <div id="reading-scroll" class="reading-scroll">
+        <div id="transcript" class="transcript"></div>
+        <div id="live-reply" class="live-reply" hidden><p class="eyebrow">正在续写 · 演示</p><p id="live-text"></p></div>
+      </div>
+      <button id="new-content" class="new-content" hidden>有新进展 ↓</button>
+      <section class="action-area" aria-label="参与剧情">
+        <div class="action-caption"><span>接下来，你想怎么做？</span><span class="caption-note">选择行动，或自由表达</span></div>
+        <div id="choices" class="choices"></div>
+        <div id="action-error" class="action-error" role="alert" hidden><span id="error-text"></span><button id="retry-button" hidden>重试本次行动</button></div>
+        <form id="action-form" class="action-form"><label for="action-input" class="sr-only">描述你想说的话或采取的行动</label><textarea id="action-input" rows="2" maxlength="1200" placeholder="或者，描述你想说的话或采取的行动……"></textarea><button id="send-button" class="send-button" type="submit" aria-label="发送行动">↑</button><button id="stop-button" class="stop-button" type="button" hidden>停止</button></form>
+        <div class="input-footer"><span>Enter 发送 · Shift + Enter 换行</span><details><summary>样例输入说明</summary><p id="input-help"></p></details></div>
+      </section>
+    </section>
+    <aside class="state-sidebar" aria-label="此次游玩的状态"><div id="desktop-state"></div><div class="world-note"><span>◇</span><div>已使用本卡设定<small>无需另外选择世界</small></div></div></aside>
+  </main>
+
+  <dialog id="state-dialog" class="state-dialog"><div class="dialog-top"><span>此次游玩</span><button class="icon-button" data-close="state-dialog" aria-label="关闭状态窗口">×</button></div><div id="mobile-state"></div></dialog>
+  <dialog id="settings-dialog" class="settings-dialog"><div class="dialog-top"><h2>阅读与样例设置</h2><button class="icon-button" data-close="settings-dialog" aria-label="关闭设置">×</button></div><p>以下设置只影响这个独立交互样例。</p><fieldset><legend>正文字号</legend><div class="font-options"><button data-font="17">17px</button><button data-font="19">19px</button><button data-font="21">21px</button></div></fieldset><div class="settings-divider"></div><p class="eyebrow">评审工具</p><button id="arm-failure" class="tool-button">让下一次行动模拟失败</button><p id="failure-status" class="muted"></p><button id="reset-button" class="tool-button">重置当前样例…</button><p class="muted">状态变化和回复均为预写分支。此处不验证真实模型、长期记忆或生产回退。</p></dialog>
+  <dialog id="reset-dialog" class="settings-dialog"><h2>重新开始这个样例？</h2><p>只清除此样例在当前浏览器中的进度与草稿，另一个样例不受影响。</p><div class="reset-actions"><button class="quiet-button" data-close="reset-dialog">取消</button><button id="confirm-reset" class="primary-button">重新开始</button></div></dialog>
+</body>
+</html>

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "reference": "EXP-02 seven-page prototype v0.2",
+  "recordedDate": "2026-10-22",
+  "status": "development-reference; production and user acceptance separate",
+  "userInstruction": "可以，准备后续开发吧",
+  "screenshotEvidence": "Existing 7-page Chromium matrix at 390/768/1440px in dark/light; overview images resized and compressed, not pixel-accuracy evidence.",
+  "sources": [
+    {
+      "path": "docs/design/exploration-demo/index.html",
+      "bytes": 8162,
+      "sha256": "71b3f0b23c8cd60628a8fa3d6d11139986ac17bd12bad2976699af403c2b95b3"
+    },
+    {
+      "path": "docs/design/exploration-demo/app.js",
+      "bytes": 45311,
+      "sha256": "b7f220fbcb51edacee24ff6169f99a990a5330dfbf5156d175ece5b2a569202f"
+    },
+    {
+      "path": "docs/design/exploration-demo/style.css",
+      "bytes": 28547,
+      "sha256": "9efa6ffef6508f3abd47355640b2d61ffcd4ca39041953a2caddd818cf3d7bbd"
+    },
+    {
+      "path": "scripts/exploration-demo-server.mjs",
+      "bytes": 1826,
+      "sha256": "486a1f8fc775e360a3cc2249fc3285413aaed45036b9b1fd4af2240ea9a232e7"
+    },
+    {
+      "path": "scripts/exploration-demo-check.mjs",
+      "bytes": 9912,
+      "sha256": "419e533a13e7a2090772c1911a884d604e40dd615122619a8f8d97908fdbb98d"
+    },
+    {
+      "path": "scripts/exploration-pages-check.mjs",
+      "bytes": 8415,
+      "sha256": "51a536e7cea80958b02b8f81116361e11a2cd1cfb2c903d7b2704860e79f3f77"
+    },
+    {
+      "path": "public/fonts/newsreader-latin.woff2",
+      "bytes": 58084,
+      "sha256": "62981321d9a3cc7a61a73792729043703fd6112da86e8ec848bb57f088578757"
+    },
+    {
+      "path": "public/fonts/plus-jakarta-sans-latin.woff2",
+      "bytes": 27348,
+      "sha256": "153fc85b70298beeb1d61a5f723331649e7f23bb77302a66e61cb3e2fbdb5e79"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/design/exploration-baseline/desktop-dark.webp",
+      "bytes": 146836,
+      "sha256": "d67d45d4e482b7f454943a158526dd3eedfc3b617c938e38f6289c00b0c5f860"
+    },
+    {
+      "path": "docs/design/exploration-baseline/desktop-light.webp",
+      "bytes": 139494,
+      "sha256": "3878f967bfe6c56d6e27bc1f63fa56313410499e70301b1048f5b2609e7c8777"
+    },
+    {
+      "path": "docs/design/exploration-baseline/prototype-source.tar.gz",
+      "bytes": 116143,
+      "sha256": "c0617f09e8741c1b5282af63fdbc39c59b646285746b119911cbfcf614fc764b"
+    }
+  ]
+}

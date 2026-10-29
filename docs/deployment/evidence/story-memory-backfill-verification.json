@@ -1,0 +1,389 @@
+{
+  "date": "2026-10-24T09:23:21.332Z",
+  "result": "passed",
+  "scope": "Explicit operator inspection and reviewed transactional backfill of missing version-1 confirmed-story memory jobs and partial progress; no automatic legacy-chat conversion",
+  "requirements": [
+    "EXP-05B",
+    "EXP-05A",
+    "DEC-07",
+    "DEC-08",
+    "INV-01",
+    "INV-03",
+    "INV-04",
+    "INV-09",
+    "EX-07",
+    "EX-10",
+    "EX-12"
+  ],
+  "unit": {
+    "command": "node --test scripts/story-memory-backfill.test.mjs",
+    "passed": 6,
+    "logPath": "/tmp/squaretable-backfill-unit.log",
+    "logSha256": "cddccdef95124f531af208330f5493caaeb6b6c3bc564a1efc441f71a95d8c99"
+  },
+  "database": {
+    "command": "npm run check:story-memory",
+    "reportPath": "/tmp/squaretable-story-restore-evidence/4b0e1c01-d944-45d5-a579-b893061dbb49/report.json",
+    "reportSha256": "779339c1cd2f48bf4847b60b2310e35ea6cc4f798f3ae577e0d178633330aaa5",
+    "durableMemoryChecks": [
+      "Dump/restore plus a separate process resumes the saved extraction without another model call",
+      "Versioned batch recap survives full backup/restore and checkpoint resume with its ten source messages",
+      "Recap retrieval is isolated by owner, tenant, story and responding character",
+      "Pending, running, retry and failed checkpoints cannot supply recaps to generation",
+      "Changed source text invalidates a completed recap even if IDs and event versions still match",
+      "Legacy fact-only checkpoints and malformed recap versions or references are not treated as summaries",
+      "A recap without a persisted source digest is excluded rather than trusted",
+      "Recovered memory is retrievable by real pgvector and retains message/event provenance",
+      "Partial batch progress survives process restart and excludes interrupted replies",
+      "Replaying an already committed turn creates no duplicate job or memory",
+      "Enqueue and progress roll back with the story turn and recover on a subsequent commit",
+      "A crashed lease is reclaimed by only one of two concurrent workers",
+      "An expired worker cannot commit after replacement; checkpoint reuse avoids a second extraction",
+      "Zero vectors are failures; embedding recovery reuses extraction and writes no partial memory",
+      "Cross-story source references are rejected and retries stop at the configured cap",
+      "Explicit failed-job replay retains attempt history, checks reviewed state and cannot replay completed work",
+      "A valid empty extraction succeeds without embedding or a fabricated memory",
+      "Extraction has an abort deadline and a failed attempt is recorded",
+      "Over-budget sources stop visibly without truncation or a provider call",
+      "Editing source text during embedding prevents stale derived memory from committing",
+      "A message/event version mismatch is rejected before any extraction call",
+      "A database failure rolls back memory, vector and provenance together; retry uses the saved extraction",
+      "Deleting a story during extraction cascades work and rejects late completion without resurrection",
+      "Group participants count and derive independently within the same story",
+      "Group memory progress shows each frozen character and only their own five confirmed reply sources",
+      "Group recap retrieval includes only the responding character's confirmed input/reply sources",
+      "A repeatedly crashed job stops at the retry cap instead of being claimed forever",
+      "Lowering the retry limit marks already exhausted queued work as failed instead of stranding it",
+      "Deleting completed work preserves other stories and every remaining provenance link stays in its confirmed story",
+      "Deleting a completed story removes its saved recap from continuation reads",
+      "Player view exposes real successful batch provenance and retained counts without returning memory text",
+      "Player memory reads reject another owner or tenant before loading jobs",
+      "Progress shows three confirmed replies before reaching the five-reply batch threshold",
+      "Extracted checkpoints, failure internals, digests and replay details never enter the player response",
+      "A source digest mismatch withholds references and never exposes the private digest",
+      "Queued, expired-running, retry, failed and completed-with-no-retained-memory states remain distinguishable",
+      "Foreign and missing pagination cursors fail identically",
+      "Bounded pagination preserves all batches sharing the same microsecond timestamp and global counts",
+      "Cross-story event references are withheld rather than becoming player source links",
+      "Interrupted or version-mismatched replies cannot be presented as confirmed memory provenance",
+      "Legacy stories explicitly report unsupported progress without inventing historical coverage",
+      "Deleted stories cannot return remembered progress or stale source IDs",
+      "Backfill inspection detects missing historical batches without writes or disclosure of dialogue",
+      "Operator CLI defaults to inspection and rejects missing review tokens or unknown force flags without writes",
+      "Reviewed backfill creates only omitted batches; replay cannot duplicate jobs or regroup covered events",
+      "Backfilled pending jobs run through the real worker and become source-validated continuation summaries",
+      "Live event enqueue continues from retained partial progress after backfill without duplicate sources",
+      "New confirmed turns and source edits invalidate a reviewed backfill before any queue changes",
+      "Concurrent reviewed backfills serialize per story and create each missing batch once",
+      "Failed jobs still count as covered and backfill cannot bypass their explicit retry policy",
+      "An occupied story commit lock causes bounded backfill failure without partial queue changes",
+      "Group backfill repairs only the selected frozen character and preserves the other participant's jobs",
+      "A failure on the second batch rolls back all inserts and progress; the same reviewed plan can then recover",
+      "Missing partial progress is restored and interrupted replies never count toward a backfilled batch",
+      "Corrupt coverage and unconfirmed reply metadata stop backfill rather than inventing replacement evidence",
+      "Unsupported legacy stories, unrelated characters and deleted stories cannot be backfilled or resurrected"
+    ],
+    "newBackfillChecks": [
+      "Backfill inspection detects missing historical batches without writes or disclosure of dialogue",
+      "Operator CLI defaults to inspection and rejects missing review tokens or unknown force flags without writes",
+      "Reviewed backfill creates only omitted batches; replay cannot duplicate jobs or regroup covered events",
+      "Backfilled pending jobs run through the real worker and become source-validated continuation summaries",
+      "Live event enqueue continues from retained partial progress after backfill without duplicate sources",
+      "New confirmed turns and source edits invalidate a reviewed backfill before any queue changes",
+      "Concurrent reviewed backfills serialize per story and create each missing batch once",
+      "Failed jobs still count as covered and backfill cannot bypass their explicit retry policy",
+      "An occupied story commit lock causes bounded backfill failure without partial queue changes",
+      "Group backfill repairs only the selected frozen character and preserves the other participant's jobs",
+      "A failure on the second batch rolls back all inserts and progress; the same reviewed plan can then recover",
+      "Missing partial progress is restored and interrupted replies never count toward a backfilled batch",
+      "Corrupt coverage and unconfirmed reply metadata stop backfill rather than inventing replacement evidence",
+      "Unsupported legacy stories, unrelated characters and deleted stories cannot be backfilled or resurrected"
+    ],
+    "restoredStoryChecks": [
+      "Restored panel, available actions, event sources and style notes match the saved story",
+      "Identity remains frozen after its source changes",
+      "Character content snapshot remains readable",
+      "Bound worldbook uses the frozen entry after its source changes",
+      "Real pgvector retrieval recovers only this story memory",
+      "Another story with the same query vector stays isolated",
+      "Retrieved memory still links to its original confirmed text",
+      "Restored story still rejects a different owner",
+      "A pre-backup committed action replays without a second event",
+      "Resumed generation preparation includes confirmed state and saved style notes",
+      "A new action after restore advances once and preserves resources",
+      "Restored message sequence allocates fresh source IDs",
+      "Continuing the restored story does not alter another save",
+      "A story deleted before backup stays deleted after restore",
+      "Replaying the deleted creation request cannot recreate its story",
+      "Deleting a restored story cascades its messages, snapshots, state, notes, events, memories and vectors",
+      "Deleted story memory is absent from scoped and global retrieval",
+      "Late memory insertion and late turn commit cannot resurrect the deleted story",
+      "Deletion and rejected late writes leave the other save intact"
+    ],
+    "guardTests": 14,
+    "corruptionProbes": [
+      "changed vector with same row count rejected",
+      "wrong-story message provenance rejected"
+    ],
+    "extraction": "controlled provider; no real model calls",
+    "embedding": "fixed nonzero 384-dimensional vectors",
+    "fixture": "Synthetic version-1 stories created with real services; explicitly removed fixture jobs/progress simulate omitted historical tracking. CLI is exercised in a separate Node process."
+  },
+  "validation": {
+    "scriptSyntax": {
+      "passed": 5
+    },
+    "patchWhitespace": "passed",
+    "browser": "not run; no player interface changes",
+    "productionBuild": "not rerun; runtime TypeScript and client source unchanged"
+  },
+  "deployment": {
+    "changed": false,
+    "unchangedPorts": [
+      3080,
+      3081,
+      5188
+    ],
+    "candidateDatabaseBackfillExecuted": false,
+    "newMigrations": [],
+    "requiresExistingMigrations": [
+      "src/db/migrations/0048_story_memory_jobs.sql",
+      "src/db/beta-migrations/0008_story_memory_jobs.sql"
+    ]
+  },
+  "limits": [
+    "Single explicitly selected story and frozen character; privileged DATABASE_URL required, not a public player API.",
+    "At most 5000 confirmed story events and 2000000 source characters; at most 1000 existing jobs per selected character.",
+    "All existing job states are preserved; failed jobs require the separate retry workflow.",
+    "Legacy stories lacking confirmed event provenance remain unsupported; no automatic scan or pagination.",
+    "No real-provider long-form quality, global rolling summary, character-knowledge isolation or candidate deployment acceptance is claimed.",
+    "No independent permanent operator audit table was added; review/apply receipts can be retained by the operator.",
+    "EXP-05A/05B and final experience acceptance remain open."
+  ],
+  "sources": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "b1c5c6fd692ee85005a50749b19a202d395c2feefe36646ab3aff85faa6c7e1a"
+    },
+    {
+      "path": "docs/deployment/exploration-candidate.md",
+      "sha256": "8e8734707ea84cb4d014c84cb896de2bc8889e5347a55f62a05c79493784b6be"
+    },
+    {
+      "path": "docs/product/backlog.md",
+      "sha256": "f7fd2ce43bdd673127cf0a60bb8c0627098324ccb38ddc03e5e0911eaa5940a3"
+    },
+    {
+      "path": "docs/product/story-context-budget.md",
+      "sha256": "f7ade1da281b4a364503770ac4e2a6aff3754c9318291c48733fd4bd2e809240"
+    },
+    {
+      "path": "docs/product/story-development-plan.md",
+      "sha256": "f62f4619e60eac5bad6203a018a03b9c9640fe47ffb49b8ee66af4431da1b73d"
+    },
+    {
+      "path": "docs/product/story-memory-backfill.md",
+      "sha256": "fbe7f582a78eb7f1d05fa7503ff0dbfb5048eea88848810689b0343e509c6caf"
+    },
+    {
+      "path": "docs/product/story-memory-durability.md",
+      "sha256": "2a78b7981a3a8e36cb974e8063bc2a5dc6957e9e8c141f035800674b66bb3b0d"
+    },
+    {
+      "path": "docs/product/story-summary-lifecycle.md",
+      "sha256": "844a3b092f8c6ea4fcd2ccac4e3d78e6f3dbba0f31461c4a5530ad7ac727aa16"
+    },
+    {
+      "path": "package.json",
+      "sha256": "d398950c8626119af912388cdb40a6794d345d5c83e2371fff37d576d126ad13"
+    },
+    {
+      "path": "scripts/exploration-restore-check.mjs",
+      "sha256": "855e39688fb02853057ddeb5cc8ff8d218cb2b0a09251cb934c316e01174413f"
+    },
+    {
+      "path": "scripts/story-deletion-replay.mjs",
+      "sha256": "a76cdfd68b5f4b3235892833294a0462e5f1f699624d433c4cc8ad7adaf96778"
+    },
+    {
+      "path": "scripts/story-memory-backfill-fixture.mjs",
+      "sha256": "53912a36648c2698d1b978b501ffc6bcfa7ba78839fa20e919074ea472236c42"
+    },
+    {
+      "path": "scripts/story-memory-backfill-plan.mjs",
+      "sha256": "ad03db1fa5b2f67d071dd578b2183022e14fbd2cbf20ad5a3a3b86d78c555d87"
+    },
+    {
+      "path": "scripts/story-memory-backfill.mjs",
+      "sha256": "46a9beaed7530d2083e67f328decb28655cc101746dd19349c805ad9338ff7f2"
+    },
+    {
+      "path": "scripts/story-memory-backfill.test.mjs",
+      "sha256": "d7f6ebac615566db78d75bbded6fae76995c489bbb4cf967eb8c74e41d51ab9f"
+    },
+    {
+      "path": "scripts/story-memory-fixture.mjs",
+      "sha256": "a536151bf99d1e0423259a6aa76d2811739de945c796fe302f39d4b44e097f39"
+    },
+    {
+      "path": "scripts/story-memory-retry.mjs",
+      "sha256": "05b1072c03d2d3c1cb84f7b4fe374c018c518c476c60c9ef0460d6003245607d"
+    },
+    {
+      "path": "scripts/story-memory-view-fixture.mjs",
+      "sha256": "502cfdfdad531ce0b6676368b75de3a5483f8060bd8ba360069f977305950f66"
+    },
+    {
+      "path": "scripts/story-nonempty-restore-check.mjs",
+      "sha256": "39ddccadd50c78087b7c850438af5372fe6a6087d33d351a19b3222f8020b3fb"
+    },
+    {
+      "path": "scripts/story-restore-evidence.mjs",
+      "sha256": "c9317c706bd67f7e06945f53a9d8d896246c8173ab7541c35b40d22b2b5f373d"
+    },
+    {
+      "path": "scripts/story-restore-evidence.test.mjs",
+      "sha256": "719553edc73cffbed8550c75977a8d10fb1a457a8ee1debf4d2df417de83213d"
+    },
+    {
+      "path": "scripts/story-restore-fixture.mjs",
+      "sha256": "7dbfc79dd2602c4da34c02a8fbba8978cd18ea34f79912aacbb29991c0270d40"
+    },
+    {
+      "path": "scripts/story-summary-fixture.mjs",
+      "sha256": "4fc57f3b61339234f0c559b671405978e8e6d826b762f6cf05f53a71ec1994c4"
+    },
+    {
+      "path": "src/db/beta-migrations/0000_beta_schema.sql",
+      "sha256": "1d21eaef4b6c561bd431924a45533480ce328510a7e3ef2ac4a2d4d2be7c163a"
+    },
+    {
+      "path": "src/db/beta-migrations/0001_beta_invariants.sql",
+      "sha256": "b77d1ccea176602d34da511f7e1242fdedd9c71963b8a3b4902d6b307d6a8c16"
+    },
+    {
+      "path": "src/db/beta-migrations/0002_story_identity_snapshot.sql",
+      "sha256": "c8e1632022dbd9fc2fc2e5bd0d56e7f0c9dd015d5e722a650460774ac1aaa7ff"
+    },
+    {
+      "path": "src/db/beta-migrations/0003_story_worldbooks.sql",
+      "sha256": "25a04b234c532238933d19b578140b735f7b8ed9ef3873ffbddf477db10ae96d"
+    },
+    {
+      "path": "src/db/beta-migrations/0004_story_content.sql",
+      "sha256": "3c09875fe35c43e68d2f0bd4e03044253b9bf879c16c1c564dfa6898f5e1648b"
+    },
+    {
+      "path": "src/db/beta-migrations/0005_story_state.sql",
+      "sha256": "09cae5255133b9fe58a981ee3cadda43210de96a5abfd70a233aead9350b1b89"
+    },
+    {
+      "path": "src/db/beta-migrations/0006_story_memory_scope.sql",
+      "sha256": "4d9519301750da6ad4bb4bba825feee3be843d47dfb9313d6a06d9b2455974e3"
+    },
+    {
+      "path": "src/db/beta-migrations/0007_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/beta-migrations/0008_story_memory_jobs.sql",
+      "sha256": "919011023b56c679a08abd2d220458de35796005d5749ccaa025615ac2a7f8e6"
+    },
+    {
+      "path": "src/db/beta-migrations/meta/_journal.json",
+      "sha256": "f52a0ba629434ea52bc71df9fde0e5104c1b12277f699edca3135344f36111fe"
+    },
+    {
+      "path": "src/db/migrate.ts",
+      "sha256": "91bbac98d250f3c2f89edf6511b80f674fa0db55ec428abbd2f4c6daedb93e57"
+    },
+    {
+      "path": "src/db/migrations/0047_story_deletion_receipts.sql",
+      "sha256": "027ce9c7c652b17b66c5312588a1630b3c292c33cb83bfd8075f62916831b18c"
+    },
+    {
+      "path": "src/db/migrations/0048_story_memory_jobs.sql",
+      "sha256": "919011023b56c679a08abd2d220458de35796005d5749ccaa025615ac2a7f8e6"
+    },
+    {
+      "path": "src/db/repositories/memory.repository.ts",
+      "sha256": "3a925a69f4ce39b8f8544b2bac4a5d7fccb336ad244b4c39ffcd714df061b4a0"
+    },
+    {
+      "path": "src/db/schema/memories.ts",
+      "sha256": "8b71c85500495a54ac3c9bc57d083b56cccf1c9b9aa5c16dcfad4b48407ac57f"
+    },
+    {
+      "path": "src/db/schema/story-lifecycle.ts",
+      "sha256": "2e6ed153e51a28617cb2feb32f8474afb00217a35c90d435fea60044acb324cf"
+    },
+    {
+      "path": "src/db/schema/story-memory.ts",
+      "sha256": "e9ab7222ea9981ceaf7a673f77c561d96799704d64f33c852ce9a8067ee5aa42"
+    },
+    {
+      "path": "src/server/jobs/index.ts",
+      "sha256": "2a996583157296ec9e0c40b8f8e988fbfbf6305a2c5f16283143247714302cf9"
+    },
+    {
+      "path": "src/server/jobs/story-memory.job.ts",
+      "sha256": "da9c6c9929eb4c8a2db0cdb417c20ebbc957563672fdcbd41c986c37f7c65544"
+    },
+    {
+      "path": "src/server/routes/websocket.ts",
+      "sha256": "240930d38b749391560629f3a9c1cbe82af85818f0bf28a43b5239a7e49b8296"
+    },
+    {
+      "path": "src/server/services/chat-creation.service.ts",
+      "sha256": "ad99964a6a3dcbf21fcadd56928f753d077c13a388768b5e759b9acd376c3b67"
+    },
+    {
+      "path": "src/server/services/embedding.service.ts",
+      "sha256": "177b7598f47bfe4138e51614b4abef1b4291ed4048338d145c26b8dc9a40e94e"
+    },
+    {
+      "path": "src/server/services/llm.service.ts",
+      "sha256": "4ddaf45029b45410060dcc5853f87bae0845c477663713e36ee2470b62e8e297"
+    },
+    {
+      "path": "src/server/services/story-content.service.ts",
+      "sha256": "1cbaa43c5e63f0232d9cb5e4a557551fbfbaa462ceb215547d6c042d56df5576"
+    },
+    {
+      "path": "src/server/services/story-identity.service.ts",
+      "sha256": "e52e4f069855a46caaba2a1d03906df0505c34a630aedbbe3dbeae9b4abc1530"
+    },
+    {
+      "path": "src/server/services/story-memory-extraction.ts",
+      "sha256": "e1e5d8de5c99c8067d2848b31ee58aa7d09269d0525b5d1fac33d4dd0ee4fc54"
+    },
+    {
+      "path": "src/server/services/story-memory-view.service.ts",
+      "sha256": "f777498d0fae9652fe6987e3094d2d47063341587e98c9777196238f98a24d12"
+    },
+    {
+      "path": "src/server/services/story-memory-worker.service.ts",
+      "sha256": "2cfb837f7fb788bfe43da9e9b85c4d89dc2f37e058a06db87233037a0ae526d4"
+    },
+    {
+      "path": "src/server/services/story-state.service.ts",
+      "sha256": "f62ae2e551a82f1160fc27cd562a4942d9a4398bd202b1caca81b66205ecbb7f"
+    },
+    {
+      "path": "src/server/services/story-summary-context.ts",
+      "sha256": "14b230912c27cc8def5891febb35e4fad788e361ebe45f13b5672185f6013a7b"
+    },
+    {
+      "path": "src/server/services/story-summary.service.ts",
+      "sha256": "6636ddff69daf82be03d1ec190a3e525736ee08a3011a6eed4aa5a42dc80adec"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/types/story-memory.ts",
+      "sha256": "c9712199f13a11d41661053c85d2a1f3d3e8a18f7ff5ffe57c9640a89fc93c0c"
+    }
+  ]
+}

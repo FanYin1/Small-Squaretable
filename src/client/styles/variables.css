@@ -4,6 +4,9 @@
    ============================================================ */
 
 :root {
+  /* 原生控件（滚动条、表单控件、autofill）跟随主题；暗色在 [data-theme="dark"] 里覆盖 */
+  color-scheme: light;
+
   /* ========== Accent (Amber) ==========
    *
    * 琥珀分「填充」与「文字」两个角色，这是本令牌集最重要的一处区分。
@@ -23,6 +26,9 @@
   --accent-light: #FEF3C7;
   --accent-subtle: #FFFBEB;
   --accent-gradient: linear-gradient(135deg, #D97706, #F59E0B);
+  /* 琥珀的低饱和衬底（tag / 微高亮）与强调描边：半透明，叠在哪个表面上都成立 */
+  --accent-wash: rgba(217, 119, 6, 0.10);
+  --border-accent: rgba(217, 119, 6, 0.45);
 
   /*
    * 琥珀作文字。取值按「它会落到的全部表面里最难的那一个」解出：
@@ -46,6 +52,8 @@
   --bg-surface: #FFFFFF;
   --bg-subtle: #F5F3EF;
   --bg-hover: #F0EDE8;
+  /* 比页面底更凹的一层（图片加载前的封面底色等） */
+  --bg-sunken: #EFEDE8;
   --bg-color-overlay: rgba(0, 0, 0, 0.4);
 
   /* ========== Text ========== */
@@ -113,6 +121,8 @@
   --radius-lg: 16px;
   --radius-xl: 24px;
   --radius-full: 9999px;
+  /* 立绘封面卡（CharacterCardImmersive / SkeletonCardImmersive）的圆角 */
+  --radius-card: 20px;
 
   /* ========== Sidebar ========== */
   --sidebar-width: 280px;
@@ -144,8 +154,29 @@
   --color-info-text: #736D67;
 
   /* ========== Typography ========== */
-  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display: 'Newsreader', 'Georgia', serif;
+  /*
+   * 字体栈。规则：西文字体在前，中文字体在后——浏览器逐字符回落，
+   * 西文字符命中前面的西文字体，中文字符（西文字体里没有）才会走到中文字体，
+   * 所以中西文混排时各用各的，不会因为中文字体排在前面而把西文也"吃"掉。
+   *
+   * 中文字体按平台列出（本项目没有自托管中文 webfont，见 backlog P1-1 第二步）：
+   *   macOS/iOS   PingFang SC（黑体）、Songti SC（宋体）
+   *   旧版 macOS  Hiragino Sans GB
+   *   Windows     Microsoft YaHei（雅黑）
+   *   Android/Linux  Noto Sans/Serif CJK SC、Source Han Serif SC
+   *
+   * 衬线栈的关键：通用族 `serif` 在 Windows 上是宋体（SimSun），而 Windows 没有
+   * 任何预装的衬线中文字体可用。所以在 `serif` 之前插入无衬线中文——Windows 上
+   * 衬线栈里的中文落到雅黑，而不是宋体。macOS/Android 有真正的衬线中文，
+   * 排在前面，命中即止。
+   */
+  --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+  --font-display: 'Newsreader', 'Georgia',
+    'Songti SC', 'Noto Serif CJK SC', 'Source Han Serif SC',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', serif;
+  /* 聊天叙事正文。目前与 --font-display 同栈，单列一个令牌是为了让两者可以独立演进 */
+  --font-reading: var(--font-display);
   --font-size-h1: 32px;
   --font-size-h2: 28px;
   --font-size-h3: 24px;
@@ -173,6 +204,39 @@
   --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  /* 沉浸卡片使用的缓动与时长 */
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-soft: 220ms;
+
+  /* ========== Cover Scrim（立绘封面上压字的遮罩，两套主题通用）==========
+   *
+   * 图片不随主题变，压在图上的字永远是浅字，所以遮罩只有一套取值。
+   *
+   * --cover-scrim：压住封面底部，让文字有可读底。
+   * 关键约束（实测得出，不要随意调低）：文字块所在的整个底部区间 alpha 必须 ≥ 0.90——
+   * 在纯白立绘这种最坏情况下，0.90 才能让 #8F8982 这一档的暗灰字达到 4.60:1 过 AA（卡片实际取 #A39D98，更宽裕）；
+   * 0.82 时只有 3.54:1 不达标。所以 0.90 一直保持到 34%（覆盖文字块，含悬停展开的简介），
+   * 之后再快速透出，避免把立绘整体压灰。
+   */
+  --cover-scrim: linear-gradient(
+    to top,
+    rgba(10, 9, 8, 0.72) 0%,
+    rgba(10, 9, 8, 0.5) 30%,
+    rgba(10, 9, 8, 0.18) 62%,
+    rgba(10, 9, 8, 0.04) 100%
+  );
+  /*
+   * --cover-scrim-text：铺在文字块自身背后，高度随文字块变化（简介展开时一起变高），
+   * 因此不受卡片比例影响——整卡渐变做不到这点，卡片越高文字越容易落到淡区。
+   * 只在自身顶部 10%（纯 padding，无文字）淡出，与上方 --cover-scrim 接续。
+   */
+  --cover-scrim-text: linear-gradient(
+    to top,
+    rgba(10, 9, 8, 0.97) 0%,
+    rgba(10, 9, 8, 0.93) 62%,
+    rgba(10, 9, 8, 0.9) 90%,
+    rgba(10, 9, 8, 0) 100%
+  );
 
   /* ========== Chat ========== */
   --chat-bg: #FAF9F6;
@@ -181,9 +245,45 @@
   --chat-divider: #E8E5E0;
   --chat-assistant-msg-bg: #FFFFFF;
 
+  /*
+   * 聊天正文排版（P1-2）。独立于全站 --font-size-body（14px，波及 44 个页面的
+   * 表单与表格），只被 MarkdownRenderer / MessageBubble 的叙事文本引用。
+   *
+   * 字号分三档，由 <html data-chat-font-size="small|medium|large"> 切换（见本段下方
+   * 的覆盖规则与 composables/useChatFontSize.ts）。medium 是默认值。
+   */
+  --chat-font-size: 17px;
+  --chat-line-height: 1.75;
+
+  /*
+   * 行宽上限，单位 em，相对 .markdown-content 自己的字号（所以随字号档位同比缩放）。
+   * 取 36em：
+   *   中文  一个汉字/全角标点 = 1em，36em = 36 字，落在目标 35–40 字内。
+   *   西文  Newsreader 是偏窄的文本字体，含空格平均每字符约 0.43–0.48em（估计值，
+   *         未实测字体 metrics），36em 约合 75–84 字符，贴着目标上沿 60–75 甚至略超。
+   * 两个目标区间换算成 em 并不重叠（中文 35–40em，西文约 26–33em），一个值不可能
+   * 同时满足。本产品以中文内容为主，所以按中文定值，西文偏宽一点可以接受。
+   * 想严格压西文就把它降到 33em 左右，代价是中文只剩 33 字。
+   */
+  --chat-measure: 36em;
+
+  /*
+   * 动作描述（*动作* → <em>）的文字色，取三级文字色。对气泡底色的对比度（实测）：
+   *   浅色 #726D67  on 气泡 #FFFFFF = 5.12 / 页面底 #FAF9F6 = 4.87 / 次级面 #F5F3EF = 4.62
+   *   深色 #A39D98  on 气泡 #242220 = 5.91 / 页面底 #0F0E0D = 7.19 / 次级面 #2D2B2A = 5.26（P2-2 合并后的色阶）
+   * 六个组合都 ≥ 4.5:1。
+   *
+   * 为什么不取 --text-secondary：它与正文色太近（对正文色仅 1.83:1 浅 / 1.41:1 深），
+   * 中文动作描述又没有斜体可依靠，区分会淡到看不出来。三级色对正文色是 2.75:1 / 2.13:1。
+   */
+  --chat-action-color: var(--text-tertiary);
+
   /* ========== Breakpoints ========== */
-  --breakpoint-mobile: 640px;
-  --breakpoint-tablet: 1024px;
+  /* 仅供 JS 读取（getComputedStyle）。@media 里不能用 CSS 变量，
+     媒体查询的数值来源是 styles/_breakpoints.scss，两处必须一致。 */
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
 
   /* ========== Legacy Aliases (backward compat) ========== */
   --color-primary: var(--accent);
@@ -271,7 +371,7 @@
   --el-border-color-extra-light: #FAF9F6;
   --el-fill-color-blank: #FFFFFF;
   --el-fill-color-light: #F5F3EF;
-  --el-font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --el-font-family: var(--font-body);
   --el-font-size-base: 14px;
   --el-border-radius-base: 8px;
   --el-color-success: #059669;
@@ -280,16 +380,43 @@
   --el-color-info: #6B6560;
 }
 
-/* ========== Dark Theme ========== */
-.dark,
+/*
+ * 聊天字号三档。写在 :root 之后、用 :root[attr] 提高一级特异性，
+ * 不依赖书写顺序也能盖过 :root 里的默认值。
+ */
+:root[data-chat-font-size="small"] { --chat-font-size: 15px; }
+:root[data-chat-font-size="medium"] { --chat-font-size: 17px; }
+:root[data-chat-font-size="large"] { --chat-font-size: 19px; }
+
+/* ========== Dark Theme（沉浸暗色，默认主题）==========
+ *
+ * 由原 [data-theme="dark"] 与沉浸样板层的专属令牌合并而来（P2-2）。
+ * 挂在 <html data-theme="dark"> 上，teleport 到 <body> 的 Element Plus 弹层
+ * （el-select / el-dropdown / el-popover / el-dialog / el-message-box / el-tooltip）
+ * 天然落在它之内，直接继承这里的 --el-* 取值，不需要给每种弹层单独挂 popper-class。
+ *
+ * 设计原则（来自样板层）：
+ *   1. 层次用「表面明度递增」表达，不用阴影（暗背景下阴影不可见）
+ *   2. 边框承担分隔职责，权重比浅色模式高一档
+ *   3. 主色琥珀在深炭底上作为「点」出现，不铺面
+ *   4. 琥珀底上的前景是深炭（--accent-on），不是白色
+ *
+ * 也可以挂在页面内的局部元素上：图片封面卡片的文字压在深色遮罩上，无论全站主题
+ * 是什么都必须用暗色取值，所以卡片根节点自带 data-theme="dark"。
+ * 因此这里不能依赖「在 :root 上解析的别名」——凡是需要在局部生效的令牌都在本块直接声明。
+ */
 [data-theme="dark"] {
+  color-scheme: dark;
+
   --accent: #F59E0B;
   --accent-hover: #FBBF24;
   --accent-press: #D97706;
   --accent-light: #451A03;
   --accent-subtle: #2D1F0E;
+  --accent-wash: rgba(245, 158, 11, 0.10);
+  --border-accent: rgba(245, 158, 11, 0.45);
   /*
-   * 深色下琥珀本身已足够亮：#F59E0B on #2D2B2A = 6.56:1，
+   * 深色下琥珀本身已足够亮：#F59E0B on #242220 = 7.38:1，
    * 所以文字角色不需要另取值，直接等同填充色。
    * 浅色主题下两者必须分开（见 :root 段说明）。
    */
@@ -297,46 +424,60 @@
   /* 深色下琥珀更亮，深炭前景 8.17:1；白字仅 2.15:1，不可用 */
   --accent-on: #1A1918;
 
-  --bg-base: #1A1918;
-  --bg-surface: #2D2B2A;
-  --bg-subtle: #363432;
-  --bg-hover: #3D3A38;
+  /*
+   * 表面色阶（原沉浸样板层的五级表面）：
+   *   bg-base #0F0E0D < bg-subtle #1A1918 < bg-surface #242220 < bg-hover #2D2B2A
+   * 卡片 / 输入框 / 弹层等"抬起来的"内容面用 bg-surface，侧栏用 bg-subtle。
+   */
+  --bg-base: #0F0E0D;
+  --bg-subtle: #1A1918;
+  --bg-surface: #242220;
+  --bg-hover: #2D2B2A;
+  --bg-sunken: #0A0908;
   --bg-color-overlay: rgba(0, 0, 0, 0.6);
 
-  --text-primary: #E8E5E0;
-  /* 提亮以给三级文字腾出层级空间：surface 7.96 / base 9.91 / 次级面 7.00 */
-  --text-secondary: #C5C2BF;
   /*
-   * 原 #6B6560 在 #2D2B2A 上仅 2.45:1。提亮到 #A39D98：
-   * surface 5.26 / base 6.55 / 次级面 4.62，三种表面都过 4.5。
-   *
-   * 注意这同时逼着上一层也得动：#A39D98 与原 secondary #A39E99 只差
-   * 1.01:1，肉眼完全分不开，三级文字层级会塌成两级。所以 secondary
-   * 一并提到 #C5C2BF，把三层重新拉开（见下）。
+   * 文字三层。primary 取样板层的 #F2EFEA；secondary / tertiary 沿用此前为拉开层级
+   * 逐项实测过的取值，没有换成样板层的 #A8A29B / #8F8982——后者与相邻层只差 ~1.3:1，
+   * 且 #8F8982 在最亮的 bg-hover 上只有 4.07:1，不过 AA。
+   * 对比度（四种深色表面 base / subtle / surface / hover）：
+   *   primary   #F2EFEA 16.8 / 15.3 / 13.8 / 12.3
+   *   secondary #C5C2BF 全部 > 7
+   *   tertiary  #A39D98 7.19 / 6.55 / 5.91 / 5.26
    */
+  --text-primary: #F2EFEA;
+  --text-secondary: #C5C2BF;
   --text-tertiary: #A39D98;
   --text-faint: #6B6560;
 
-  --border-default: #3D3A38;
-  --border-subtle: #363432;
+  /* 边框用半透明的暖白，叠在任何深色表面上都成立（原沉浸样板层的边框） */
+  --border-default: rgba(242, 239, 234, 0.16);
+  --border-subtle: rgba(242, 239, 234, 0.10);
   --border-strong: #4A4745;
-  /* 交互控件边界：surface 3.56 / base 4.43 / 次级面 3.13，三种都过 3:1 */
+  /* 交互控件边界：base 4.87 / subtle 4.43 / surface 4.00 / hover 3.56，四种都过 3:1 */
   --border-interactive: #847F7B;
 
-  /* 深色下焦点环改用更亮的琥珀：#F59E0B on #1A1918 = 8.17:1 */
+  /* 深色下焦点环改用更亮的琥珀：#F59E0B on #0F0E0D = 8.98:1 */
   --focus-ring-color: #F59E0B;
+  /* 别名在声明它的元素上就地解析，局部挂载时必须在此重新声明，否则取到浅色的 --bg-base */
+  --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--focus-ring-color);
+  --focus-ring-inset: inset 0 0 0 2px var(--focus-ring-color);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
 
-  --sidebar-bg: #2D2B2A;
-  --sidebar-border: #3D3A38;
-  /* 跟随提亮后的 --text-secondary，否则侧栏未选中项比正文暗一档 */
+  /*
+   * 侧栏有自己一套 --sidebar-* 令牌（不读 --bg-surface）。
+   * 选中态是琥珀薄衬底 + 浅色字：琥珀底配浅字不达 AA，浅琥珀底（#FEF3C7）又是浅色模式配色。
+   */
+  --sidebar-bg: #1A1918;
+  --sidebar-border: rgba(242, 239, 234, 0.16);
+  /* 跟随 --text-secondary，否则侧栏未选中项比正文暗一档 */
   --sidebar-text: #C5C2BF;
-  --sidebar-text-active: #E8E5E0;
-  --sidebar-hover: #363432;
-  --sidebar-active: #451A03;
+  --sidebar-text-active: #F2EFEA;
+  --sidebar-hover: #242220;
+  --sidebar-active: rgba(245, 158, 11, 0.18);
 
   /*
    * 语义色深色版。浅色主题的取值在深底上全部偏暗：
@@ -348,17 +489,19 @@
   --color-danger: #EF4444;
   --color-info: #A39E99;
 
-  /* 文字变体按最难的深色表面 #363432 解，三种深底都过 4.5:1 */
+  /* 文字变体在四种深色表面上都过 4.5:1（最难的是 bg-hover） */
   --color-success-text: #10B47D;
   --color-warning-text: #F59E0B;
   --color-danger-text: #F47979;
   --color-info-text: #A39D98;
 
-  --chat-bg: #1A1918;
-  --chat-sidebar-bg: #2D2B2A;
-  --chat-user-msg-bg: #363432;
-  --chat-divider: #3D3A38;
-  --chat-assistant-msg-bg: #2D2B2A;
+  --chat-bg: #0F0E0D;
+  --chat-sidebar-bg: #1A1918;
+  --chat-user-msg-bg: #2D2B2A;
+  --chat-divider: rgba(242, 239, 234, 0.16);
+  --chat-assistant-msg-bg: #242220;
+  /* 深色重新声明一次：别名在声明它的元素上就地解析，避免主题挂在非根节点时取到浅色值 */
+  --chat-action-color: var(--text-tertiary);
 
   /* Legacy dark aliases */
   --bg-color: var(--bg-surface);
@@ -369,31 +512,67 @@
   --text-color-placeholder: var(--text-tertiary);
   --border-color: var(--border-default);
   --border-color-light: var(--border-subtle);
-  --border-color-lighter: #2D2B2A;
+  --border-color-lighter: var(--border-subtle);
   --surface-card: var(--bg-surface);
   --surface-hover: var(--bg-hover);
 
   --glass-bg: rgba(0, 0, 0, 0.3);
   --glass-border: 1px solid var(--border-subtle);
 
-  /* Element Plus dark overrides */
+  /*
+   * Element Plus 暗色映射。只改 --el-* 变量，不重写组件 DOM，升级时不会像 :deep() 那样崩。
+   * 没有引入 element-plus/theme-chalk/dark/css-vars.css：它以 html.dark 为选择器，
+   * 特异性高于本块，会反过来盖掉下面的琥珀主色与表面色阶。下面补齐了它多出来的那几项
+   * （mask / disabled / fill-extra-light / border-dark / 阴影）。
+   */
   --el-color-primary: #F59E0B;
   --el-color-primary-light-3: #FBBF24;
   --el-color-primary-light-5: #78350F;
   --el-color-primary-light-7: #451A03;
   --el-color-primary-light-9: #2D1F0E;
   --el-color-primary-dark-2: #FBBF24;
-  --el-bg-color: #2D2B2A;
-  --el-bg-color-page: #1A1918;
-  --el-bg-color-overlay: #1d1e1f;
-  --el-text-color-primary: #E8E5E0;
-  --el-text-color-regular: #A39E99;
+
+  --el-bg-color: #242220;
+  --el-bg-color-page: #0F0E0D;
+  --el-bg-color-overlay: #2D2B2A;
+
+  --el-text-color-primary: #F2EFEA;
+  --el-text-color-regular: #F2EFEA;
   --el-text-color-secondary: var(--text-tertiary);
   --el-text-color-placeholder: var(--text-tertiary);
-  --el-border-color: var(--border-interactive);
-  --el-border-color-light: #363432;
-  --el-border-color-lighter: #2D2B2A;
-  --el-border-color-extra-light: #1A1918;
-  --el-fill-color-blank: #2D2B2A;
-  --el-fill-color-light: #363432;
+  --el-text-color-disabled: #6B6560;
+
+  /* 表单控件边界取 3:1 的 --border-interactive；-light 系列是装饰性分隔，保持柔和 */
+  --el-border-color: #847F7B;
+  --el-border-color-light: rgba(242, 239, 234, 0.16);
+  --el-border-color-lighter: rgba(242, 239, 234, 0.10);
+  --el-border-color-extra-light: rgba(242, 239, 234, 0.10);
+  --el-border-color-dark: #4A4745;
+  --el-border-color-darker: #5C5855;
+  --el-border-color-hover: rgba(245, 158, 11, 0.45);
+
+  --el-fill-color: #242220;
+  --el-fill-color-light: #2D2B2A;
+  --el-fill-color-lighter: #1A1918;
+  --el-fill-color-extra-light: #1A1918;
+  --el-fill-color-blank: #242220;
+  --el-fill-color-dark: #2D2B2A;
+  --el-fill-color-darker: #2D2B2A;
+
+  --el-disabled-bg-color: #1A1918;
+  --el-disabled-text-color: #A39D98;
+  --el-disabled-border-color: rgba(242, 239, 234, 0.10);
+
+  /* el-loading / el-drawer 的遮罩：EP 默认是白色 0.9，在暗色页面上会整块发白 */
+  --el-mask-color: rgba(15, 14, 13, 0.85);
+  --el-mask-color-extra-light: rgba(15, 14, 13, 0.3);
+  --el-overlay-color: rgba(0, 0, 0, 0.6);
+  --el-overlay-color-light: rgba(0, 0, 0, 0.7);
+  --el-overlay-color-lighter: rgba(0, 0, 0, 0.8);
+
+  /* 深色下投影不可见，弹层的分隔交给边框 */
+  --el-box-shadow: none;
+  --el-box-shadow-light: none;
+  --el-box-shadow-lighter: none;
+  --el-box-shadow-dark: 0 8px 24px rgba(0, 0, 0, 0.5);
 }

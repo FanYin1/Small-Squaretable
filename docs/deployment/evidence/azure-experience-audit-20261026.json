@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-26",
+  "target": "3081 07AC",
+  "scope": "actual imported card, read-only browser navigation and all ten opening previews; no generated conversations",
+  "modelCalls": 0,
+  "mutationsBlocked": true,
+  "entryViews": 8,
+  "openingViews": 20,
+  "errors": [],
+  "privateEvidence": {
+    "entry": "backups/exploration/azure-trial-20261026/browser-f8976cbb-3d03-4ead-a19c-6cd2d20c2dd8",
+    "play": "backups/exploration/azure-trial-20261026/browser-7717adf7-109e-47b7-b2b8-8898a1f81d83"
+  },
+  "limitations": [
+    "Entry review blocks creation: resulting recovery screen is instrumentation, not a demonstrated production failure",
+    "Entry review reused one browser context: mobile identity/legacy views after blocked creation are not independent clean entry evidence",
+    "No generated replies, semantic memory quality or actual mobile hardware verified"
+  ],
+  "findings": [
+    {
+      "id": "AZ-01",
+      "scope": "EXP-02",
+      "finding": "Private-library start button omits storyEntry query while new quick start includes it",
+      "source": "src/client/pages/MyCharacters.vue:439"
+    },
+    {
+      "id": "AZ-02",
+      "scope": "EXP-02",
+      "finding": "Detail opening uses raw interpolated first_mes, exposing VariableInsert and JSON; reading renderer hides these blocks",
+      "source": "src/client/pages/CharacterDetail.vue:55"
+    },
+    {
+      "id": "AZ-03",
+      "scope": "EXP-02",
+      "finding": "No source description/scenario; discovery/detail/identity show no description despite large worldbook",
+      "source": "src/client/components/chat/StoryEntryPreview.vue:15"
+    },
+    {
+      "id": "AZ-04",
+      "scope": "EXP-02",
+      "finding": "Private story detail retains ratings, duplicated statistics and comments",
+      "source": "src/client/pages/CharacterDetail.vue:197"
+    },
+    {
+      "id": "AZ-05",
+      "scope": "EXP-02/07D",
+      "finding": "Default greeting is an author opening directory; choice requires paging 1/10 after chat creation",
+      "source": "src/client/components/chat/ChatWindow.vue:199"
+    },
+    {
+      "id": "AZ-06",
+      "scope": "EXP-02",
+      "finding": "Adjacent opening preview strips punctuation rather than narrative extraction; content wrapper name leaks into preview",
+      "source": "src/client/components/chat/ChatWindow.vue:1114"
+    },
+    {
+      "id": "AZ-07",
+      "scope": "EXP-02/07D",
+      "finding": "Mobile opening screenshots start partway through long narrative in the internal scroller; opening navigation needs reading-position review"
+    },
+    {
+      "id": "AZ-08",
+      "scope": "EXP-02/07D",
+      "finding": "Imported external initial values have no native state/map mapping; overview cannot show the values implied by the opening"
+    }
+  ]
+}

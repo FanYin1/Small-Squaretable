@@ -1,0 +1,128 @@
+{
+  "target": "3081",
+  "image": "small-squaretable:exploration-20261026-test-cards-ui",
+  "scope": "authenticated pages without chat creation or generation",
+  "views": [
+    {
+      "key": "library",
+      "width": 1440,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": true,
+      "communityMounted": false,
+      "visibleCards": [
+        {
+          "name": "与钟桃的双人终末旅行",
+          "visible": true
+        },
+        {
+          "name": "实教瞎创版v1.4",
+          "visible": true
+        },
+        {
+          "name": "绝世唐门V3.0",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "key": "t1",
+      "width": 1440,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": true,
+      "communityMounted": false
+    },
+    {
+      "key": "t2",
+      "width": 1440,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": true,
+      "communityMounted": false
+    },
+    {
+      "key": "t3",
+      "width": 1440,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": false,
+      "communityMounted": false
+    },
+    {
+      "key": "azure",
+      "width": 1440,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": true,
+      "communityMounted": false
+    },
+    {
+      "key": "library",
+      "width": 390,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": true,
+      "communityMounted": false,
+      "visibleCards": [
+        {
+          "name": "与钟桃的双人终末旅行",
+          "visible": true
+        },
+        {
+          "name": "实教瞎创版v1.4",
+          "visible": true
+        },
+        {
+          "name": "绝世唐门V3.0",
+          "visible": true
+        }
+      ]
+    },
+    {
+      "key": "t1",
+      "width": 390,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": true,
+      "communityMounted": false
+    },
+    {
+      "key": "t2",
+      "width": 390,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": true,
+      "communityMounted": false
+    },
+    {
+      "key": "t3",
+      "width": 390,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": false,
+      "communityMounted": false
+    },
+    {
+      "key": "azure",
+      "width": 390,
+      "horizontalOverflow": false,
+      "rawControlMarkers": false,
+      "rawHtmlMarkers": false,
+      "noDescription": true,
+      "communityMounted": false
+    }
+  ],
+  "errors": [],
+  "blockedMutations": 54,
+  "blockedBusinessMutations": []
+}

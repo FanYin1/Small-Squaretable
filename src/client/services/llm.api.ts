@@ -4,7 +4,7 @@
  * 处理 LLM 聊天补全请求
  */
 
-import { api } from './api';
+import { api, ApiError, type ApiResponse } from './api';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -46,6 +46,28 @@ export interface ModelMeta {
   defaultTemperature: number;
 }
 
+/**
+ * 流式请求非 2xx 时构造错误：能解析出标准错误体（{ error: { code, message, details } }）
+ * 就抛 ApiError（带 status/code/details，例如点数不足 402），否则退回通用错误。
+ */
+async function buildRequestError(response: Response): Promise<Error> {
+  const generic = new Error(`LLM request failed: ${response.status}`);
+  try {
+    const body = (await response.json()) as ApiResponse;
+    if (body?.error?.code) {
+      return new ApiError(
+        response.status,
+        body.error.code,
+        body.error.message || generic.message,
+        body.error.details
+      );
+    }
+  } catch {
+    // 非 JSON 响应体：保持通用错误
+  }
+  return generic;
+}
+
 export const llmApi = {
   /**
    * 获取可用模型列表
@@ -69,14 +91,16 @@ export const llmApi = {
   streamChatCompletion: async (
     request: ChatCompletionRequest,
     onChunk: (chunk: string) => void,
-    onDone: () => void,
-    onError: (error: Error) => void
+    onDone: () => void | Promise<void>,
+    onError: (error: Error) => void,
+    signal?: AbortSignal
   ): Promise<void> => {
     const token = localStorage.getItem('token');
     const tenantId = localStorage.getItem('tenantId');
 
     const response = await fetch('/api/v1/llm/chat/completions', {
       method: 'POST',
+      signal,
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
@@ -89,7 +113,7 @@ export const llmApi = {
     });
 
     if (!response.ok) {
-      throw new Error(`LLM request failed: ${response.status}`);
+      throw await buildRequestError(response);
     }
 
     const reader = response.body?.getReader();
@@ -111,7 +135,7 @@ export const llmApi = {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
             if (data === '[DONE]') {
-              onDone();
+              await onDone();
               return;
             }
             try {
@@ -126,9 +150,10 @@ export const llmApi = {
           }
         }
       }
-      onDone();
+      await onDone();
     } catch (error) {
-      onError(error instanceof Error ? error : new Error('Stream error'));
+      if (signal?.aborted) await onDone();
+      else onError(error instanceof Error ? error : new Error('Stream error'));
     } finally {
       reader.releaseLock();
     }

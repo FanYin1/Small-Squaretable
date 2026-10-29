@@ -51,7 +51,7 @@ const makeStats = (overrides: Partial<SystemStats> = {}): SystemStats => ({
 
 const makeAuditLog = (overrides: Partial<AuditLog> = {}): AuditLog => ({
   id: 'al-1',
-  userId: 'u-1',
+  actorId: 'u-1',
   action: 'user.login',
   createdAt: '2026-01-01T00:00:00Z',
   ...overrides,
@@ -322,10 +322,8 @@ describe('Admin Store', () => {
   it('should fetch audit logs and set logs + total', async () => {
     const mockLogs = [makeAuditLog({ id: 'al-1' }), makeAuditLog({ id: 'al-2' })];
     vi.mocked(adminApi.getAuditLogs).mockResolvedValue({
-      logs: mockLogs,
-      total: 100,
-      page: 1,
-      limit: 20,
+      items: mockLogs,
+      pagination: { page: 1, limit: 20, total: 100, totalPages: 5, hasNext: true, hasPrev: false },
     });
 
     const store = useAdminStore();

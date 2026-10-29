@@ -5,6 +5,7 @@ import { useUserStore } from '@client/stores/user';
 import { isTokenValid } from '@client/utils/auth';
 import { ElMessage } from 'element-plus';
 import i18n from '@client/i18n/index';
+import { useModulesStore } from '@client/stores/modules';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -25,8 +26,24 @@ function hasRequiredRole(userRole: string | undefined, requiredRole: string): bo
 }
 
 // Navigation guard for authentication
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
+  // P2-1：功能模块开关。首次导航前等开关加载完，渲染时入口状态已就绪（不闪现已下线的入口）。
+  const modulesStore = useModulesStore();
+  await modulesStore.ensureLoaded();
+  const closedModule = to.matched.some((record) => !modulesStore.isEnabled(record.meta.module));
+  if (closedModule) {
+    // 关闭的模块统一按 404 处理：保留原 URL，渲染 NotFound，不跳转到别处
+    next({
+      name: 'NotFound',
+      params: { pathMatch: to.path.substring(1).split('/') },
+      query: to.query,
+      hash: to.hash,
+    });
+    return;
+  }
+
   const userStore = useUserStore();
+  await userStore.initialize();
   const token = userStore.token;
 
   // 使用 token 有效性验证（检查是否过期）

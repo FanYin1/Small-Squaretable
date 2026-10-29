@@ -1,0 +1,210 @@
+{
+  "task": "EXP-03B-AUDIT",
+  "taskClosed": true,
+  "parentTask": "EXP-03B",
+  "parentTaskClosed": false,
+  "date": "2026-10-24T14:26:23.278Z",
+  "result": "passed",
+  "implementation": "Explicit scoped read-only character/embedded-worldbook audit; no apply mode",
+  "decisions": [
+    "DEC-10",
+    "DEC-12",
+    "INV-03",
+    "INV-07",
+    "INV-09"
+  ],
+  "validation": {
+    "unitTests": 33,
+    "testFiles": 2,
+    "auditTests": 24,
+    "sharedMappingRegressionTests": 9,
+    "applicationTypecheck": "passed",
+    "cliTypecheck": "passed",
+    "targetedLint": "passed, no warnings or errors",
+    "productionServerBuild": "passed",
+    "productionClientBuild": "passed",
+    "integrationGroups": 17,
+    "newAuditGroups": 3,
+    "syntheticHistoricalCases": 14,
+    "originalSampleCards": 3,
+    "originalStandaloneBooks": 2,
+    "syntheticFormatCases": 41
+  },
+  "database": "disposable PostgreSQL with beta migrations",
+  "audit": {
+    "groups": [
+      "Real audit CLI classifies 14 synthetic historical cases, enforces source/book/entry limits and leaves eight database tables unchanged",
+      "Private reports omit source text; repeated fingerprints are stable, changed data invalidates them, foreign owners are hidden and apply is rejected",
+      "Audit transaction is repeatable-read/read-only; PostgreSQL rejects an attempted write with 25006"
+    ],
+    "syntheticCases": 14,
+    "repairedRecords": 0,
+    "readOnlyVerified": true,
+    "privateReportsVerified": true
+  },
+  "unchangedTables": [
+    "characters",
+    "worldbooks",
+    "worldbook_entries",
+    "chats",
+    "messages",
+    "story_content",
+    "story_worldbooks",
+    "story_states"
+  ],
+  "checks": [
+    "Three original PNGs: single/batch persistence parity, original data retained, embedded books bound and captured",
+    "Two standalone books persisted with owner attribution and no inferred character binding",
+    "CLI dry-run produces readiness only; default standalone skip performs no writes",
+    "Three authorized PNGs imported by actual CLI match web fields, original metadata, tags, owner and embedded book rows",
+    "Two explicitly selected standalone books match web mappings without inferred character bindings",
+    "CLI partial failure exit 2, per-file character/book/entry rollback, next-file continuation, exact-byte dedup and same-name variants",
+    "Actual CLI compressed iTXt/zTXt imports retain embedded books; overflow, trailing bytes and damaged selected V3 produce no records",
+    "Real audit CLI classifies 14 synthetic historical cases, enforces source/book/entry limits and leaves eight database tables unchanged",
+    "Private reports omit source text; repeated fingerprints are stable, changed data invalidates them, foreign owners are hidden and apply is rejected",
+    "Audit transaction is repeatable-read/read-only; PostgreSQL rejects an attempted write with 25006",
+    "41 synthetic raw-file API cases: JSON/V2/V3/iTXt/magic detection, corrupt/unsupported/ambiguous files produce no character rows",
+    "Actual JSON and PNG exports reimport current fields and V3 version, retain unknown fields, remove stale metadata and do not nest import archives",
+    "Production Chromium single/batch uploads, partial/all failure details, database counts, 1440px/390px layouts and zero page errors",
+    "Chromium compressed iTXt batch and zTXt single imports; oversized and unavailable decompression show localized errors with zero creation requests",
+    "Malformed book rejected; entry database failure rolls back character/book/prior entries; batch retains only its valid file",
+    "Frozen old/new story revisions survive source edits/deletion; unrelated global books remain unbound",
+    "Production WebSocket prompts: keyword/constant/disabled/zero-probability/secondary/atDepth role, frozen revisions and no global fallback"
+  ],
+  "integrationSources": [
+    {
+      "path": "src/types/character-worldbook.ts",
+      "sha256": "a097d24829ae0fd8007fcaddb80555ca479ecaff49cc63e1c2e223433b3b0f65"
+    },
+    {
+      "path": "src/types/character-card-import.ts",
+      "sha256": "ac416056152727e3cd248f483080a1b841213a34259f2788a1e6a1d9a91d0fc3"
+    },
+    {
+      "path": "src/client/utils/sillytavern.ts",
+      "sha256": "2296948bd7c7f1b9ddb8d83b04ccfde3c9bb69f284569af4381c2df5febf86d7"
+    },
+    {
+      "path": "src/types/worldbook-import.ts",
+      "sha256": "e2e93d3d16cfd18b8530960be435756976ed632e9658d9f3e1322aa2ad75edcc"
+    },
+    {
+      "path": "src/db/character-import.ts",
+      "sha256": "c94cbfb762da89976b55f3e9f0dec6faf1e42e437282933c9a3b4c75ef9dc5b9"
+    },
+    {
+      "path": "src/db/worldbook-import.ts",
+      "sha256": "6fa4bf4465851d1ea9fe3aaf63398785a18e0417287aae2f31091e3222e3ca5e"
+    },
+    {
+      "path": "src/server/routes/worldbooks.ts",
+      "sha256": "d5a0ae74f41d8ffc18f880ec2b024f3c3f9982e0d2c1a09c9cb3bbe3d57787ef"
+    },
+    {
+      "path": "scripts/import-cards.ts",
+      "sha256": "60fa8e3e74925ef40ebe1709f5a1b9bbde2081780527158e6541dc065a30dc2f"
+    },
+    {
+      "path": "scripts/character-cli-check.mjs",
+      "sha256": "f24f729bd05704290c300506158f5e7c7fd8e4330d51a82ba4cdf74f8c1748c8"
+    },
+    {
+      "path": "src/db/character-import-audit.ts",
+      "sha256": "a67bbcd4a0bbfae81db2556dc23fddd969d2a3ace6fdd39435be5ad8699fefe7"
+    },
+    {
+      "path": "scripts/character-import-audit.ts",
+      "sha256": "e33a50dc7108fcfad0114c36021c17e71fa3a04e8e136259cf47d9718c26ab90"
+    },
+    {
+      "path": "scripts/character-import-audit-check.mjs",
+      "sha256": "9e43e1629ff521d39852c55c5a54a9b52dcc1e2cfb6a9f2ddf6d9c42f222389b"
+    },
+    {
+      "path": "tsconfig.import-cards.json",
+      "sha256": "14be17ebdb4f1917c38bdce8aa50169543b1347351ff6e92a30ab08d4f52ad1c"
+    },
+    {
+      "path": "src/client/services/export.api.ts",
+      "sha256": "aa12af32b5229167fe5f65c93e210dc370898f3fc56d06ee5c5a2d21828e31d7"
+    },
+    {
+      "path": "src/client/pages/MyCharacters.vue",
+      "sha256": "e87064b108454debc4639312df0d58cb8510f7ecc99a902a001e4cad3a1afe35"
+    },
+    {
+      "path": "src/server/utils/png-embed.ts",
+      "sha256": "1b6ee16aa6ef617b660f46d8fe4b4f34f4c95c5fa9d4c0138949d84e2c188d09"
+    },
+    {
+      "path": "src/client/i18n/locales/zh-CN.json",
+      "sha256": "33534d268c13326900e2b3151c0364d8bcd4958e5570a1bf6f5edcf3abdcfe35"
+    },
+    {
+      "path": "src/client/i18n/locales/en-US.json",
+      "sha256": "84413ccfe075f47dbedb2bafdc759d4456b60777c4f0a949d43fb004dabbc4fa"
+    },
+    {
+      "path": "scripts/fixtures/character-card-formats.mjs",
+      "sha256": "51949a45c5317c86e450e6ef40cffc74a1e1725ba3fc5f519c1e15e08e69a452"
+    },
+    {
+      "path": "src/db/repositories/character.repository.ts",
+      "sha256": "718ab7db90e4bba386b33f189e3a60088c806adf9a153a9f0c3071ae81df85fa"
+    },
+    {
+      "path": "src/server/routes/characters.ts",
+      "sha256": "02ba9fd0daf9fb475a93ae706a8328cdcb48445b9b2080fc95925ad086400f30"
+    },
+    {
+      "path": "src/server/services/story-worldbooks.service.ts",
+      "sha256": "26ca1c61f6d1c21e4a66bd444a05256fcc564c8cf7f2e955ec8ed10d1a965933"
+    },
+    {
+      "path": "src/server/services/worldinfo-engine.service.ts",
+      "sha256": "1bdd6d18f64fd7485ee5882bd77469210c3232eb507f585f9edcf9de468a0b6a"
+    },
+    {
+      "path": "scripts/character-library-check.mjs",
+      "sha256": "d4c9e6844326d3966a93fa5c459cce7aa995f547fe26738bef1780a42c1620fd"
+    },
+    {
+      "path": "scripts/exploration-entry-check.mjs",
+      "sha256": "192d212b8052c06cb223a50c8beb9412ac0a75bd971ec97c597c81bce8640efd"
+    },
+    {
+      "path": "scripts/beta-smoke-check.mjs",
+      "sha256": "1dc81156e9b6311e5f5ef9027108b33e26902f37a3116be1258dfb956bd86604"
+    },
+    {
+      "path": "dist/server/index.js",
+      "sha256": "8c6c0baa4a9084851638f967b269634f360896bd3831c93c666d6ff9ddf4be1a"
+    },
+    {
+      "path": "dist/client/index.html",
+      "sha256": "c45277a7d4fdc089c94cb7b920f9d6aa56143bb0fdb0e69f6883199d448231fe"
+    }
+  ],
+  "unitTestSources": [
+    {
+      "path": "src/db/character-import-audit.spec.ts",
+      "sha256": "6870daa7bdb3a6ff7348f722bc8fa2ad7bbccfd37352072a932527b934edcb4b"
+    },
+    {
+      "path": "src/types/character-worldbook.spec.ts",
+      "sha256": "ecf223a8446d49f770babca35b4458e2e2a94906bfd99ef2e8a5b3e9c48c7f7a"
+    }
+  ],
+  "limits": {
+    "liveHistoricalDatabaseAudited": false,
+    "liveMissingBookCount": null,
+    "repairedRecords": 0,
+    "deployedPorts": [],
+    "paidProviderTokens": 0,
+    "authorScriptsExecuted": false,
+    "userSignoff": false,
+    "firstAttempt": "Synthetic empty cardData was rejected by the production create schema; fixture corrected and complete integration rerun passed.",
+    "noAutomaticRepair": "Missing binding can be intentional; archive/nested/conflicting/modified/disabled/duplicate records require separate review.",
+    "fingerprintScope": "Loaded current character/card data and attached books/entries only; not proof of historical provenance or write authorization."
+  }
+}

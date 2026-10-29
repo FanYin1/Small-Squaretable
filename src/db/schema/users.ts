@@ -31,6 +31,24 @@ export const users = pgTable('users', {
   deletionRequestedAt: timestamp('deletion_requested_at', { withTimezone: true }),
   followerCount: integer('follower_count').default(0).notNull(),
   followingCount: integer('following_count').default(0).notNull(),
+
+  /**
+   * 满 18 岁声明。
+   *
+   * 存的是「用户在什么时候声明过自己成年」这个事实，不是出生日期——
+   * 不收集出生日期就不用承担多一份敏感个人信息的合规负担。
+   * 时间点 + IP 是这份声明的证据，出事时需要能举证「用户自己勾的」，
+   * 所以不能只存一个 boolean。IP 与 audit_logs 一致做 SHA-256 截断。
+   */
+  ageConfirmedAt: timestamp('age_confirmed_at', { withTimezone: true }),
+  ageConfirmedIp: varchar('age_confirmed_ip', { length: 64 }),
+
+  /**
+   * 「显示 NSFW 内容」偏好（P2-6）。新用户与存量用户一律默认关，用户自己打开。
+   * 打开的前提是 age_confirmed_at 非空，由 nsfw-preference.service 在服务端校验。
+   * 是否真能看到还取决于平台开关 NSFW_ENABLED，见 nsfw-visibility.ts。
+   */
+  showNsfw: boolean('show_nsfw').default(false).notNull(),
 }, (table) => ({
   tenantIdIdx: index('idx_users_tenant_id').on(table.tenantId),
 }));

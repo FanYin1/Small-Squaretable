@@ -1,0 +1,134 @@
+{
+  "message": "Read-only page checks must not submit data or generate\n+ actual - expected\n\n+ [\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   },\n+   {\n+     method: 'POST',\n+     path: '/api/v1/analytics/vitals'\n+   }\n+ ]\n- []\n",
+  "errors": [],
+  "mutations": [
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/vitals"
+    }
+  ]
+}

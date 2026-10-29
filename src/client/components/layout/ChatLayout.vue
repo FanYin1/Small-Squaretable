@@ -4,10 +4,19 @@
     @touchstart.passive="onTouchStart"
     @touchmove.passive="onTouchMove"
     @touchend="onTouchEnd"
+    @keydown.esc="onEscape"
   >
     <!-- Mobile hamburger button -->
     <div class="mobile-header">
-      <button class="mobile-hamburger" aria-label="Open sidebar" @click="openMobileSidebar">
+      <button
+        ref="hamburgerRef"
+        type="button"
+        class="mobile-hamburger"
+        :aria-label="t('chat.sidebar.openDrawer')"
+        :aria-expanded="mobileOpen"
+        aria-controls="chat-sidebar-drawer"
+        @click="openMobileSidebar"
+      >
         <el-icon :size="22"><Fold /></el-icon>
       </button>
     </div>
@@ -22,7 +31,18 @@
     </Transition>
 
     <!-- Sidebar wrapper -->
+    <!-- inert: 收起/移出屏幕的侧栏不应被 Tab 键或读屏访问到。
+         注意 inert 只要属性存在（哪怕 ="false"）就生效，且 Vue 不把它当布尔属性，
+         所以必须用 true / undefined 切换（undefined 才会移除属性），不能绑 false。 -->
     <aside
+      id="chat-sidebar-drawer"
+      ref="sidebarRef"
+      tabindex="-1"
+      @keydown.tab="trapDrawerFocus"
+      :inert="sidebarHidden ? true : undefined"
+      :role="isMobile ? 'dialog' : undefined"
+      :aria-modal="isMobile && mobileOpen ? 'true' : undefined"
+      :aria-label="isMobile ? t('chat.sidebar.drawerLabel') : undefined"
       :class="[
         'chat-sidebar-wrapper',
         {
@@ -33,38 +53,42 @@
       ]"
     >
       <ChatSidebar
+        @navigate="closeMobileSidebar"
         @toggle-collapse="toggleCollapse"
-        @new-chat="emit('new-chat')"
+        @new-chat="handleNewChat"
         @select-chat="handleSelectChat"
       />
     </aside>
 
     <!-- Main content area -->
-    <div :class="['chat-main', { 'sidebar-is-collapsed': !isMobile && sidebarCollapsed }]">
+    <main :inert="isMobile && mobileOpen ? true : undefined" :class="['chat-main', { 'sidebar-is-collapsed': !isMobile && sidebarCollapsed, 'library-main': !reading }]">
       <!-- Sidebar restore button (desktop only, when collapsed) -->
       <button
         v-if="!isMobile && sidebarCollapsed"
+        type="button"
         class="sidebar-restore-btn"
-        aria-label="Open sidebar"
+        :aria-label="t('chat.sidebar.expand')"
         @click="toggleCollapse"
       >
         <el-icon :size="18"><Expand /></el-icon>
       </button>
       <slot />
-    </div>
+    </main>
 
-    <!-- Bottom tab bar (mobile only) -->
-    <BottomTabBar v-if="isMobile" />
+    <BottomTabBar v-if="!reading && !mobileOpen" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Fold, Expand } from '@element-plus/icons-vue';
 import ChatSidebar from '@client/components/chat/ChatSidebar.vue';
-import BottomTabBar from '@client/components/layout/BottomTabBar.vue';
+import BottomTabBar from './BottomTabBar.vue';
 
-const MOBILE_BREAKPOINT = 768;
+withDefaults(defineProps<{ reading?: boolean }>(), { reading: true });
+
+const MOBILE_BREAKPOINT = 1024;
 const STORAGE_KEY = 'chat-sidebar-collapsed';
 
 interface Emits {
@@ -74,9 +98,33 @@ interface Emits {
 
 const emit = defineEmits<Emits>();
 
+const { t } = useI18n();
+
 const sidebarCollapsed = ref(localStorage.getItem(STORAGE_KEY) === 'true');
 const isMobile = ref(window.innerWidth < MOBILE_BREAKPOINT);
 const mobileOpen = ref(false);
+
+const hamburgerRef = ref<HTMLButtonElement | null>(null);
+const sidebarRef = ref<HTMLElement | null>(null);
+
+// 桌面端收起 / 移动端抽屉未打开时，侧栏内容不可聚焦、不进入无障碍树
+const sidebarHidden = computed(() => (isMobile.value ? !mobileOpen.value : sidebarCollapsed.value));
+
+// 抽屉打开时把焦点移进去，关闭时还给开关按钮（键盘用户不会丢失位置）
+watch(mobileOpen, async (open) => {
+  await nextTick();
+  if (open) {
+    sidebarRef.value?.focus();
+  } else {
+    hamburgerRef.value?.focus();
+  }
+});
+
+const onEscape = () => {
+  if (isMobile.value && mobileOpen.value) {
+    mobileOpen.value = false;
+  }
+};
 
 const toggleCollapse = () => {
   if (isMobile.value) {
@@ -101,6 +149,21 @@ const handleSelectChat = (chatId: string) => {
     mobileOpen.value = false;
   }
 };
+
+function handleNewChat() { emit('new-chat'); closeMobileSidebar(); }
+
+function trapDrawerFocus(event: KeyboardEvent) {
+  if (!isMobile.value || !mobileOpen.value) return;
+  const controls = sidebarRef.value?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), [tabindex="0"]');
+  if (!controls?.length) { event.preventDefault(); return; }
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === sidebarRef.value)) {
+    event.preventDefault(); last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault(); first.focus();
+  }
+}
 
 // Swipe gesture state
 const touchStartX = ref(0);
@@ -163,17 +226,19 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .chat-layout {
   display: flex;
+  /* vh 回退；dvh 跟随移动浏览器动态工具栏（配合 index.html 的 interactive-widget 也跟随软键盘） */
   height: 100vh;
+  height: 100dvh;
   background: var(--chat-bg);
   position: relative;
 }
 
 /* ---- Sidebar wrapper ---- */
 .chat-sidebar-wrapper {
-  width: 280px;
+  width: 240px;
   flex-shrink: 0;
   transition: width 0.3s ease;
   overflow: hidden;
@@ -204,8 +269,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-primary);
@@ -226,6 +291,16 @@ onUnmounted(() => {
   padding-left: 52px;
 }
 
+.mobile-hamburger:focus-visible,
+.sidebar-restore-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.chat-sidebar-wrapper:focus {
+  outline: none;
+}
+
 /* ---- Mobile header (hamburger) ---- */
 .mobile-header {
   display: none;
@@ -235,8 +310,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   background: transparent;
   border: 1px solid var(--border-default);
@@ -267,7 +342,7 @@ onUnmounted(() => {
 }
 
 /* ---- Mobile styles ---- */
-@media (max-width: 767px) {
+@include below(lg) {
   .mobile-header {
     display: flex;
     align-items: center;
@@ -277,12 +352,18 @@ onUnmounted(() => {
     z-index: 50;
   }
 
+  /* 汉堡按钮是 fixed 悬浮的，页面头部需给它让出位置（ChatWindow 的 .chat-info 读取该变量） */
+  .chat-main {
+    --chat-header-inset-start: 52px;
+  }
+
+  /* 抽屉与遮罩要盖过底部 Tab 栏（z-index 1000），否则抽屉底部被 Tab 栏截掉 */
   .sidebar-backdrop {
     display: block;
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 99;
+    z-index: 1090;
   }
 
   .chat-sidebar-wrapper {
@@ -290,8 +371,8 @@ onUnmounted(() => {
     left: 0;
     top: 0;
     bottom: 0;
-    z-index: 100;
-    width: 280px;
+    z-index: 1100;
+    width: min(280px, 85vw);
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     border-right: 1px solid var(--border-default);
@@ -306,12 +387,13 @@ onUnmounted(() => {
   }
 
   .chat-sidebar-wrapper.collapsed {
-    width: 280px;
+    width: min(280px, 85vw);
     transform: translateX(-100%);
   }
 
   .chat-main {
-    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  .chat-main.library-main { padding-bottom:calc(80px + env(safe-area-inset-bottom, 0px)); }
 }
 </style>

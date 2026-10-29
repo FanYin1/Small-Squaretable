@@ -53,6 +53,23 @@ vi.mock('../../../db/repositories/message.repository', () => ({
   },
 }));
 
+// buildEnhancedSystemPrompt 会读聊天级参数覆盖（chat_overrides 表）
+vi.mock('../../../db/repositories/chat-override.repository', () => ({
+  chatOverrideRepository: {
+    findByChatId: vi.fn(),
+  },
+}));
+
+// createMacroContextWithVars -> chatVariableStore.loadAll 走 Redis（cacheService）。
+// 测试环境没有 Redis，不 mock 的话会卡在 ioredis 的重连退避里直到用例超时。
+vi.mock('../chat-variable.service', () => ({
+  chatVariableStore: {
+    loadAll: vi.fn(),
+    setChatVar: vi.fn(),
+    setGlobalVar: vi.fn(),
+  },
+}));
+
 vi.mock('../embedding.service', () => ({
   embeddingService: {
     embed: vi.fn().mockResolvedValue(new Array(384).fill(0.1)),
@@ -69,6 +86,8 @@ vi.mock('../llm.service', () => ({
 
 import { memoryRepository } from '../../../db/repositories/memory.repository';
 import { emotionRepository } from '../../../db/repositories/emotion.repository';
+import { chatOverrideRepository } from '../../../db/repositories/chat-override.repository';
+import { chatVariableStore } from '../chat-variable.service';
 import { embeddingService } from '../embedding.service';
 import { llmService } from '../llm.service';
 
@@ -81,6 +100,9 @@ describe('Intelligence Integration', () => {
     vi.clearAllMocks();
     // Ensure findSimilar returns empty array by default (needed for storeMemory dedup check)
     vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
+    // afterEach 的 resetAllMocks 会清掉实现，所以每个用例前重新设置
+    vi.mocked(chatVariableStore.loadAll).mockResolvedValue({ chatVars: {}, globalVars: {} });
+    vi.mocked(chatOverrideRepository.findByChatId).mockResolvedValue(undefined);
     memoryService = new MemoryService();
     emotionService = new EmotionService();
     chatService = new ChatService();
@@ -112,6 +134,7 @@ describe('Intelligence Integration', () => {
       expect(memoryRepository.hybridSearch).toHaveBeenCalledWith({
         characterId: 'char-1',
         userId: 'user-1',
+        chatId: null,
         embedding: expect.any(Array),
         limit: 5,
       });

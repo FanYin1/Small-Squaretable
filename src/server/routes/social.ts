@@ -1,15 +1,15 @@
 /**
  * Social Routes
  *
- * API routes for follows, favorites, and comments.
+ * API routes for favorites, comments and public profiles.
+ * Follow routes live in social-follow.ts (module-gated, P2-1).
  */
 
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import {
-  followUserSchema,
   favoriteCharacterSchema,
   createCommentSchema,
   updateCommentSchema,
@@ -24,6 +24,8 @@ import { db } from '../../db';
 import { users } from '../../db/schema/users';
 import { characters } from '../../db/schema/characters';
 import { eq, and, desc } from 'drizzle-orm';
+import { resolveShowNsfw } from '../services/nsfw-preference.service';
+import { nsfwVisibilityConditionForViewer } from '../../db/repositories/nsfw-visibility';
 
 
 export const socialRoutes = new Hono();
@@ -31,135 +33,6 @@ export const socialRoutes = new Hono();
 const socialPaginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
-});
-
-// =====================
-// Follow Routes
-// =====================
-
-// POST /follows - Follow a user
-socialRoutes.post(
-  '/follows',
-  authMiddleware(),
-  zValidator('json', followUserSchema),
-  async (c) => {
-    const user = c.get('user');
-    const { followingId } = c.req.valid('json');
-    const follow = await socialService.followUser(user.id, followingId);
-
-    await cacheService.deletePattern(`social:*:${user.id}:*`);
-
-    return c.json<ApiResponse>(
-      {
-        success: true,
-        data: follow,
-        meta: { timestamp: new Date().toISOString() },
-      },
-      201
-    );
-  }
-);
-
-// DELETE /follows/:userId - Unfollow a user
-socialRoutes.delete('/follows/:userId', authMiddleware(), async (c) => {
-  const user = c.get('user');
-  const targetId = c.req.param('userId');
-  await socialService.unfollowUser(user.id, targetId);
-
-  await cacheService.deletePattern(`social:*:${user.id}:*`);
-
-  return c.json<ApiResponse>(
-    {
-      success: true,
-      data: { unfollowed: true },
-      meta: { timestamp: new Date().toISOString() },
-    },
-    200
-  );
-});
-
-// GET /follows/:userId/status - Check follow status
-socialRoutes.get('/follows/:userId/status', authMiddleware(), async (c) => {
-  const user = c.get('user');
-  const targetId = c.req.param('userId');
-  const status = await socialService.getFollowStatus(user.id, targetId);
-
-  return c.json<ApiResponse>(
-    {
-      success: true,
-      data: status,
-      meta: { timestamp: new Date().toISOString() },
-    },
-    200
-  );
-});
-
-// GET /users/:userId/followers - Get followers
-socialRoutes.get(
-  '/users/:userId/followers',
-  authMiddleware(),
-  zValidator('query', socialPaginationSchema),
-  async (c) => {
-    const userId = c.req.param('userId');
-    const { limit, offset } = c.req.valid('query');
-    const page = Math.floor(offset / limit) + 1;
-
-  const cacheKey = `social:followers:${userId}:${page}`;
-  const cached = await cacheService.get(cacheKey);
-  if (cached) {
-    return c.json<ApiResponse>({
-      success: true,
-      data: cached,
-      meta: { timestamp: new Date().toISOString(), cached: true },
-    }, 200);
-  }
-
-  const followers = await socialService.getFollowers(userId, limit, offset);
-
-  await cacheService.set(cacheKey, followers, 60);
-
-  return c.json<ApiResponse>(
-    {
-      success: true,
-      data: followers,
-      meta: { timestamp: new Date().toISOString() },
-    },
-    200
-  );
-});
-
-// GET /users/:userId/following - Get following
-socialRoutes.get(
-  '/users/:userId/following',
-  authMiddleware(),
-  zValidator('query', socialPaginationSchema),
-  async (c) => {
-    const userId = c.req.param('userId');
-    const { limit, offset } = c.req.valid('query');
-    const page = Math.floor(offset / limit) + 1;
-
-  const cacheKey = `social:following:${userId}:${page}`;
-  const cached = await cacheService.get(cacheKey);
-  if (cached) {
-    return c.json<ApiResponse>({
-      success: true,
-      data: cached,
-      meta: { timestamp: new Date().toISOString(), cached: true },
-    }, 200);
-  }
-
-  const following = await socialService.getFollowing(userId, limit, offset);
-
-  await cacheService.set(cacheKey, following, 60);
-
-  return c.json<ApiResponse>(
-    {
-      success: true,
-      data: following,
-      meta: { timestamp: new Date().toISOString() },
-    },
-    200
-  );
 });
 
 // =====================
@@ -437,12 +310,15 @@ socialRoutes.get('/users/:userId/profile', async (c) => {
 });
 
 // GET /users/:userId/characters - Get user's public characters
-socialRoutes.get('/users/:userId/characters', async (c) => {
+socialRoutes.get('/users/:userId/characters', optionalAuthMiddleware(), async (c) => {
   const userId = c.req.param('userId');
+  const viewerId = (c.get('user') as { id: string } | undefined)?.id;
   try {
+    // NSFW 可见性走统一判断（P2-6）：偏好关的观看者看不到，作者本人看自己的主页不受限
+    const nsfwCondition = nsfwVisibilityConditionForViewer(await resolveShowNsfw(viewerId), viewerId);
     const userChars = await db.select()
       .from(characters)
-      .where(and(eq(characters.creatorId, userId), eq(characters.isPublic, true)))
+      .where(and(eq(characters.creatorId, userId), eq(characters.isPublic, true), nsfwCondition))
       .orderBy(desc(characters.createdAt))
       .limit(20);
     return c.json<ApiResponse>({

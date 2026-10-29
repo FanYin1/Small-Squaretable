@@ -1,0 +1,83 @@
+
+Running 29 tests using 1 worker
+
+(node:13437) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13437) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 390 light (7.6s)
+  ✓   2 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 390 dark (8.3s)
+  ✓   3 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 768 light (7.4s)
+  ✓   4 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 768 dark (7.0s)
+  ✓   5 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 1440 light (7.3s)
+  ✓   6 [chromium] › e2e/frontend-redesign.spec.ts:9:5 › production route matrix 1440 dark (6.9s)
+  ✓   7 [chromium] › e2e/frontend-redesign.spec.ts:68:1 › anonymous routes use the same brand without legacy marketing statistics (5.4s)
+  ✓   8 [chromium] › e2e/frontend-redesign.spec.ts:96:3 › account navigation preserves user permissions and hides disabled modules (1.7s)
+  ✓   9 [chromium] › e2e/frontend-redesign.spec.ts:96:3 › account navigation preserves moderator permissions and hides disabled modules (1.7s)
+  ✓  10 [chromium] › e2e/frontend-redesign.spec.ts:96:3 › account navigation preserves admin permissions and hides disabled modules (1.7s)
+  ✓  11 [chromium] › e2e/story-discovery.spec.ts:48:3 › Story discovery › keeps keyboard favorite actions separate from the native detail link (1.3s)
+  ✓  12 [chromium] › e2e/story-discovery.spec.ts:67:3 › Story discovery › restores search, filters and scroll after opening a detail and going back (2.1s)
+  ✓  13 [chromium] › e2e/story-discovery.spec.ts:93:3 › Story discovery › offers a verified existing story and resumes without creating one (1.2s)
+  ✓  14 [chromium] › e2e/story-discovery.spec.ts:104:3 › Story discovery › shows a retryable error instead of an empty list (1.1s)
+  ✓  15 [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (light) (1.2s)
+  ✓  16 [chromium] › e2e/story-discovery.spec.ts:121:5 › Story discovery › keeps mobile search, summary and actions visible without overflow (dark) (1.1s)
+  ✓  17 [chromium] › e2e/story-entry.spec.ts:104:3 › Story entry identity confirmation › quick start uses the default persona and survives refresh without another creation (1.9s)
+  ✘  18 [chromium] › e2e/story-entry.spec.ts:122:3 › Story entry identity confirmation › offers optional setup without creating a story just by viewing it (1.6s)
+(node:15789) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15789) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  19 [chromium] › e2e/story-entry.spec.ts:138:3 › Story entry identity confirmation › recovers a lost creation response after reload without another POST (1.9s)
+  ✓  20 [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns not_found (1.6s)
+  ✓  21 [chromium] › e2e/story-entry.spec.ts:176:5 › Story entry identity confirmation › keeps creation paused after reload when recovery returns old_server (1.5s)
+  ✓  22 [chromium] › e2e/story-entry.spec.ts:211:3 › Story entry identity confirmation › uses the confirmed identity in the opening and restores it after refresh (1.9s)
+  ✓  23 [chromium] › e2e/story-entry.spec.ts:223:3 › Story entry identity confirmation › retries a rejected creation with the same request key and identity (1.4s)
+  ✓  24 [chromium] › e2e/story-entry.spec.ts:247:3 › Story entry identity confirmation › keeps an unknown creation blocked after closing and reopening the dialog (1.8s)
+  ✓  25 [chromium] › e2e/story-entry.spec.ts:275:3 › Story entry identity confirmation › offers a safe retry when the selected identity cannot be loaded (1.5s)
+  ✓  26 [chromium] › e2e/story-entry.spec.ts:297:3 › Story entry identity confirmation › starts without an identity and shows the character opening (1.3s)
+  ✓  27 [chromium] › e2e/story-entry.spec.ts:310:3 › Story entry identity confirmation › cancels optional setup and clears the pending story URL (959ms)
+  ✓  28 [chromium] › e2e/story-entry.spec.ts:326:3 › Story entry identity confirmation › fits optional identity setup on a 390px viewport (866ms)
+  ✓  29 [chromium] › e2e/story-entry.spec.ts:341:3 › Story entry identity confirmation › returns focus to the character card after Escape (1.3s)
+
+
+  1) [chromium] › e2e/story-entry.spec.ts:122:3 › Story entry identity confirmation › offers optional setup without creating a story just by viewing it 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: locator('.entry-preview h2')
+    Expected: [32m"Mara"[39m
+    Error: strict mode violation: locator('.entry-preview h2') resolved to 2 elements:
+        1) <h2 data-v-d40e78b8="">Mara</h2> aka getByRole('heading', { name: 'Mara' })
+        2) <h2 data-v-1124d8e1="">这张卡如何游玩</h2> aka getByRole('heading', { name: '这张卡如何游玩' })
+
+    Call log:
+    [2m  - Expect "toHaveText" with timeout 10000ms[22m
+    [2m  - waiting for locator('.entry-preview h2')[22m
+
+
+      129 |     await page.getByRole('button', { name: 'Adjust your identity first' }).click();
+      130 |     await expect(page.locator('.story-identity-page')).toBeVisible();
+    > 131 |     await expect(page.locator('.entry-preview h2')).toHaveText(STORY_CHARACTER.name);
+          |                                                     ^
+      132 |     expect(requests).toEqual([]);
+      133 |     await page.locator('.story-identity-page').getByRole('button', { name: 'Cancel', exact: true }).click();
+      134 |     await expect(page).toHaveURL(/\/chat$/);
+        at /var/aichat/Small-Squaretable/e2e/story-entry.spec.ts:131:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-b72b3--a-story-just-by-viewing-it-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/story-entry-Story-entry-id-b72b3--a-story-just-by-viewing-it-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/story-entry-Story-entry-id-b72b3--a-story-just-by-viewing-it-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/story-entry-Story-entry-id-b72b3--a-story-just-by-viewing-it-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › e2e/story-entry.spec.ts:122:3 › Story entry identity confirmation › offers optional setup without creating a story just by viewing it 
+  28 passed (1.4m)

@@ -137,7 +137,7 @@ describe('MemoryService', () => {
         importance: 0.8,
       });
 
-      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1);
+      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1, null);
       expect(memoryRepository.create).toHaveBeenCalled();
       expect(memoryRepository.createVector).toHaveBeenCalled();
     });
@@ -157,7 +157,7 @@ describe('MemoryService', () => {
         content: 'Test',
         importance: 0.5,
       }, undefined, 'free');
-      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1);
+      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1, null);
       expect(memoryRepository.create).toHaveBeenCalled();
 
       vi.clearAllMocks();
@@ -226,6 +226,9 @@ describe('MemoryService', () => {
         importance: 0.5,
       }, 'chat-123');
 
+      expect(memoryRepository.findSimilar).toHaveBeenCalledWith('char-1', 'user-1', expect.any(Array), 0.85, 1, 'chat-123');
+      expect(memoryRepository.countByCharacterUser).toHaveBeenCalledWith('char-1', 'user-1', 'chat-123');
+
       expect(memoryRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           sourceChatId: 'chat-123',
@@ -266,7 +269,7 @@ describe('MemoryService', () => {
         importance: 0.5,
       }, undefined, 'pro');
 
-      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1);
+      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1, null);
       expect(memoryRepository.create).toHaveBeenCalled();
     });
 
@@ -286,7 +289,7 @@ describe('MemoryService', () => {
       });
 
       // Verify eviction happened first, then creation
-      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1);
+      expect(memoryRepository.deleteOldest).toHaveBeenCalledWith('char-1', 'user-1', 1, null);
       expect(memoryRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           characterId: 'char-1',
@@ -413,6 +416,23 @@ describe('MemoryService', () => {
   });
 
   describe('extractMemories', () => {
+    it('does not extract from an interrupted assistant fragment even in a later batch', async () => {
+      vi.mocked(llmService.chatCompletion).mockResolvedValue({ choices: [{ message: { content: '{}' } }] } as never);
+      await service.extractMemories('char-1', 'user-1', [
+        { role: 'assistant', content: 'UNCONFIRMED_PURCHASE', extra: { stateStatus: 'interrupted' } },
+        { role: 'assistant', content: 'CONFIRMED_MEETING', extra: { stateStatus: 'confirmed' } },
+      ] as never);
+      const request = JSON.stringify(vi.mocked(llmService.chatCompletion).mock.calls[0]);
+      expect(request).toContain('CONFIRMED_MEETING');
+      expect(request).not.toContain('UNCONFIRMED_PURCHASE');
+    });
+
+    it('skips the provider when only interrupted fragments remain', async () => {
+      expect(await service.extractMemories('char-1', 'user-1', [
+        { role: 'assistant', content: 'Partial', extra: { stateStatus: 'interrupted' } },
+      ] as never)).toEqual([]);
+      expect(llmService.chatCompletion).not.toHaveBeenCalled();
+    });
     it('should extract memories from messages using LLM', async () => {
       vi.mocked(llmService.chatCompletion).mockResolvedValue({
         id: 'test',
@@ -501,7 +521,7 @@ describe('MemoryService', () => {
   describe('clearAllMemories', () => {
     it('should delete all memories for character and user', async () => {
       await service.clearAllMemories('char-1', 'user-1');
-      expect(memoryRepository.deleteAllForCharacterUser).toHaveBeenCalledWith('char-1', 'user-1', undefined);
+      expect(memoryRepository.deleteAllForCharacterUser).toHaveBeenCalledWith('char-1', 'user-1', null);
     });
   });
 
@@ -512,7 +532,7 @@ describe('MemoryService', () => {
 
       const result = await service.getMemories('char-1', 'user-1');
 
-      expect(memoryRepository.findByCharacterAndUser).toHaveBeenCalledWith('char-1', 'user-1', 100, undefined);
+      expect(memoryRepository.findByCharacterAndUser).toHaveBeenCalledWith('char-1', 'user-1', 100, null);
       expect(result).toEqual(mockMemories);
     });
 
@@ -521,7 +541,7 @@ describe('MemoryService', () => {
 
       await service.getMemories('char-1', 'user-1', 50);
 
-      expect(memoryRepository.findByCharacterAndUser).toHaveBeenCalledWith('char-1', 'user-1', 50, undefined);
+      expect(memoryRepository.findByCharacterAndUser).toHaveBeenCalledWith('char-1', 'user-1', 50, null);
     });
   });
 
@@ -532,7 +552,7 @@ describe('MemoryService', () => {
       const result = await service.getMemoryCount('char-1', 'user-1');
 
       expect(result).toBe(42);
-      expect(memoryRepository.countByCharacterUser).toHaveBeenCalledWith('char-1', 'user-1', undefined);
+      expect(memoryRepository.countByCharacterUser).toHaveBeenCalledWith('char-1', 'user-1', null);
     });
   });
 

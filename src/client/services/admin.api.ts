@@ -131,30 +131,130 @@ export interface SystemStats {
   recentSignups7d: number;
 }
 
+/** 与服务端 audit_logs 表 / GET /admin/audit-logs 返回的行一致 */
 export interface AuditLog {
   id: string;
-  userId: string;
-  userEmail?: string;
+  actorId: string;
+  /** 服务端存的是 SHA-256 哈希后的 IP */
+  actorIp?: string | null;
   action: string;
-  targetType?: string;
-  targetId?: string;
-  details?: Record<string, unknown>;
-  ipAddress?: string;
+  targetType?: string | null;
+  targetId?: string | null;
+  metadata?: Record<string, unknown>;
   createdAt: string;
 }
 
+/** 查询参数名与服务端 auditQuerySchema 一致；dateFrom/dateTo 须为带时区的 ISO 日期时间 */
 export interface AuditLogListParams {
   page?: number;
   limit?: number;
-  userId?: string;
+  actorId?: string;
   action?: string;
+  targetType?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface AuditLogListResponse {
-  logs: AuditLog[];
-  total: number;
-  page: number;
-  limit: number;
+  items: AuditLog[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export interface InviteCode {
+  id: string;
+  code: string;
+  maxUses: number;
+  usedCount: number;
+  expiresAt: string | null;
+  createdBy: string | null;
+  note: string | null;
+  disabled: boolean;
+  createdAt: string;
+}
+
+export interface InviteCodeListResponse {
+  items: InviteCode[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export interface GenerateInviteCodesInput {
+  count: number;
+  maxUses: number;
+  /** ISO 时间串；缺省 = 不过期 */
+  expiresAt?: string;
+  note?: string;
+}
+
+// ── Credits (P3-1) ──
+
+export interface CreditSummary {
+  unlimited?: boolean;
+  tokensPerPoint: number;
+  balanceTokens: number;
+  heldTokens: number;
+  availableTokens: number;
+  balancePoints: number;
+  availablePoints: number;
+}
+
+export interface CreditLookupResult {
+  user: { id: string; email: string; tenantId: string };
+  summary: CreditSummary;
+}
+
+export interface CreditLedgerEntry {
+  id: string;
+  tenantId: string;
+  kind: 'topup' | 'charge' | 'reversal';
+  /** 整数 token，充值为正、冲正为负 */
+  amount: number;
+  reversesId: string | null;
+  operatorId: string | null;
+  note: string | null;
+  createdAt: string;
+  tenantEmail?: string | null;
+  operatorEmail?: string | null;
+}
+
+export interface CreditTopUpInput {
+  userId?: string;
+  email?: string;
+  points: number;
+  note?: string;
+  /** 幂等键：同一次提交重试必须复用同一个 */
+  idempotencyKey: string;
+}
+
+export interface CreditMutationResult {
+  entry: CreditLedgerEntry;
+  summary: CreditSummary;
+  replayed: boolean;
+}
+
+export interface CreditEntryListResponse {
+  items: CreditLedgerEntry[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 // ── API methods ──
@@ -219,6 +319,31 @@ export const adminApi = {
   /** 下架已上线的内容：作者点发布也回不来，属于处置而非审核结论 */
   hideCharacter: (id: string, data: RejectCharacterInput = {}) =>
     api.post<void>(`/admin/content/hide/character/${id}`, data),
+
+  // ── Invite Codes ──
+
+  getInviteCodes: (params: { page?: number; limit?: number } = {}) =>
+    api.get<InviteCodeListResponse>('/admin/invite-codes' + buildQuery(params)),
+
+  generateInviteCodes: (data: GenerateInviteCodesInput) =>
+    api.post<InviteCode[]>('/admin/invite-codes', data),
+
+  disableInviteCode: (id: string) =>
+    api.post<InviteCode>(`/admin/invite-codes/${id}/disable`),
+
+  // ── Credits ──
+
+  lookupCreditAccount: (params: { userId?: string; email?: string }) =>
+    api.get<CreditLookupResult>('/admin/credits/lookup' + buildQuery(params)),
+
+  topUpCredits: (data: CreditTopUpInput) =>
+    api.post<CreditMutationResult>('/admin/credits/topups', data),
+
+  reverseCreditEntry: (id: string, data: { note?: string } = {}) =>
+    api.post<CreditMutationResult>(`/admin/credits/entries/${id}/reverse`, data),
+
+  getCreditEntries: (params: { page?: number; limit?: number } = {}) =>
+    api.get<CreditEntryListResponse>('/admin/credits/entries' + buildQuery(params)),
 
   // ── System ──
 

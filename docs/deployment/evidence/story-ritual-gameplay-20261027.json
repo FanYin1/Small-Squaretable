@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-27",
+  "result": "prompt-fix-deployed-live-gameplay-incomplete",
+  "contract": "docs/product/story-ritual-gameplay-contract.md",
+  "privateEvidence": "backups/exploration/ritual-gameplay-20261027/manifest-final.json",
+  "units": { "files": 6, "passed": 93, "originalPngSkipped": false },
+  "typecheck": "passed",
+  "focusedLint": "passed",
+  "regression": { "intentKnowledgeGroups": 17, "stateEffectsGroups": 16, "recoveryGroups": 6 },
+  "controlled": { "groups": 4, "screenshots": 4, "provider": "controlled-websocket", "browserErrors": 0, "parentStrength": [3, 3, 6], "branchStrength": [3, 6] },
+  "live": { "requests": 3, "tokens": 9072, "beforeFix": "two missing-question protocol failures", "afterFix": "one confirmed expression persisted at strength 3; request replay did not call upstream again", "GP01": "passed-once-after-fix", "GP02": "blocked-before-provider-by-context-budget", "GP03": "not-reached", "GP04": "not-accepted-as-live-chain", "localPromptCapacityFailureExtraRequests": 0 },
+  "blocker": { "code": "CONTEXT_BUDGET_EXCEEDED", "customAlias": "gemini-3.8-flash", "localFallbackWindow": 4096, "localFallbackOutput": 2048, "providerModelMetadataHttpStatus": 404, "actualProviderCapacity": "unverified" },
+  "budget": { "authorization": 1450000, "knownTotal": 477819, "historicalUnknownReserved": 204591, "occupied": 682410, "available": 767590, "newPending": 0, "newUnknown": 0, "allBatchesClosed": true, "gatewayStopped": true },
+  "deployment": { "port": 3081, "image": "small-squaretable:exploration-20261027-intent-prompt", "imageId": "sha256:69662d745e2e93c9594249f6ab4e1f12ec345ec11e8c79ae0f5ba71aec07db61", "migrationCount": 16, "rehearsalComparedTables": 76, "existingRowsPreserved": true, "backup": "backups/exploration/upgrade-e22aecba-4ba1-41b4-ab0b-01e218fbeb11", "historical3080Changed": false },
+  "pointChanges": 0,
+  "deployedReadOnly": { "groups": 6, "screenshots": 26, "comparedRuntimeFiles": 242, "unchangedBusinessTables": 20, "paidCalls": 0, "mutations": 0, "publicationPreviewsBlocked": 3, "reference": "backups/exploration/ritual-gameplay-20261027/deployed/report.json" },
+  "failuresRetained": ["two live protocol failures", "verbose prompt pre-provider capacity rejection", "live second-turn pre-provider capacity rejection", "overlapping isolated check port collision; final rerun serialized"],
+  "remaining": ["validated custom model capacity", "GP02-04 live-model chain", "AD-3 additional source-backed mechanics", "four user cards sustained mechanics", "EXP-07D-LOAD", "human acceptance"],
+  "sources": [
+    {"path":"src/server/services/story-intent-prompt.ts","sha256":"66474480b6d1b924d9e2016b8bdb100cde7fa6b4466f61824c5dbed47bb01277"},
+    {"path":"src/server/services/story-state.service.ts","sha256":"f3616f57700160333ed475f450e58f2011dffc7c802d98516d9e5c2c6a8a951a"},
+    {"path":"src/types/story-intent.spec.ts","sha256":"d81d00a02f0d3b1d8a0960c82d8910069d813b34090f093853cbd18bcdfbf8e1"},
+    {"path":"scripts/story-ritual-gameplay-check.mjs","sha256":"e4bb20acb79e237653cafed2de25f6a9358bdca33cc560191e9d4bcdf9395cfb"},
+    {"path":"scripts/ritual-gameplay-capture.mjs","sha256":"d5417727a771c616b9777f16a68c6b629ed3bc096811cad0115a47bcf54a070b"},
+    {"path":"scripts/story-adapter-check.mjs","sha256":"6789bb518823461dbfaa2fb0637606a16caf7e29bb0650a576d8f211eb4cbad1"},
+    {"path":"scripts/beta-smoke-check.mjs","sha256":"f41b512a21e239c5174d1e952f9ffe77f7c43029692c28bf2f94806c5190209b"}
+  ]
+}

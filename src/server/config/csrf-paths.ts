@@ -32,6 +32,7 @@ export const csrfProtectedPrefixes = [
   '/api/v1/chats',
   '/api/v1/subscriptions',
   '/api/v1/usage',
+  '/api/v1/credits',
   '/api/v1/llm',
   '/api/v1/worldbooks',
   '/api/v1/uploads',

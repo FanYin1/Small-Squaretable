@@ -161,7 +161,7 @@ defineExpose({ open });
   </el-dialog>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .search-container {
   padding: 0;
 }
@@ -274,7 +274,7 @@ defineExpose({ open });
   border: 1px solid var(--el-border-color-lighter, #e4e7ed);
 }
 
-@media (max-width: 768px) {
+@include below(md) {
   .search-shortcut {
     display: none;
   }
