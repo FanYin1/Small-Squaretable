@@ -1,218 +1,114 @@
 # 小方桌 Small Squaretable
 
-> 从一张角色卡开始，走进一段可以由你推动、也能在下次继续的故事。
+> 从一张角色卡开始，成为故事中的自己。
 
-小方桌是一款角色卡驱动的互动故事应用。选择角色与开场后，你可以通过推荐行动或自由输入探索剧情；故事会保留重要状态与游玩记忆，让人物、地点和已经发生的事在多轮对话中保持连续。
+小方桌是一款角色卡驱动的互动故事应用。选择角色与开场，通过推荐行动或自由输入推动剧情，在自己的故事档案中继续上次的经历。我们希望每次选择都能得到认真回应，让人物关系、已发生的事和对话风格逐步形成连续的体验。
 
-角色卡负责人物与故事设定，世界书可以补充人物、概念和常识。进入故事时会沿用角色卡已有设定，不要求用户先理解复杂配置。产品仍在积极开发中，部分卡片规则和状态适配能力尚有限，详见[当前开发状态](docs/product/current-work.md)。
+**当前阶段：本机内测候选，尚未完成最终体验验收。** 当前聚焦单人故事；群聊开发已暂停。工程实现、部署检查与用户签收分别记录，进度以[当前开发状态](docs/product/current-work.md)为准。
 
-## 产品实机
+## 体验与能力边界
 
-以下为产品页面的实际浏览器截图，展示角色发现、故事库和故事对话界面。
+| 体验 | 当前实现 | 边界 |
+| --- | --- | --- |
+| 从角色卡开始 | 发现角色、私人角色库、开场选择与身份设置 | 导入成功不代表原卡全部机制可运行 |
+| 探索式对话 | 开局与每轮回复推荐、自由输入、流式回复 | 无规则卡的通用建议会标注来源；异常或中断轮次不能冒充已执行行动 |
+| 状态与地图 | 展示有依据的状态、已知地点、历程和规则行动 | 按卡片的受支持规则呈现，不为缺少设定的卡虚构地图、资产或奖励 |
+| 连续故事 | 故事独立记忆、设定快照、阅读恢复、纠正与分支 | 不承诺无限记忆或模型永不遗忘；长程叙事质量仍需验证 |
+| 创作与导入 | PNG/JSON 角色卡、世界书、编辑预览及有限适配工作流 | 世界书按明确绑定使用；复杂第三方脚本与持续规则不保证等价转换 |
+| 故事管理 | 继续原档、同卡另开故事、卡片右上角确认删除 | 删除的是选中的故事存档，不是来源角色卡 |
+
+仍在推进：更多第三方规则适配、逐卡长程体验、真实模型纠正续写、偶发故障排查，以及人工视觉与手机真机验收。见[活动待办](docs/product/backlog.md)。当前内测采用预付点数；在线支付和公网运营不属于已完成交付。
+
+## 页面截图
+
+以下图片均为浏览器实际渲染的产品页面，不是生成图片或设计稿。**截图中的故事与账号使用测试数据，不代表真实用户记录或真实模型叙事质量。**
+
+### 我的故事：桌面与手机
+
+2026-10-29，当前源码生产构建的浏览器截图；接口使用测试替身。每张故事卡片右上角提供独立删除按钮，点击后确认，失败保留卡片供重试。
+
+![我的故事桌面页面，卡片右上角提供删除按钮](docs/images/story-library-desktop.png)
+
+<details>
+<summary>查看手机页面</summary>
+
+<img src="docs/images/story-library-mobile.png" alt="我的故事手机页面，删除与继续阅读为独立操作" width="390" />
+
+</details>
 
 ### 发现角色
 
-![小方桌发现角色页面实机截图](docs/design/exploration-07ac-integration/production-discover-1440-dark.webp)
+下图为 2026-10-25 正式构建在隔离验证环境中的历史截图，用于展示角色发现布局；不代表当前版本的全部细节。[截图来源与验证边界](docs/design/exploration-07ac-integration/README.md)。
 
-### 我的故事
+![角色发现页面的历史浏览器截图](docs/design/exploration-07ac-integration/production-discover-1440-dark.webp)
 
-![小方桌我的故事页面实机截图](docs/design/exploration-07ac-integration/production-library-1440-dark.webp)
+## 本机试运行
 
-### 故事对话
+建议先采用独立的 Docker 内测环境。需要 Git、Node.js 22、Docker Engine 和 Docker Compose v2；Compose 提供 PostgreSQL 15 / pgvector 和 Redis 7。
 
-![小方桌故事对话页面实机截图](docs/deployment/evidence/story-entry-creator-07ac-play-1440-dark.webp)
-
-## 项目概述
-
-项目面向喜欢角色扮演与互动叙事的用户，重点探索快速进入故事、逐步推动剧情、保留世界状态，以及离开后延续同一段体验。产品决策、已交付能力与待验收事项见[产品体验基线](docs/product/exploration-experience-baseline.md)、[当前工作](docs/product/current-work.md)和[活动待办](docs/product/backlog.md)。
-
-## 开发必读
-
-- [产品决策与讨论纪要](docs/product/exploration-experience-baseline.md)：已确认、推导约束和待讨论项。
-- [主开发计划](docs/product/story-development-plan.md) 与 [活动待办](docs/product/backlog.md)：当前工作与验收映射。
-- [正式实施计划](docs/product/exploration-implementation-plan.md)：七页生产落点、接口依赖、分批顺序与验收标准。
-- [七页示例](docs/design/exploration-demo/README.md) 与 [开发参考快照](docs/design/exploration-baseline/README.md)：获准使用的开发参考，包含源码归档、画面及校验命令。
-- [页面参考与讨论稿](docs/design/exploration-page-proposal.md)：保留研究来源、推导及尚未定案的交互。
-- [R5 验收记录](docs/deployment/frontend-r5-acceptance.md)：已部署版本、验证证据与未签收项。
-- [探索候选验收记录](docs/deployment/exploration-candidate.md)：当前3081入口、真实数据恢复、检查证据和剩余验收条件；取代历史记录作为当前交付入口。
-- [仓库协作规则](AGENTS.md)：后续任务如何保留决策与验收边界。
-
-以下阶段百分比、技术栈、功能和测试数来自旧工程说明，保留用于追溯；不是当前生产能力、发布进度或新体验完成率。当前结论以上述文档为准。
-
-## 历史工程状态
-
-```
-Phase 1-7: 基础设施 → 生产部署    ████████████████████ 100% ✅
-迭代 1-6: 高级功能 + 生产就绪      ████████████████████ 100% ✅
-迭代 7-14: 测试/i18n/安全/UI重构   ████████████████████ 100% ✅
-迭代 15-24: 多模态/社交/创作工具    ████████████████████ 100% ✅
-迭代 25-32: AI增强/性能/导入导出    ████████████████████ 100% ✅
-```
-
-## 技术栈
-
-| 层级 | 技术 |
-|------|------|
-| 前端 | Vue 3 + Vite 7 + TypeScript + Element Plus |
-| 后端 | Hono.js + Node.js |
-| 数据库 | PostgreSQL + Drizzle ORM + pgvector |
-| 缓存 | Redis 5 |
-| 认证 | JWT 双 Token + OAuth2 (Google/GitHub) + TOTP 2FA |
-| 支付 | Stripe (三层订阅) |
-| 事件管道 | Kafka 3.7 (KRaft) |
-| 流处理 | Apache Flink 1.19 (Java 17) |
-| 分析 | ClickHouse 24.3 + ECharts |
-| ML | Transformers.js (嵌入 + 情感分析) |
-| 测试 | Vitest 4 (2017 通过) + Playwright (228 E2E) |
-| 部署 | Docker + Kubernetes + CI/CD |
-
-## 功能特性
-
-### 核心平台
-- **多租户架构** — 完整的租户隔离和数据安全
-- **订阅系统** — Stripe 三层计划 (Free/Pro/Team)，用量跟踪
-- **认证系统** — JWT 双 Token + OAuth2 (Google/GitHub) + TOTP 2FA + 邮箱验证
-- **RBAC 权限** — user/moderator/admin 角色层级，管理后台
-
-### AI 聊天
-- **实时聊天** — WebSocket + LLM 流式响应，消息分支/编辑/回滚
-- **多角色聊天** — 群聊支持多角色轮流/全部/随机策略
-- **智能角色系统** — pgvector 语义记忆检索 + 2D 情感状态机 + 调试面板
-- **世界书系统** — 四层作用域，关键词+语义混合触发，SillyTavern 格式兼容
-- **语音/音频** — TTS 朗读 + 音频消息录制播放
-- **Markdown 渲染** — highlight.js 代码高亮 + KaTeX 数学公式
-
-### 角色市场
-- **角色市场** — 社区分享、五维度评分、收藏/评论
-- **角色创作** — 模板系统、版本历史、协作编辑、表情精灵
-- **导入导出** — SillyTavern V2 PNG/JSON 导入，批量导入导出
-- **推荐引擎** — 趋势/协同/内容三策略混合推荐 + A/B 测试
-
-### 社区与生态
-- **社交功能** — 关注/收藏/评论/通知 + @提及
-- **开发者 API** — API Key 管理 + 速率限制 + Webhook
-- **插件系统** — Worker Thread 沙箱隔离，KV 存储，事件管道
-- **数据分析** — Kafka → Flink → ClickHouse 实时分析管道 + 管理仪表盘
-
-### 平台质量
-- **国际化** — 中英文全覆盖 (~490 locale 键)
-- **安全加固** — CSRF + CSP + 速率限制 + Zod 输入验证 + 文件上传鉴权
-- **PWA** — 离线支持 + A2HS 安装提示 + 多设备同步
-- **移动端适配** — 响应式布局 + 底部导航栏 + 滑动手势
-- **性能优化** — 代码分割 + SWR 缓存 + 数据库索引优化
-
-## 快速开始
-
-### 环境要求
-- Node.js >= 20
-- PostgreSQL >= 15 (with pgvector)
-- Redis >= 7
-
-### 安装
+以下流程适用于**全新安装与空数据库卷**。已有实例先备份并按[部署与恢复说明](docs/deployment/beta-release.md)操作，不重新初始化账号或删除数据卷。
 
 ```bash
 git clone https://github.com/FanYin1/Small-Squaretable.git
 cd Small-Squaretable
-npm install
-
-# 配置环境变量
-cp .env.example .env
-
-# 数据库迁移
-npm run db:migrate
+npm ci
+node scripts/beta-config.mjs
 ```
 
-### 启动开发服务器
+配置生成器会创建私有 `.env.beta` 并拒绝覆盖已有文件。私下编辑配置，填写模型端点、密钥和模型名称，检查每日用量上限。自定义模型容量配置见[模型容量说明](docs/deployment/custom-model-capacity.md)，Gemini 接口见[供应商接入说明](docs/deployment/gemini-provider-integration.md)。
 
 ```bash
-npm run dev              # 后端 (http://localhost:3000)
-npm run dev:client       # 前端 (http://localhost:5173)
+docker compose --env-file .env.beta -f compose.beta.yml config --quiet
+docker compose --env-file .env.beta -f compose.beta.yml build app
+docker compose --env-file .env.beta -f compose.beta.yml up -d
+curl --fail http://127.0.0.1:3080/health/ready
 ```
 
-### 常用命令
+默认访问 `http://localhost:3080`，仅绑定本机；现有项目的 3081 验收实例是单独配置的环境。Compose 在启动应用前执行 beta 迁移。首次使用还需按[内测部署说明](docs/deployment/beta-release.md#第一个运营账号)生成邀请码、注册和初始化运营账号，再导入角色卡并配置点数。模型与邮件服务由部署者自行配置；健康检查通过不代表模型可生成或邮件可发送。
+
+可导入仓库自带的[雨夜唱片店示例卡](docs/product/examples/rainy-record-shop.json)开始体验，不包含第三方私人角色卡或用户存档。
+
+## 开发与验证
+
+前端采用 Vue 3、Vite、TypeScript、Pinia 和 Element Plus；后端采用 Node.js、Hono、Drizzle ORM、PostgreSQL / pgvector 和 Redis。角色适配相关依赖包含 LangChain / LangGraph，当前能力仍受上述适配范围限制。
+
+仓库保留 Stripe、Kafka、Flink、ClickHouse 等历史与可选模块，它们不是本机故事内测的必需服务，也不代表当前全部启用。
 
 ```bash
-npm run test             # 单元测试 (Vitest)
-npx playwright test      # E2E 测试
-npm run build            # 生产构建
-npm run db:studio        # Drizzle Studio
-npm run lint:fix         # 代码检查修复
+npm ci
+npm run type-check
+npm run build
 ```
 
-## 项目结构
-
-```
-Small-Squaretable/
-├── src/
-│   ├── client/              # Vue 3 前端
-│   │   ├── components/      # UI 组件 (chat, character, debug, layout, analytics...)
-│   │   ├── pages/           # 页面组件
-│   │   ├── stores/          # Pinia 状态管理
-│   │   ├── services/        # API 服务层
-│   │   ├── composables/     # Vue Composables
-│   │   └── i18n/            # 国际化 (en-US, zh-CN)
-│   ├── server/              # Hono.js 后端
-│   │   ├── routes/          # API 路由 (20+ 模块)
-│   │   ├── services/        # 业务逻辑 (30+ 服务)
-│   │   ├── middleware/      # 中间件 (auth, csrf, rate-limit, feature-gate)
-│   │   └── jobs/            # 定时任务 (GDPR, 清理, 审计)
-│   ├── db/                  # 数据库 (26 张表, Drizzle ORM)
-│   ├── core/                # 共享核心 (redis, kafka, clickhouse, config)
-│   └── types/               # TypeScript 类型定义
-├── flink-jobs/              # Flink 流处理作业 (Java 17)
-├── clickhouse/              # ClickHouse 分析库 Schema
-├── ml-service/              # ML 微服务 (嵌入 + 情感分析)
-├── e2e/                     # Playwright E2E 测试
-├── k8s/                     # Kubernetes 配置
-├── scripts/                 # 工具脚本
-└── docs/                    # 文档 (API, 部署, 监控)
-```
-
-## 技术指标
-
-| 指标 | 数值 |
-|------|------|
-| 单元测试 | 2017 通过, 0 失败 |
-| E2E 测试 | 228 tests, 17 spec 文件 |
-| API 端点 | 154 (OpenAPI 3.1.0 文档化) |
-| 数据库表 | 26 (PostgreSQL) + 8 (ClickHouse) |
-| i18n 覆盖 | 86 Vue 文件, ~490 locale 键 |
-| Kafka Topics | 5 |
-| Flink 作业 | 6 |
-
-## 部署
-
-### Docker
+本地开发须单独配置 `.env`，使数据库、Redis、认证和模型设置指向开发环境。前后端分别启动：
 
 ```bash
-./scripts/docker-build.sh -e prod --scan
-docker-compose up -d
+npm run dev          # 后端，默认 3000
+npm run dev:client   # 前端，默认 5173，代理 API 和 WebSocket
 ```
 
-### Kubernetes
+数据库初始化参照上述 beta 空库流程与部署文档；不要直接对存量业务库套用基线。`db:migrate:beta` 依赖 `dist/server/migrate.js`，在宿主机运行前须先执行 `npm run build:server`。旧迁移目录与 beta 基线有不同适用范围。
+
+常用验证命令：
 
 ```bash
-./scripts/deploy-k8s.sh -k -e production
-kubectl get pods -n small-squaretable
+npx vitest run src/client/components/chat/StorySaveCard.spec.ts
+npx playwright test -c playwright.story.config.ts
+npm run lint
 ```
 
-详见 [部署指南](docs/deployment/deployment-guide.md)。
+组件测试、受控接口的浏览器测试、真实模型验证和真机验收分别报告。历史测试数量不作为当前版本通过率或完成度。
 
-## 文档
+## 文档导航
 
-| 文档 | 说明 |
-|------|------|
-| [ROADMAP.md](ROADMAP.md) | 开发路线图 (32 次迭代详情) |
-| [USER_GUIDE.md](USER_GUIDE.md) | 用户使用指南 |
-| [API_USAGE_GUIDE.md](API_USAGE_GUIDE.md) | API 接口文档 |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南 |
-| [OPERATIONS_MANUAL.md](OPERATIONS_MANUAL.md) | 运维手册 |
-| [docs/api/openapi.yaml](docs/api/openapi.yaml) | OpenAPI 3.1.0 规范 (154 端点) |
+- [当前开发状态](docs/product/current-work.md)：现状、开放工作包与验收边界。
+- [产品体验基线](docs/product/exploration-experience-baseline.md)：已确认的产品决策。
+- [开发计划](docs/product/story-development-plan.md)与[活动待办](docs/product/backlog.md)。
+- [角色卡格式](docs/deployment/character-card-formats.md)与[世界书绑定](docs/deployment/worldbook-bindings.md)。
+- [本机部署](docs/deployment/beta-release.md)与[探索候选历史验收](docs/deployment/exploration-candidate.md)。历史镜像不作为当前运行版本的证明。
+- [历史工程路线图](ROADMAP.md)：早期平台建设记录，不代表当前故事体验已全部验收。
+- [贡献指南](CONTRIBUTING.md)与[协作规则](AGENTS.md)。
 
 ## 许可证
 
-MIT License
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！请先阅读 [贡献指南](CONTRIBUTING.md)。
+历史工程说明标注为 MIT，但仓库目前没有独立的 LICENSE 文件，具体授权文本仍需维护者补充确认。

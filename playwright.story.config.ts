@@ -7,7 +7,7 @@ if (target && !/^http:\/\/(?:127\.0\.0\.1|localhost):\d+$/.test(target)) {
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: ['story-entry.spec.ts', 'story-discovery.spec.ts', 'frontend-redesign.spec.ts'],
+  testMatch: ['story-entry.spec.ts', 'story-discovery.spec.ts', 'story-library.spec.ts', 'frontend-redesign.spec.ts'],
   timeout: 30_000,
   expect: { timeout: 10_000 },
   workers: 1,

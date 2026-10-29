@@ -938,24 +938,12 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function deleteChat(chatId: string): Promise<void> {
-    loading.value = true;
-    error.value = null;
-    try {
-      await chatApi.deleteChat(chatId);
-      chats.value = chats.value.filter(c => c.id !== chatId);
-      if (currentChatId.value === chatId) {
-        currentChatId.value = null;
-        messages.value = [];
-      }
-    } catch (e) {
-      if (e instanceof ApiError) {
-        error.value = e.message;
-      } else {
-        error.value = e instanceof Error ? e.message : 'Failed to delete chat';
-      }
-      throw e;
-    } finally {
-      loading.value = false;
+    // Deletion owns a local pending/error UI; list loading errors belong to fetchChats.
+    await chatApi.deleteChat(chatId);
+    chats.value = chats.value.filter(c => c.id !== chatId);
+    if (currentChatId.value === chatId) {
+      currentChatId.value = null;
+      messages.value = [];
     }
   }
 
