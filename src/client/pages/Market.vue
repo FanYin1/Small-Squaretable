@@ -103,7 +103,7 @@ async function fetchTrending() {
     const characters = await Promise.all(
       items.map(async (rec) => {
         try {
-          return await characterApi.getCharacter(rec.characterId);
+          return await characterApi.getCharacterSummary(rec.characterId);
         } catch {
           return null;
         }

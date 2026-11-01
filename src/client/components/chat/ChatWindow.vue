@@ -1,8 +1,9 @@
 <template>
   <div class="chat-window is-exploration">
     <div class="chat-header" v-if="currentChat">
+      <WorkbenchNavigationToggle />
       <div class="chat-info">
-        <RouterLink class="story-back" to="/chat" aria-label="返回我的故事">← 我的故事</RouterLink>
+        <RouterLink v-if="!inWorkbench" class="story-back" to="/chat" aria-label="返回我的故事">← 我的故事</RouterLink>
         <!-- Group chat: stacked avatars + character count -->
         <template v-if="isGroupChat">
           <div class="stacked-avatars">
@@ -22,17 +23,24 @@
         </template>
         <!-- Single chat: original display -->
         <template v-else>
+          <img v-if="currentChat.characterAvatar" class="chat-cover" :src="currentChat.characterAvatar" alt="" />
           <div class="chat-details">
             <h3 class="chat-title">{{ currentChat.title || currentChat.characterName }}</h3>
             <span class="chat-subtitle">{{ currentChat.characterName }} · {{ storyUserName }}<template v-if="storyState?.map?.location"> · {{ storyState.map.nodes.find(node => node.id === storyState?.map?.location)?.label }}</template></span>
           </div>
         </template>
       </div>
-      <StoryCorrections v-if="userStore.user" :key="`${userStore.user.id}:${currentChat.id}`" ref="correctionsPanel" :chat-id="currentChat.id" :owner-id="userStore.user.id" :messages="messages" @readings="storyReadings = $event" />
+      <StoryBranchNavigator v-if="currentChat && userStore.user" :key="`branches:${userStore.user.id}:${currentChat.id}`" :chat-id="currentChat.id" :owner-id="userStore.user.id" />
+      <button v-if="currentChat?.contentSnapshotVersion != null" ref="dossierTrigger" type="button" class="dossier-open-button" aria-label="此次游玩资料" title="此次游玩资料" aria-haspopup="dialog" :aria-expanded="dossierOpen" @click="dossierOpen = true">
+        <el-icon><Document /></el-icon><span class="chat-tool-label">此次游玩</span><small class="sr-only">{{ dossierCompactStatus }}</small>
+      </button>
+      <StoryCorrections v-if="userStore.user" :key="`${userStore.user.id}:${currentChat.id}`" ref="correctionsPanel" hide-trigger :chat-id="currentChat.id" :owner-id="userStore.user.id" :messages="messages" @readings="storyReadings = $event" />
+      <button type="button" ref="readingSettingsTrigger" class="reading-settings-trigger chat-header-icon" :aria-label="t('storyShell.readingSettings')" :title="t('storyShell.readingSettings')" aria-haspopup="dialog" :aria-expanded="readingOpen" @click="readingOpen = true"><el-icon><Setting /></el-icon><span class="chat-tool-label">{{ t('storyShell.readingSettings') }}</span></button>
       <el-dropdown trigger="click" @command="handleMenuCommand">
-        <el-button link :icon="More" :aria-label="t('storyShell.storyActions')">{{ t('storyShell.storyActions') }}</el-button>
+        <el-button link class="story-management-trigger" :icon="More" :aria-label="t('storyShell.storyActions')" :title="t('storyShell.storyActions')" />
         <template #dropdown>
           <el-dropdown-menu>
+            <el-dropdown-item v-if="userStore.user" command="corrections">纠正与分支</el-dropdown-item>
             <el-dropdown-item command="search">{{ t('chat.searchMessages') }}</el-dropdown-item>
             <el-dropdown-item command="export-json">{{ t('chat.exportJson') }}</el-dropdown-item>
             <el-dropdown-item command="export-md">{{ t('chat.exportMarkdown') }}</el-dropdown-item>
@@ -42,26 +50,29 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-      <details class="reading-settings">
-        <summary>{{ t('storyShell.readingSettings') }}</summary>
+
+    </div>
+
+    <div v-if="showSearch" class="chat-search-bar">
+      <el-input
+        v-model="chatStore.searchQuery"
+        :placeholder="t('chat.searchMessages')"
+        clearable
+        size="small"
+        @input="handleSearchInput"
+        @clear="chatStore.clearSearch()"
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
+      <span v-if="chatStore.searchResults.length" class="search-count">
+        {{ chatStore.searchResults.length }} {{ t('chat.results') }}
+      </span>
+    </div>
+
+      <StoryWorkspaceDrawer v-model:open="readingOpen" :title="t('storyShell.readingSettings')">
         <div class="reading-settings-body">
-          <p>{{ t(currentChat?.identitySnapshot ? 'personas.storyIdentityFixed' : 'personas.storyIdentityLegacy') }}</p>
-          <p v-if="currentChat?.worldbookSnapshotVersion === 1">{{ t('chat.savedWorldbooks') }}</p>
-          <p v-if="currentChat?.contentSnapshotVersion === 1">{{ t('chat.savedContent') }}</p>
-          <ul v-if="chatStore.currentCharacter?.compatibility?.issues.length" aria-label="当前故事兼容范围">
-            <li v-for="issue in chatStore.currentCharacter.compatibility.issues" :key="issue">{{ storyCapabilityMessages[issue] }}</li>
-          </ul>
-          <template v-for="participant in chatStore.chatCharacters" :key="participant.id">
-            <section v-if="participant.diagnostics" :aria-label="`${participant.name}的冻结诊断`">
-              <strong>{{ participant.name }}</strong>
-              <StoryDiagnosticsView :report="participant.diagnostics" frozen />
-              <ul v-if="participant.id !== chatStore.currentCharacter?.id && participant.diagnostics.capabilities.issues.length">
-                <li v-for="issue in participant.diagnostics.capabilities.issues" :key="issue">{{ storyCapabilityMessages[issue] }}</li>
-              </ul>
-            </section>
-          </template>
-          <p v-if="currentChat?.contentSnapshotVersion === 1 && !chatStore.currentCharacter?.diagnostics">此旧档未保存开局绑定诊断，不用当前资料补造当时的检查结果。</p>
-          <p v-if="currentChat?.contentSnapshotVersion == null">历史故事保留原有正文与设定方式，不补造状态或地图。旧脚本桥接仅提供有限兼容，临时变量写入不会保存为故事状态；外部脚本资源与未实现的接口不可用。</p>
           <div class="reading-font-controls" role="group" :aria-label="t('storyShell.fontSize')">
             <button v-for="(font, index) in readingSizes" :key="font" type="button" :aria-pressed="readingSize === font" @click="setReadingSize(font)">{{ [15, 17, 19][index] }}px</button>
           </div>
@@ -80,26 +91,6 @@
           size="small"
           @change="handleStrategyChange"
         />
-        <el-select
-          v-if="chatStore.availableModels.length > 0 && currentChat"
-          :model-value="chatStore.currentModel"
-          size="small"
-          class="model-select"
-          :aria-label="t('storyShell.modelOptions')"
-          @change="handleModelChange"
-        >
-          <el-option
-            v-for="m in chatStore.availableModels"
-            :key="m.id"
-            :label="m.id"
-            :value="m.id"
-          >
-            <span>{{ m.id }}</span>
-            <span style="float: right; color: var(--el-text-color-secondary); font-size: 12px">
-              {{ formatContextWindow(m.contextWindow) }}
-            </span>
-          </el-option>
-        </el-select>
         <el-dropdown trigger="click" @command="handleToolsDropdown">
           <el-button text size="small" class="tools-btn" :aria-label="t('chat.tools')" :title="t('chat.tools')">{{ t('chat.tools') }}</el-button>
           <template #dropdown>
@@ -130,30 +121,43 @@
           </template>
         </el-dropdown>
       </div>
-        </div>
-      </details>
-    </div>
-
-    <div v-if="showSearch" class="chat-search-bar">
-      <el-input
-        v-model="chatStore.searchQuery"
-        :placeholder="t('chat.searchMessages')"
-        clearable
-        size="small"
-        @input="handleSearchInput"
-        @clear="chatStore.clearSearch()"
-      >
-        <template #prefix>
-          <el-icon><Search /></el-icon>
+      <section v-if="creditBalance?.billingMode === 'credits' || creditsFailed" class="reading-credit-summary">
+        <h3>{{ t('credits.title') }}</h3>
+      <section class="story-credits" :aria-label="t('credits.title')" :aria-busy="creditsLoading">
+        <template v-if="creditBalance?.billingMode === 'credits'">
+          <span>{{ t('credits.available') }} <strong>{{ creditBalance.unlimited ? t('credits.unlimited') : creditBalance.availablePoints }}</strong></span>
+          <span v-if="creditBalance.heldTokens > 0">{{ t('credits.held') }} {{ (creditBalance.heldTokens / creditBalance.tokensPerPoint).toLocaleString(undefined, { maximumFractionDigits: 4 }) }}</span>
+          <span v-if="latestCharge && !creditsFailed">{{ t('credits.latestStoryCharge', { points: Math.abs(latestCharge.points) }) }}</span>
+          <span v-if="creditsBlocked" role="status">{{ t('credits.insufficient') }}</span>
         </template>
-      </el-input>
-      <span v-if="chatStore.searchResults.length" class="search-count">
-        {{ chatStore.searchResults.length }} {{ t('chat.results') }}
-      </span>
-    </div>
+        <span v-if="creditsFailed" role="alert">{{ t('credits.refreshFailed') }}</span>
+        <button type="button" :disabled="creditsLoading" @click="refreshCredits">{{ t('credits.refresh') }}</button>
+        <RouterLink :to="{ name: 'Subscription', query: { returnTo: `/chat/${currentChat?.id}` } }">{{ t('credits.viewBalance') }}</RouterLink>
+      </section>
+      </section>
+          <details class="saved-story-settings"><summary>绑定设定与兼容范围</summary>
+          <p>{{ t(currentChat?.identitySnapshot ? 'personas.storyIdentityFixed' : 'personas.storyIdentityLegacy') }}</p>
+          <p v-if="currentChat?.worldbookSnapshotVersion === 1">{{ t('chat.savedWorldbooks') }}</p>
+          <p v-if="currentChat?.contentSnapshotVersion === 1">{{ t('chat.savedContent') }}</p>
+          <ul v-if="chatStore.currentCharacter?.compatibility?.issues.length" aria-label="当前故事兼容范围">
+            <li v-for="issue in chatStore.currentCharacter.compatibility.issues" :key="issue">{{ storyCapabilityMessages[issue] }}</li>
+          </ul>
+          <template v-for="participant in chatStore.chatCharacters" :key="participant.id">
+            <section v-if="participant.diagnostics" :aria-label="`${participant.name}的冻结诊断`">
+              <strong>{{ participant.name }}</strong>
+              <StoryDiagnosticsView :report="participant.diagnostics" frozen />
+              <ul v-if="participant.id !== chatStore.currentCharacter?.id && participant.diagnostics.capabilities.issues.length">
+                <li v-for="issue in participant.diagnostics.capabilities.issues" :key="issue">{{ storyCapabilityMessages[issue] }}</li>
+              </ul>
+            </section>
+          </template>
+          <p v-if="currentChat?.contentSnapshotVersion === 1 && !chatStore.currentCharacter?.diagnostics">此旧档未保存开局绑定诊断，不用当前资料补造当时的检查结果。</p>
+          <p v-if="currentChat?.contentSnapshotVersion == null">历史故事保留原有正文与设定方式，不补造状态或地图。旧脚本桥接仅提供有限兼容，临时变量写入不会保存为故事状态；外部脚本资源与未实现的接口不可用。</p>
+          </details>
+        </div>
+      </StoryWorkspaceDrawer>
 
     <div class="story-play-layout">
-    <StoryBranchNavigator v-if="currentChat && userStore.user" :key="`${userStore.user.id}:${currentChat.id}`" :chat-id="currentChat.id" :owner-id="userStore.user.id" />
     <main class="story-reading">
     <div v-if="readingPosition.restoring.value || readingPosition.notice.value" class="reading-position-status" role="status">
       <span>{{ readingPosition.restoring.value ? '正在找回上次阅读的位置…' : readingPosition.notice.value }}</span>
@@ -200,6 +204,15 @@
         <div class="message-bubble message-assistant greeting-bubble">
           <div class="message-content">
             <MarkdownRenderer :content="currentGreeting" :interactive-html="currentChat?.contentSnapshotVersion == null" />
+            <StoryNextActions
+              :actions="storyState?.actions ?? []"
+              :recommendations="turnRecommendations?.storyRecommendations ?? []"
+              :opening="!messages.some(message => message.role === 'user')"
+              :action-blocked="actionBlocked"
+              :recommendation-blocked="recommendationBlocked || greetingIdentityBlocked"
+              @action="executeStoryAction"
+              @suggest="sendStorySuggestion"
+            />
           </div>
         </div>
         <div v-if="hasAlternateGreetings" class="greeting-swipe">
@@ -267,7 +280,19 @@
               @toggle-pin="handleTogglePin($event)"
               @set-importance="handleSetImportance($event)"
               @correct="correctionsPanel?.openFor(Number($event))"
-            />
+            >
+              <template v-if="message.id === inlineActionMessageId" #after-content>
+                <StoryNextActions
+                  :actions="storyState?.actions ?? []"
+                  :recommendations="turnRecommendations?.storyRecommendations ?? []"
+                  :opening="!messages.some(message => message.role === 'user')"
+                  :action-blocked="actionBlocked"
+                  :recommendation-blocked="recommendationBlocked || greetingIdentityBlocked"
+                  @action="executeStoryAction"
+                  @suggest="sendStorySuggestion"
+                />
+              </template>
+            </MessageBubble>
             <div v-if="storyReadings.some(item => item.messageId === Number(message.id))" class="story-reading-actions">
               <aside v-for="reading in storyReadings.filter(item => item.messageId === Number(message.id))" :key="reading.id" :aria-label="reading.kind === 'annotation' ? '阅读标注' : '已采用排版'">
                 <span>{{ reading.kind === 'annotation' ? `阅读标注：${reading.content}` : '已采用段落排版，模型仍使用原文。' }}</span>
@@ -309,6 +334,16 @@
       </div>
       </template>
 
+      <StoryNextActions v-if="!inlineActionMessageId && !inlineActionsInGreeting"
+        :actions="storyState?.actions ?? []"
+        :recommendations="turnRecommendations?.storyRecommendations ?? []"
+        :opening="!messages.some(message => message.role === 'user')"
+        :action-blocked="actionBlocked"
+        :recommendation-blocked="recommendationBlocked || greetingIdentityBlocked"
+        @action="executeStoryAction"
+        @suggest="sendStorySuggestion"
+      />
+
       <div ref="messagesEnd"></div>
 
       <ScrollToBottom
@@ -328,15 +363,6 @@
         <p>{{ privateListener ? '此次交谈只供所选人物续接。切回公开交谈时不会自动带出私下内容。' : '公开交谈。@只选择回应者，不代表私下交谈。' }}</p>
         <p v-if="!audienceStorageAvailable" role="alert">浏览器不能保存交谈范围，刷新后请重新确认听众。</p>
       </div>
-      <section v-if="storyState?.actions.length" class="story-actions" aria-label="接下来">
-        <div class="story-action-heading"><h2>接下来</h2><span>也可以自由描述你的行动</span></div>
-        <ul><li v-for="action in storyState.actions" :key="action.id"><button type="button" class="story-action-choice" :disabled="actionBlocked" @click="executeStoryAction(action)"><span class="story-action-intent">{{ actionIntents[action.intent] }}</span><span class="story-action-label">{{ action.label }}</span><span aria-hidden="true">→</span></button></li></ul>
-      </section>
-      <section v-if="turnRecommendations" class="story-actions turn-recommendations" :class="{ 'opening-suggestions': !chatStore.messages.some(message => message.role === 'user') }" aria-label="本轮推荐行动">
-        <div class="story-action-heading"><h2>接下来</h2><span>{{ turnRecommendations.storyRecommendationsSource === 'generated' ? '根据本轮剧情生成' : turnRecommendations.storyRecommendationsSource === 'excerpt' ? '基于原文的探索提示' : '通用探索提示' }} · 不是原卡规则选项</span></div>
-        <ul><li v-for="suggestion in turnRecommendations.storyRecommendations" :key="suggestion.label"><button type="button" class="story-action-choice" :disabled="recommendationBlocked || greetingIdentityBlocked" @click="sendStorySuggestion(suggestion.input)"><span class="story-action-label">{{ suggestion.label }}</span></button></li></ul>
-        <p>点击作为自由输入发送，不保证结果或奖励；也可自行输入。</p>
-      </section>
       <p v-if="storyStateError" class="generation-error" role="alert">{{ storyStateError }} <button type="button" @click="refreshStoryState">重试</button></p>
       <div v-if="chatStore.error" class="generation-error" role="alert">
         <span>{{ chatStore.error }}</span>
@@ -369,20 +395,11 @@
         <span class="remote-typing-dots"><span></span><span></span><span></span></span>
         <span class="remote-typing-text">{{ t('chat.remoteTyping', { names: remoteTypingNames.join(', ') }, remoteTypingNames.length) }}</span>
       </div>
-      <section v-if="creditBalance?.billingMode === 'credits' || creditsFailed" class="story-credits" :aria-label="t('credits.title')" :aria-busy="creditsLoading">
-        <template v-if="creditBalance?.billingMode === 'credits'">
-          <span>{{ t('credits.available') }} <strong>{{ creditBalance.unlimited ? t('credits.unlimited') : creditBalance.availablePoints }}</strong></span>
-          <span v-if="creditBalance.heldTokens > 0">{{ t('credits.held') }} {{ (creditBalance.heldTokens / creditBalance.tokensPerPoint).toLocaleString(undefined, { maximumFractionDigits: 4 }) }}</span>
-          <span v-if="latestCharge && !creditsFailed">{{ t('credits.latestStoryCharge', { points: Math.abs(latestCharge.points) }) }}</span>
-          <span v-if="creditsBlocked" role="status">{{ t('credits.insufficient') }}</span>
-        </template>
-        <span v-if="creditsFailed" role="alert">{{ t('credits.refreshFailed') }}</span>
-        <button type="button" :disabled="creditsLoading" @click="refreshCredits">{{ t('credits.refresh') }}</button>
-        <RouterLink :to="{ name: 'Subscription', query: { returnTo: `/chat/${currentChat?.id}` } }">{{ t('credits.viewBalance') }}</RouterLink>
-      </section>
+      <p v-if="creditsBlocked && !creditsFailed" class="generation-error" role="status">{{ t('credits.insufficient') }} <RouterLink :to="{ name: 'Subscription', query: { returnTo: `/chat/${currentChat?.id}` } }">{{ t('credits.viewBalance') }}</RouterLink></p>
+      <p v-if="creditsFailed" class="generation-error" role="alert">{{ t('credits.refreshFailed') }} <button type="button" :disabled="creditsLoading" @click="refreshCredits">{{ t('credits.refresh') }}</button></p>
       <MessageInput
         ref="messageInput"
-        :disabled="!currentChat || greetingIdentityBlocked || (creditsBlocked && !sending && !isStreaming)"
+        :disabled="!currentChat || switchingModel || greetingIdentityBlocked || (creditsBlocked && !sending && !isStreaming)"
         :sending="sending || preparingMessage"
         :is-streaming="isStreaming"
         :stopping="chatStore.stopping"
@@ -390,10 +407,19 @@
         :characters="isGroupChat ? chatStore.chatCharacters.map(c => ({ id: c.id, name: c.name, avatar: c.avatar })) : []"
         @send="handleSendMessage"
         @stop-generation="chatStore.abortGeneration()"
-      />
+      >
+        <template #tools>
+          <ModelPicker v-if="currentChat" :key="currentChat.id"
+            :models="chatStore.availableModels" :model-value="chatStore.currentModel"
+            :loading="chatStore.modelsLoading" :error="chatStore.modelsError"
+            :disabled="sending || isStreaming || preparingMessage" :busy="switchingModel"
+            @refresh="chatStore.fetchModels()" @select="handleModelChange" />
+        </template>
+      </MessageInput>
+      <p v-if="modelSwitchError" class="generation-error" role="alert">{{ modelSwitchError }}</p>
     </div>
     </main>
-    <StoryDossier v-if="currentChat?.contentSnapshotVersion != null" :key="currentChat.id" :chat-id="currentChat.id" :state="storyState" :busy="sending || isStreaming" :loading="storyStateLoading" :error="storyStateError" @refresh="refreshStoryState" @source="showStorySource" />
+    <StoryDossier v-if="currentChat?.contentSnapshotVersion != null" v-model:open="dossierOpen" :key="currentChat.id" :chat-id="currentChat.id" :state="storyState" :busy="sending || isStreaming" :loading="storyStateLoading" :error="storyStateError" :trigger="dossierTrigger" @refresh="refreshStoryState" @source="showStorySource" />
     </div>
     <el-dialog v-if="sourceVisible" v-model="sourceVisible" title="历程原文" width="min(680px, 94vw)" append-to-body><p v-if="sourceLoading" role="status">正在读取原文…</p><MarkdownRenderer v-else :content="sourceText" /></el-dialog>
 
@@ -469,13 +495,10 @@
     />
 
     <!-- Intelligence Drawer -->
-    <el-drawer
-      v-model="showIntelligenceDrawer"
+    <StoryWorkspaceDrawer
+      v-model:open="showIntelligenceDrawer"
+      :return-focus="readingSettingsTrigger"
       :title="t('chat.intelligence')"
-      direction="rtl"
-      size="360px"
-      :append-to-body="false"
-      :modal="false"
       class="intelligence-drawer"
     >
       <el-tabs v-model="activeIntelligenceTab">
@@ -490,7 +513,7 @@
           <IntelligenceDebugPanel v-if="showIntelligenceDrawer && activeIntelligenceTab === 'debug'" :chat-id="currentChat?.id" :character-id="currentChat?.characterId" />
         </el-tab-pane>
       </el-tabs>
-    </el-drawer>
+    </StoryWorkspaceDrawer>
     <!-- Pinned Messages Drawer -->
     <el-drawer v-model="showPinnedDrawer" :title="t('chat.pinnedMessages')" size="360px">
       <div v-if="chatStore.pinnedMessages.length === 0" class="empty-pinned">
@@ -551,8 +574,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
+import { inject, ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { workbenchNavigation } from '../layout/workbench';
+import WorkbenchNavigationToggle from '../layout/WorkbenchNavigationToggle.vue';
+import StoryWorkspaceDrawer from './StoryWorkspaceDrawer.vue';
+import { Document, Setting } from '@element-plus/icons-vue';
 import { storyDisplayText } from '@client/utils/story-display';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import { More, Loading, Search, Download } from '@element-plus/icons-vue';
@@ -571,6 +598,7 @@ import { characterApi } from '@client/services/character.api';
 import { useTextToSpeech, type VoiceConfig } from '@client/composables/useTextToSpeech';
 import MessageBubble from './MessageBubble.vue';
 import MessageInput from './MessageInput.vue';
+import ModelPicker from './ModelPicker.vue';
 import StoryDossier from './StoryDossier.vue';
 import StoryMemoryStatus from './StoryMemoryStatus.vue';
 import StoryIntentReview from './StoryIntentReview.vue';
@@ -581,6 +609,7 @@ import type { StoryReading } from '../../../types/story-corrections';
 import type { StoredStoryIntent } from '../../../types/story-intent';
 import { useStoryState } from '../../composables/useStoryState';
 import { useStoryDraft } from '../../composables/useStoryDraft';
+import StoryNextActions from './StoryNextActions.vue';
 import type { StoryStateView, StoryActionRequest } from '../../../types/story-state';
 import ScrollToBottom from './ScrollToBottom.vue';
 import DateDivider from './DateDivider.vue';
@@ -616,13 +645,22 @@ const { size: readingSize, sizes: readingSizes, setSize: setReadingSize } = useC
 const chatStore = useChatStore();
 const userStore = useUserStore();
 const messageInput = ref<InstanceType<typeof MessageInput> | null>(null);
+const inWorkbench = Boolean(inject(workbenchNavigation, undefined));
+const readingOpen = ref(false);
+const readingSettingsTrigger = ref<HTMLElement>();
+const dossierOpen = ref(false);
+const dossierTrigger = ref<HTMLButtonElement | null>(null);
 const { state: storyState, error: storyStateError, loading: storyStateLoading, refresh: refreshStoryState } = useStoryState(
   () => userStore.user ? `${userStore.user.tenantId}:${userStore.user.id}` : null,
   () => props.currentChat?.contentSnapshotVersion != null ? props.currentChat.id : undefined,
   () => chatStore.sending || chatStore.isStreaming,
   () => chatStore.billingRevision,
 );
-const actionIntents = { observe: '观察', talk: '交谈', act: '行动', travel: '前往' };
+const dossierCompactStatus = computed(() => chatStore.sending || chatStore.isStreaming
+  ? '本轮进行中'
+  : storyStateError.value ? '记录暂不可用'
+    : storyStateLoading.value ? '核对中'
+      : storyState.value ? `第 ${storyState.value.version} 轮` : '查看记录');
 const latestStoryIntent = computed(() => {
   const latest = chatStore.messages.at(-1);
   const candidate = latest?.extra?.storyIntent as StoredStoryIntent | undefined;
@@ -635,14 +673,15 @@ async function confirmStoryIntent() {
   await handleSendMessage(selected.candidate.input, undefined, undefined, undefined,
     { proposalMessageId: selected.messageId, expectedVersion: selected.candidate.expectedVersion });
 }
-const actionBlocked = computed(() => chatStore.sending || chatStore.isStreaming || preparingMessage.value || Boolean(storyStateError.value) || storyStateLoading.value || creditsBlocked.value);
-const recommendationBlocked = computed(() => chatStore.sending || chatStore.isStreaming || preparingMessage.value || creditsBlocked.value);
+const actionBlocked = computed(() => chatStore.sending || chatStore.isStreaming || preparingMessage.value || switchingModel.value || Boolean(storyStateError.value) || storyStateLoading.value || creditsBlocked.value);
+const recommendationBlocked = computed(() => chatStore.sending || chatStore.isStreaming || preparingMessage.value || switchingModel.value || creditsBlocked.value);
 const sourceVisible = ref(false);
 const sourceLoading = ref(false);
 const sourceText = ref('');
 async function showStorySource(messageId: number) {
   const target = props.currentChat?.id;
   if (!target) return;
+  showIntelligenceDrawer.value = false;
   sourceVisible.value = true; sourceLoading.value = true; sourceText.value = '';
   try {
     const result = await chatApi.getMessages(target, { before: messageId + 1, limit: 1 });
@@ -650,7 +689,7 @@ async function showStorySource(messageId: number) {
   } catch { if (target === props.currentChat?.id) sourceText.value = '读取失败，请重试。'; }
   finally { sourceLoading.value = false; }
 }
-watch(() => props.currentChat?.id, () => { sourceVisible.value = false; sourceText.value = ''; });
+watch(() => props.currentChat?.id, () => { readingOpen.value = false; sourceVisible.value = false; sourceText.value = ''; });
 async function executeStoryAction(action: StoryStateView['actions'][number]) {
   if (actionBlocked.value) return;
   await handleSendMessage(action.label, undefined, undefined, undefined, { actionId: action.id, expectedVersion: action.version });
@@ -665,6 +704,11 @@ const turnRecommendations = computed(() => {
   const parsed = storyRecommendationsSchema.safeParse(latest.extra?.storyRecommendations);
   return parsed.success ? { storyRecommendations: parsed.data, storyRecommendationsSource: latest.extra?.storyRecommendationsSource }
     : sourcedStoryRecommendations(latest.content);
+});
+const inlineActionsInGreeting = computed(() => messages.value.length === 0 && Boolean(currentGreeting.value) && !greetingIdentityBlocked.value);
+const inlineActionMessageId = computed(() => {
+  const last = messages.value.at(-1);
+  return !isStreaming.value && last?.role === 'assistant' ? last.id : null;
 });
 async function sendStorySuggestion(input: string) {
   if (!turnRecommendations.value?.storyRecommendations.some(suggestion => suggestion.input === input) || recommendationBlocked.value || greetingIdentityBlocked.value) return;
@@ -700,6 +744,8 @@ const hasNewContent = ref(false);
 const showScrollButton = computed(() => !followingLatest.value);
 const editingMessageId = ref<string | null>(null);
 const preparingMessage = ref(false);
+const switchingModel = ref(false);
+const modelSwitchError = ref('');
 const showSearch = ref(false);
 const showContextViewer = ref(false);
 
@@ -1240,7 +1286,7 @@ const scrollToBottom = (smooth = true) => {
 };
 
 const handleSendMessage = async (content: string, attachments?: MessageAttachment[], mentionedCharacterIds?: string[], onAccepted?: () => void, storyAction?: StoryActionRequest) => {
-  if (preparingMessage.value || sending.value || isStreaming.value || greetingIdentityBlocked.value || creditsBlocked.value) return;
+  if (switchingModel.value || preparingMessage.value || sending.value || isStreaming.value || greetingIdentityBlocked.value || creditsBlocked.value) return;
   const chatId = props.currentChat?.id;
   if (!chatId) return;
   preparingMessage.value = true;
@@ -1288,10 +1334,12 @@ async function persistGreeting() {
 
 // Context Viewer
 function showContextViewerDialog() {
+  readingOpen.value = false;
   showContextViewer.value = true;
 }
 
 const handleMenuCommand = async (command: string) => {
+  if (command === 'corrections') { correctionsPanel.value?.openFor(); return; }
   if (!props.currentChat) return;
   if (command === 'search') {
     showSearch.value = !showSearch.value;
@@ -1370,6 +1418,7 @@ const snapshotLink = ref('');
 const creatingSnapshot = ref(false);
 
 const handleExportDropdown = async (command: string) => {
+  readingOpen.value = false;
   if (command === 'snapshot') {
     snapshotTitle.value = '';
     snapshotExpiry.value = '7d';
@@ -1381,6 +1430,7 @@ const handleExportDropdown = async (command: string) => {
 };
 
 const handleToolsDropdown = (command: string) => {
+  readingOpen.value = false;
   switch (command) {
     case 'tuner': showTunerDrawer.value = true; break;
     case 'memory': openIntelligenceTab('memory'); break;
@@ -1507,19 +1557,22 @@ const openIntelligenceTab = (tab: string) => {
   intelligenceStore.resetDebugEventCount();
 };
 
-function formatContextWindow(tokens: number): string {
-  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(0)}M`;
-  if (tokens >= 1000) return `${(tokens / 1000).toFixed(0)}K`;
-  return `${tokens}`;
-}
-
 const handleModelChange = async (model: string) => {
+  if (switchingModel.value || sending.value || isStreaming.value || preparingMessage.value
+    || model === chatStore.currentModel || !chatStore.availableModels.some(item => item.id === model)) return;
+  const chatId = props.currentChat?.id;
+  switchingModel.value = true;
+  modelSwitchError.value = '';
   try {
     await chatStore.switchModel(model);
   } catch (error: unknown) {
+    if (props.currentChat?.id === chatId) modelSwitchError.value = t('modelPicker.failed');
     logger.error('Failed to switch model', error);
+  } finally {
+    switchingModel.value = false;
   }
 };
+watch(() => props.currentChat?.id, () => { modelSwitchError.value = ''; });
 
 const positionKey = computed(() => userStore.user && props.currentChat?.id
   ? `story-position:${JSON.stringify([userStore.user.tenantId, userStore.user.id, props.currentChat.id])}` : null);
@@ -1759,36 +1812,23 @@ onUnmounted(() => {
 
 .story-play-layout { display: flex; flex: 1; min-height: 0; }
 .story-back { color: var(--text-secondary); text-decoration: none; font-size: 13px; padding: 12px 12px 12px 0; margin-right: 16px; border-right: 1px solid var(--border-default); white-space: nowrap; }
-.is-exploration .chat-messages { padding: 36px clamp(20px, 6vw, 88px) 24px; }
+.is-exploration .chat-messages { padding: 36px clamp(24px, 4vw, 64px) 24px; }
+.is-exploration :deep(.markdown-content) { max-width: none; font-size: var(--chat-font-size); line-height: 1.95; }
+.is-exploration :deep(.user-text) { max-width: none; font-size: var(--chat-font-size); line-height: 1.95; }
 .is-exploration :deep(.avatar-col) { display: none; }
+.is-exploration :deep(.message-assistant .message-row) { max-width: 100%; }
 .is-exploration :deep(.message-assistant .bubble-col) { width: 100%; max-width: 100%; }
 .is-exploration :deep(.message-user .message-row) { justify-content: flex-start; }
 .is-exploration :deep(.message-user .bubble-col) { align-items: flex-start; max-width: 100%; }
 .is-exploration :deep(.message-user .bubble) { border-left: 2px solid var(--accent); border-radius: 0; background: var(--bg-subtle); }
 .is-exploration :deep(.message-author) { letter-spacing: .08em; font-size: 12px; color: var(--accent); }
-.is-exploration .greeting-container, .is-exploration .messages-list { width: min(100%, 760px); margin-left: auto; margin-right: auto; }
+.is-exploration .greeting-container, .is-exploration .messages-list { width: min(100%, 1120px); margin-left: auto; margin-right: auto; }
 .story-reading { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-.story-actions { max-width: 760px; margin: 0 auto 14px; }
-.story-audience { max-width: 760px; margin: 0 auto 12px; color: var(--text-secondary); font-size: 13px; }
+.story-audience { width: min(100%, 1120px); max-width: 1120px; margin: 0 auto 12px; color: var(--text-secondary); font-size: 14px; }
 .story-audience select { margin-left: 12px; padding: 8px; max-width: 65%; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-interactive); border-radius: 6px; }
 .story-audience p { margin: 6px 0 0; line-height: 1.5; }
-.story-action-heading { display: flex; gap: 12px; align-items: baseline; }
-.story-action-heading h2 { font-size: 15px; font-weight: 500; margin: 0; }
-.story-action-heading>span { color: var(--text-secondary); font-size: 12px; }
-.story-actions ul { list-style: none; padding: 0; margin: 8px 0 0; max-height: 150px; overflow-y: auto; }
-.story-actions li { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border-default); }
-.story-action-intent { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
-.story-action-label { flex: 1; font-size: 13px; overflow-wrap: anywhere; }
-.story-actions button { min-height: 40px; flex-shrink: 0; padding: 6px 9px; border: 1px solid var(--border-default); background: var(--bg-subtle); color: var(--accent); border-radius: 6px; font-size: 12px; cursor: pointer; }
-.story-actions button:disabled { opacity: .5; cursor: default; }
-.turn-recommendations ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; max-height: none; overflow: visible; }
-.turn-recommendations li { display: block; padding: 0; border: 0; min-width: 0; }
-.turn-recommendations .story-action-choice { justify-content: center; min-height: 44px; padding: 8px 4px; text-align: center; }
-.turn-recommendations .story-action-label { flex-basis: auto; overflow-wrap: anywhere; }
-.turn-recommendations p { margin: 6px 0 0; font-size: 11px; line-height: 1.5; color: var(--text-secondary); }
-.story-actions .story-action-choice { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px; }
 @include below(lg) { .story-play-layout { flex-direction: column; } }
-@include below(md) { .story-actions li { flex-wrap: wrap; } .story-action-label { flex-basis: 75%; } .story-actions ul { max-height: 128px; } .story-back { margin-right: 6px; padding-right: 8px; } .is-exploration .chat-messages { padding: 24px 18px; } }
+@include below(md) { .story-back { margin-right: 6px; padding-right: 8px; } .is-exploration .chat-messages { padding: 24px 18px; } .is-exploration :deep(.markdown-content), .is-exploration :deep(.user-text) { font-size: var(--chat-font-size); line-height: 1.9; } }
 
 .chat-header {
   display: flex;
@@ -1802,6 +1842,24 @@ onUnmounted(() => {
   background-color: var(--bg-base);
   flex-shrink: 0;
 }
+
+.dossier-open-button {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.dossier-open-button small { color: var(--text-secondary); font-size: 11px; }
+.dossier-open-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .chat-info {
   display: flex;
@@ -1871,8 +1929,7 @@ onUnmounted(() => {
   min-height: 0;
   overflow-y: auto;
   padding: 32px 24px 24px;
-  display: flex;
-  flex-direction: column;
+  display: block;
   position: relative;
   will-change: transform;
 }
@@ -2118,7 +2175,7 @@ onUnmounted(() => {
 
 .chat-input-container {
   flex-shrink: 0;
-  width: min(100%, 768px);
+  width: 100%;
   margin-inline: auto;
   padding: 12px 24px max(16px, env(safe-area-inset-bottom));
   background: var(--bg-base);

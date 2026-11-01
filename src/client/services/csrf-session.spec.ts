@@ -57,14 +57,15 @@ describe('CSRF cache follows the access credential', () => {
     }) }));
   });
 
-  it('obtains a renewed access token on an expired-session CSRF response without replaying the write', async () => {
+  it('renews an expired CSRF session before sending the write exactly once', async () => {
     localStorage.setItem('token', 'expired');
     localStorage.setItem('refreshToken', 'refresh');
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 401 } as Response)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: { accessToken: 'renewed', refreshToken: 'renewed-refresh' } }) } as Response);
-    await expect(api.post('/characters', { name: 'one-action' })).rejects.toMatchObject({ code: 'CSRF_TOKEN_UNAVAILABLE' });
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: { accessToken: 'renewed', refreshToken: 'renewed-refresh' } }) } as Response)
+      .mockResolvedValueOnce(csrf('b') as Response).mockResolvedValueOnce(success() as Response);
+    await expect(api.post('/characters', { name: 'one-action' })).resolves.toEqual({ saved: true });
     expect(localStorage.getItem('token')).toBe('renewed');
-    expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual(['/api/v1/csrf-token', '/api/v1/auth/refresh']);
+    expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual(['/api/v1/csrf-token', '/api/v1/auth/refresh', '/api/v1/csrf-token', '/api/v1/characters']);
   });
 
   it('blocks writes when the CSRF service returns invalid data', async () => {

@@ -88,6 +88,11 @@ describe('SpendBreaker', () => {
   });
 
   describe('assertAllowed', () => {
+    it('allows explicit unlimited mode without reading a ceiling counter', async () => {
+      mockConfig.platformDailyTokenLimit = -1;
+      await expect(breaker.assertAllowed()).resolves.toBeUndefined();
+      expect(getRedisClient).not.toHaveBeenCalled();
+    });
     it('allows when today total is under the limit', async () => {
       redisClient.get.mockResolvedValue('999');
       await expect(breaker.assertAllowed()).resolves.toBeUndefined();
@@ -158,6 +163,13 @@ describe('SpendBreaker', () => {
   });
 
   describe('record', () => {
+    it('still counts usage in unlimited mode without a limit notification', async () => {
+      mockConfig.platformDailyTokenLimit = -1;
+      const chain = mockMulti(50000000);
+      await breaker.record(250);
+      expect(chain.incrBy).toHaveBeenCalledWith(breaker.getDayKey(new Date()), 250);
+      expect(redisClient.set).not.toHaveBeenCalled();
+    });
     it('adds tokens to today\'s counter with a >= 48h expiry', async () => {
       const chain = mockMulti(10);
       await breaker.record(250);

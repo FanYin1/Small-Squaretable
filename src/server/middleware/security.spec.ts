@@ -4,9 +4,10 @@
  * Tests for security headers and CSP configuration
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Hono } from 'hono';
 import { securityHeaders, developmentSecurityHeaders } from './security';
+import { config } from '../../core/config';
 
 describe('Security Headers Middleware', () => {
   let app: Hono;
@@ -16,6 +17,8 @@ describe('Security Headers Middleware', () => {
   });
 
   describe('securityHeaders (Production)', () => {
+    const originalAppUrl = config.appUrl;
+    afterEach(() => { config.appUrl = originalAppUrl; });
     beforeEach(() => {
       app.use('*', securityHeaders());
       app.get('/test', (c) => c.json({ ok: true }));
@@ -28,6 +31,18 @@ describe('Security Headers Middleware', () => {
       expect(csp).toContain("default-src 'self'");
       expect(csp).toContain("script-src 'self'");
       expect(csp).toContain("object-src 'none'");
+    });
+
+    it('does not upgrade assets on an HTTP-only public origin', async () => {
+      config.appUrl = 'http://47.116.114.103';
+      const res = await app.request('/test', { headers: { 'X-Forwarded-Proto': 'https' } });
+      expect(res.headers.get('Content-Security-Policy')).not.toContain('upgrade-insecure-requests');
+    });
+
+    it('upgrades assets when the public origin uses HTTPS behind a proxy', async () => {
+      config.appUrl = 'https://stories.example.com';
+      const res = await app.request('http://internal:3000/test');
+      expect(res.headers.get('Content-Security-Policy')).toContain('upgrade-insecure-requests');
     });
 
     it('should set X-Content-Type-Options header', async () => {

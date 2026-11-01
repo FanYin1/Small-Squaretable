@@ -292,9 +292,13 @@ function handleEdit(character: Character) {
   router.push({ name: 'CharacterEdit', params: { id: character.id } });
 }
 
-function handlePublish(character: Character) {
-  selectedCharacterForPublish.value = character;
-  publishDialogVisible.value = true;
+async function handlePublish(character: Character) {
+  try {
+    selectedCharacterForPublish.value = await characterApi.getCharacter(character.id);
+    publishDialogVisible.value = true;
+  } catch (error: any) {
+    toast.error(t('common.loadFailed'), { message: error.message || t('common.retry') });
+  }
 }
 
 async function handleUnpublish(character: Character) {
@@ -341,9 +345,13 @@ async function handleDelete(character: Character) {
   }
 }
 
-function handleExport(character: Character) {
-  downloadCharacterJson(character);
-  toast.success(t('myCharacters.exported'));
+async function handleExport(character: Character) {
+  try {
+    downloadCharacterJson(await characterApi.getCharacter(character.id));
+    toast.success(t('myCharacters.exported'));
+  } catch (error: any) {
+    toast.error(t('myCharacters.exportFailed'), { message: error.message || t('common.retry') });
+  }
 }
 
 async function handleDuplicate(character: Character) {

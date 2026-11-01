@@ -60,15 +60,17 @@ function storyText(value: unknown, limit = 1600): string {
   return storyDisplayText(value, { characterName: character.value?.name, userName: t('chat.you'), limit, multiline: true });
 }
 
-const scenario = computed(() => storyText(character.value?.cardData?.scenario));
-const introduction = computed(() => storyIntroduction(character.value?.description, character.value?.cardData ?? {}, character.value?.presentation));
+const scenario = computed(() => storyText(character.value?.detailPreview?.scenario ?? character.value?.cardData?.scenario));
+const introduction = computed(() => character.value?.detailPreview?.introduction ?? storyIntroduction(character.value?.description, character.value?.cardData ?? {}, character.value?.presentation));
 const opening = computed(() => {
+  if (character.value?.detailPreview) return storyText(character.value.detailPreview.opening);
   const card = character.value?.cardData ?? {};
   const preview = openingReferences(card).map(reference => inspectOpening(card, reference)).find(item => item.kind === 'narrative');
   return storyText(preview ? openingContent(card, preview.reference) : '');
 });
-const personality = computed(() => storyText(character.value?.cardData?.personality, 600));
-const author = computed(() => storyText(character.value?.cardData?.creator, 120));
+const personality = computed(() => storyText(character.value?.detailPreview?.personality ?? character.value?.cardData?.personality, 600));
+const author = computed(() => storyText(character.value?.detailPreview?.creator ?? character.value?.cardData?.creator, 120));
+const creatorNotes = computed(() => storyText(character.value?.detailPreview?.creatorNotes ?? character.value?.cardData?.creator_notes, 6000));
 const accountScope = computed(() => isAuthenticated.value
   ? `${userStore.user?.tenantId}:${userStore.user?.id}` : '');
 const continueOwner = computed(() => accountScope.value || null);
@@ -91,7 +93,7 @@ async function fetchCharacter() {
   showShareDialog.value = false;
   showReportDialog.value = false;
   try {
-    const result = await characterApi.getCharacter(requestedId);
+    const result = await characterApi.getCharacterDetail(requestedId);
     if (version !== detailVersion) return;
     character.value = result;
     if (result.isPublic) void fetchRatings(requestedId, version);
@@ -252,9 +254,9 @@ async function handleAddToCollection(collectionId: string) {
             </div>
           </section>
 
-          <details v-if="character?.cardData?.creator_notes" class="detail-section creator-notes">
+          <details v-if="creatorNotes" class="detail-section creator-notes">
             <summary>{{ t('characterDetail.creatorNotes') }}</summary>
-            <p>{{ storyText(character.cardData.creator_notes, 6000) }}</p>
+            <p>{{ creatorNotes }}</p>
           </details>
 
           <div v-if="character.tags?.length" class="detail-section">
@@ -287,7 +289,7 @@ async function handleAddToCollection(collectionId: string) {
               <h2>{{ t('privateLibrary.manageHeading') }}</h2>
               <p>{{ t('privateLibrary.manageDescription') }}</p>
             </header>
-            <StoryCompatibility :key="`${character.id}:${compatibilityVersion}`" :card-data="character.cardData" :character-id="character.id" />
+            <StoryCompatibility :key="`${character.id}:${compatibilityVersion}`" :card-data="character.cardData" :initial-capabilities="character.detailPreview?.capabilities" :character-id="character.id" />
             <StoryAdapterPanel v-if="isOwner" :character-id="character.id" @changed="compatibilityVersion++" />
             <PresentationJobPanel v-if="isOwner" :character-id="character.id" @adopted="fetchCharacter" />
           <div class="action-buttons">

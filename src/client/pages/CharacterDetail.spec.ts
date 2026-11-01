@@ -14,7 +14,7 @@ const actions = vi.hoisted(() => ({
 let route: { params: { id: string } };
 let user: { isAuthenticated: boolean; user: { id: string; tenantId: string } | null };
 
-vi.mock('@client/services/character.api', () => ({ characterApi: { getCharacter: actions.getCharacter, getCompatibility: actions.getCompatibility } }));
+vi.mock('@client/services/character.api', () => ({ characterApi: { getCharacterDetail: actions.getCharacter, getCompatibility: actions.getCompatibility } }));
 vi.mock('@client/services/chat.api', () => ({ chatApi: { getChat: actions.getChat } }));
 vi.mock('@client/services/credits.api', () => ({ creditsApi: { getBalance: actions.getBalance } }));
 vi.mock('@client/services/api', () => ({ api: { get: actions.getRatings } }));
@@ -104,6 +104,24 @@ describe('Story detail', () => {
     expect(wrapper.get('[data-testid="story-opening"]').text()).toContain(`story-1 greets ${i18n.global.t('chat.you')}.`);
     expect(actions.push).not.toHaveBeenCalled();
     expect(actions.getBalance).not.toHaveBeenCalled();
+  });
+
+  it('renders the lightweight detail without requesting original card data', async () => {
+    const { cardData: _cardData, ...card } = story();
+    actions.getCharacter.mockResolvedValue({ ...card, detailPreview: {
+      introduction: { text: '公开介绍', source: 'description' },
+      opening: '{{char}} welcomes {{user}}.', scenario: '轻量场景', personality: '好奇',
+      creator: '创作者', creatorNotes: '作者说明',
+      capabilities: { native: false, map: false, scripted: true, invalid: false, issues: ['author_scripts'] },
+    } });
+    actions.getCompatibility.mockRejectedValue(new Error('Temporarily unavailable'));
+    render();
+    await flushPromises();
+    expect(wrapper.get('[data-testid="story-scenario"]').text()).toContain('轻量场景');
+    expect(wrapper.get('[data-testid="story-opening"]').text()).toContain(`story-1 welcomes ${i18n.global.t('chat.you')}.`);
+    expect(wrapper.find('.creator-notes').text()).toContain('作者说明');
+    expect(wrapper.text()).toContain('本卡含有尚未适配的扩展');
+    expect(actions.getCharacter).toHaveBeenCalledTimes(1);
   });
 
   it('keeps private imports focused on play and hides control data in previews', async () => {

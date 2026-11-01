@@ -14,6 +14,7 @@
 
 - Plus Jakarta Sans — © Tokotype, https://github.com/tokotype/PlusJakartaSans
 - Newsreader — © Production Type, https://github.com/productiontype/Newsreader
+- Newsreader 版权与许可全文随附于 [NEWSREADER-OFL.txt](NEWSREADER-OFL.txt)。
 - OFL 1.1 全文 — https://openfontlicense.org/
 
 升级字体时须同步更新 `src/client/styles/fonts.css` 里的 `unicode-range`：

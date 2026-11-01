@@ -196,6 +196,21 @@ describe('Character routes NSFW visibility', () => {
   // ── 搜索 ──
 
   describe('GET /search', () => {
+    it.each(['my', 'all'])('filter=%s 不读取或写入共享公开列表缓存', async (filter) => {
+      loginAs('viewer', { showNsfw: false });
+      vi.mocked(cacheService.getCachedSearch).mockResolvedValue({
+        items: [{ id: 'unrelated-public-cache' }], pagination: { total: 1 },
+      });
+
+      const res = await app.request(`/api/v1/characters/search?q=wizard&filter=${filter}`, { headers: AUTH });
+
+      expect(res.status).toBe(200);
+      expect(cacheService.getCachedSearch).not.toHaveBeenCalled();
+      expect(cacheService.setCachedSearch).not.toHaveBeenCalled();
+      expect(searchService.searchCharacters).toHaveBeenCalledWith(expect.objectContaining({ filter, userId: 'viewer' }));
+      expect((await res.json()).data.items).toEqual([]);
+    });
+
     it('开关开 + 偏好开：searchService 收到 showNsfw=true', async () => {
       loginAs('viewer', { showNsfw: true });
 

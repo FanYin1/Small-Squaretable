@@ -12,7 +12,7 @@ import { storyMemoryEvictionIds } from './story-memory-selection';
 type Job = typeof storyMemoryJobs.$inferSelect;
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 export interface StoryMemoryProviders {
-  extract(sources: StoryMemorySource[], signal: AbortSignal): Promise<unknown>;
+  extract(sources: StoryMemorySource[], signal: AbortSignal, context?: { chatId: string }): Promise<unknown>;
   embed(texts: string[], signal: AbortSignal): Promise<number[][]>;
 }
 export interface StoryMemoryWorkerOptions {
@@ -145,7 +145,7 @@ export class StoryMemoryWorker {
       const current = await this.database.transaction(transaction => this.sources(job, transaction));
       if (job.sourceDigest && job.sourceDigest !== current.digest) throw new MemoryJobError('SOURCE_CHANGED', true);
       stage = 'EXTRACTION_FAILED';
-      const raw = job.extracted ?? await this.providers.extract(current.sources, AbortSignal.timeout(this.options.timeoutMs));
+      const raw = job.extracted ?? await this.providers.extract(current.sources, AbortSignal.timeout(this.options.timeoutMs), { chatId: job.chatId });
       stage = 'EXTRACTION_INVALID';
       const parsed = parseStoryMemoryResult(raw, current.sources);
       const { facts } = parsed;

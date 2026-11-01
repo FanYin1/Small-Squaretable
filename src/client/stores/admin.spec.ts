@@ -106,10 +106,8 @@ describe('Admin Store', () => {
   it('should fetch users and set users + total', async () => {
     const mockUsers = [makeUser({ id: 'u-1' }), makeUser({ id: 'u-2' })];
     vi.mocked(adminApi.getUsers).mockResolvedValue({
-      users: mockUsers,
-      total: 42,
-      page: 1,
-      limit: 20,
+      items: mockUsers,
+      pagination: { page: 1, limit: 20, total: 42, totalPages: 3, hasNext: true, hasPrev: false },
     });
 
     const store = useAdminStore();

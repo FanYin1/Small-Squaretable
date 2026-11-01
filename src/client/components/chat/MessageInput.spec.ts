@@ -124,7 +124,7 @@ describe('MessageInput', () => {
     wrapper.unmount();
     wrapper = mount(MessageInput, { global: { plugins: [i18n], stubs: globalStubs } });
     expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('第一段');
-    expect(wrapper.get('[role="status"]').text()).toContain('Restored');
+    expect(wrapper.get('[role="status"]').text()).toBe(i18n.global.t('chat.draftRestored'));
     userStore.user = { id: 'other-reader', tenantId: 'tenant' } as NonNullable<typeof userStore.user>;
     await wrapper.vm.$nextTick();
     expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('');

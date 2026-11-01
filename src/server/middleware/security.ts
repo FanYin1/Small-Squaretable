@@ -42,7 +42,6 @@ const DEFAULT_CSP_DIRECTIVES = {
   'manifest-src': ["'self'"],
   'worker-src': ["'self'", 'blob:'],
   'child-src': ["'self'", 'blob:'],
-  'upgrade-insecure-requests': [],
 };
 
 /**
@@ -55,6 +54,12 @@ function buildCspHeader(options: SecurityHeadersOptions): string {
     ...DEFAULT_CSP_DIRECTIVES,
     ...additionalDirectives,
   };
+
+  // APP_URL is the public origin, including when TLS terminates at a proxy.
+  // Upgrading resources on an HTTP-only deployment leaves the SPA blank.
+  if (new URL(config.appUrl).protocol === 'https:') {
+    directives['upgrade-insecure-requests'] = [];
+  }
 
   // Add nonce to script-src if provided
   if (nonce) {

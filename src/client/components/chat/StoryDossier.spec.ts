@@ -1,43 +1,62 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mount, flushPromises } from '@vue/test-utils';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils';
 import StoryDossier from './StoryDossier.vue';
 import type { StoryStateView, StoryEventView } from '../../../types/story-state';
 import { storyApi } from '../../services/story.api';
 
 vi.mock('../../services/story.api', () => ({ storyApi: { event: vi.fn(), events: vi.fn() } }));
 beforeEach(() => vi.resetAllMocks());
+afterEach(() => {
+  document.querySelectorAll('[data-test-dossier-trigger], #app').forEach(element => element.remove());
+  document.body.style.overflow = '';
+});
 const initial: StoryStateView = { protocol: 1, native: true, legacy: false, revision: 'fixture', version: 0, fields: [], actions: [], events: [], notes: [], map: null };
-const open = (state = initial) => mount(StoryDossier, { props: { chatId: 'story', state, busy: false, error: '' }, global: { stubs: { StoryMemoryStatus: true } } });
+const open = (state = initial) => {
+  const trigger = document.createElement('button');
+  trigger.dataset.testDossierTrigger = '';
+  document.body.append(trigger);
+  // The controlled model callback needs the wrapper created below.
+  let wrapper!: VueWrapper;
+  // eslint-disable-next-line prefer-const
+  wrapper = mount(StoryDossier, { props: { chatId: 'story', state, busy: false, error: '', trigger, open: true,
+    'onUpdate:open': (value: boolean) => { void wrapper.setProps({ open: value }); } }, global: { stubs: { StoryMemoryStatus: true, teleport: true } } });
+  return wrapper;
+};
 
 describe('mechanism-specific dossier', () => {
   it('keeps the collapsed summary truthful while loading, generating and recovering from failure', async () => {
     const wrapper = open({ ...initial, version: 12, map: { location: 'harbor', nodes: [{ id: 'harbor', label: '雾港', links: [] }] } });
-    expect(wrapper.get('.dossier-toggle-title').text()).toContain('雾港 · 第 12 轮');
+    expect(wrapper.get('.dossier-heading [role="status"]').text()).toContain('第 12 轮');
     await wrapper.setProps({ busy: true });
-    expect(wrapper.get('.dossier-toggle-title').text()).toContain('本轮待确认');
-    expect(wrapper.get('.dossier-toggle-title').text()).not.toContain('第 12 轮');
+    expect(wrapper.get('.dossier-heading [role="status"]').text()).toContain('尚未确认');
     await wrapper.setProps({ busy: false, error: '离线' });
-    expect(wrapper.get('.dossier-toggle-title').text()).toContain('读取失败');
+    expect(wrapper.get('.dossier-heading [role="status"]').text()).toContain('读取失败');
     await wrapper.setProps({ error: '', loading: true });
-    expect(wrapper.get('.dossier-toggle-title').text()).toContain('核对中');
+    expect(wrapper.get('.dossier-heading [role="status"]').text()).toContain('核对最新记录');
     await wrapper.setProps({ loading: false, state: null });
-    expect(wrapper.get('.dossier-toggle-title').text()).toContain('待读取');
+    expect(wrapper.get('.dossier-heading [role="status"]').text()).toContain('读取记录中');
     wrapper.unmount();
   });
 
   it('closes the mobile panel before reading original evidence without modifying state', async () => {
-    const wrapper = mount(StoryDossier, {
+    // The controlled model callback needs the wrapper created below.
+    let wrapper!: VueWrapper;
+    const trigger = document.createElement('button');
+    trigger.dataset.testDossierTrigger = '';
+    document.body.append(trigger);
+    // eslint-disable-next-line prefer-const
+    wrapper = mount(StoryDossier, {
       props: { chatId: 'story', state: { ...initial, version: 1, events: [{ id: 'visible', version: 1,
-        status: 'confirmed', inputMessageId: 41, messageId: 42, outcome: null, createdAt: '', excerpt: '走进雾港', actionLabel: '观察' }] }, busy: false, error: '' },
-      attachTo: document.body, global: { stubs: { StoryMemoryStatus: true } },
+        status: 'confirmed', inputMessageId: 41, messageId: 42, outcome: null, createdAt: '', excerpt: '走进雾港', actionLabel: '观察' }] }, busy: false, error: '', open: false, trigger,
+        'onUpdate:open': (value: boolean) => { void wrapper.setProps({ open: value }); } },
+      attachTo: document.body, global: { stubs: { StoryMemoryStatus: true, teleport: true } },
     });
-    await wrapper.get('.dossier-toggle').trigger('click');
-    expect(document.activeElement).toBe(wrapper.get('.dossier-close').element);
+    await wrapper.setProps({ open: true });
     await wrapper.findAll('nav button').find(button => button.text() === '历程')!.trigger('click');
     await wrapper.get('.story-history button').trigger('click');
     expect(wrapper.emitted('source')).toEqual([[42]]);
-    expect(wrapper.get('.dossier-toggle').attributes('aria-expanded')).toBe('false');
-    expect(document.activeElement).toBe(wrapper.get('.dossier-toggle').element);
+    expect(wrapper.find('.story-dossier-layer').exists()).toBe(false);
+    expect(document.activeElement).toBe(wrapper.props('trigger'));
     expect(wrapper.props('state')?.version).toBe(1);
     wrapper.unmount();
   });
@@ -110,6 +129,7 @@ describe('mechanism-specific dossier', () => {
     expect(opening.element.open).toBe(false);
     opening.element.open = true;
     await wrapper.setProps({ chatId: 'other' });
+    await wrapper.setProps({ open: true });
     expect(wrapper.get<HTMLDetailsElement>('[data-testid="saved-opening-record"]').element.open).toBe(false);
     wrapper.unmount();
   });
@@ -160,6 +180,7 @@ describe('mechanism-specific dossier', () => {
     await expressions.findAll('button')[0].trigger('click');
     await expressions.findAll('button')[1].trigger('click');
     expect(wrapper.emitted('source')).toEqual([[4], [5]]);
+    await wrapper.setProps({ open: true });
     await wrapper.findAll('nav button').find(button => button.text() === '历程')!.trigger('click');
     expect(wrapper.get('[aria-label="游玩历程"]').text()).toContain('当时保存的行动候选');
     wrapper.unmount();
@@ -188,13 +209,16 @@ describe('mechanism-specific dossier', () => {
     await wrapper.setProps({ state: { ...initial, map: { location: 'harbor', nodes: [{ id: 'harbor', label: '雾港', links: [] }] } } });
     await wrapper.get('.current-location button').trigger('click');
     expect(wrapper.get('[aria-label="已知地图"]').text()).toContain('雾港');
-    await wrapper.get('.dossier-toggle').trigger('click');
-    expect(wrapper.get('.dossier-toggle').attributes('aria-expanded')).toBe('true');
+    await wrapper.setProps({ open: false });
+    expect(wrapper.find('.story-dossier-layer').exists()).toBe(false);
+    await wrapper.setProps({ open: true });
+    expect(wrapper.get('[role="dialog"]').attributes('aria-modal')).toBe('true');
     await wrapper.get('.story-dossier').trigger('keydown', { key: 'Escape' });
-    expect(wrapper.get('.dossier-toggle').attributes('aria-expanded')).toBe('false');
-    await wrapper.get('.dossier-toggle').trigger('click');
+    expect(wrapper.find('.story-dossier-layer').exists()).toBe(false);
+    await wrapper.setProps({ open: true });
     await wrapper.setProps({ chatId: 'next', state: initial });
-    expect(wrapper.get('.dossier-toggle').attributes('aria-expanded')).toBe('false');
+    expect(wrapper.find('.story-dossier-layer').exists()).toBe(false);
+    await wrapper.setProps({ open: true });
     expect(wrapper.find('[aria-label="已知状态"]').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -255,7 +279,6 @@ describe('mechanism-specific dossier', () => {
     for (const native of [true, false]) {
       const wrapper = open({ ...initial, native });
       expect(wrapper.find('nav').text()).not.toContain('地图');
-      expect(wrapper.find('.dossier-toggle').text()).not.toContain('地图');
       wrapper.unmount();
     }
   });
@@ -265,8 +288,44 @@ describe('mechanism-specific dossier', () => {
     expect(wrapper.find('.story-map .here').text()).toContain('雾港');
     expect(wrapper.emitted('source')).toBeUndefined();
     await wrapper.setProps({ chatId: 'social', state: initial });
+    await wrapper.setProps({ open: true });
     expect(wrapper.find('[aria-label="已知地图"]').exists()).toBe(false);
     expect(wrapper.find('[aria-label="已知状态"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+  it('uses a real modal backdrop and makes the application inert until the drawer closes', async () => {
+    const app = document.createElement('div');
+    app.id = 'app';
+    const trigger = document.createElement('button');
+    trigger.dataset.testDossierTrigger = '';
+    app.append(trigger);
+    document.body.append(app);
+    // The controlled model callback needs the wrapper created below.
+    let wrapper!: VueWrapper;
+    // eslint-disable-next-line prefer-const
+    wrapper = mount(StoryDossier, { attachTo: app, props: { chatId: 'story', state: initial, busy: false, error: '', open: false, trigger,
+      'onUpdate:open': (value: boolean) => { void wrapper.setProps({ open: value }); } }, global: { stubs: { StoryMemoryStatus: true } } });
+
+    await wrapper.setProps({ open: true });
+    await flushPromises();
+    expect(app.inert).toBe(true);
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(document.body.querySelector('[role="dialog"][aria-modal="true"]')).not.toBeNull();
+    expect(document.activeElement).toBe(document.body.querySelector('.dossier-close'));
+    const dialog = document.body.querySelector<HTMLElement>('.story-dossier')!;
+    const close = document.body.querySelector<HTMLButtonElement>('.dossier-close')!;
+    close.focus();
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+    expect(document.activeElement).toBe(document.body.querySelector('.state-refresh'));
+    document.body.querySelector<HTMLButtonElement>('.state-refresh')!.focus();
+    dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+    expect(document.activeElement).toBe(close);
+    document.body.querySelector<HTMLButtonElement>('.story-dossier-backdrop')!.click();
+    await flushPromises();
+
+    expect(app.inert).toBe(false);
+    expect(document.body.style.overflow).toBe('');
+    expect(document.activeElement).toBe(trigger);
     wrapper.unmount();
   });
 });

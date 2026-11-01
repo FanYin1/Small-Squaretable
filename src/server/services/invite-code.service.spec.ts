@@ -24,6 +24,8 @@ vi.mock('../../db/repositories/invite-code.repository', () => ({
 }));
 
 vi.mock('./audit.service', () => ({ auditService: { log: mockAudit } }));
+vi.mock('./registration-credit.service', () => ({ grantRegistrationCredits: vi.fn() }));
+import { grantRegistrationCredits } from './registration-credit.service';
 
 import {
   inviteCodeService,
@@ -111,6 +113,7 @@ describe('inviteCodeService.createAccountWithInvite', () => {
     // 归一化后再消费
     expect(mockConsume).toHaveBeenCalledWith('ABCD-1234-EFGH', TX);
     expect(create).toHaveBeenCalledWith(TX);
+    expect(grantRegistrationCredits).toHaveBeenCalledWith(account, TX);
     expect(mockRecordUse).toHaveBeenCalledWith({ codeId: 'code-1', userId: 'u1' }, TX);
     // 先消费再建号
     expect(mockConsume.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0]);
@@ -168,6 +171,16 @@ describe('inviteCodeService.createAccountWithInvite', () => {
       inviteCodeService.createAccountWithInvite('abcd-1234-efgh', ctx, create),
     ).rejects.toBe(boom);
 
+    expect(mockRecordUse).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
+  it('注册额度授权失败 → 事务失败，不记录邀请码使用或提交后审计', async () => {
+    const error = new Error('credit policy failed');
+    vi.mocked(grantRegistrationCredits).mockRejectedValueOnce(error);
+    await expect(inviteCodeService.createAccountWithInvite(
+      'abcd-1234-efgh', ctx, vi.fn().mockResolvedValue(account),
+    )).rejects.toBe(error);
     expect(mockRecordUse).not.toHaveBeenCalled();
     expect(mockAudit).not.toHaveBeenCalled();
   });

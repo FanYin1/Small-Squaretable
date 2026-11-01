@@ -32,12 +32,14 @@ vi.mock('@client/services/api', () => ({
 }));
 
 const mockGetCharacters = vi.fn();
+const mockGetCharacter = vi.fn();
 const mockBatchImport = vi.fn();
 const mockToastSuccess = vi.fn();
 
 vi.mock('@client/services/character.api', () => ({
   characterApi: {
     getCharacters: (...args: unknown[]) => mockGetCharacters(...args),
+    getCharacter: (...args: unknown[]) => mockGetCharacter(...args),
     batchDelete: vi.fn(),
     batchUpdateTags: vi.fn(),
     duplicateCharacter: vi.fn(),
@@ -165,6 +167,7 @@ describe('MyCharacters', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockHasFeature.mockReturnValue(true);
+    mockGetCharacter.mockResolvedValue({ ...sampleCharacters[0], description: '完整介绍', cardData: { first_mes: '完整开场', extensions: { preserved: true } } });
   });
 
   it('opens local publication preview without entitlement or a write request', async () => {
@@ -174,7 +177,22 @@ describe('MyCharacters', () => {
     wrapper.findComponent({ name: 'PrivateStoryCard' }).vm.$emit('manage', 'publish');
     await flushPromises();
     expect(wrapper.findComponent({ name: 'CharacterPublishForm' }).props('visible')).toBe(true);
+    expect(mockGetCharacter).toHaveBeenCalledWith('1');
+    expect(wrapper.findComponent({ name: 'CharacterPublishForm' }).props('character').description).toBe('完整介绍');
     expect(mockApiPost).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
+
+  it('exports the full card fetched on demand, never the list summary', async () => {
+    const { downloadCharacterJson } = await import('@client/utils/sillytavern');
+    const wrapper = mountPage();
+    await flushPromises();
+    wrapper.findComponent({ name: 'PrivateStoryCard' }).vm.$emit('manage', 'export');
+    await flushPromises();
+    expect(mockGetCharacter).toHaveBeenCalledWith('1');
+    expect(downloadCharacterJson).toHaveBeenCalledWith(expect.objectContaining({
+      description: '完整介绍', cardData: { first_mes: '完整开场', extensions: { preserved: true } },
+    }));
     wrapper.unmount();
   });
 

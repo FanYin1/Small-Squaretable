@@ -10,6 +10,10 @@ import { errorHandler } from '../middleware/error-handler';
 import { NotFoundError, ForbiddenError } from '../../core/errors';
 
 vi.mock('../services/character.service');
+// Presentation persistence is covered separately; route tests isolate DB access.
+vi.mock('../services/character-presentation.service', () => ({
+  decorateCharacterPresentations: vi.fn(async (rows) => rows),
+}));
 
 vi.mock('../services/cache.service', () => ({
   cacheService: {
@@ -172,7 +176,7 @@ describe('Character Routes', () => {
   });
 
   describe('GET /api/v1/characters', () => {
-    it('should return user characters with pagination', async () => {
+    it.each(['', '&view=summary'])('returns the authenticated paginated list %s', async (view) => {
       const { verifyAccessToken } = await import('../../core/jwt');
       const { userRepository } = await import('../../db/repositories/user.repository');
 
@@ -183,6 +187,8 @@ describe('Character Routes', () => {
             name: 'Character 1',
             tenantId: 'tenant-123',
             creatorId: 'user-123',
+            description: 'A readable introduction', avatarUrl: null,
+            cardData: { first_mes: 'Private full opening', extensions: { keep: true } },
           },
         ],
         pagination: {
@@ -208,7 +214,7 @@ describe('Character Routes', () => {
       } as any);
       vi.mocked(characterService.getByTenantId).mockResolvedValue(mockResponse as any);
 
-      const res = await app.request('/api/v1/characters?page=1&limit=20', {
+      const res = await app.request(`/api/v1/characters?page=1&limit=20${view}`, {
         headers: {
           'Authorization': 'Bearer token',
         },
@@ -217,10 +223,41 @@ describe('Character Routes', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
+      expect(data.data.pagination.total).toBe(1);
+      if (view) expect(data.data.items[0]).not.toHaveProperty('cardData');
+      else expect(data.data.items[0].cardData.extensions.keep).toBe(true);
     });
   });
 
   describe('GET /api/v1/characters/:id', () => {
+    it.each([false, true])('keeps full details on demand and omits card internals in summary (cache=%s)', async cached => {
+      const { verifyAccessToken } = await import('../../core/jwt');
+      const { userRepository } = await import('../../db/repositories/user.repository');
+      const { cacheService } = await import('../services/cache.service');
+      const character = { id: 'char-123', tenantId: 'tenant-123', creatorId: 'user-123',
+        name: 'Voyager', avatarUrl: null, description: 'x'.repeat(5000), cardData: { first_mes: 'opening', system_prompt: 'full original' } };
+      vi.mocked(verifyAccessToken).mockResolvedValue({ userId: 'user-123', tenantId: 'tenant-123', email: 'test@example.com' });
+      vi.mocked(userRepository.findById).mockResolvedValue({ id: 'user-123', tenantId: 'tenant-123', isActive: true } as any);
+      vi.mocked(characterService.getById).mockResolvedValue(character as any);
+      vi.mocked(cacheService.getCachedCharacter).mockResolvedValue(cached ? character : null);
+      try {
+        const headers = { Authorization: 'Bearer token' };
+        const summary = await app.request('/api/v1/characters/char-123?view=summary', { headers });
+        expect(summary.status).toBe(200);
+        const data = (await summary.json()).data;
+        expect(data).not.toHaveProperty('cardData');
+        expect(data.description.length).toBeLessThanOrEqual(500);
+        const preview = await app.request('/api/v1/characters/char-123?view=detail', { headers });
+        expect(preview.status).toBe(200);
+        const previewData = (await preview.json()).data;
+        expect(previewData).not.toHaveProperty('cardData');
+        expect(previewData.detailPreview).toHaveProperty('capabilities');
+        expect(previewData.detailPreview.introduction.text.length).toBeLessThanOrEqual(500);
+        const full = await app.request('/api/v1/characters/char-123', { headers });
+        expect((await full.json()).data.cardData).toEqual(character.cardData);
+      } finally { vi.mocked(cacheService.getCachedCharacter).mockResolvedValue(null); }
+    });
+
     it('should return character by id', async () => {
       const { verifyAccessToken } = await import('../../core/jwt');
       const { userRepository } = await import('../../db/repositories/user.repository');
@@ -720,6 +757,9 @@ describe('Character Routes', () => {
             id: 'char-1',
             name: 'Public Character',
             isPublic: true,
+            avatarUrl: null,
+            description: 'x'.repeat(5000),
+            cardData: { system_prompt: 'large original card content' },
           },
         ],
         pagination: {
@@ -739,6 +779,8 @@ describe('Character Routes', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
+      expect(data.data.items[0]).not.toHaveProperty('cardData');
+      expect(data.data.items[0].description.length).toBeLessThanOrEqual(500);
     });
   });
 

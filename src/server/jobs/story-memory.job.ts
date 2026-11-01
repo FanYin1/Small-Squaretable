@@ -17,7 +17,7 @@ const settings = z.object({
   timeoutMs: process.env.STORY_MEMORY_TIMEOUT_MS, maxInputChars: process.env.STORY_MEMORY_MAX_INPUT_CHARS });
 
 const worker = new StoryMemoryWorker(db, {
-  async extract(sources, signal) {
+  async extract(sources, signal, context) {
     const model = getDefaultModel();
     if (!model) throw new Error('STORY_MEMORY_MODEL_UNAVAILABLE');
     const messages = [{ role: 'system' as const, content: 'Extract only sourced fictional story continuity. Output the specified versioned JSON object.' },
@@ -25,11 +25,12 @@ const worker = new StoryMemoryWorker(db, {
     const limits = getModelMeta(model);
     const maxTokens = Math.min(2000, limits.maxOutputTokens);
     assertContextBudget(estimateContextMessages(messages) + 2, limits, 'payload', maxTokens);
+    const provider = findProviderForModel(model);
     const response = await llmService.chatCompletion({ model, stream: false, temperature: 0.2, max_tokens: maxTokens,
-      ...(findProviderForModel(model)?.apiFormat === 'gemini' ? { response_format: { type: 'json_object' as const } } : {}),
+      ...((provider?.apiFormat === 'gemini' || provider?.requestOptions?.jsonMode === true) ? { response_format: { type: 'json_object' as const } } : {}),
       n: 1, presence_penalty: 0, frequency_penalty: 0,
       messages,
-    }, { signal, maxAttempts: 1 });
+    }, { signal, maxAttempts: 1, ...(context ? { chatId: context.chatId } : {}) });
     return parseStoryMemoryResponse(response.choices[0]?.message?.content ?? '');
   },
   embed: (texts, signal) => embeddingService.embedBatchStrict(texts, signal),

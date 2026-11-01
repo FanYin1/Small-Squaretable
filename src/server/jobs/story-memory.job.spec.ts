@@ -42,6 +42,13 @@ describe('story memory provider boundary', () => {
     expect(mocks.chatCompletion).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ max_tokens: 1024, stream: false }), { signal, maxAttempts: 1 });
   });
 
+  it('forwards the persisted job story scope to the shared LLM boundary', async () => {
+    await import('./story-memory.job');
+    mocks.chatCompletion.mockResolvedValue({ choices: [{ message: { content: JSON.stringify({ version: 1, facts: [], summary: { content: '约定未履行。', sourceMessageIds: [2] } }) } }] });
+    await mocks.providers!.extract(sources, new AbortController().signal, { chatId: 'owned-story' });
+    expect(mocks.chatCompletion).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ chatId: 'owned-story', maxAttempts: 1 }));
+  });
+
   it('rejects a fresh legacy array response instead of inventing a summary', async () => {
     await import('./story-memory.job');
     mocks.chatCompletion.mockResolvedValue({ choices: [{ message: { content: '[]' } }] });

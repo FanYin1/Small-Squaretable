@@ -1,3 +1,4 @@
+import { validateModelLimits, type ModelLimitsInput } from '../../types/model-limits';
 /**
  * LLM 配置模块
  *
@@ -5,6 +6,9 @@
  */
 
 import type { LLMProviderConfig, ModelMeta } from '../../types/llm';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * 从环境变量加载 LLM 配置
@@ -33,6 +37,7 @@ export function loadLLMConfig(): LLMProviderConfig[] {
   if (process.env.ANTHROPIC_API_KEY) {
     configs.push({
       provider: 'anthropic',
+      apiFormat: 'anthropic',
       apiKey: process.env.ANTHROPIC_API_KEY,
       baseUrl: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1',
       models: [
@@ -49,12 +54,12 @@ export function loadLLMConfig(): LLMProviderConfig[] {
   // 自定义端点配置
   if (process.env.CUSTOM_LLM_API_KEY && process.env.CUSTOM_LLM_BASE_URL) {
     const apiFormat = process.env.CUSTOM_LLM_API_FORMAT || 'openai';
-    if (apiFormat !== 'openai' && apiFormat !== 'gemini') throw new Error('CUSTOM_LLM_API_FORMAT must be openai or gemini');
+    if (apiFormat !== 'openai' && apiFormat !== 'gemini' && apiFormat !== 'anthropic') throw new Error('CUSTOM_LLM_API_FORMAT must be openai, gemini or anthropic');
     const models = process.env.CUSTOM_LLM_MODELS
       ? process.env.CUSTOM_LLM_MODELS.split(',').map((m) => m.trim())
       : ['default'];
 
-    parseCustomModelLimits(process.env.CUSTOM_LLM_MODEL_LIMITS, models);
+    const modelLimits = parseCustomModelLimits(process.env.CUSTOM_LLM_MODEL_LIMITS, models);
 
     configs.push({
       provider: 'custom',
@@ -63,6 +68,7 @@ export function loadLLMConfig(): LLMProviderConfig[] {
       baseUrl: process.env.CUSTOM_LLM_BASE_URL,
       models,
       defaultModel: process.env.CUSTOM_LLM_DEFAULT_MODEL || models[0],
+      modelLimits,
     });
   }
 
@@ -89,26 +95,134 @@ export function loadLLMConfig(): LLMProviderConfig[] {
  */
 export const llmConfigs = loadLLMConfig();
 
-export function parseCustomModelLimits(raw: string | undefined, models: string[]) {
-  const limits: Record<string, { contextWindow: number; outputCapabilityTokens: number; maxOutputTokens: number }> = Object.create(null);
-  if (!raw?.trim()) return limits;
+const persistedConfigPath = process.env.LLM_CONFIG_PATH || path.join(process.cwd(), '.runtime', 'llm-config.json');
+
+function encryptionKey(): Buffer {
+  return crypto.createHash('sha256')
+    .update(process.env.TOTP_ENCRYPTION_KEY || process.env.JWT_SECRET || 'small-squaretable-runtime-config')
+    .digest();
+}
+
+function encryptApiKey(value: string): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  return `${iv.toString('hex')}:${cipher.getAuthTag().toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+function decryptApiKey(value: string): string {
+  const [ivHex, tagHex, dataHex] = value.split(':');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(), Buffer.from(ivHex, 'hex'));
+  decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+  return Buffer.concat([decipher.update(Buffer.from(dataHex, 'hex')), decipher.final()]).toString('utf8');
+}
+
+interface PersistedLLMConfig {
+  providers: Array<Omit<LLMProviderConfig, 'apiKey'> & { encryptedApiKey: string }>;
+}
+
+export interface EditableLLMConfig {
+  id?: string;
+  name?: string;
+  modelAliases?: LLMProviderConfig['modelAliases'];
+  requestOptions?: LLMProviderConfig['requestOptions'];
+  makeDefault?: boolean;
+  provider: LLMProviderConfig['provider'];
+  apiFormat?: LLMProviderConfig['apiFormat'];
+  apiKey?: string;
+  baseUrl?: string;
+  models: string[];
+  defaultModel?: string;
+  modelLimits?: Record<string, ModelLimitsInput>;
+}
+
+function persistLLMConfigs(providers: LLMProviderConfig[]): void {
+  const directory = path.dirname(persistedConfigPath);
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const data: PersistedLLMConfig = {
+    providers: providers.map(({ apiKey, ...provider }) => ({
+      ...provider,
+      encryptedApiKey: encryptApiKey(apiKey),
+    })),
+  };
+  const temporaryPath = `${persistedConfigPath}.tmp`;
+  fs.writeFileSync(temporaryPath, JSON.stringify(data), { mode: 0o600 });
+  fs.renameSync(temporaryPath, persistedConfigPath);
+}
+
+/** Load the administrator's encrypted runtime configuration after migrations. */
+export function loadPersistedLLMConfig(): void {
+  if (!fs.existsSync(persistedConfigPath)) return;
   try {
-    const entries: unknown = JSON.parse(raw);
-    if (!entries || typeof entries !== 'object' || Array.isArray(entries)) throw new Error();
-    for (const [model, value] of Object.entries(entries)) {
-      if (!models.includes(model) || !value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
-      const entry = value as Record<string, unknown>;
-      if (Object.keys(entry).sort().join(',') !== 'contextWindow,maxOutputTokens,requestOutputTokens') throw new Error();
-      const { contextWindow, maxOutputTokens, requestOutputTokens } = entry;
-      if (![contextWindow, maxOutputTokens, requestOutputTokens].every(token => typeof token === 'number' && Number.isSafeInteger(token) && token > 0)) throw new Error();
-      if ((maxOutputTokens as number) >= (contextWindow as number) || (requestOutputTokens as number) > (maxOutputTokens as number)
-        || (requestOutputTokens as number) + 100 >= (contextWindow as number)) throw new Error();
-      limits[model] = { contextWindow: contextWindow as number, outputCapabilityTokens: maxOutputTokens as number, maxOutputTokens: requestOutputTokens as number };
+    const persisted = JSON.parse(fs.readFileSync(persistedConfigPath, 'utf8')) as PersistedLLMConfig;
+    if (!Array.isArray(persisted.providers)) throw new Error('providers must be an array');
+    const providers = persisted.providers.map(({ encryptedApiKey, ...provider }) => ({
+      ...provider,
+      apiKey: decryptApiKey(encryptedApiKey),
+    }));
+    if (providers.some((provider) => !provider.apiKey || provider.models.length === 0)) {
+      throw new Error('runtime model configuration is incomplete');
     }
-    return limits;
-  } catch {
-    throw new Error('CUSTOM_LLM_MODEL_LIMITS must map configured models to valid contextWindow, maxOutputTokens and requestOutputTokens integers');
+    llmConfigs.splice(0, llmConfigs.length, ...providers);
+  } catch (error) {
+    // Keep the environment configuration available if the persisted file is corrupt.
+    console.error('Ignoring invalid persisted LLM configuration', error instanceof Error ? error.message : String(error));
   }
+}
+
+export function updateLLMConfig(input: EditableLLMConfig): void {
+  const id = input.id || input.provider;
+  const index = llmConfigs.findIndex(config => (config.id || config.provider) === id);
+  const current = llmConfigs[index];
+  const apiKey = input.apiKey?.trim() || current?.apiKey || (input.provider === 'ollama' ? 'ollama' : '');
+  if (!apiKey) throw new Error('An API key is required for this channel');
+  const baseUrl = input.baseUrl?.trim().replace(/\/+$/, '');
+  if (!baseUrl || !/^https?:\/\//.test(baseUrl)) throw new Error('An HTTP(S) base URL is required');
+  const models = input.models.map(model => model.trim());
+  if (!models.length || models.some(model => !model) || new Set(models).size !== models.length) {
+    throw new Error('Provide distinct, non-empty model names');
+  }
+  if (llmConfigs.some((config, position) => position !== index && config.models.some(model => models.includes(model)))) {
+    throw new Error('Model names must be unique across channels; use a model alias for another upstream with the same name');
+  }
+  const modelAliases = input.modelAliases ?? current?.modelAliases ?? {};
+  if (Object.entries(modelAliases).some(([alias, upstream]) => !models.includes(alias) || !upstream.trim())) {
+    throw new Error('Model aliases must map configured model names to non-empty upstream IDs');
+  }
+  const modelLimits = input.modelLimits === undefined ? current?.modelLimits
+    : parseCustomModelLimits(JSON.stringify(input.modelLimits), models);
+  const next: LLMProviderConfig = {
+    id, name: input.name?.trim() || current?.name || id,
+    provider: input.provider,
+    apiFormat: input.apiFormat ?? current?.apiFormat ?? (input.provider === 'anthropic' ? 'anthropic' : 'openai'),
+    apiKey, baseUrl, models, modelAliases,
+    requestOptions: input.requestOptions ?? current?.requestOptions,
+    defaultModel: input.defaultModel?.trim() || models[0], modelLimits,
+  };
+  if (!models.includes(next.defaultModel!)) throw new Error('The default model must be in the model list');
+  const providers = [...llmConfigs];
+  if (index < 0) providers.push(next); else providers[index] = next;
+  if (input.makeDefault) { providers.splice(providers.indexOf(next), 1); providers.unshift(next); }
+  // Publish only after the encrypted file was replaced successfully.
+  persistLLMConfigs(providers);
+  llmConfigs.splice(0, llmConfigs.length, ...providers);
+}
+
+export function getPersistedLLMConfigPath(): string {
+  return persistedConfigPath;
+}
+
+export function parseCustomModelLimits(raw: string | undefined, models: string[]): NonNullable<LLMProviderConfig['modelLimits']> {
+  if (!raw?.trim()) return Object.create(null);
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); }
+  catch { throw new Error('CUSTOM_LLM_MODEL_LIMITS: invalid JSON'); }
+  return Object.fromEntries(Object.entries(validateModelLimits(parsed, models)).map(([model, value]) => [model, {
+    contextWindow: value.contextWindow,
+    ...(value.maxInputTokens === undefined ? {} : { maxInputTokens: value.maxInputTokens }),
+    outputCapabilityTokens: value.maxOutputTokens,
+    maxOutputTokens: value.requestOutputTokens,
+  }]));
 }
 
 /**
@@ -187,8 +301,8 @@ const DEFAULT_MODEL_META: Omit<ModelMeta, 'id' | 'provider'> = {
  */
 export function getModelMeta(model: string): ModelMeta {
   const provider = findProviderForModel(model);
-  const override = provider?.provider === 'custom'
-    ? parseCustomModelLimits(process.env.CUSTOM_LLM_MODEL_LIMITS, provider.models)[model] : undefined;
+  const override = provider?.modelLimits?.[model] ?? (provider?.provider === 'custom' && !provider.id
+    ? parseCustomModelLimits(process.env.CUSTOM_LLM_MODEL_LIMITS, provider.models)[model] : undefined);
   const meta = override ? { ...DEFAULT_MODEL_META, ...override } : MODEL_REGISTRY[model] || DEFAULT_MODEL_META;
   return {
     id: model,

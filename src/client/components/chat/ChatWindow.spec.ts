@@ -46,7 +46,8 @@ describe('ChatWindow', () => {
     const wrapper = mount(ChatWindow, {
       props: { currentChat: { ...mockChat, personaId } },
       global: { plugins: [i18n], stubs: {
-        MessageInput: true, MarkdownRenderer: true, MessageBubble: true, StoryDossier: true, StoryMemoryStatus: true, IntelligenceDebugPanel: true,
+        StoryWorkspaceDrawer: { props: ['open'], template: '<div v-if="open"><slot /></div>' },
+        MessageInput: true, MarkdownRenderer: true, MessageBubble: { template: '<div class="test-message"><slot name="after-content" /></div>' }, StoryDossier: true, StoryMemoryStatus: true, IntelligenceDebugPanel: true,
         'el-button': { template: '<button><slot /></button>' },
         'el-dropdown': { template: '<div class="test-dropdown"><slot /><slot name="dropdown" /></div>' },
         'el-dropdown-menu': { template: '<div><slot /></div>' },
@@ -72,14 +73,16 @@ describe('ChatWindow', () => {
     wrapper.unmount();
   });
 
-  it('offers explicit generic opening suggestions without inventing rule actions', async () => {
+  it('keeps opening and turn suggestions as compact buttons without extra headings or notices', async () => {
     mockChat.contentSnapshotVersion = 1;
     const stateView: StoryStateView = { protocol: 1, legacy: false, native: false, version: 0, revision: null,
       fields: [], actions: [], map: null, events: [], notes: [] };
     const state = vi.spyOn(storyApi, 'state').mockResolvedValue(stateView);
     const { wrapper, store } = mountOpening();
     await flushPromises();
-    expect(wrapper.get('.opening-suggestions').text()).toContain('不是原卡规则选项');
+    expect(wrapper.find('.story-action-heading').exists()).toBe(false);
+    expect(wrapper.get('.opening-suggestions').find('p').exists()).toBe(false);
+    expect(wrapper.get('.greeting-container .message-content .story-next-actions').exists()).toBe(true);
     expect(wrapper.findAll('.opening-suggestions button')).toHaveLength(3);
     const persist = vi.spyOn(store, 'addGreetingMessage').mockResolvedValue(undefined);
     const send = vi.spyOn(store, 'sendMessage').mockResolvedValue(undefined);
@@ -106,14 +109,15 @@ describe('ChatWindow', () => {
     state.mockRejectedValue(new Error('state unavailable'));
     store.billingRevision++;
     await flushPromises();
-    expect(wrapper.get('.turn-recommendations').text()).toContain('查看变化');
+    expect(wrapper.get('[data-message-id="a3"] .turn-recommendations').text()).toContain('查看变化');
+    expect(wrapper.findAll('.story-next-actions')).toHaveLength(1);
     wrapper.unmount();
   });
 
   it('keeps story management and deletion available in the header without opening reading settings', () => {
     const { wrapper } = mountOpening();
 
-    expect(wrapper.find('.reading-settings').attributes('open')).toBeUndefined();
+    expect(wrapper.get('.reading-settings-trigger').attributes('aria-expanded')).toBe('false');
     expect(wrapper.find('.chat-header [data-command="delete"]').text()).toContain(i18n.global.t('chat.deleteTitle'));
 
     wrapper.unmount();
@@ -226,11 +230,15 @@ describe('ChatWindow', () => {
     expect(emotion).not.toHaveBeenCalled();
     expect(wrapper.find('.reading-emotion').exists()).toBe(false);
     expect(wrapper.findComponent({ name: 'MemoryPanel' }).exists()).toBe(false);
+    expect(wrapper.findComponent({ name: 'StoryMemoryStatus' }).exists()).toBe(false);
+    (wrapper.vm as unknown as { openIntelligenceTab: (tab: string) => void }).openIntelligenceTab('memory');
+    await flushPromises();
     expect(wrapper.findComponent({ name: 'StoryMemoryStatus' }).exists()).toBe(true);
     await wrapper.setProps({ currentChat: { ...mockChat, id: 'legacy-story', contentSnapshotVersion: undefined } });
     await flushPromises();
     expect(memories).toHaveBeenCalledExactlyOnceWith('char-1', 'legacy-story');
     expect(emotion).toHaveBeenCalledExactlyOnceWith('char-1', 'legacy-story');
+    await wrapper.get('.reading-settings-trigger').trigger('click');
     expect(wrapper.find('.reading-emotion').exists()).toBe(true);
     wrapper.unmount();
   });
@@ -296,7 +304,7 @@ describe('ChatWindow', () => {
     expect(wrapper.getComponent(MessageInput).props('disabled')).toBe(true);
     wrapper.getComponent(MessageInput).vm.$emit('send', 'Wait');
     await flushPromises();
-    expect(wrapper.get('.greeting-container [role="alert"]').text()).toContain('identity could not be loaded');
+    expect(wrapper.get('.greeting-container [role="alert"]').text()).toContain(i18n.global.t('personas.storyIdentityLoadFailed'));
     expect(wrapper.findComponent(MarkdownRenderer).exists()).toBe(false);
     expect(persist).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
@@ -325,8 +333,9 @@ describe('ChatWindow', () => {
     await flushPromises();
     expect(wrapper.get('.chat-subtitle').text()).toContain('Traveler $&');
     expect(wrapper.getComponent(MarkdownRenderer).props('content')).toBe('Mara welcomes Traveler $&.');
-    expect(wrapper.get('.reading-settings-body').text()).toContain('This story keeps the identity you started with');
-    expect(wrapper.get('.reading-settings-body').text()).toContain('This story keeps the worldbooks bound at its start');
+    await wrapper.get('.reading-settings-trigger').trigger('click');
+    expect(wrapper.get('.reading-settings-body').text()).toContain(i18n.global.t('personas.storyIdentityFixed'));
+    expect(wrapper.get('.reading-settings-body').text()).toContain(i18n.global.t('chat.savedWorldbooks'));
     expect(wrapper.getComponent(MessageInput).props('disabled')).toBe(false);
     expect(userPersonaApi.getById).not.toHaveBeenCalled();
     wrapper.unmount();

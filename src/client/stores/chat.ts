@@ -1,3 +1,4 @@
+import { createRequestId } from '@client/utils/request-id';
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
 import type { Chat, Message, Character, MessageAttachment } from '@client/types';
@@ -41,6 +42,8 @@ export const useChatStore = defineStore('chat', () => {
   const searchQuery = ref('');
   const searching = ref(false);
   const availableModels = ref<ModelMeta[]>([]);
+  const modelsLoading = ref(false);
+  const modelsError = ref('');
   const contextRecovery = ref<{ chatId: string; requestId: string; content: string } | null>(null);
   const failedGeneration = ref<{
     chatId: string;
@@ -323,6 +326,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 连接成功
     wsClient.on('connected', () => {
+      if (error.value === 'WebSocket connection error') error.value = null;
       // 如果有当前聊天，加入聊天室
       if (currentChatId.value) {
         const chatId = currentChatId.value;
@@ -504,6 +508,7 @@ export const useChatStore = defineStore('chat', () => {
     // 错误处理
     wsClient.on('error', (data: unknown) => {
       const errorData = data as { code?: string; message: string; details?: unknown; chatId?: string; requestId?: string };
+      if (errorData.code === 'CONNECTION_ERROR') return;
       if (errorData.chatId && errorData.chatId !== currentChatId.value) return;
       if (errorData.requestId && errorData.requestId !== activeRequestId) return;
       failedGeneration.value = null;
@@ -727,7 +732,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 如果 WebSocket 已连接，使用 WebSocket 发送
     if (wsConnected.value && wsClient) {
-      const localMessageId = retryRequestId || `temp-${crypto.randomUUID()}`;
+      const localMessageId = retryRequestId || `temp-${createRequestId()}`;
       sending.value = true;
       error.value = null;
       requestPayloads.set(localMessageId, { content, attachments, mentionedCharacterIds, onAccepted, storyAction, storyAudience });
@@ -1198,34 +1203,43 @@ export const useChatStore = defineStore('chat', () => {
     return result.deletedCount;
   }
 
-  // Simple in-memory cache for models (rarely change)
-  const modelsCache: { data: ModelMeta[] | null; timestamp: number } = { data: null, timestamp: 0 };
-  const MODELS_CACHE_TTL = 300000; // 5 minutes
-
-  async function fetchModels(): Promise<void> {
+  // Runtime configuration can change while a story stays open. Refresh at each
+  // entry/open, sharing only an in-flight request for the current account.
+  let modelsRequest: Promise<void> | null = null;
+  function fetchModels(): Promise<void> {
+    if (modelsRequest) return modelsRequest;
     const version = accountVersion;
-    const now = Date.now();
-    if (modelsCache.data && now - modelsCache.timestamp < MODELS_CACHE_TTL) {
-      availableModels.value = modelsCache.data;
-      return;
-    }
-    try {
-      const models = await llmApi.getModels();
-      if (version !== accountVersion) return;
-      availableModels.value = models;
-      modelsCache.data = models;
-      modelsCache.timestamp = now;
-    } catch (e) {
-      logger.error('Failed to fetch models', e);
-    }
+    modelsLoading.value = true;
+    modelsError.value = '';
+    const pending = (async () => {
+      try {
+        const models = await llmApi.getModels();
+        if (version !== accountVersion) return;
+        availableModels.value = models;
+      } catch (e) {
+        if (version !== accountVersion) return;
+        modelsError.value = i18n.global.t('modelPicker.loadFailed');
+        logger.error('Failed to fetch models', e);
+      }
+    })().finally(() => {
+      if (modelsRequest === pending) {
+        modelsRequest = null;
+        modelsLoading.value = false;
+      }
+    });
+    modelsRequest = pending;
+    return pending;
   }
 
   async function switchModel(model: string): Promise<void> {
-    if (!currentChatId.value) return;
+    const chatId = currentChatId.value;
+    const version = accountVersion;
+    if (!chatId) return;
     try {
-      await chatApi.updateChatModel(currentChatId.value, model);
+      await chatApi.updateChatModel(chatId, model);
+      if (version !== accountVersion) return;
       // Update local chat metadata
-      const index = chats.value.findIndex(c => c.id === currentChatId.value);
+      const index = chats.value.findIndex(c => c.id === chatId);
       if (index !== -1) {
         const chat = chats.value[index];
         chats.value[index] = {
@@ -1425,7 +1439,9 @@ export const useChatStore = defineStore('chat', () => {
     void setCurrentChat(null);
     chats.value = [];
     availableModels.value = [];
-    modelsCache.data = null;
+    modelsRequest = null;
+    modelsLoading.value = false;
+    modelsError.value = '';
     pinnedMessages.value = [];
     searchResults.value = [];
   }, { flush: 'sync' });
@@ -1454,6 +1470,8 @@ export const useChatStore = defineStore('chat', () => {
     searchQuery,
     searching,
     availableModels,
+    modelsLoading,
+    modelsError,
     currentModel,
     currentModelContextWindow,
     canRetryGeneration,

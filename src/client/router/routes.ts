@@ -42,6 +42,7 @@ const loadAdminExperiments = () => import(/* webpackChunkName: "admin" */ '../pa
 const loadAdminGdpr = () => import(/* webpackChunkName: "admin" */ '../pages/admin/GdprManagement.vue');
 const loadAdminInviteCodes = () => import(/* webpackChunkName: "admin" */ '../pages/admin/InviteCodes.vue');
 const loadAdminCredits = () => import(/* webpackChunkName: "admin" */ '../pages/admin/Credits.vue');
+const loadAdminModels = () => import(/* webpackChunkName: "admin" */ '../pages/admin/ModelManagement.vue');
 const loadCharacterTemplates = () => import(/* webpackChunkName: "character-templates" */ '../pages/CharacterTemplates.vue');
 const loadChatTemplates = () => import(/* webpackChunkName: "chat-templates" */ '../pages/ChatTemplates.vue');
 
@@ -429,6 +430,15 @@ export const routes: RouteRecordRaw[] = [
         path: 'credits',
         name: 'AdminCredits',
         component: loadAdminCredits,
+        meta: {
+          requiresAuth: true,
+          requiresRole: 'admin',
+        },
+      },
+      {
+        path: 'models',
+        name: 'AdminModels',
+        component: loadAdminModels,
         meta: {
           requiresAuth: true,
           requiresRole: 'admin',

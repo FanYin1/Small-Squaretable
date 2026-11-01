@@ -78,6 +78,7 @@ export interface UpdateCharacterRequest {
 
 // Backend character format
 interface BackendCharacter {
+  detailPreview?: import('../../types/character-detail').CharacterDetailPreview;
   presentation?: import('../../types/story-presentation').PresentationVersion;
   id: string;
   tenantId: string;
@@ -117,6 +118,7 @@ interface BackendPaginatedResponse {
 // Transform backend character to frontend format
 export function transformCharacter(item: BackendCharacter): Character {
   return {
+    ...(item.detailPreview ? { detailPreview: item.detailPreview } : {}),
     id: item.id,
     name: item.name,
     creatorId: item.creatorId ?? undefined,
@@ -178,7 +180,7 @@ export const characterApi = {
    * 获取角色列表
    */
   getCharacters: async (params?: GetCharactersParams, options?: Pick<RequestInit, 'signal'>): Promise<{ characters: Character[]; pagination: BackendPaginatedResponse['pagination'] }> => {
-    const searchParams = new URLSearchParams();
+    const searchParams = new URLSearchParams({ view: 'summary' });
     if (params?.search) searchParams.set('search', params.search);
     if (params?.tags?.length) searchParams.set('tags', params.tags.join(','));
     if (params?.page) searchParams.set('page', params.page.toString());
@@ -221,6 +223,14 @@ export const characterApi = {
    */
   getCharacter: async (id: string): Promise<Character> => {
     const raw = await api.get<BackendCharacter>(`/characters/${id}`);
+    return transformCharacter(raw);
+  },
+  getCharacterSummary: async (id: string): Promise<Character> => {
+    const raw = await api.get<BackendCharacter>(`/characters/${id}?view=summary`);
+    return transformCharacter(raw);
+  },
+  getCharacterDetail: async (id: string): Promise<Character> => {
+    const raw = await api.get<BackendCharacter>(`/characters/${id}?view=detail`);
     return transformCharacter(raw);
   },
   getCompatibility: (id: string) => api.get<import('../../types/story-diagnostics').StoryDiagnostics>(`/characters/${id}/compatibility`),

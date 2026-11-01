@@ -4,7 +4,7 @@
  * 处理用户认证相关的 API 请求
  */
 
-import { api } from './api';
+import { api, ApiError, refreshSessionTokens } from './api';
 import type { User } from '@client/types';
 
 export interface LoginRequest {
@@ -141,10 +141,11 @@ export const authApi = {
    * 刷新访问令牌
    */
   refreshToken: async (data: RefreshTokenRequest): Promise<RefreshTokenResponse> => {
-    const response = await api.post<{ tokens: { accessToken: string; refreshToken: string } }>('/auth/refresh', data);
+    const response = await refreshSessionTokens(data.refreshToken);
+    if (!response) throw new ApiError(401, 'SESSION_EXPIRED', '登录已过期，请重新登录后再试');
     return {
-      token: response.tokens.accessToken,
-      refreshToken: response.tokens.refreshToken,
+      token: response.accessToken,
+      refreshToken: response.refreshToken,
     };
   },
 

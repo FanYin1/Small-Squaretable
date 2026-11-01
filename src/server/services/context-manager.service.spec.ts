@@ -88,6 +88,14 @@ describe('ContextManager reservedTokens (P3-3)', () => {
 });
 
 describe('protected story context', () => {
+  it('selects history against an independent input ceiling even with a large context window', () => {
+    vi.mocked(getModelMeta).mockReturnValue({ id: 'm', provider: 'test', contextWindow: 1000000,
+      maxInputTokens: 700, maxOutputTokens: 10000, defaultTemperature: 0.7 });
+    const result = manager.buildContext('sys', history(20), 'm');
+    expect(result.truncated).toBe(true);
+    expect(estimateContextMessages(result.messages) + 2).toBeLessThanOrEqual(600);
+    expect(result.messages.at(-1)?.content).toBe(history(20).at(-1)?.content);
+  });
   it('refuses oversized identity/state/notes instead of sending an oversized request', () => {
     capacity(200);
     expect(() => manager.buildContext('状态与约定'.repeat(100), [{ role: 'user', content: '继续' }], 'm'))

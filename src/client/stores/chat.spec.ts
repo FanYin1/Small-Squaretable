@@ -60,8 +60,10 @@ vi.mock('@client/services', () => ({
     deleteChat: vi.fn(),
     getMessages: vi.fn(),
     sendMessage: vi.fn(),
+    updateChatModel: vi.fn(),
   },
   llmApi: {
+    getModels: vi.fn(),
     streamChatCompletion: vi.fn().mockImplementation((_params: any, _onChunk: any, onDone: any) => {
       // Immediately call onDone to simulate completion
       if (onDone) onDone();
@@ -85,6 +87,24 @@ vi.mock('@client/services', () => ({
 }));
 
 describe('Chat Store', () => {
+  it('applies an acknowledged model change to its original story if navigation occurs while saving', async () => {
+    setActivePinia(createPinia());
+    const store = useChatStore();
+    store.chats = [
+      { id: 'original', title: 'Original', createdAt: '' },
+      { id: 'next', title: 'Next', createdAt: '' },
+    ];
+    store.currentChatId = 'original';
+    let acknowledge!: () => void;
+    vi.mocked(chatApi.updateChatModel).mockImplementation(() => new Promise<void>(resolve => { acknowledge = resolve; }));
+    const switching = store.switchModel('configured-model');
+    store.currentChatId = 'next';
+    acknowledge();
+    await switching;
+    expect(store.chats[0].metadata?.model).toBe('configured-model');
+    expect(store.chats[1].metadata?.model).toBeUndefined();
+  });
+
   beforeEach(() => {
     setActivePinia(createPinia());
     vi.clearAllMocks();
@@ -92,6 +112,75 @@ describe('Chat Store', () => {
       chat: { id: chatId, title: chatId, characterId: 'char1', characterName: 'Character', createdAt: '2024-01-01' },
     }));
     vi.mocked(chatApi.getChatCharacters).mockResolvedValue([]);
+  });
+
+  describe('fetchModels', () => {
+    const model = (id: string) => ({ id, provider: 'custom', contextWindow: 128000, maxOutputTokens: 4096, defaultTemperature: 0.7 });
+
+    it('reads updated runtime models immediately without replacing the selected model', async () => {
+      const store = useChatStore();
+      store.chats = [{ id: 'story', title: 'Story', createdAt: '', metadata: { model: 'original' } }];
+      store.currentChatId = 'story';
+      vi.mocked(llmApi.getModels).mockResolvedValueOnce([model('original')])
+        .mockResolvedValueOnce([model('original'), model('added')]);
+      await store.fetchModels();
+      await store.fetchModels();
+      expect(llmApi.getModels).toHaveBeenCalledTimes(2);
+      expect(store.availableModels.map(m => m.id)).toEqual(['original', 'added']);
+      expect(store.currentModel).toBe('original');
+      expect(chatApi.updateChatModel).not.toHaveBeenCalled();
+    });
+
+    it('shares concurrent reads and ends the loading state', async () => {
+      const store = useChatStore();
+      let resolve!: (models: ReturnType<typeof model>[]) => void;
+      vi.mocked(llmApi.getModels).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+      const first = store.fetchModels();
+      const second = store.fetchModels();
+      expect(store.modelsLoading).toBe(true);
+      expect(llmApi.getModels).toHaveBeenCalledTimes(1);
+      resolve([model('added')]);
+      await Promise.all([first, second]);
+      expect(store.availableModels.map(m => m.id)).toEqual(['added']);
+      expect(store.modelsLoading).toBe(false);
+    });
+
+    it('keeps the last valid list on failure and clears the error on retry', async () => {
+      const store = useChatStore();
+      vi.mocked(llmApi.getModels).mockResolvedValueOnce([model('original')])
+        .mockRejectedValueOnce(new Error('Unavailable'))
+        .mockResolvedValueOnce([model('replacement')]);
+      await store.fetchModels();
+      await store.fetchModels();
+      expect(store.availableModels.map(m => m.id)).toEqual(['original']);
+      expect(store.modelsError).toBe(i18n.global.t('modelPicker.loadFailed'));
+      expect(store.modelsLoading).toBe(false);
+      await store.fetchModels();
+      expect(store.availableModels.map(m => m.id)).toEqual(['replacement']);
+      expect(store.modelsError).toBe('');
+    });
+
+    it('isolates late results and loading state after account switching', async () => {
+      const user = useUserStore();
+      user.user = { id: 'reader-a', tenantId: 'tenant-a', name: 'A', email: 'a@example.test', createdAt: '' };
+      const store = useChatStore();
+      let resolveOld!: (models: ReturnType<typeof model>[]) => void;
+      let resolveNew!: (models: ReturnType<typeof model>[]) => void;
+      vi.mocked(llmApi.getModels)
+        .mockReturnValueOnce(new Promise(done => { resolveOld = done; }))
+        .mockReturnValueOnce(new Promise(done => { resolveNew = done; }));
+      const oldRequest = store.fetchModels();
+      user.user = { ...user.user, id: 'reader-b', tenantId: 'tenant-b' };
+      const newRequest = store.fetchModels();
+      resolveOld([model('old-account')]);
+      await oldRequest;
+      expect(store.availableModels).toEqual([]);
+      expect(store.modelsLoading).toBe(true);
+      resolveNew([model('new-account')]);
+      await newRequest;
+      expect(store.availableModels.map(m => m.id)).toEqual(['new-account']);
+      expect(store.modelsLoading).toBe(false);
+    });
   });
 
   describe('fetchChats', () => {
@@ -328,7 +417,7 @@ describe('Chat Store', () => {
 
       wsHandlers.get('error')!({ code: 'INSUFFICIENT_CREDITS', message: 'Insufficient credits', details });
 
-      expect(store.error).toBe('You are out of points. Ask an operator to top up before continuing.');
+      expect(store.error).toBe(i18n.global.t('credits.insufficient'));
       expect(store.sending).toBe(false);
       expect(store.isStreaming).toBe(false);
       expect(showInsufficientCreditsAlert).toHaveBeenCalledTimes(1);
@@ -360,7 +449,7 @@ describe('Chat Store', () => {
 
       await expect(store.sendMessage('hi')).rejects.toThrow('Insufficient credits');
 
-      expect(store.error).toBe('You are out of points. Ask an operator to top up before continuing.');
+      expect(store.error).toBe(i18n.global.t('credits.insufficient'));
       expect(store.sending).toBe(false);
       expect(store.isStreaming).toBe(false);
       expect(showInsufficientCreditsAlert).toHaveBeenCalledWith(details);

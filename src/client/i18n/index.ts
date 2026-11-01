@@ -4,8 +4,8 @@ import zhCN from './locales/zh-CN.json';
 
 const i18n = createI18n({
   legacy: false,
-  locale: localStorage.getItem('locale') || 'en-US',
-  fallbackLocale: 'en-US',
+  locale: localStorage.getItem('locale') === 'en-US' ? 'en-US' : 'zh-CN',
+  fallbackLocale: 'zh-CN',
   messages: {
     'en-US': enUS,
     'zh-CN': zhCN,

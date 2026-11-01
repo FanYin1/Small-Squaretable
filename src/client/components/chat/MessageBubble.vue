@@ -65,6 +65,7 @@
               <MessageImage v-else-if="attachment.type === 'image'" :src="attachment.url" :alt="attachment.name" />
             </template>
           </div>
+          <slot name="after-content" />
         </div>
 
         <!-- Reactions + actions below bubble -->

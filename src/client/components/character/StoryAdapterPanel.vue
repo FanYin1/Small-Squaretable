@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createRequestId } from '@client/utils/request-id';
 import { computed, onScopeDispose, ref, watch } from 'vue';
 import { characterApi } from '../../services/character.api';
 import { adapterReasonMessages, type AdapterJobView } from '../../../types/story-adapter';
@@ -49,7 +50,7 @@ async function act(cancel = false) {
   failed.value = false;
   try {
     if (cancel && jobId) await characterApi.cancelAdaptation(characterId, jobId);
-    else await characterApi.prepareAdaptation(characterId, requestId ??= crypto.randomUUID());
+    else await characterApi.prepareAdaptation(characterId, requestId ??= createRequestId());
     if (requestVersion === version) { requestId = undefined; await load(); }
   } catch { if (requestVersion === version) failed.value = true; }
   finally { if (requestVersion === version) busy.value = false; }

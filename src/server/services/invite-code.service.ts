@@ -11,6 +11,7 @@ import type { DbTransaction } from '../../db/repositories/base.repository';
 import type { InviteCode } from '../../db/schema/invite-codes';
 import { AppError, NotFoundError } from '../../core/errors';
 import { auditService } from './audit.service';
+import { grantRegistrationCredits } from './registration-credit.service';
 
 export type InviteCodeErrorCode = 'INVITE_CODE_REQUIRED' | 'INVITE_CODE_INVALID';
 
@@ -92,6 +93,7 @@ export const inviteCodeService = {
       }
 
       const created = await createAccount(tx);
+      await grantRegistrationCredits(created, tx);
       await inviteCodeRepository.recordUse({ codeId: consumed.id, userId: created.id }, tx);
       return { account: created, codeId: consumed.id };
     });

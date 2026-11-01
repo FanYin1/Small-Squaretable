@@ -105,9 +105,17 @@ describe('Config Module', () => {
       await expect(import('@/core/config')).rejects.toThrow('Invalid configuration');
     });
 
-    it('rejects a non-positive limit', async () => {
+    it('accepts explicit unlimited daily usage in production', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.PLATFORM_DAILY_TOKEN_LIMIT = '-1';
+      process.env.NEW_ACCOUNT_UNLIMITED_CREDITS = 'true';
+      const { loadConfig } = await import('@/core/config');
+      expect(loadConfig()).toMatchObject({ platformDailyTokenLimit: -1, newAccountUnlimitedCredits: true });
+    });
+
+    it.each(['0', '-2', 'NaN'])('rejects an invalid limit %s', async (limit) => {
       process.env.NODE_ENV = 'development';
-      process.env.PLATFORM_DAILY_TOKEN_LIMIT = '0';
+      process.env.PLATFORM_DAILY_TOKEN_LIMIT = limit;
 
       await expect(import('@/core/config')).rejects.toThrow('Invalid configuration');
     });

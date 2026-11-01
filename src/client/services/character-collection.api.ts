@@ -3,6 +3,7 @@
  */
 
 import { api } from './api';
+import { transformCharacter } from './character.api';
 import type { CharacterCollection, Character } from '@client/types';
 
 export interface CreateCollectionRequest {
@@ -38,8 +39,10 @@ export const characterCollectionApi = {
   removeCharacter: (collectionId: string, characterId: string) =>
     api.delete(`/character-collections/${collectionId}/characters/${characterId}`),
 
-  getCollectionCharacters: (collectionId: string, options?: Pick<RequestInit, 'signal'>) =>
-    api.get<Character[]>(`/character-collections/${collectionId}/characters`, options),
+  getCollectionCharacters: async (collectionId: string, options?: Pick<RequestInit, 'signal'>) => {
+    const items = await api.get<Parameters<typeof transformCharacter>[0][]>(`/character-collections/${collectionId}/characters?view=summary`, options);
+    return items.map(transformCharacter);
+  },
 
   getPublicCollections: (userId: string) =>
     api.get<CharacterCollection[]>(`/character-collections/public/${userId}`),

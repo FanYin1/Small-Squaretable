@@ -9,6 +9,7 @@ import { db } from '@/db';
 import { characters } from '@/db/schema/characters';
 import { nsfwVisibilityCondition } from '@/db/repositories/nsfw-visibility';
 import type { SearchOptions, SearchResult, SearchResultItem } from '@/types/search';
+import { characterListCover } from './character-summary.service';
 
 export class SearchService {
   /**
@@ -128,7 +129,7 @@ export class SearchService {
       .select({
         id: characters.id,
         name: characters.name,
-        description: characters.description,
+        description: sql<string>`substring(coalesce(${characters.description}, '') from 1 for 500)`,
         avatarUrl: characters.avatarUrl,
         category: characters.category,
         tags: characters.tags,
@@ -164,11 +165,12 @@ export class SearchService {
     const total = countResult[0]?.count ?? 0;
 
     // 转换结果为 SearchResultItem 类型
-    const items: SearchResultItem[] = results.map((result) => ({
+    const items: SearchResultItem[] = [];
+    for (const result of results) items.push({
       id: result.id,
       name: result.name,
-      description: result.description || undefined,
-      avatarUrl: result.avatarUrl || undefined,
+      description: result.description?.slice(0, 500) || undefined,
+      avatarUrl: await characterListCover(result.avatarUrl) || undefined,
       category: result.category || undefined,
       tags: result.tags || undefined,
       isPublic: result.isPublic,
@@ -181,7 +183,7 @@ export class SearchService {
       updatedAt: result.updatedAt,
       rank: result.rank,
       snippet: result.snippet || undefined,
-    }));
+    });
 
     return {
       items,

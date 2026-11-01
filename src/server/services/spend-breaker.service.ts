@@ -13,6 +13,7 @@
  *    抛出去只会让用户看到假失败。代价是这一笔在计数里丢失，日志里可查。
  * 4. 阈值未配置：非 production 禁用（启动时 warn 一次）；production 由
  *    core/config.ts 在启动时拒绝（见 loadConfig）。
+ * 5. 显式配置 -1：不限制生成，仍累计实际 token，不发超限告警。
  */
 
 import { config } from '../../core/config';
@@ -39,7 +40,7 @@ export const PLATFORM_SPEND_UNAVAILABLE_CODE = 'PLATFORM_SPEND_UNAVAILABLE';
 export class SpendBreaker {
   private startupWarned = false;
 
-  /** 是否启用：未配置阈值即禁用 */
+  /** 是否启用额度拦截；-1 不拦截，但保留用量统计。 */
   isEnabled(): boolean {
     return this.getLimit() !== undefined;
   }
@@ -109,7 +110,7 @@ export class SpendBreaker {
    */
   async record(tokens: number): Promise<void> {
     const limit = this.getLimit();
-    if (limit === undefined) return;
+    if (config.platformDailyTokenLimit === undefined) return;
     if (!Number.isFinite(tokens) || tokens <= 0) return;
 
     try {
@@ -122,7 +123,7 @@ export class SpendBreaker {
         .exec();
       const total = Number(results[0]);
 
-      if (Number.isFinite(total) && total >= limit) {
+      if (limit !== undefined && Number.isFinite(total) && total >= limit) {
         await this.notifyOnce(now, total, limit);
       }
     } catch (error) {
@@ -162,6 +163,12 @@ export class SpendBreaker {
 
   /** 启动时调用一次：禁用状态给出 warn，启用状态给出配置摘要 */
   logStartupStatus(): void {
+    if (config.platformDailyTokenLimit === -1) {
+      breakerLogger.info('Platform daily token ceiling explicitly unlimited; usage accounting remains enabled', {
+        timezone: config.spendBreakerTz,
+      });
+      return;
+    }
     if (this.isEnabled()) {
       breakerLogger.info('Platform spend breaker enabled', {
         dailyTokenLimit: this.getLimit(),

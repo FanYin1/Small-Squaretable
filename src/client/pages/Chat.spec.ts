@@ -107,7 +107,7 @@ describe('Chat route restoration', () => {
     actions.listPersonas.mockRejectedValue(new Error('offline'));
     await open('/chat?characterId=character&storyEntry=quick');
     expect(actions.createChat).not.toHaveBeenCalled();
-    expect(wrapper.get('#persona-error').text()).toContain('default persona could not be loaded');
+    expect(wrapper.get('#persona-error').text()).toContain(i18n.global.t('exploration.identityLoadFailed'));
     await wrapper.get('#persona-skip').trigger('click');
     await flushPromises();
     expect(actions.createChat).toHaveBeenCalledTimes(1);
@@ -151,7 +151,7 @@ describe('Chat route restoration', () => {
     sessionStorage.setItem(recoveryKey, JSON.stringify({ version: 1, requestId }));
     if (result === 'unsupported') actions.getCreationStatus.mockRejectedValue(new ApiError(404, 'NOT_FOUND', 'old server'));
     await open('/chat?characterId=character&storyEntry=1');
-    expect(wrapper.get('.creation-recovery').text()).toContain('creation remains paused');
+    expect(wrapper.get('.creation-recovery').text()).toContain(i18n.global.t(result === 'unsupported' ? 'personas.storyRecoveryUnavailable' : 'personas.storyRecoveryNotFound'));
     await wrapper.get('#group').trigger('click');
     await wrapper.get('.creation-recovery-actions button').trigger('click');
     await flushPromises();
@@ -181,7 +181,7 @@ describe('Chat route restoration', () => {
     sessionStorage.setItem(recoveryKey, JSON.stringify({ version: 1, requestId }));
     actions.getCreationStatus.mockResolvedValue({ protocol: 1, status: 'deleted' });
     const router = await open('/chat?characterId=character&storyEntry=1');
-    const dismiss = wrapper.findAll('.creation-recovery-actions button').find(button => button.text() === 'Close this request')!;
+    const dismiss = wrapper.findAll('.creation-recovery-actions button').find(button => button.text() === i18n.global.t('personas.closeCreationRequest'))!;
     await dismiss.trigger('click');
     await flushPromises();
     expect(sessionStorage.getItem(recoveryKey)).toBeNull();
@@ -208,7 +208,7 @@ describe('Chat route restoration', () => {
       await wrapper.get('#persona-confirm').trigger('click');
       await flushPromises();
       expect(actions.createChat).not.toHaveBeenCalled();
-      expect(wrapper.get('#persona-error').text()).toContain('storage permissions');
+      expect(wrapper.get('#persona-error').text()).toContain(i18n.global.t('personas.storyRecoveryStorageFailed'));
     } finally {
       storage.mockRestore();
     }
@@ -274,7 +274,7 @@ describe('Chat route restoration', () => {
     await open('/chat?characterId=character&storyEntry=1');
     await wrapper.get('#persona-confirm').trigger('click');
     await flushPromises();
-    expect(wrapper.get('#persona-error').text()).toContain('result is unknown');
+    expect(wrapper.get('#persona-error').text()).toContain(i18n.global.t('personas.storyCreationUncertain'));
     expect((wrapper.get('#persona-confirm').element as HTMLButtonElement).disabled).toBe(true);
     await wrapper.get('#persona-confirm').trigger('click');
     expect(actions.createChat).toHaveBeenCalledTimes(1);
@@ -287,7 +287,7 @@ describe('Chat route restoration', () => {
     expect(wrapper.find('#persona-selector').exists()).toBe(false);
     await wrapper.get('[data-testid="review-story-entry"]').trigger('click');
     await flushPromises();
-    expect(wrapper.get('#persona-error').text()).toContain('result is unknown');
+    expect(wrapper.get('#persona-error').text()).toContain(i18n.global.t('personas.storyCreationUncertain'));
     expect((wrapper.get('#persona-confirm').element as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -297,7 +297,7 @@ describe('Chat route restoration', () => {
     await wrapper.get('#persona-confirm').trigger('click');
     await flushPromises();
     expect(wrapper.find('#persona-selector').exists()).toBe(true);
-    expect(wrapper.get('#persona-error').text()).toContain('was created but could not be opened');
+    expect(wrapper.get('#persona-error').text()).toContain(i18n.global.t('personas.storyNavigationFailed'));
     removeGuard();
     await wrapper.get('#persona-confirm').trigger('click');
     await flushPromises();
@@ -326,7 +326,7 @@ describe('Chat route restoration', () => {
     await flushPromises();
 
     expect(wrapper.find('#persona-selector').exists()).toBe(true);
-    expect(wrapper.get('#persona-error').text()).toBe('Failed to create chat');
+    expect(wrapper.get('#persona-error').text()).toBe(i18n.global.t('chat.createError'));
     expect(router.currentRoute.value.fullPath).toBe('/chat?characterId=character&storyEntry=1');
 
     await wrapper.get('#persona-confirm').trigger('click');
@@ -378,15 +378,15 @@ describe('Chat route restoration', () => {
     await flushPromises();
     await wrapper.get('[data-testid="review-story-entry"]').trigger('click');
     await flushPromises();
-    expect(wrapper.get('#persona-error').text()).toContain('result is unknown');
+    expect(wrapper.get('#persona-error').text()).toContain(i18n.global.t('personas.storyCreationUncertain'));
     expect((wrapper.get('#persona-other').element as HTMLButtonElement).disabled).toBe(true);
     await wrapper.get('#persona-confirm').trigger('click');
     expect(actions.createChat).toHaveBeenCalledTimes(1);
   });
 
   it.each([
-    { error: new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'conflict'), message: 'differs from the original request' },
-    { error: new ApiError(410, 'CREATED_CHAT_DELETED', 'deleted'), message: 'original story was deleted' },
+    { error: new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'conflict'), message: i18n.global.t('personas.storyCreationConflict') },
+    { error: new ApiError(410, 'CREATED_CHAT_DELETED', 'deleted'), message: i18n.global.t('personas.storyCreationDeleted') },
   ])('stops instead of replacing the key after a terminal response: $error.code', async ({ error, message }) => {
     actions.createChat.mockRejectedValueOnce(error);
     await open('/chat?characterId=character&storyEntry=1');
@@ -552,7 +552,7 @@ describe('Chat route restoration', () => {
   it('shows an entry load failure without falling back to an unselected creation', async () => {
     actions.getStoryEntry.mockRejectedValueOnce(new Error('offline'));
     await open('/chat?characterId=character&storyEntry=quick');
-    expect(wrapper.get('[role="alert"]').text()).toContain('No story has been created');
+    expect(wrapper.get('[role="alert"]').text()).toContain(i18n.global.t('storyEntry.loadFailed'));
     expect(actions.createChat).not.toHaveBeenCalled();
   });
 });

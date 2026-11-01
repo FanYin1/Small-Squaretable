@@ -257,9 +257,8 @@ export class WebSocketClient {
    */
   private handleError(event: Event): void {
     logger.error('Error', event);
-    this.state = WSConnectionState.ERROR;
-    this.emit('stateChange', this.state);
-    this.emit('error', { code: 'CONNECTION_ERROR', message: 'WebSocket connection error' });
+    // Browsers report a transport error before the close event. Keep it out of
+    // chat-generation errors; handleClose owns retry state and final failure.
   }
 
   /**

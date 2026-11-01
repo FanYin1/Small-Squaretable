@@ -95,34 +95,20 @@ describe('WebSocketClient', () => {
       expect(wsClient.getState()).toBe(WSConnectionState.DISCONNECTED);
     });
 
-    it('should handle connection error', async () => {
-      // Override MockWebSocket to fire onerror instead of onopen
-      class ErrorWebSocket extends MockWebSocket {
-        constructor(url: string) {
-          super(url);
-          // Cancel the auto-open from parent, fire error instead
-          setTimeout(() => {
-            this.readyState = WebSocket.CLOSED;
-            if (this.onerror) {
-              this.onerror(new Event('error'));
-            }
-          }, 10);
-        }
-      }
-      global.WebSocket = ErrorWebSocket as any;
-
+    it('keeps a transient transport error out of application errors', async () => {
       wsClient = new WebSocketClient({
         url: 'ws://localhost:3000/ws',
         token: 'test-token',
-        maxReconnectAttempts: 0,
       });
+      const errors: unknown[] = [];
+      wsClient.on('error', data => errors.push(data));
 
       wsClient.connect();
+      await new Promise(resolve => setTimeout(resolve, 20));
+      (wsClient as any).ws.onerror(new Event('error'));
 
-      // Wait for the error event to fire
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      expect(wsClient.getState()).toBe(WSConnectionState.ERROR);
+      expect(wsClient.getState()).toBe(WSConnectionState.CONNECTED);
+      expect(errors).toEqual([]);
     });
   });
 
@@ -292,6 +278,40 @@ describe('WebSocketClient', () => {
       expect(urls[0]).toContain('token=expired-token');
       expect(urls[1]).toContain('token=refreshed-token');
       expect(wsClient.getState()).toBe(WSConnectionState.CONNECTED);
+    });
+
+    it('does not surface the transient transport error when auth refresh reconnects successfully', async () => {
+      const errors: unknown[] = [];
+      class TransportErrorThenUnauthorizedSocket extends MockWebSocket {
+        static attempts = 0;
+
+        constructor(url: string) {
+          super(url);
+          TransportErrorThenUnauthorizedSocket.attempts += 1;
+          if (TransportErrorThenUnauthorizedSocket.attempts === 1) {
+            setTimeout(() => {
+              this.onerror?.(new Event('error'));
+              this.simulateMessage({ type: WSMessageType.ERROR, data: { code: 'UNAUTHORIZED', message: 'Invalid token' } });
+              this.readyState = WebSocket.CLOSED;
+              this.onclose?.(new CloseEvent('close'));
+            }, 20);
+          }
+        }
+      }
+      global.WebSocket = TransportErrorThenUnauthorizedSocket as any;
+      wsClient = new WebSocketClient({
+        url: 'ws://localhost:3000/ws',
+        token: 'expired-token',
+        refreshAccessToken: vi.fn().mockResolvedValue('refreshed-token'),
+        reconnectInterval: 100,
+      });
+      wsClient.on('error', data => errors.push(data));
+
+      wsClient.connect();
+      await new Promise(resolve => setTimeout(resolve, 70));
+
+      expect(wsClient.getState()).toBe(WSConnectionState.CONNECTED);
+      expect(errors).toEqual([]);
     });
 
     it('should attempt to reconnect on disconnect', async () => {

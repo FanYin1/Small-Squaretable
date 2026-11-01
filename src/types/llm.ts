@@ -147,7 +147,8 @@ export interface ModelsResponse {
 export interface ModelMeta {
   id: string;
   provider: string;
-  contextWindow: number;    // max context tokens
+  maxInputTokens?: number; // independent provider input ceiling, if documented
+  contextWindow: number;    // max combined context tokens
   maxOutputTokens: number;  // max response tokens
   outputCapabilityTokens?: number;
   defaultTemperature: number;
@@ -163,9 +164,27 @@ export type LLMProvider = 'openai' | 'anthropic' | 'custom' | 'ollama';
  */
 export interface LLMProviderConfig {
   provider: LLMProvider;
-  apiFormat?: 'openai' | 'gemini';
+  /** Stable channel identity; absent on legacy environment configurations. */
+  id?: string;
+  name?: string;
+  apiFormat?: 'openai' | 'gemini' | 'anthropic';
+  /** Public model alias -> upstream model/deployment ID. */
+  modelAliases?: Record<string, string>;
+  requestOptions?: {
+    tokenParameter?: 'max_tokens' | 'max_completion_tokens';
+    temperature?: boolean;
+    penalties?: boolean;
+    streamUsage?: boolean;
+    jsonMode?: boolean;
+  };
   apiKey: string;
   baseUrl?: string;
   models: string[];
   defaultModel?: string;
+  modelLimits?: Record<string, {
+    contextWindow: number;
+    maxInputTokens?: number;
+    outputCapabilityTokens: number;
+    maxOutputTokens: number;
+  }>;
 }

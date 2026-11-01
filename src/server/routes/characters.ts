@@ -8,6 +8,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import archiver from 'archiver';
+import { characterSummaries, characterSummary } from '../services/character-summary.service';
+import { characterDetail } from '../services/character-detail.service';
 import { characterService } from '../services/character.service';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { characterVersionService } from '../services/character-version.service';
@@ -134,7 +136,13 @@ characterRoutes.get(
     const user = c.get('user');
     const pagination = c.req.valid('query');
     const result = await characterService.getByTenantId(user.tenantId, pagination);
-    result.items = await decorateCharacterPresentations(result.items);
+    const decorated = await decorateCharacterPresentations(result.items);
+    if (c.req.query('view') === 'summary') {
+      c.header('Cache-Control', 'private, no-store');
+      return c.json({ success: true, data: { ...result, items: await characterSummaries(decorated) },
+        meta: { timestamp: new Date().toISOString() } });
+    }
+    result.items = decorated;
 
     return c.json<ApiResponse<PaginatedResponse<Character>>>(
       {
@@ -150,8 +158,8 @@ characterRoutes.get(
 // 获取角色统计 - 必须在 /:id 之前
 characterRoutes.get('/stats', authMiddleware(), async (c) => {
   const user = c.get('user');
-  const [result, favoritesCount] = await Promise.all([
-    characterService.getByTenantId(user.tenantId, { page: 1, limit: 1000, sortOrder: 'desc' }),
+  const [total, favoritesCount] = await Promise.all([
+    characterService.countByTenantId(user.tenantId),
     favoriteRepository.countByUser(user.id),
   ]);
 
@@ -159,7 +167,7 @@ characterRoutes.get('/stats', authMiddleware(), async (c) => {
     {
       success: true,
       data: {
-        total: result.pagination.total,
+        total,
         favorites: favoritesCount,
       },
       meta: { timestamp: new Date().toISOString() },
@@ -181,10 +189,10 @@ characterRoutes.get(
     const showNsfw = await resolveShowNsfw(c.get('user')?.id);
 
     // Try to get from cache first（偏好不同结果不同，缓存键带上 showNsfw）
-    const cached = await cacheService.getCachedMarketplace<PaginatedResponse<Character>>(page, limit, showNsfw);
+    const cached = await cacheService.getCachedMarketplace<PaginatedResponse<unknown>>(page, limit, showNsfw);
     if (cached) {
       c.header('X-Cache', 'HIT');
-      return c.json<ApiResponse<PaginatedResponse<Character>>>(
+      return c.json<ApiResponse>(
         {
           success: true,
           data: cached,
@@ -194,13 +202,14 @@ characterRoutes.get(
       );
     }
 
-    const result = await characterService.getPublicCharacters(pagination, { showNsfw });
+    const full = await characterService.getPublicCharacters(pagination, { showNsfw });
+    const result = { ...full, items: await characterSummaries(full.items) };
 
     // Cache the result
     await cacheService.setCachedMarketplace(page, limit, result, showNsfw);
 
     c.header('X-Cache', 'MISS');
-    return c.json<ApiResponse<PaginatedResponse<Character>>>(
+    return c.json<ApiResponse>(
       {
         success: true,
         data: result,
@@ -227,7 +236,9 @@ characterRoutes.get(
       const tags = query.tags ? query.tags.split(',').map((t) => t.trim()) : undefined;
 
       // Try to get from cache first
-      const cached = await cacheService.getCachedSearch(
+      // Private/mixed searches depend on identity and must not share public caches.
+      const usePublicCache = query.filter === 'public';
+      const cached = usePublicCache ? await cacheService.getCachedSearch(
         query.q,
         query.sort,
         query.category,
@@ -235,7 +246,7 @@ characterRoutes.get(
         query.page,
         query.limit,
         showNsfw
-      );
+      ) : null;
       if (cached) {
         c.header('X-Cache', 'HIT');
         return c.json<ApiResponse>(
@@ -263,7 +274,7 @@ characterRoutes.get(
       });
 
       // Cache the result
-      await cacheService.setCachedSearch(
+      if (usePublicCache) await cacheService.setCachedSearch(
         query.q,
         query.sort,
         query.category,
@@ -656,7 +667,9 @@ characterRoutes.get('/:id', authMiddleware(), async (c) => {
     return c.json<ApiResponse>(
       {
         success: true,
-        data: (await decorateCharacterPresentations([cached]))[0],
+        data: c.req.query('view') === 'summary' ? await characterSummary(cached)
+          : c.req.query('view') === 'detail' ? await characterDetail((await decorateCharacterPresentations([cached]))[0])
+          : (await decorateCharacterPresentations([cached]))[0],
         meta: { timestamp: new Date().toISOString() },
       },
       200
@@ -686,7 +699,9 @@ characterRoutes.get('/:id', authMiddleware(), async (c) => {
   return c.json<ApiResponse>(
     {
       success: true,
-      data: (await decorateCharacterPresentations([character]))[0],
+      data: c.req.query('view') === 'summary' ? await characterSummary(character)
+        : c.req.query('view') === 'detail' ? await characterDetail((await decorateCharacterPresentations([character]))[0])
+        : (await decorateCharacterPresentations([character]))[0],
       meta: { timestamp: new Date().toISOString() },
     },
     200

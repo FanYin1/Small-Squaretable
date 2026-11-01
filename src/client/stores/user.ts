@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, onScopeDispose } from 'vue';
 import type { User } from '@client/types';
 import { authApi, ApiError, csrfTokenManager } from '@client/services';
 import type { LoginResponse, MfaRequiredResponse } from '@client/services';
@@ -11,6 +11,14 @@ export const useUserStore = defineStore('user', () => {
   const refreshToken = ref<string | null>(localStorage.getItem('refreshToken'));
   const loading = ref(false);
   const error = ref<string | null>(null);
+
+  function syncSession(): void {
+    token.value = localStorage.getItem('token');
+    refreshToken.value = localStorage.getItem('refreshToken');
+    if (!token.value) user.value = null;
+  }
+  window.addEventListener('auth-session-changed', syncSession);
+  onScopeDispose(() => window.removeEventListener('auth-session-changed', syncSession));
 
   // MFA state
   const mfaRequired = ref(false);
@@ -137,13 +145,14 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function refreshAccessToken(): Promise<void> {
-    if (!refreshToken.value) {
+    const currentRefreshToken = localStorage.getItem('refreshToken') ?? refreshToken.value;
+    if (!currentRefreshToken) {
       throw new Error('No refresh token available');
     }
 
     try {
       const response = await authApi.refreshToken({
-        refreshToken: refreshToken.value
+        refreshToken: currentRefreshToken
       });
 
       // 更新令牌
@@ -154,8 +163,8 @@ export const useUserStore = defineStore('user', () => {
       localStorage.setItem('token', response.token);
       localStorage.setItem('refreshToken', response.refreshToken);
     } catch (e) {
-      // 刷新失败，清除认证状态
-      await logout();
+      // Network outages and account changes must not log out the current account.
+      if (e instanceof ApiError && e.status === 401) clearAuth();
       throw e;
     }
   }

@@ -25,6 +25,14 @@ describe('context capacity guard', () => {
         details: { reason: 'latest', requiredTokens: 701, availableTokens: 700, outputTokens: 200, contextWindow: 1000 } });
     }
   });
+  it('enforces independent input limits as well as the shared context window', () => {
+    const limits = { contextWindow: 1000, maxInputTokens: 600, maxOutputTokens: 200 };
+    expect(assertContextBudget(500, limits)).toBe(500);
+    expect(() => assertContextBudget(501, limits)).toThrow(ContextBudgetError);
+    expect(assertContextBudget(400, limits, 'template', 500)).toBe(400);
+    expect(() => assertContextBudget(401, limits, 'template', 500)).toThrow(ContextBudgetError);
+    expect(() => assertContextBudget(1, { ...limits, maxInputTokens: 1001 })).toThrow('configuration is invalid');
+  });
   it('uses the actual template output allowance', () => {
     expect(() => assertContextBudget(500, { contextWindow: 1000, maxOutputTokens: 100 }, 'template', 600))
       .toThrow(ContextBudgetError);

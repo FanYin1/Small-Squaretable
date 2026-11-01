@@ -49,8 +49,8 @@ export const useAdminStore = defineStore('admin', () => {
     error.value = null;
     try {
       const result = await adminApi.getUsers(params);
-      users.value = result.users;
-      usersTotal.value = result.total;
+      users.value = result.items;
+      usersTotal.value = result.pagination.total;
     } catch (e: unknown) {
       error.value = 'Failed to load users';
       console.error('Failed to fetch users', e);

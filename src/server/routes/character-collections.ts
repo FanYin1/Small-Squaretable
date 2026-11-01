@@ -1,3 +1,5 @@
+import { characterListCover } from '../services/character-summary.service';
+import { storyIntroduction } from '../../types/story-opening';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
@@ -192,6 +194,15 @@ characterCollectionRoutes.get('/:id/characters', authMiddleware(), async (c) => 
     ))
     .orderBy(characterCollectionItems.sortOrder);
 
+  if (c.req.query('view') === 'summary') {
+    const summaries = [];
+    for (const item of items) summaries.push({ ...item,
+      description: storyIntroduction(item.description, {}).text,
+      avatarUrl: await characterListCover(item.avatarUrl),
+    });
+    c.header('Cache-Control', 'private, no-store');
+    return c.json<ApiResponse>({ success: true, data: summaries, meta: { timestamp: new Date().toISOString() } });
+  }
   return c.json<ApiResponse>({ success: true, data: items, meta: { timestamp: new Date().toISOString() } });
 });
 

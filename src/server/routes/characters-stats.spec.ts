@@ -113,7 +113,7 @@ describe('Character Stats Endpoint', () => {
         },
       };
 
-      vi.mocked(characterService.getByTenantId).mockResolvedValue(mockResponse as any);
+      vi.mocked(characterService.countByTenantId).mockResolvedValue(mockResponse.pagination.total);
       vi.mocked(favoriteRepository.countByUser).mockResolvedValue(7);
 
       const res = await app.request('/api/v1/characters/stats', {
@@ -125,6 +125,8 @@ describe('Character Stats Endpoint', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
+      expect(characterService.getByTenantId).not.toHaveBeenCalled();
+      expect(characterService.countByTenantId).toHaveBeenCalledWith('tenant-123');
       expect(data.data.total).toBe(5);
       expect(data.data.favorites).toBe(7);
       expect(favoriteRepository.countByUser).toHaveBeenCalledWith('user-123');
@@ -146,7 +148,7 @@ describe('Character Stats Endpoint', () => {
         },
       };
 
-      vi.mocked(characterService.getByTenantId).mockResolvedValue(mockResponse as any);
+      vi.mocked(characterService.countByTenantId).mockResolvedValue(mockResponse.pagination.total);
       vi.mocked(favoriteRepository.countByUser).mockResolvedValue(0);
 
       const res = await app.request('/api/v1/characters/stats', {
@@ -158,6 +160,8 @@ describe('Character Stats Endpoint', () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
+      expect(characterService.getByTenantId).not.toHaveBeenCalled();
+      expect(characterService.countByTenantId).toHaveBeenCalledWith('tenant-123');
       expect(data.data.total).toBe(3);
       expect(data.data.favorites).toBe(0);
       expect(favoriteRepository.countByUser).toHaveBeenCalledWith('user-123');

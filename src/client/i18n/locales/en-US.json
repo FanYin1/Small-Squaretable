@@ -1,4 +1,19 @@
 {
+  "modelPicker": {
+    "loading": "Updating model list…",
+    "loadFailed": "Could not update the model list. Please retry.",
+    "retry": "Retry",
+    "choose": "Choose model",
+    "unavailable": "No models available",
+    "switching": "Switching…",
+    "search": "Search models",
+    "context": "{size} context",
+    "current": "Current",
+    "noMatches": "No matching models",
+    "more": "More models ({count})",
+    "nextTurn": "Changes apply to the next turn. Previous replies stay unchanged.",
+    "failed": "Could not switch models. Your previous model is still selected. Try again."
+  },
   "privateLibrary": {
     "publishPreview": "Preview publication",
     "eyebrow": "YOUR STORIES · BEGIN HERE",
@@ -98,7 +113,13 @@
     "start": "Start here",
     "back": "Back to openings",
     "loadFailed": "Could not load the openings. Please retry. No story has been created.",
-    "kind": { "narrative": "Story opening", "empty": "No story text", "initialization": "Initialization", "directory": "Interactive directory", "review": "Review compatibility" }
+    "kind": {
+      "narrative": "Story opening",
+      "empty": "No story text",
+      "initialization": "Initialization",
+      "directory": "Interactive directory",
+      "review": "Review compatibility"
+    }
   },
   "worldbookBindings": {
     "title": "Reference material for this character",
@@ -206,7 +227,7 @@
     "beforeEntry": "Before entering",
     "entryContextFailed": "Balance or model configuration could not be fully loaded. Retry; unknown credit is not treated as zero.",
     "modelOptions": "Models and generation",
-    "modelHint": "Available model configurations are listed below. Choose in reading settings after entering; a listed model is not a guarantee of provider availability. Confirming an identity does not send an action.",
+    "modelHint": "Available model configurations are listed below. Choose in the message composer after entering; a listed model is not a guarantee of provider availability. Confirming an identity does not send an action.",
     "noModels": "No model configuration confirmed. History and openings remain readable; generation needs an available model.",
     "creditsDescription": "Balance, holds and charges come from your ledger. Check availability before generating; we do not estimate a whole story’s cost here.",
     "preview": "Reader preview",
@@ -1595,7 +1616,8 @@
       "auditLogs": "Audit Logs",
       "gdpr": "GDPR Requests",
       "inviteCodes": "Invite Codes",
-      "credits": "Credits"
+      "credits": "Credits",
+      "models": "Models"
     },
     "users": {
       "title": "User Management",
@@ -1793,6 +1815,46 @@
         "ALREADY_REVERSED": "This top-up has already been reversed",
         "NOT_REVERSIBLE": "Only top-ups can be reversed"
       }
+    },
+    "models": {
+      "title": "Model Management",
+      "subtitle": "View models and context limits loaded by the remote service",
+      "environmentNotice": "Model configuration comes from the remote service environment",
+      "environmentDescription": "API keys are never shown here. After changing a model, endpoint, or key, update the remote environment and restart the app before the chat page can use it.",
+      "providerCount": "Configured providers",
+      "modelCount": "Available models",
+      "defaultModel": "Platform default",
+      "configuredModels": "Loaded models",
+      "activeAtStartup": "Loaded by current process",
+      "model": "Model",
+      "provider": "Provider",
+      "context": "Context window",
+      "maxOutput": "Max output",
+      "status": "Status",
+      "default": "Default",
+      "available": "Available",
+      "customProvider": "Custom endpoint",
+      "endpoint": "Endpoint",
+      "providerDefault": "Provider default",
+      "empty": "No models are currently available",
+      "loadFailed": "Failed to load model configuration"
+      ,"editTitle": "Edit model configuration"
+      ,"runtimeSave": "Applies immediately"
+      ,"apiFormat": "API format"
+      ,"modelsInput": "Models"
+      ,"modelsPlaceholder": "Comma-separated model names"
+      ,"defaultInput": "Default model"
+      ,"apiKey": "API key"
+      ,"keyKeep": "A key is configured; leave blank to keep it"
+      ,"keyRequired": "Enter an API key"
+      ,"limitsJson": "Model capacity JSON"
+      ,"limitsHelp": "For each model, provide contextWindow, maxOutputTokens, and requestOutputTokens; names must exactly match the model list."
+      ,"save": "Save configuration"
+      ,"saveHelp": "The key is encrypted at rest and is never shown again."
+      ,"saved": "Model configuration saved and applied"
+      ,"saveFailed": "Failed to save model configuration"
+      ,"invalidForm": "Enter an endpoint and at least one model"
+      ,"invalidLimits": "Capacity configuration must be a valid JSON object"
     }
   },
   "credits": {
@@ -1829,7 +1891,7 @@
   },
   "characterEditor": {
     "saveUncertain": "Saving could not be confirmed. Check My Works first. Your input is retained; creation will not be resent automatically to avoid duplicates.",
-    "saving": "Saving to the server…",
+    "saving": "Saving...",
     "unsaved": "Changes are unsaved. Previewing does not save or publish.",
     "savedPrivate": "Loaded from the server · Private work",
     "savedPublic": "Loaded from the server · Public; visibility follows server moderation status",
@@ -1901,7 +1963,6 @@
     "exampleMessagesPlaceholder": "Enter example messages...",
     "creatorNotesPlaceholder": "Enter creator notes...",
     "changeAvatar": "Change Avatar",
-    "saving": "Saving...",
     "saveSuccess": "Character saved successfully",
     "saveFailed": "Failed to save character",
     "preview": "Preview",
@@ -2400,5 +2461,13 @@
     "deleteConfirm": "Are you sure you want to delete preset \"{name}\"?",
     "deleteSuccess": "Preset deleted successfully",
     "deleteFailed": "Failed to delete preset"
+  },
+  "workbench": {
+    "title": "Workspace",
+    "start": "Start",
+    "collection": "My library",
+    "create": "Create",
+    "conversation": "Story conversation",
+    "newStory": "Start a story"
   }
 }

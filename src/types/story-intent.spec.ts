@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseStoryIntentOutput, storyIntentSchema, storyIntentVisiblePrefix, storyIntentPresentation, STORY_INTENT_MARKER, STORY_INTENT_REVIEW_TEXT } from './story-intent';
+import { parseStoryIntentOutput, shouldPersistStoryIntentInvalid, storyIntentSchema, storyIntentVisiblePrefix, storyIntentPresentation, STORY_INTENT_MARKER, STORY_INTENT_REVIEW_TEXT } from './story-intent';
 import { buildStoryIntentPrompt } from '../server/services/story-intent-prompt';
 
 const execute = { kind: 'execute', actionId: 'buy', evidence: '买一张通行证' };
@@ -7,6 +7,11 @@ const proposal = { version: 1, disposition: 'proposal', steps: [execute], facts:
 const encode = (value: unknown) => `我理解你想购买通行证，请确认。${STORY_INTENT_MARKER}${JSON.stringify(value)}</story-intent>`;
 
 describe('reviewable story intent protocol', () => {
+  it('only marks an invalid protocol while an action is awaiting confirmation', () => {
+    expect(shouldPersistStoryIntentInvalid({ interrupted: false, interpreting: true }, { invalid: true })).toBe(true);
+    expect(shouldPersistStoryIntentInvalid({ interrupted: false, interpreting: false }, { invalid: true })).toBe(false);
+    expect(shouldPersistStoryIntentInvalid({ interrupted: true, interpreting: true }, { invalid: true })).toBe(false);
+  });
   it('requests fresh suggestions after approved actions without proposing the action again', () => {
     const prompt = buildStoryIntentPrompt([], true);
     expect(prompt).toContain('without asking for confirmation again');

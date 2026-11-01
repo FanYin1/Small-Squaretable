@@ -8,6 +8,7 @@ import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { config } from '@/core/config';
 import { closeRedis } from '../core/redis';
+import { loadPersistedLLMConfig } from './config/llm.config';
 import { logger as appLogger, getLogConfig } from './services/logger.service';
 import { initializeSentry, closeSentry } from './services/sentry.service';
 import { spendBreaker } from './services/spend-breaker.service';
@@ -36,6 +37,7 @@ import { llmRoutes } from './routes/llm';
 import { intelligenceRoutes } from './routes/intelligence';
 import { worldbooksRouter } from './routes/worldbooks';
 import { uploadRoutes } from './routes/uploads';
+import { createAvatarRoutes } from './routes/avatars';
 import { webhookRoutes } from './routes/webhooks';
 import { notificationRoutes } from './routes/notifications';
 import { notificationPreferenceRoutes } from './routes/notification-preferences';
@@ -307,6 +309,8 @@ app.get('/api/v1', (c) => {
 });
 
 // Static file serving for uploads (authenticated)
+app.route('/avatars', createAvatarRoutes());
+
 app.get('/uploads/*', async (c) => {
   // Verify JWT from Authorization header or query param
   const authHeader = c.req.header('Authorization');
@@ -382,6 +386,7 @@ app.onError(errorHandler);
 
 // 启动服务器（仅在非测试环境）
 if (process.env.NODE_ENV !== 'test') {
+  loadPersistedLLMConfig();
   const port = config.port;
   const stopStoryAdapterWorker = process.env.STORY_ADAPTER_JOBS_ENABLED === 'false' ? () => {} : startStoryAdapterWorker();
 

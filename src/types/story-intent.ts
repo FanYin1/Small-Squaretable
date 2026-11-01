@@ -37,6 +37,18 @@ export interface StoredStoryIntent { intent: StoryIntent; expectedVersion: numbe
 export const STORY_INTENT_MARKER = '\n<story-intent>';
 export const STORY_INTENT_REVIEW_TEXT = '请核对下面的行动理解。确认后，故事才会继续这次行动。';
 
+/**
+ * Only an awaiting interpretation can fail the action-review protocol.
+ * A confirmed turn may have malformed optional recommendation metadata, but
+ * that must not be presented as a failed action or undo a committed turn.
+ */
+export function shouldPersistStoryIntentInvalid(
+  state: { interrupted: boolean; interpreting: boolean },
+  parsed: { invalid?: boolean } | null | undefined,
+): boolean {
+  return !state.interrupted && state.interpreting === true && parsed?.invalid === true;
+}
+
 export function storyIntentPresentation(raw: string, input: string, availableIds: string[], interrupted = false) {
   const parsed = parseStoryIntentOutput(raw, input, availableIds);
   if (interrupted) return storyIntentVisiblePrefix(raw);

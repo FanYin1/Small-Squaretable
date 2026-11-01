@@ -131,7 +131,7 @@ export class CacheService {
    *
    * @param showNsfw 观看者是否看得到 NSFW。结果因此不同，必须进缓存键，
    *   否则偏好开的用户缓存的列表会被偏好关的用户命中（P2-6）。
-   *   缺省（false）的键与改动前一致。
+   *   summary-v2 区分旧版包含完整图片及卡片字段的缓存。
    */
   async getCachedMarketplace<T>(page: number, limit: number, showNsfw = false): Promise<T | null> {
     const key = this.marketplaceKey(page, limit, showNsfw);
@@ -145,8 +145,8 @@ export class CacheService {
 
   private marketplaceKey(page: number, limit: number, showNsfw: boolean): string {
     return showNsfw
-      ? this.generateKey('marketplace', String(page), String(limit), 'nsfw')
-      : this.generateKey('marketplace', String(page), String(limit));
+      ? this.generateKey('marketplace', 'summary-v2', String(page), String(limit), 'nsfw')
+      : this.generateKey('marketplace', 'summary-v2', String(page), String(limit));
   }
 
   async invalidateMarketplace(): Promise<void> {
@@ -187,9 +187,9 @@ export class CacheService {
       String(page || 1),
       String(limit || 20),
     ];
-    // 偏好开的结果含 NSFW，不能与偏好关的共用缓存；偏好关的键保持不变
+    // 偏好开的结果含 NSFW，不能与偏好关的共用缓存。
     if (showNsfw) parts.push('nsfw');
-    return `${this.defaultPrefix}:search:${parts.join(':')}`;
+    return `${this.defaultPrefix}:search:summary-v2:${parts.join(':')}`;
   }
 
   async setCachedSearch<T>(

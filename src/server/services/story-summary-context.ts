@@ -10,7 +10,7 @@ export function addStorySummaries(system: string, history: LLMMessage[], model: 
   const originalIds = new Set(history.map(message => message.messageId));
   const retainedIds = new Set(original.messages.map(message => message.messageId));
   const limits = getModelMeta(model);
-  const allowance = Math.max(0, Math.min(1024, Math.floor((limits.contextWindow - limits.maxOutputTokens - CONTEXT_BUFFER_TOKENS) / 4)));
+  const allowance = Math.max(0, Math.min(1024, Math.floor((Math.min(limits.contextWindow - limits.maxOutputTokens, limits.maxInputTokens ?? limits.contextWindow) - CONTEXT_BUFFER_TOKENS) / 4)));
   const selected: Array<{ source: StorySummary; message: LLMMessage }> = [];
   let tokens = 0;
   for (const source of [...summaries].sort((left, right) => right.lastVersion - left.lastVersion)) {

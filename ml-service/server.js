@@ -29,10 +29,12 @@ if (proxyUrl) {
 const { pipeline, env } = await import('@xenova/transformers');
 
 // Configure model cache - use parent directory's models folder
-env.cacheDir = path.join(__dirname, '..', 'models');
+env.cacheDir = process.env.ML_MODEL_CACHE || path.join(__dirname, '..', 'models');
+if (process.env.ML_OFFLINE === 'true') env.allowRemoteModels = false;
 env.allowLocalModels = true;
 
 const PORT = process.env.ML_SERVICE_PORT || 3001;
+const embeddingOnly = process.env.ML_EMBEDDING_ONLY === 'true';
 
 // Model instances
 let embeddingPipeline = null;
@@ -50,9 +52,11 @@ async function initialize() {
     embeddingPipeline = await pipeline('feature-extraction', EMBEDDING_MODEL);
     console.log('[ML Service] Embedding model loaded');
 
-    console.log('[ML Service] Loading sentiment model...');
-    sentimentPipeline = await pipeline('sentiment-analysis', SENTIMENT_MODEL);
-    console.log('[ML Service] Sentiment model loaded');
+    if (!embeddingOnly) {
+      console.log('[ML Service] Loading sentiment model...');
+      sentimentPipeline = await pipeline('sentiment-analysis', SENTIMENT_MODEL);
+      console.log('[ML Service] Sentiment model loaded');
+    }
 
     initialized = true;
     console.log('[ML Service] All models initialized');
@@ -149,7 +153,7 @@ const server = http.createServer(async (req, res) => {
         initialized,
         models: {
           embedding: EMBEDDING_MODEL,
-          sentiment: SENTIMENT_MODEL,
+          sentiment: embeddingOnly ? null : SENTIMENT_MODEL,
         },
       }));
       return;
@@ -179,6 +183,7 @@ const server = http.createServer(async (req, res) => {
 
     // Sentiment endpoint
     if (req.url === '/sentiment' && req.method === 'POST') {
+      if (embeddingOnly) { res.writeHead(503).end(JSON.stringify({ error: 'Sentiment model is not enabled' })); return; }
       const { text } = await parseBody(req);
       if (!text) {
         res.writeHead(400);

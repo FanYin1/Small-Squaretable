@@ -8,11 +8,13 @@ import bcrypt from 'bcrypt';
 import { userRepository } from '../../db/repositories/user.repository';
 import { NotFoundError, ValidationError } from '../../core/errors';
 import type { UpdateUserInput } from '../../types/user';
+import { config } from '../../core/config';
+import { prepareAvatar } from './avatar-storage.service';
 
 const SALT_ROUNDS = 12;
 
 export class UserService {
-  constructor(private userRepo = userRepository) {}
+  constructor(private userRepo = userRepository, private storagePath = config.storagePath) {}
 
   async getProfile(userId: string) {
     const user = await this.userRepo.findById(userId);
@@ -23,11 +25,16 @@ export class UserService {
   }
 
   async updateProfile(userId: string, data: UpdateUserInput) {
-    const user = await this.userRepo.update(userId, data);
-    if (!user) {
-      throw new NotFoundError('User');
+    const avatar = await prepareAvatar(data.avatarUrl, this.storagePath);
+    try {
+      const input = data.avatarUrl === undefined ? data : { ...data, avatarUrl: avatar.url };
+      const user = await this.userRepo.update(userId, input);
+      if (!user) throw new NotFoundError('User');
+      return user;
+    } catch (error) {
+      await avatar.discard();
+      throw error;
     }
-    return user;
   }
 
   async updatePassword(userId: string, currentPassword: string, newPassword: string) {

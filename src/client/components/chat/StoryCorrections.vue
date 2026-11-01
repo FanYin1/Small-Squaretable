@@ -1,5 +1,5 @@
 <template>
-  <button ref="trigger" type="button" class="correction-trigger" @click="openFor()">纠正与分支</button>
+  <button v-if="!hideTrigger" ref="trigger" type="button" class="correction-trigger" @click="openFor()">纠正与分支</button>
   <el-dialog v-model="opened" title="保留原档，认真回应每一次选择" class="story-correction-dialog" width="min(720px, 96vw)" :close-on-click-modal="false" :close-on-press-escape="!busy" @closed="restoreFocus">
     <p class="correction-intro">阅读标注只属于你；改变已经发生的事，会另建独立分支。原档与已有消费保留。</p>
     <el-radio-group v-model="operation" aria-label="纠正操作" :disabled="busy || !!pending">
@@ -67,6 +67,7 @@
 </template>
 
 <script setup lang="ts">
+import { createRequestId } from '@client/utils/request-id';
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { ApiError } from '@client/services/api';
 import { useRouter } from 'vue-router';
@@ -78,7 +79,7 @@ import type { Message } from '@client/types';
 import type { StoryBranchInput, StoryBranchPreview, StoryReading } from '../../../types/story-corrections';
 import type { StoryEventView } from '../../../types/story-state';
 
-const props = defineProps<{ chatId: string; ownerId: string; messages: Message[] }>();
+const props = defineProps<{ chatId: string; ownerId: string; messages: Message[]; hideTrigger?: boolean }>();
 const emit = defineEmits<{ readings: [StoryReading[]] }>();
 const router = useRouter();
 const store = useChatStore();
@@ -165,10 +166,10 @@ async function review() {
   error.value = '';
   if (operation.value !== 'branch') {
     if (!selected.value || !readingText.value.trim()) { error.value = '请选择原文并填写内容。'; return; }
-    if (!readingRequestId.value) readingRequestId.value = crypto.randomUUID();
+    if (!readingRequestId.value) readingRequestId.value = createRequestId();
     readingPreview.value = operation.value === 'annotation' ? readingText.value.trim() : readingText.value; return;
   }
-  const input: StoryBranchInput = { requestId: crypto.randomUUID(), throughVersion: throughVersion.value, mode: mode.value,
+  const input: StoryBranchInput = { requestId: createRequestId(), throughVersion: throughVersion.value, mode: mode.value,
     direction: direction.value.trim(), evidenceIds: evidenceIds.value };
   busy.value = true;
   const originalScope = scope();

@@ -4,6 +4,7 @@
  * 提供 LLM 代理服务，支持多种 LLM 提供商
  */
 
+import { resolveEngineeringStoryProvider } from './engineering-story-provider';
 import { findProviderForModel, getDefaultModel } from '../config/llm.config';
 import type {
   ChatCompletionRequest,
@@ -16,6 +17,9 @@ import { spendBreaker } from './spend-breaker.service';
 import { logger } from './logger.service';
 import { getPromptLayout } from './prompt-layout';
 import { buildGeminiRequest, convertGeminiStream, readGeminiCompletion } from './gemini-adapter';
+
+import { buildAnthropicRequest, convertAnthropicStream, readAnthropicCompletion } from './anthropic-adapter';
+import { prepareChatRequest, prepareNativeChatRequest } from './llm-request';
 
 const llmLogger = logger.child({ module: 'llm' });
 
@@ -181,7 +185,7 @@ export class LLMService {
         'LLM_NOT_CONFIGURED'
       );
     }
-    return providerConfig.baseUrl;
+    return providerConfig.baseUrl.replace(/\/+$/, '');
   }
 
   /**
@@ -195,12 +199,15 @@ export class LLMService {
       throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
     }
 
-    const providerConfig = findProviderForModel(model);
+    const defaultProvider = findProviderForModel(model);
+    const providerConfig = defaultProvider ? await resolveEngineeringStoryProvider(defaultProvider, model, options?.chatId) : null;
     if (!providerConfig) {
       throw new AppError(`Model ${model} not found`, 404, 'MODEL_NOT_FOUND');
     }
 
-    const url = `${this.requireBaseUrl(providerConfig)}/chat/completions`;
+    const upstreamRequest = prepareNativeChatRequest(providerConfig, { ...request, model });
+    const anthropic = providerConfig.apiFormat === 'anthropic' || (!providerConfig.apiFormat && providerConfig.provider === 'anthropic');
+    const url = `${this.requireBaseUrl(providerConfig).replace(/\/+$/, '')}/chat/completions`;
     const headers = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${providerConfig.apiKey}`,
@@ -208,15 +215,19 @@ export class LLMService {
 
     // 执行请求，带重试机制
     const result = await this.executeWithRetry<ChatCompletionResponse>(async () => {
+      if (anthropic) {
+        const native = buildAnthropicRequest(this.requireBaseUrl(providerConfig), providerConfig.apiKey, upstreamRequest);
+        return readAnthropicCompletion(await fetch(native.url, { ...native.init, signal: options?.signal }), model);
+      }
       if (providerConfig.apiFormat === 'gemini') {
-        const native = buildGeminiRequest(this.requireBaseUrl(providerConfig), providerConfig.apiKey, { ...request, model });
+        const native = buildGeminiRequest(this.requireBaseUrl(providerConfig), providerConfig.apiKey, upstreamRequest);
         const response = await fetch(native.url, { ...native.init, signal: options?.signal });
         return readGeminiCompletion(response, model);
       }
       const response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify(request),
+        body: JSON.stringify(prepareChatRequest(providerConfig, { ...request, model })),
         ...(options?.signal ? { signal: options.signal } : {}),
       });
 
@@ -230,11 +241,11 @@ export class LLMService {
       }
 
       return response.json();
-    }, options?.maxAttempts, options?.signal);
+    }, providerConfig !== defaultProvider ? 1 : options?.maxAttempts, options?.signal);
 
     await this.recordPlatformSpend(() => this.calculateTokenUsage(request, result));
     this.safeLogCacheUsage(result?.usage, model, false, options);
-    return result;
+    return { ...result, model };
   }
 
   /** 缓存日志只是观测，任何解析问题都不能影响回复 */
@@ -262,7 +273,8 @@ export class LLMService {
       throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
     }
 
-    const providerConfig = findProviderForModel(model);
+    const defaultProvider = findProviderForModel(model);
+    const providerConfig = defaultProvider ? await resolveEngineeringStoryProvider(defaultProvider, model, options?.chatId) : null;
     if (!providerConfig) {
       throw new AppError(`Model ${model} not found`, 404, 'MODEL_NOT_FOUND');
     }
@@ -270,30 +282,22 @@ export class LLMService {
     // Special handling for Qwen3.5 models - use Ollama native API with think: false
     const baseUrl = this.requireBaseUrl(providerConfig);
     let url = `${baseUrl}/chat/completions`;
-    let modifiedRequest: any = { ...request, stream: true };
+    let modifiedRequest: any = prepareChatRequest(providerConfig, { ...request, model }, true);
+    const upstreamRequest = prepareNativeChatRequest(providerConfig, { ...request, model });
+    const anthropic = providerConfig.apiFormat === 'anthropic' || (!providerConfig.apiFormat && providerConfig.provider === 'anthropic');
 
-    // 让 OpenAI 兼容的 provider 在流末尾附带真实 usage（P0-1 计费首选）。
-    // 个别严格校验参数的 provider 会拒绝 stream_options，可用
-    // LLM_STREAM_INCLUDE_USAGE=false 关闭，此时调用方回退到估算。
-    if (process.env.LLM_STREAM_INCLUDE_USAGE !== 'false') {
-      modifiedRequest.stream_options = {
-        ...((request as { stream_options?: Record<string, unknown> }).stream_options ?? {}),
-        include_usage: true,
-      };
-    }
-
-    if (model.includes('qwen3.5') && baseUrl.includes('11434')) {
+    if (providerConfig.provider === 'ollama' && upstreamRequest.model.includes('qwen3.5') && baseUrl.includes('11434')) {
       // Use Ollama native API for Qwen3.5 to disable thinking
       url = baseUrl.replace('/v1', '') + '/api/chat';
       modifiedRequest = {
-        model,
-        messages: request.messages,
+        model: upstreamRequest.model,
+        messages: upstreamRequest.messages,
         stream: true,
         think: false,  // Disable thinking at top level
         options: {
           num_ctx: 16384,
           num_predict: 4096,
-          temperature: request.temperature || 0.7,
+          ...(upstreamRequest.temperature === undefined ? {} : { temperature: upstreamRequest.temperature }),
         },
       };
     }
@@ -303,16 +307,16 @@ export class LLMService {
       Authorization: `Bearer ${providerConfig.apiKey}`,
     };
 
-    const native = providerConfig.apiFormat === 'gemini'
-      ? buildGeminiRequest(baseUrl, providerConfig.apiKey, { ...request, model }, true) : null;
+    const native = anthropic ? buildAnthropicRequest(baseUrl, providerConfig.apiKey, upstreamRequest, true)
+      : providerConfig.apiFormat === 'gemini' ? buildGeminiRequest(baseUrl, providerConfig.apiKey, upstreamRequest, true) : null;
     let response = native ? await fetch(native.url, { ...native.init, signal: signal ?? options?.signal }) : await fetch(url, {
       method: 'POST',
       headers,
       body: JSON.stringify(modifiedRequest),
-      signal,
+      signal: signal ?? options?.signal,
     });
 
-    if (native) response = convertGeminiStream(response, model);
+    if (native) response = anthropic ? convertAnthropicStream(response, model) : convertGeminiStream(response, model);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
@@ -352,9 +356,9 @@ export class LLMService {
       throw new AppError(`Model ${model} not found`, 404, 'MODEL_NOT_FOUND');
     }
 
-    if (providerConfig.apiFormat === 'gemini') {
+    if (providerConfig.apiFormat === 'gemini' || providerConfig.apiFormat === 'anthropic' || providerConfig.provider === 'anthropic') {
       if (Array.isArray(request.prompt) && request.prompt.length !== 1) {
-        throw new AppError('Gemini text completion requires one prompt', 400, 'GEMINI_REQUEST_UNSUPPORTED');
+        throw new AppError('Native text completion requires one prompt', 400, 'NATIVE_REQUEST_UNSUPPORTED');
       }
       const prompt = Array.isArray(request.prompt) ? request.prompt[0] : request.prompt;
       const result = await this.chatCompletion({ ...request, model, messages: [{ role: 'user', content: prompt }], stream: false });
@@ -373,7 +377,7 @@ export class LLMService {
       const response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify(request),
+        body: JSON.stringify({ ...request, model: providerConfig.modelAliases?.[model] || model }),
       });
 
       if (!response.ok) {

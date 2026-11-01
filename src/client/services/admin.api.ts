@@ -1,3 +1,4 @@
+import type { ModelLimitsInput } from '../../types/model-limits';
 /**
  * Admin API Service
  *
@@ -24,7 +25,13 @@ export interface AdminUserDetail extends AdminUser {
   avatarUrl?: string;
   subscriptionPlan?: string;
   subscriptionStatus?: string;
-  oauthAccounts?: { provider: string; providerEmail?: string }[];
+  oauthAccounts?: { provider: string; providerEmail?: string; providerAccountId?: string; createdAt?: string }[];
+}
+
+interface AdminUserDetailResponse {
+  user: AdminUserDetail;
+  subscription?: { plan?: string; status?: string } | null;
+  oauthAccounts?: { provider: string; providerAccountId?: string; createdAt?: string }[];
 }
 
 export interface AdminUserListParams {
@@ -35,10 +42,15 @@ export interface AdminUserListParams {
 }
 
 export interface AdminUserListResponse {
-  users: AdminUser[];
-  total: number;
-  page: number;
-  limit: number;
+  items: AdminUser[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 export interface ContentReport {
@@ -257,6 +269,57 @@ export interface CreditEntryListResponse {
   };
 }
 
+export interface AdminModelMeta {
+  id: string;
+  provider: string;
+  contextWindow: number;
+  maxInputTokens?: number;
+  maxOutputTokens: number;
+  outputCapabilityTokens?: number;
+  defaultTemperature: number;
+  configured?: boolean;
+}
+
+export interface AdminModelProvider {
+  id: string;
+  name: string;
+  provider: AdminModelUpdateInput['provider'];
+  modelAliases: Record<string, string>;
+  requestOptions: AdminModelUpdateInput['requestOptions'];
+  apiFormat: string;
+  baseUrl: string | null;
+  defaultModel: string | null;
+  modelCount: number;
+  hasApiKey: boolean;
+  models: AdminModelMeta[];
+}
+
+export interface AdminModelsResponse {
+  source: 'environment' | 'runtime';
+  restartRequired: boolean;
+  providers: AdminModelProvider[];
+  models: AdminModelMeta[];
+  defaultModel: string | null;
+}
+
+export interface AdminModelUpdateInput {
+  id?: string;
+  name?: string;
+  makeDefault?: boolean;
+  modelAliases?: Record<string, string>;
+  requestOptions?: {
+    tokenParameter?: 'max_tokens' | 'max_completion_tokens';
+    temperature?: boolean; penalties?: boolean; streamUsage?: boolean; jsonMode?: boolean;
+  };
+  provider: 'openai' | 'anthropic' | 'custom' | 'ollama';
+  apiFormat?: 'openai' | 'gemini' | 'anthropic';
+  apiKey?: string;
+  baseUrl: string;
+  models: string[];
+  defaultModel?: string;
+  modelLimits?: Record<string, ModelLimitsInput>;
+}
+
 // ── API methods ──
 
 function buildQuery<T extends object>(params: T): string {
@@ -271,8 +334,15 @@ export const adminApi = {
   getUsers: (params: AdminUserListParams = {}) =>
     api.get<AdminUserListResponse>('/admin/users' + buildQuery(params)),
 
-  getUser: (id: string) =>
-    api.get<AdminUserDetail>(`/admin/users/${id}`),
+  getUser: async (id: string) => {
+    const result = await api.get<AdminUserDetailResponse>(`/admin/users/${id}`);
+    return {
+      ...result.user,
+      subscriptionPlan: result.subscription?.plan,
+      subscriptionStatus: result.subscription?.status,
+      oauthAccounts: result.oauthAccounts,
+    };
+  },
 
   changeRole: (id: string, role: 'user' | 'moderator' | 'admin') =>
     api.patch<AdminUser>(`/admin/users/${id}/role`, { role }),
@@ -344,6 +414,12 @@ export const adminApi = {
 
   getCreditEntries: (params: { page?: number; limit?: number } = {}) =>
     api.get<CreditEntryListResponse>('/admin/credits/entries' + buildQuery(params)),
+
+  // ── Models ──
+
+  getModels: () => api.get<AdminModelsResponse>('/admin/models'),
+
+  updateModels: (data: AdminModelUpdateInput) => api.put<{ models: AdminModelMeta[] }>('/admin/models', data),
 
   // ── System ──
 

@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { storyIdentitySnapshotSchema } from '../../types/story-identity';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
+import { characterListCover } from '../services/character-summary.service';
 import { chatService } from '../services/chat.service';
 import { chatCreationService } from '../services/chat-creation.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
@@ -228,7 +229,7 @@ chatRoutes.get(
     const enrichedItems = await Promise.all(result.items.map(async ch => {
       const character = ch.contentSnapshotVersion != null ? await resolveStoryCharacter(ch, ch.characterId)
         : ch.characterId ? charMap.get(ch.characterId) : null;
-      return { ...ch, characterName: character?.name ?? null, characterAvatar: character?.avatarUrl ?? null };
+      return { ...ch, characterName: character?.name ?? null, characterAvatar: await characterListCover(character?.avatarUrl ?? null) };
     }));
 
     return c.json<ApiResponse<PaginatedResponse<Chat>>>(

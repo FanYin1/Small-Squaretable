@@ -11,7 +11,7 @@ import { frozenStoryRules } from '../../types/story-adapter';
 import { applyRitualTurn, ritualScope, ritualIdentityEffect, ritualIdentityClaim, type RitualEffect } from '../../types/story-ritual';
 import { buildStoryTurnPrompt } from './story-turn-prompt';
 import { storyKnowledgeVisible, storyAudienceExtra, type StoryAudience } from '../../types/story-knowledge';
-import { storyIntentSchema, parseStoryIntentOutput, storyIntentVisiblePrefix, storyIntentPresentation, type StoryIntent, type StoredStoryIntent } from '../../types/story-intent';
+import { storyIntentSchema, parseStoryIntentOutput, storyIntentVisiblePrefix, storyIntentPresentation, shouldPersistStoryIntentInvalid, type StoryIntent, type StoredStoryIntent } from '../../types/story-intent';
 import { buildStoryIntentPrompt } from './story-intent-prompt';
 import type { StoryAdaptationReport } from '../../types/story-adaptation';
 import { sourcedStoryRecommendations } from '../../types/story-recommendations';
@@ -218,7 +218,7 @@ export async function commitStoryTurn(turn: PreparedStoryTurn, inputMessageId: n
         ...(!interrupted && !turn.confirmedIntent && !turn.action && parsed?.intent ? {
           storyIntent: { intent: parsed.intent, input: turn.input, expectedVersion: state.version + 1 },
         } : {}),
-        ...(!interrupted && parsed?.invalid ? { storyIntentInvalid: true } : {}),
+        ...(shouldPersistStoryIntentInvalid({ interrupted, interpreting: interpreting === true }, parsed) ? { storyIntentInvalid: true } : {}),
         ...(!interrupted && turn.confirmedIntent ? { storyConfirmedIntent: turn.confirmedIntent } : {}),
         ...(!interrupted && !proposed && (turn.confirmedIntent?.facts.length || parsed?.intent?.facts.length) ? {
           storyFacts: turn.confirmedIntent?.facts ?? parsed?.intent?.facts,

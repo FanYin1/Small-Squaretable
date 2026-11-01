@@ -1,0 +1,140 @@
+import { chromium, expect } from '@playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
+const origin = process.env.WORKBENCH_PREVIEW_URL || 'http://127.0.0.1:5191/';
+const output = process.env.WORKBENCH_PREVIEW_EVIDENCE || 'backups/exploration/workbench-preview-20261031';
+await mkdir(output, { recursive:true });
+const browser = await chromium.launch({headless:true,channel:'chromium',args:['--no-proxy-server']});
+const report = [];
+try {
+  for (const scheme of ['paper','studio','cinema']) {
+  const url=new URL(origin);url.searchParams.set('style',scheme);const base=url.href;
+  for (const width of [1440,768,390]) {
+    const context = await browser.newContext({viewport:{width,height:960}, reducedMotion:'reduce'});
+    const page = await context.newPage();
+    const errors=[], requests=[];
+    page.on('pageerror', e => errors.push(e.message));
+    page.on('request', r => requests.push(r.url()));
+    await page.goto(base, {waitUntil:'networkidle'});
+    for (const view of ['home','library','detail','play','create','styles']) {
+      await page.goto(`${base}#${view}`);
+      await expect(page.locator('#main')).not.toBeEmpty();
+      await page.evaluate(() => document.fonts.ready);
+      await expect.poll(() => page.locator('#main img').evaluateAll(imgs=>imgs.every(i=>i.complete&&i.naturalWidth>0))).toBe(true);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth>innerWidth || document.querySelector('#main').scrollWidth>document.querySelector('#main').clientWidth+1);
+      expect(overflow, `${view}/${width} horizontal overflow`).toBe(false);
+      await page.screenshot({path:`${output}/${scheme}-${view}-${width}-initial.png`});
+      report.push({scheme,view,width,theme:await page.locator('html').getAttribute('data-theme'),overflow});
+    }
+    await page.goto(`${base}#library`);
+    await page.getByRole('tab',{name:'私人创作'}).click();
+    await expect(page.locator('.story-card')).toHaveCount(2);
+    await page.getByLabel('搜索角色卡').fill('不存在的样本');
+    await expect(page.locator('.empty')).toBeVisible();
+    await page.getByLabel('搜索角色卡').fill('');
+    await page.getByRole('tab',{name:'公开角色卡'}).click();
+    await expect(page.locator('.story-card')).toHaveCount(2);
+    await page.goto(`${base}#play`);
+    await expect(page.locator('.recommendation')).toHaveCount(3);
+    await expect(page.locator('.recommendation').last()).toBeInViewport();
+    const composer = await page.locator('.composer-wrap').boundingBox();
+    expect(composer.y+composer.height).toBeLessThanOrEqual(961);
+    if(width===1440){
+      expect(await page.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBe(228);
+      await page.getByRole('button',{name:'收起导航',exact:true}).click();
+      await page.goto(`${base}#detail`);
+      expect(await page.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBe(76);
+      await page.locator('.detail-actions .primary').click();
+      expect(await page.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBe(76);
+      await page.getByRole('button',{name:'展开导航',exact:true}).click();
+    }
+    await page.getByRole('button',{name:'资料',exact:true}).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('button',{name:'关闭资料'})).toBeFocused();
+    const readingWidth = await page.locator('#reading').evaluate(el=>el.getBoundingClientRect().width);
+    await page.keyboard.press('Shift+Tab');
+    expect(await page.locator('dialog').evaluate(el=>el.contains(document.activeElement))).toBe(true);
+    await page.getByRole('tab',{name:'人物',exact:true}).click();
+    await expect(page.locator('#drawer-content')).toContainText('值班员');
+    await page.getByRole('tab',{name:'记忆',exact:true}).click();
+    await expect(page.locator('#drawer-content')).toContainText('预写样例');
+    await page.screenshot({path:`${output}/${scheme}-drawer-${width}-initial.png`});
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(page.getByRole('button',{name:'资料',exact:true})).toBeFocused();
+    expect(await page.locator('#reading').evaluate(el=>el.getBoundingClientRect().width)).toBe(readingWidth);
+    await page.locator('.recommendation').first().click();
+    await expect(page.locator('.user-message')).toHaveCount(2);
+    await expect(page.locator('.recommendation')).toHaveCount(3);
+    await page.getByLabel('自由输入你的行动').fill('<script>bad()</script>');
+    await page.getByRole('button',{name:'发送演示行动'}).click();
+    await expect(page.locator('.user-message').last()).toHaveText('<script>bad()</script>');
+    expect(await page.locator('#reading script').count()).toBe(0);
+    await page.getByLabel('自由输入你的行动').fill('未提交的体验草稿');
+    const position=await page.locator('#reading-scroll').evaluate(el=>{el.scrollTop=100;return el.scrollTop;});
+    await page.goto(`${base}#library`);
+    await page.goto(`${base}#play`);
+    await expect(page.getByLabel('自由输入你的行动')).toHaveValue('未提交的体验草稿');
+    await expect(page.locator('.user-message')).toHaveCount(3);
+    expect(await page.locator('#reading-scroll').evaluate(el=>el.scrollTop)).toBeCloseTo(position,0);
+    await page.getByRole('button',{name:'回到最新',exact:true}).click();
+    await expect(page.locator('.recommendation').last()).toBeInViewport();
+    // Switching the visual direction must preserve the same conversation and draft.
+    await page.getByLabel('选择视觉方案').selectOption(scheme==='paper'?'studio':'paper');
+    await expect(page.locator('.user-message')).toHaveCount(3);
+    await expect(page.getByLabel('自由输入你的行动')).toHaveValue('未提交的体验草稿');
+    await page.getByLabel('选择视觉方案').selectOption(scheme);
+    // Choosing an opening starts at its beginning instead of jumping through a prior reply.
+    await page.goto(`${base}#detail`);
+    await page.locator('.opening-choice').nth(1).click();
+    await expect(page.locator('.user-message')).toHaveCount(0);
+    await expect(page.locator('.play-title small')).toContainText('抵达之后');
+    expect(await page.locator('#reading-scroll').evaluate(el=>el.scrollTop)).toBe(0);
+    await expect(page.locator('.recommendation')).toHaveCount(3);
+    await page.goto(`${base}#detail`);
+    await page.locator('.opening-choice').first().click();
+    await expect(page.locator('.play-title small')).toContainText('观测站的信号');
+    await page.goto(`${base}#detail-trade`);
+    await page.locator('.opening-choice').nth(1).click();
+    await expect(page.locator('.play-title small')).toContainText('沿着商路出发');
+    await expect(page.locator('.recommendation').first()).toContainText('目的地');
+    await page.getByRole('button',{name:'资料',exact:true}).click();
+    await expect(page.locator('#drawer-content')).toContainText('商路旁');
+    await page.keyboard.press('Escape');
+    await page.goto(`${base}#create`);
+    await page.getByLabel('故事名称',{exact:true}).fill('布局体验样稿');
+    await expect(page.locator('#preview-name')).toHaveText('布局体验样稿');
+    await page.getByRole('button',{name:/02\s*人物/}).click();
+    await expect(page.getByLabel('人物名称',{exact:true})).toHaveValue('守灯人');
+    await page.getByRole('button',{name:/01\s*故事/}).click();
+    await expect(page.getByLabel('故事名称',{exact:true})).toHaveValue('布局体验样稿');
+    const downloadEvent=page.waitForEvent('download');
+    await page.getByRole('button',{name:'导出样稿',exact:true}).click();
+    const download=await downloadEvent;
+    await download.saveAs(`${output}/${scheme}-draft-${width}.json`);
+    if(width===390){await page.getByRole('button',{name:'切换编辑 / 预览'}).click();await expect(page.locator('.preview-panel')).toBeVisible();}
+    if(width<480)await page.locator('#mobile-theme').click();else await page.locator('#theme').click();
+    await page.screenshot({path:`${output}/${scheme}-create-${width}-opposite.png`});
+    await page.goto(`${base}#play`);
+    await page.screenshot({path:`${output}/${scheme}-play-${width}-opposite.png`});
+    expect(requests.filter(url=>/\/api\/|\/ws(?:\?|$)/.test(url))).toEqual([]);
+    expect(errors).toEqual([]);
+    report.push({scheme,width,interactions:'filters, modal/focus/Escape, recommendations, input escaping, live preview, steps, draft export, theme',errors,apiRequests:0});
+    await context.close();
+  }
+  }
+  const motionContext=await browser.newContext({viewport:{width:1440,height:960},reducedMotion:'no-preference'});
+  const motionPage=await motionContext.newPage();
+  await motionPage.goto(`${origin}#detail`);
+  const shellWidth=await motionPage.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().width);
+  await motionPage.locator('.detail-actions .primary').click();
+  await expect(motionPage.locator('#page-title')).toHaveText('故事对话');
+  expect(await motionPage.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBe(shellWidth);
+  const animation=await motionPage.locator('#main').evaluate(el=>el.getAnimations({subtree:true}).map(a=>({duration:a.effect.getTiming().duration,frames:a.effect.getKeyframes().map(f=>f.opacity)})));
+  expect(animation.some(a=>a.duration===200&&a.frames.join(',')==='0,1')).toBe(true);
+  await motionPage.waitForTimeout(250);
+  expect(await motionPage.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().width)).toBe(shellWidth);
+  await motionContext.close();
+  report.push({motion:'200ms content opacity only; stable shell',passed:true});
+  await writeFile(`${output}/report.json`,JSON.stringify({base:origin,report},null,2));
+  console.log(JSON.stringify({schemes:3,views:54,interactiveJourneys:9,apiRequests:0,errors:0,evidence:output}));
+} finally {await browser.close();}

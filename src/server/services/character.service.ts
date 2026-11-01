@@ -60,12 +60,18 @@ export class CharacterService {
     return character;
   }
 
+  async countByTenantId(tenantId: string): Promise<number> {
+    return this.characterRepo.countByTenantId(tenantId);
+  }
+
   async getByTenantId(
     tenantId: string,
     pagination?: PaginationParams
   ): Promise<PaginatedResponse<Character>> {
-    const characters = await this.characterRepo.findByTenantId(tenantId, pagination);
-    const total = await this.characterRepo.countByTenantId(tenantId);
+    const [characters, total] = await Promise.all([
+      this.characterRepo.findByTenantId(tenantId, pagination),
+      this.characterRepo.countByTenantId(tenantId),
+    ]);
 
     const page = pagination?.page ?? 1;
     const limit = pagination?.limit ?? 20;

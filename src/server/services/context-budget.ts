@@ -3,7 +3,7 @@ import type { ContextBudgetDetails } from '../../types/context-budget';
 import { countTokens } from '../utils/tokens';
 
 export const CONTEXT_BUFFER_TOKENS = 100;
-export interface ContextLimits { contextWindow: number; maxOutputTokens: number }
+export interface ContextLimits { contextWindow: number; maxInputTokens?: number; maxOutputTokens: number }
 
 export class ContextBudgetError extends AppError {
   constructor(details: ContextBudgetDetails) {
@@ -23,10 +23,11 @@ export function estimateContextMessages(messages: ReadonlyArray<{ content: strin
 export function assertContextBudget(requiredTokens: number, limits: ContextLimits,
   reason: ContextBudgetDetails['reason'] = 'payload', outputTokens = limits.maxOutputTokens): number {
   if (!Number.isSafeInteger(limits.contextWindow) || limits.contextWindow <= 0 ||
+    (limits.maxInputTokens !== undefined && (!Number.isSafeInteger(limits.maxInputTokens) || limits.maxInputTokens <= 0 || limits.maxInputTokens > limits.contextWindow)) ||
     !Number.isSafeInteger(outputTokens) || outputTokens < 0 || !Number.isSafeInteger(requiredTokens) || requiredTokens < 0) {
     throw new AppError('The model context configuration is invalid.', 500, 'CONTEXT_CONFIG_INVALID');
   }
-  const availableTokens = Math.max(0, limits.contextWindow - outputTokens - CONTEXT_BUFFER_TOKENS);
+  const availableTokens = Math.max(0, Math.min(limits.contextWindow - outputTokens, limits.maxInputTokens ?? limits.contextWindow) - CONTEXT_BUFFER_TOKENS);
   if (requiredTokens > availableTokens || limits.contextWindow < outputTokens + CONTEXT_BUFFER_TOKENS) {
     throw new ContextBudgetError({ reason, contextWindow: limits.contextWindow, outputTokens, requiredTokens, availableTokens });
   }

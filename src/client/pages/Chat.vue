@@ -1,5 +1,5 @@
 <template>
-  <component :is="route.params.chatId ? ExplorationPlayLayout : ExplorationLayout" :reading="Boolean(route.params.chatId)" @new-chat="handleNewChat" @select-chat="handleSelectChat">
+  <ExplorationLayout :reading="Boolean(route.params.chatId)" @new-chat="handleNewChat" @select-chat="handleSelectChat">
     <section v-if="recoveryPending && !creatingChat && !showPersonaSelector" class="creation-recovery" aria-live="polite" :aria-label="t('personas.recoveryTitle')">
       <strong>{{ t('personas.recoveryTitle') }}</strong>
       <p>{{ recoveryMessage }}</p>
@@ -46,10 +46,11 @@
       </template>
       <template #entry-context><StoryEntryContext v-if="showPersonaSelector && storyEntryMode" /></template>
     </PersonaSelector>
-  </component>
+  </ExplorationLayout>
 </template>
 
 <script setup lang="ts">
+import { createRequestId } from '@client/utils/request-id';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -58,7 +59,6 @@ import { useUserStore } from '@client/stores/user';
 import { useToast } from '@client/composables/useToast';
 import { useStoryCreationRecovery } from '@client/composables/useStoryCreationRecovery';
 import ExplorationLayout from '@client/components/layout/ExplorationLayout.vue';
-import ExplorationPlayLayout from '@client/components/layout/ExplorationPlayLayout.vue';
 import ChatWindow from '@client/components/chat/ChatWindow.vue';
 import WelcomePage from '@client/components/chat/WelcomePage.vue';
 import PersonaSelector from '@client/components/chat/PersonaSelector.vue';
@@ -287,7 +287,7 @@ const startChat = async (personaId?: string) => {
     if (!createdChatId.value) {
       if (!creationRequest || creationRequest.personaId !== personaId || JSON.stringify(creationRequest.opening) !== JSON.stringify(openingSelection.value ?? undefined)) {
         creationRequest = {
-          id: crypto.randomUUID(),
+          id: createRequestId(),
           characterId: pendingCharacterIds.value?.[0] ?? pendingCharacterId.value!,
           characterIds: pendingCharacterIds.value ? [...pendingCharacterIds.value] : undefined,
           personaId,

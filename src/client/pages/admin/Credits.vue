@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createRequestId } from '@client/utils/request-id';
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Refresh } from '@element-plus/icons-vue';
@@ -24,7 +25,7 @@ const account = ref<CreditLookupResult | null>(null);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function newIdempotencyKey(): string {
-  return `topup-${crypto.randomUUID()}`;
+  return `topup-${createRequestId()}`;
 }
 
 // 一次提交意图一个幂等键：失败后重试复用同一个键，成功后才换新，避免网络抖动造成重复入账

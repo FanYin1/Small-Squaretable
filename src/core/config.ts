@@ -88,10 +88,11 @@ const configSchema = z.object({
   corsOrigins: z.string().default('http://localhost:5173'),
 
   // Platform spend breaker (P0-7)
-  // 全平台每日 token 上限；空串视为未配置。production 必须配置（见下方 superRefine）
+  // -1 explicitly removes the daily ceiling while retaining usage accounting.
+  // 空串视为未配置；production 必须明确配置。
   platformDailyTokenLimit: z.preprocess(
     (value) => (value === '' || value === null ? undefined : value),
-    z.coerce.number().int().positive().optional()
+    z.coerce.number().int().refine(value => value === -1 || value > 0, 'must be positive or -1 (unlimited)').optional()
   ),
   // 「自然日」所用的 IANA 时区
   spendBreakerTz: z
@@ -103,6 +104,7 @@ const configSchema = z.object({
   // credits = 预付点数：生成类请求改走点数账本，messages / llm_tokens 套餐配额不再拦截。
   // 默认 subscription，不设置时现有行为完全不变。
   billingMode: z.enum(['subscription', 'credits']).default('subscription'),
+  newAccountUnlimitedCredits: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
   // 1 点 = 多少 token。账本以 token 为整数单位记账，点数只是展示换算，避免小数。
   creditTokensPerPoint: z.coerce.number().int().positive().default(10000),
   // 预扣冻结的存活时间（秒）。必须明显长于一次生成的最长耗时：
@@ -140,7 +142,7 @@ function isValidTimeZone(tz: string): boolean {
 
 /**
  * 跨字段校验：production 未设置 PLATFORM_DAILY_TOKEN_LIMIT 时启动失败。
- * 没有这道闸，推理账单在生产环境没有任何上限。
+ * 生产环境必须明确选择正整数上限，或用 -1 显式设为不限额。
  */
 const checkedConfigSchema = configSchema.superRefine((cfg, ctx) => {
   if (cfg.nodeEnv === 'production' && cfg.platformDailyTokenLimit === undefined) {
@@ -208,6 +210,7 @@ export function loadConfig(): Config {
     platformDailyTokenLimit: process.env.PLATFORM_DAILY_TOKEN_LIMIT,
     spendBreakerTz: process.env.SPEND_BREAKER_TZ || undefined,
     billingMode: process.env.BILLING_MODE || undefined,
+    newAccountUnlimitedCredits: process.env.NEW_ACCOUNT_UNLIMITED_CREDITS || undefined,
     creditTokensPerPoint: process.env.CREDIT_TOKENS_PER_POINT || undefined,
     creditReservationTtlSeconds: process.env.CREDIT_RESERVATION_TTL_SECONDS || undefined,
     nsfwEnabled: process.env.NSFW_ENABLED,

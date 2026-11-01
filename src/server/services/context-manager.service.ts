@@ -139,7 +139,7 @@ export class ContextManager {
     const systemTokens = countTokens(systemPrompt) + 4;
     const maxResponseTokens = meta.maxOutputTokens;
     const availableBudget =
-      meta.contextWindow - systemTokens - maxResponseTokens - BUFFER_TOKENS - reservedTokens;
+      Math.min(meta.contextWindow - maxResponseTokens, meta.maxInputTokens ?? meta.contextWindow) - systemTokens - BUFFER_TOKENS - reservedTokens;
 
     // First try without summarization
     const initialResult = this.buildContext(systemPrompt, messages, model, reservedTokens);

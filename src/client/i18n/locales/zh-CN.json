@@ -1,4 +1,19 @@
 {
+  "modelPicker": {
+    "loading": "正在更新模型列表…",
+    "loadFailed": "模型列表更新失败，请重试。",
+    "retry": "重试",
+    "choose": "选择模型",
+    "unavailable": "暂无可选模型",
+    "switching": "正在切换…",
+    "search": "搜索模型",
+    "context": "{size} 上下文",
+    "current": "当前",
+    "noMatches": "没有匹配的模型",
+    "more": "更多模型（{count}）",
+    "nextTurn": "切换从下一轮生效，历史回复保留。",
+    "failed": "模型切换失败，仍使用原模型，请重试。"
+  },
   "privateLibrary": {
     "publishPreview": "预览发布效果",
     "eyebrow": "你的故事 · 从这里出发",
@@ -98,7 +113,13 @@
     "start": "从这里开始",
     "back": "返回开场选择",
     "loadFailed": "暂时无法读取开场，请重试。尚未创建故事。",
-    "kind": { "narrative": "剧情开场", "empty": "暂无正文", "initialization": "初始化内容", "directory": "交互目录", "review": "需确认兼容限制" }
+    "kind": {
+      "narrative": "剧情开场",
+      "empty": "暂无正文",
+      "initialization": "初始化内容",
+      "directory": "交互目录",
+      "review": "需确认兼容限制"
+    }
   },
   "worldbookBindings": {
     "title": "本角色使用的资料",
@@ -206,7 +227,7 @@
     "beforeEntry": "进入前确认",
     "entryContextFailed": "暂时无法完整读取余额或模型配置；可重试，未知额度不会按零处理。",
     "modelOptions": "模型与生成说明",
-    "modelHint": "以下为当前可选模型，进入故事后可在阅读设置中选择；展示配置不代表供应商当前可用。确认身份不会自动发送行动。",
+    "modelHint": "以下为当前可选模型，进入故事后可在输入栏中选择；展示配置不代表供应商当前可用。确认身份不会自动发送行动。",
     "noModels": "暂无可确认的模型；历史与开场仍可阅读，生成需配置可用模型。",
     "creditsDescription": "余额、冻结与消费来自真实账本。生成前查看可用额度，不在这里预估整段故事的费用。",
     "preview": "读者视角预览",
@@ -1595,7 +1616,8 @@
       "auditLogs": "审计日志",
       "gdpr": "GDPR 请求",
       "inviteCodes": "邀请码",
-      "credits": "点数充值"
+      "credits": "点数充值",
+      "models": "模型管理"
     },
     "users": {
       "title": "用户管理",
@@ -1793,6 +1815,46 @@
         "ALREADY_REVERSED": "这笔充值已经冲正过了",
         "NOT_REVERSIBLE": "只有充值记录可以冲正"
       }
+    },
+    "models": {
+      "title": "模型管理",
+      "subtitle": "查看当前远程服务加载的模型与上下文限制",
+      "environmentNotice": "模型配置来自远程服务环境变量",
+      "environmentDescription": "此页面不显示 API 密钥。修改模型、端点或密钥后需要更新远程环境并重启应用，聊天页才会读取新配置。",
+      "providerCount": "已配置供应商",
+      "modelCount": "可用模型",
+      "defaultModel": "平台默认模型",
+      "configuredModels": "已加载模型",
+      "activeAtStartup": "当前进程已加载",
+      "model": "模型",
+      "provider": "供应商",
+      "context": "上下文窗口",
+      "maxOutput": "最大输出",
+      "status": "状态",
+      "default": "默认",
+      "available": "可用",
+      "customProvider": "自定义端点",
+      "endpoint": "服务端点",
+      "providerDefault": "供应商默认模型",
+      "empty": "当前没有可用模型",
+      "loadFailed": "模型配置加载失败"
+      ,"editTitle": "编辑模型配置"
+      ,"runtimeSave": "保存后立即生效"
+      ,"apiFormat": "接口协议"
+      ,"modelsInput": "模型列表"
+      ,"modelsPlaceholder": "模型名称用英文逗号分隔"
+      ,"defaultInput": "默认模型"
+      ,"apiKey": "API 密钥"
+      ,"keyKeep": "已配置密钥，留空则保持不变"
+      ,"keyRequired": "请输入 API 密钥"
+      ,"limitsJson": "模型容量配置 JSON"
+      ,"limitsHelp": "每个模型填写 contextWindow、maxOutputTokens 和 requestOutputTokens；模型名必须与上方列表完全一致。"
+      ,"save": "保存配置"
+      ,"saveHelp": "密钥会加密保存，页面不会再次显示。"
+      ,"saved": "模型配置已保存并生效"
+      ,"saveFailed": "模型配置保存失败"
+      ,"invalidForm": "请填写服务端点和至少一个模型"
+      ,"invalidLimits": "容量配置必须是有效的 JSON 对象"
     }
   },
   "credits": {
@@ -1829,7 +1891,7 @@
   },
   "characterEditor": {
     "saveUncertain": "未能确认保存结果，请先返回我的创作核对。当前输入仍保留；新建操作不会自动重发，以免创建重复作品。",
-    "saving": "正在保存到服务端…",
+    "saving": "保存中...",
     "unsaved": "页面中的改动尚未保存，预览不会保存或发布",
     "savedPrivate": "已从服务端载入 · 私有作品",
     "savedPublic": "已从服务端载入 · 已公开；编辑后仍以服务端审核状态为准",
@@ -1901,7 +1963,6 @@
     "exampleMessagesPlaceholder": "输入示例对话...",
     "creatorNotesPlaceholder": "输入创作者备注...",
     "changeAvatar": "更换头像",
-    "saving": "保存中...",
     "saveSuccess": "角色保存成功",
     "saveFailed": "保存失败",
     "preview": "预览",
@@ -2400,5 +2461,13 @@
     "deleteConfirm": "确定要删除预设 \"{name}\" 吗？",
     "deleteSuccess": "预设删除成功",
     "deleteFailed": "删除预设失败"
+  },
+  "workbench": {
+    "title": "工作台",
+    "start": "开始",
+    "collection": "我的库",
+    "create": "创作",
+    "conversation": "故事对话",
+    "newStory": "开始新故事"
   }
 }

@@ -160,6 +160,7 @@ export class WebSocketHandler {
 
     // 验证 token
     if (!token) {
+      wsLogger.warn('WebSocket authentication rejected', { reason: 'missing_token' });
       this.sendError(ws, 'UNAUTHORIZED', 'Authentication token required');
       ws.close();
       return;
@@ -168,6 +169,7 @@ export class WebSocketHandler {
     try {
       const payload = await verifyAccessToken(token);
       const clientId = websocketService.registerClient(ws, payload.userId, payload.tenantId);
+      wsLogger.info('WebSocket connection authenticated');
 
       // 发送连接成功消息
       this.sendMessage(ws, {
@@ -198,6 +200,7 @@ export class WebSocketHandler {
         websocketService.unregisterClient(clientId);
       });
     } catch (err) {
+      wsLogger.warn('WebSocket authentication rejected', { reason: 'invalid_token' });
       this.sendError(ws, 'UNAUTHORIZED', 'Invalid authentication token');
       ws.close();
     }

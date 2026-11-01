@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>小小方桌 · 工作台试用</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">跳到主内容</a>
+  <div id="workspace">
+    <aside class="sidebar" aria-label="工作台导航">
+      <a class="brand" href="#home"><span class="brand-mark">◈</span><span class="nav-text">小小方桌<small>SMALL SQUARETABLE</small></span></a>
+      <button class="new-story" data-page="library"><span data-icon="plus"></span><span class="nav-text">开始新故事</span></button>
+      <nav class="primary-nav">
+        <a href="#home" data-nav="home"><span data-icon="home"></span><span class="nav-text">开始</span></a>
+        <a href="#library" data-nav="library"><span data-icon="library"></span><span class="nav-text">我的库</span></a>
+        <a href="#play" data-nav="play"><span data-icon="message"></span><span class="nav-text">故事对话</span></a>
+        <a href="#create" data-nav="create"><span data-icon="pen"></span><span class="nav-text">创作</span></a>
+      </nav>
+      <div class="sidebar-stories nav-text"><div class="side-label">试用故事 <span>演示</span></div><a href="#play"><span class="story-dot"></span><span>蔚蓝星域<small>观测站的信号</small></span></a><a href="#play-trade"><span class="story-dot green"></span><span>太衍商途<small>集市初见</small></span></a></div>
+      <div class="sidebar-bottom"><button id="theme" aria-label="切换深色主题"><span data-icon="moon"></span><span class="nav-text">切换主题</span></button><div class="account"><span class="avatar">访</span><span class="nav-text">访客体验<small>布局测试 · 演示数据</small></span></div></div>
+    </aside>
+    <div id="body-area">
+      <header class="topbar"><div class="top-left"><button id="toggle-nav" class="icon-button" aria-label="收起导航" aria-expanded="true"><span data-icon="panel"></span></button><span class="crumb">工作台 <span>/</span> <strong id="page-title">开始</strong></span></div><div class="top-right"><a class="preview-badge" href="#styles">方案对比</a><label class="style-picker"><span class="sr-only">选择视觉方案</span><select id="style-picker"><option value="paper">A · 书页</option><option value="studio">B · 简约</option><option value="cinema">C · 夜航</option></select></label><a class="live-link" href="/">返回正式站点 <span aria-hidden="true">↗</span></a><button class="icon-button mobile-theme" id="mobile-theme" aria-label="切换主题"><span data-icon="moon"></span></button></div></header>
+      <main id="main" tabindex="-1"></main>
+    </div>
+  </div>
+  <dialog id="drawer" aria-labelledby="drawer-title"><div class="drawer-head"><div><span class="eyebrow">STORY DOSSIER</span><h2 id="drawer-title">故事资料</h2></div><button class="icon-button" id="close-drawer" aria-label="关闭资料"><span data-icon="close"></span></button></div><div class="drawer-tabs" role="tablist" aria-label="资料分类"><button role="tab" aria-selected="true" data-tab="overview">概况</button><button role="tab" aria-selected="false" data-tab="people">人物</button><button role="tab" aria-selected="false" data-tab="memory">记忆</button></div><div id="drawer-content"></div><p class="drawer-note">这里展示预写样例，未读取你的存档。</p></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

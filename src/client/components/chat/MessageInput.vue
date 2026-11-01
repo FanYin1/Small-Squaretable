@@ -22,7 +22,38 @@
           <span class="mention-name">{{ char.name }}</span>
         </div>
       </div>
-      <!-- TODO: File attachment button (pending feature implementation) -->
+      <!-- Recording indicator (replaces text input while recording) -->
+      <div v-if="audioRecorder.isRecording.value" class="recording-indicator">
+        <span class="recording-dot" />
+        <span class="recording-label">{{ t('voice.recording') }}</span>
+        <span class="recording-duration">{{ formattedDuration }}</span>
+      </div>
+
+      <!-- Uploading spinner -->
+      <div v-else-if="isUploading" class="uploading-indicator">
+        <el-icon class="is-loading" :size="18"><Loading /></el-icon>
+        <span class="uploading-label">{{ t('voice.uploading') }}</span>
+      </div>
+
+      <!-- Normal text input -->
+      <el-input
+        v-else
+        ref="textInput"
+        v-model="inputValue"
+        type="textarea"
+        :placeholder="computedPlaceholder"
+        :aria-label="t('chat.inputPlaceholder')"
+        :autosize="{ minRows: 1, maxRows: 5 }"
+        :maxlength="maxLength"
+        :disabled="disabled || sending"
+        @keydown="handleKeyDown"
+        @input="handleTypingInput"
+        class="input-textarea"
+        resize="none"
+      />
+
+      <div class="composer-controls">
+        <slot name="tools" />
       <button
         v-if="audioRecorder.isSupported.value && !audioRecorder.isRecording.value && !isUploading"
         class="mic-btn"
@@ -46,35 +77,6 @@
         <el-icon :size="20"><Headset /></el-icon>
       </button>
 
-      <!-- Recording indicator (replaces text input while recording) -->
-      <div v-if="audioRecorder.isRecording.value" class="recording-indicator">
-        <span class="recording-dot" />
-        <span class="recording-label">{{ t('voice.recording') }}</span>
-        <span class="recording-duration">{{ formattedDuration }}</span>
-      </div>
-
-      <!-- Uploading spinner -->
-      <div v-else-if="isUploading" class="uploading-indicator">
-        <el-icon class="is-loading" :size="18"><Loading /></el-icon>
-        <span class="uploading-label">{{ t('voice.uploading') }}</span>
-      </div>
-
-      <!-- Normal text input -->
-      <el-input
-        v-else
-        ref="textInput"
-        v-model="inputValue"
-        type="textarea"
-        :placeholder="computedPlaceholder"
-        :aria-label="t('chat.inputPlaceholder')"
-        :autosize="{ minRows: 2, maxRows: 5 }"
-        :maxlength="maxLength"
-        :disabled="disabled || sending"
-        @keydown="handleKeyDown"
-        @input="handleTypingInput"
-        class="input-textarea"
-        resize="none"
-      />
 
       <!-- Recording action buttons -->
       <template v-if="audioRecorder.isRecording.value">
@@ -123,6 +125,7 @@
           <el-icon :size="18"><Position /></el-icon>
         </button>
       </template>
+      </div>
     </div>
 
     <!-- Quick Replies -->
@@ -146,6 +149,7 @@
 </template>
 
 <script setup lang="ts">
+import { createRequestId } from '@client/utils/request-id';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Position, Microphone, Close, CloseBold, Check, Loading, Headset, VideoPause } from '@element-plus/icons-vue';
@@ -409,7 +413,7 @@ const handleSendRecording = async () => {
     const result = await uploadApi.uploadAudio(file);
 
     const attachment: MessageAttachment = {
-      id: crypto.randomUUID(),
+      id: createRequestId(),
       type: 'audio',
       url: result.url,
       name: file.name,
@@ -459,15 +463,18 @@ const handleSendRecording = async () => {
 
 .input-wrapper {
   display: flex;
-  align-items: flex-end;
-  border-radius: 24px;
+  align-items: center;
+  border-radius: 30px;
   border: 1px solid var(--border-default);
   background: var(--bg-surface);
-  padding: 8px 16px;
-  gap: 8px;
+  padding: 6px 8px 6px 22px;
+  gap: 12px;
+  box-shadow: 0 5px 20px #302f2a0d, 0 2px 5px #302f2a08;
   transition: border-color 0.2s;
   position: relative;
 }
+
+.composer-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 .mention-popup {
   position: absolute;
@@ -514,6 +521,8 @@ const handleSendRecording = async () => {
   color: var(--text-tertiary);
   cursor: pointer;
   padding: 8px;
+  min-width: 44px;
+  min-height: 44px;
   flex-shrink: 0;
   border-radius: 50%;
   transition: color 0.2s, background-color 0.2s;
@@ -594,8 +603,8 @@ const handleSendRecording = async () => {
 }
 
 .cancel-recording-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--surface-hover, #f3f4f6);
   color: var(--text-secondary);
@@ -608,8 +617,8 @@ const handleSendRecording = async () => {
 }
 
 .send-recording-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--color-danger);
   color: var(--text-inverse);
@@ -694,14 +703,16 @@ const handleSendRecording = async () => {
     padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   }
   .input-wrapper {
-    padding: 12px;
-    border-radius: 16px;
-    display: grid;
-    grid-template-columns: 44px 44px minmax(0, 1fr) 44px;
+    padding: 10px;
+    border-radius: 24px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
   }
-  .input-textarea,.recording-indicator,.uploading-indicator { grid-column:1 / -1; grid-row:1; }
-  .mic-btn,.stt-btn { grid-row:2; min-width:44px; min-height:44px; }
-  .send-btn,.stop-btn { grid-column:4; grid-row:2; }
+  .input-textarea { width: 100%; }
+  .input-textarea :deep(.el-textarea__inner) { padding-inline: 6px; }
+  .composer-controls { width: 100%; gap: 4px; }
+  .send-btn, .stop-btn, .send-recording-btn { margin-left: auto; }
   /* iOS Safari 对 <16px 的输入框聚焦时会自动放大页面，导致整页横向偏移 */
   .input-textarea :deep(.el-textarea__inner) {
     font-size: 16px;

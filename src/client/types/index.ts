@@ -91,6 +91,7 @@ export interface CharacterCardData {
 }
 
 export interface Character {
+  detailPreview?: import('../../types/character-detail').CharacterDetailPreview;
   presentation?: import('../../types/story-presentation').PresentationVersion;
   diagnostics?: import('../../types/story-diagnostics').StoryDiagnostics;
   compatibility?: import('../../types/story-capabilities').StoryCapabilities;

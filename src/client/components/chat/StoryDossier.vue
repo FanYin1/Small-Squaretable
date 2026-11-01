@@ -1,8 +1,10 @@
 <template>
-  <aside class="story-dossier" :class="{ expanded }" aria-label="此次游玩" @keydown.esc="closePanel">
-    <button ref="toggleButton" type="button" class="dossier-toggle" :aria-expanded="expanded" :aria-controls="panelId" @click="togglePanel"><span class="dossier-toggle-title">此次游玩 <small>{{ compactStatus }}</small></span><span>{{ expanded ? '收起' : state?.map ? '状态 · 地图 · 记忆' : '状态 · 记忆' }}</span></button>
-    <div :id="panelId" class="dossier-body">
-      <div class="dossier-heading"><header><span class="dossier-eyebrow">留在这个世界的痕迹</span><h2>此次游玩</h2><p role="status">{{ busy ? '剧情正在展开 · 状态尚未确认' : error ? state ? '显示上次记录 · 本次读取失败' : '记录读取失败' : loading ? state ? '正在核对最新记录' : '读取记录中' : state ? `已读取记录 · 第 ${state.version} 轮` : '读取记录中' }}</p></header><button ref="closeButton" type="button" class="dossier-close" @click="closePanel">返回故事</button></div>
+  <Teleport to="body">
+    <div v-if="expanded" class="story-dossier-layer" @keydown.esc.stop.prevent="closePanel" @keydown.tab="trapFocus">
+      <button type="button" class="story-dossier-backdrop" tabindex="-1" aria-label="关闭此次游玩资料" @click="closePanel" />
+      <aside ref="dialogPanel" :id="panelId" class="story-dossier" role="dialog" aria-modal="true" :aria-labelledby="`${panelId}-title`" tabindex="-1">
+        <div class="dossier-body">
+      <div class="dossier-heading"><header><span class="dossier-eyebrow">留在这个世界的痕迹</span><h2 :id="`${panelId}-title`">此次游玩</h2><p role="status">{{ busy ? '剧情正在展开 · 状态尚未确认' : error ? state ? '显示上次记录 · 本次读取失败' : '记录读取失败' : loading ? state ? '正在核对最新记录' : '读取记录中' : state ? `已读取记录 · 第 ${state.version} 轮` : '读取记录中' }}</p></header><button ref="closeButton" type="button" class="dossier-close" @click="closePanel">返回故事</button></div>
       <nav aria-label="游玩资料">
         <button v-for="item in tabs" :key="item.id" type="button" :aria-pressed="tab === item.id" @click="tab = item.id">{{ item.label }}</button>
       </nav>
@@ -60,8 +62,10 @@
         <form @submit.prevent="saveNote"><label for="story-note-kind">记录类型</label><select id="story-note-kind" v-model="noteKind"><option value="note">重要线索</option><option value="thread">未完成事项</option><option value="style">对话风格偏好</option></select><label for="story-note-content">记下什么</label><textarea id="story-note-content" v-model="noteText" maxlength="1000" rows="4" placeholder="例如：我喜欢克制的对白，给我回应的空间。" /><button type="submit" :disabled="saving || !noteText.trim()">{{ saving ? '正在保存…' : '保存到此次故事' }}</button><p v-if="noteStatus" role="status">{{ noteStatus }}</p></form>
       </section>
       </div>
+        </div>
+      </aside>
     </div>
-  </aside>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -70,19 +74,59 @@ import type { StoryStateView, StoryEventView, StoryNoteInput, StoryValue } from 
 import { storyApi } from '../../services/story.api';
 import StoryMemoryStatus from './StoryMemoryStatus.vue';
 import StoryAdaptationReport from './StoryAdaptationReport.vue';
-const props = defineProps<{ chatId: string; state: StoryStateView | null; busy: boolean; loading?: boolean; error: string }>();
-const emit = defineEmits<{ refresh: []; source: [messageId: number] }>();
-const expanded = ref(false);
+const props = defineProps<{ chatId: string; state: StoryStateView | null; busy: boolean; loading?: boolean; error: string; trigger?: HTMLButtonElement | null; open: boolean }>();
+const emit = defineEmits<{ refresh: []; source: [messageId: number]; 'update:open': [open: boolean] }>();
+const expanded = computed(() => props.open);
 const panelId = useId();
-const toggleButton = ref<HTMLButtonElement | null>(null);
 const closeButton = ref<HTMLButtonElement | null>(null);
-function closePanel() { expanded.value = false; toggleButton.value?.focus(); }
-async function togglePanel() {
-  if (expanded.value) { closePanel(); return; }
-  expanded.value = true;
+const dialogPanel = ref<HTMLElement | null>(null);
+let appWasInert = false;
+let bodyOverflow = '';
+let modalActive = false;
+function closePanel() {
+  emit('update:open', false);
+}
+async function openPanel() {
+  if (props.open) return;
+  emit('update:open', true);
   await nextTick();
   closeButton.value?.focus({ preventScroll: true });
 }
+function trapFocus(event: KeyboardEvent) {
+  const panel = dialogPanel.value;
+  if (!panel) return;
+  const focusable = Array.from(panel.querySelectorAll<HTMLElement>(
+    'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])',
+  )).filter(el => el.tabIndex >= 0 && el.checkVisibility?.({ visibilityProperty: true }) !== false);
+  if (!focusable.length) { event.preventDefault(); panel.focus(); return; }
+  const first = focusable[0];
+  const last = focusable.at(-1)!;
+  if (event.shiftKey && (document.activeElement === first || !panel.contains(document.activeElement))) {
+    event.preventDefault(); last.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !panel.contains(document.activeElement))) {
+    event.preventDefault(); first.focus();
+  }
+}
+watch(() => props.open, async active => {
+  const app = document.getElementById('app');
+  if (active && !modalActive) {
+    modalActive = true;
+    appWasInert = app?.inert ?? false;
+    if (app) app.inert = true;
+    bodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  } else if (!active && modalActive) {
+    modalActive = false;
+    if (app) app.inert = appWasInert;
+    document.body.style.overflow = bodyOverflow;
+  }
+  await nextTick();
+  if (props.open === active) {
+    if (active) closeButton.value?.focus({ preventScroll: true });
+    else props.trigger?.focus({ preventScroll: true });
+  }
+}, { flush: 'sync' });
+defineExpose({ openPanel, closePanel });
 function readSource(messageId: number) {
   if (expanded.value) closePanel();
   emit('source', messageId);
@@ -93,7 +137,6 @@ watch(() => props.state?.map, map => { if (!map && tab.value === 'map') tab.valu
 const noteLabels = { style: '风格偏好', note: '重要线索', thread: '未完成事项' };
 const factLabels = { claim: '主张 · 未证实', intention: '意向 · 非执行凭据', inference: '推测', observation: '叙事见闻', style: '表达偏好' };
 const currentLocation = computed(() => props.state?.map?.nodes.find(node => node.id === props.state?.map?.location));
-const compactStatus = computed(() => props.busy ? '本轮待确认' : props.error ? '读取失败' : props.loading ? '核对中' : props.state ? `${currentLocation.value?.label ? `${currentLocation.value.label} · ` : ''}第 ${props.state.version} 轮` : '待读取');
 const recentFacts = computed(() => (props.state?.events ?? []).filter(event => event.status === 'confirmed').flatMap(event => (event.facts ?? []).map((fact, index) => ({
   id: `${event.id}:${index}`, fact, version: event.version,
   messageId: fact.speaker === 'player' ? event.inputMessageId : event.messageId,
@@ -113,14 +156,22 @@ const sourceLoading = ref(false);
 const sourceError = ref('');
 let historyEpoch = 0;
 let sourceEpoch = 0;
-onScopeDispose(() => { historyEpoch++; sourceEpoch++; });
+onScopeDispose(() => {
+  historyEpoch++; sourceEpoch++;
+  if (modalActive) {
+    const app = document.getElementById('app');
+    if (app) app.inert = appWasInert;
+    document.body.style.overflow = bodyOverflow;
+    modalActive = false;
+  }
+});
 const allEvents = computed(() => [...new Map([...(props.state?.events ?? []), ...earlier.value].map(event => [event.id, event])).values()].sort((left, right) => right.version - left.version));
 const displayValue = (value: StoryValue) => value === null ? '尚未确定' : typeof value === 'boolean' ? value ? '已确认' : '未达成' : String(value);
 watch([() => props.chatId, () => props.state?.version], () => {
   historyEpoch++; earlier.value = []; historyEnd.value = false; historyError.value = ''; historyLoading.value = false;
 });
 watch(() => props.chatId, () => {
-  tab.value = 'state'; expanded.value = false;
+  tab.value = 'state'; closePanel();
   sourceEpoch++; sourceEvent.value = null; sourceId.value = ''; sourceError.value = ''; sourceLoading.value = false;
   noteText.value = ''; noteStatus.value = '';
 });
@@ -146,7 +197,7 @@ async function showSource(eventId: string) {
   sourceEvent.value = null;
   sourceError.value = '';
   tab.value = 'history';
-  expanded.value = true;
+  void openPanel();
   sourceLoading.value = true;
   try {
     const event = await storyApi.event(target, eventId);
@@ -186,11 +237,13 @@ async function removeNote(noteId: string) {
 </script>
 
 <style scoped lang="scss">
-.story-dossier { width: 300px; flex: 0 0 300px; background: var(--bg-surface); border-left: 1px solid var(--border-default); overflow-y: auto; color: var(--text-primary); }
-.dossier-body { padding: 26px 22px; }
+.story-dossier-layer { position: fixed; inset: 0; z-index: 1200; }
+.story-dossier-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 0; background: rgb(0 0 0 / 48%); cursor: default; }
+.story-dossier { position: absolute; inset: 0 0 0 auto; width: min(420px, calc(100vw - 24px)); height: 100dvh; overflow: hidden; background: var(--bg-surface); border-left: 1px solid var(--border-default); color: var(--text-primary); box-shadow: -12px 0 36px rgb(0 0 0 / 20%); }
+.dossier-body { display: flex; flex-direction: column; height: 100%; box-sizing: border-box; padding: 26px 22px; overflow: hidden; }
 .dossier-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .dossier-heading header { min-width: 0; }
-.dossier-toggle, .dossier-close { display: none; }
+.dossier-close { display: block; flex: 0 0 auto; }
 h2 { font-family: Georgia, 'Noto Serif SC', serif; font-size: 24px; margin: 10px 0; font-weight: 500; }
 h3 { font-size: 15px; margin: 8px 0; }
 p { font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
@@ -201,6 +254,7 @@ button { border: 1px solid var(--border-default); background: transparent; color
 button:disabled { opacity: .5; cursor: default; }
 nav button { flex: 1; border: 0; border-radius: 0; color: var(--text-secondary); }
 nav button[aria-pressed='true'] { color: var(--text-primary); box-shadow: inset 0 -2px var(--accent); }
+.dossier-content { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .state-badge { font-size: 11px; color: var(--text-secondary); border: 1px solid var(--border-default); border-radius: 20px; padding: 4px 8px; }
 .state-refresh { font-size: 12px; margin: 6px 0; }
@@ -233,24 +287,16 @@ select, textarea { width: 100%; box-sizing: border-box; background: var(--bg-sub
 textarea { resize: vertical; }
 form>button { margin-top: 12px; }
 @include below(lg) {
-  .story-dossier { position: relative; width: 100%; flex: 0 0 auto; border-left: 0; border-top: 1px solid var(--border-default); overflow: visible; }
-  .dossier-toggle { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; border: 0; padding: 10px 20px max(10px, env(safe-area-inset-bottom)); text-align: left; min-height: 52px; }
-  .dossier-toggle span { font-size: 12px; }
-  .dossier-toggle .dossier-toggle-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; color: var(--text-primary); }
-  .dossier-toggle-title small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dossier-toggle>span:last-child { flex-shrink: 0; }
-  .dossier-close { display: block; flex-shrink: 0; min-height: 44px; }
-  .dossier-body { padding: 12px 20px 0; box-sizing: border-box; }
+  .story-dossier { inset: auto 0 0; width: 100%; height: min(72dvh, 680px); border: 1px solid var(--border-default); border-bottom: 0; border-radius: 16px 16px 0 0; box-shadow: 0 -12px 36px rgb(0 0 0 / 24%); }
+  .dossier-body { padding: 18px 20px max(16px, env(safe-area-inset-bottom)); }
   .dossier-heading { flex-shrink: 0; }
-  header .dossier-eyebrow, header h2 { display: none; }
+  header .dossier-eyebrow { display: none; }
+  header h2 { font-size: 20px; margin: 0 0 4px; }
   header p { margin: 0; }
-  nav { flex-shrink: 0; margin: 4px 0 0; }
+  nav { flex-shrink: 0; margin: 14px 0; }
   nav button { min-height: 44px; }
-  .dossier-content { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 12px 0 20px; scrollbar-gutter: stable; }
   .current-location { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px; margin: 10px 0; }
   .current-location strong { grid-column: 1; margin: 0; }
   .current-location button { grid-column: 2; grid-row: 1 / 3; align-self: center; }
-  .dossier-body { position: absolute; bottom: 100%; left: 0; right: 0; z-index: 20; display: none; max-height: min(52dvh, 480px); overflow: hidden; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 16px 16px 0 0; box-shadow: 0 -12px 30px #0002; }
-  .expanded .dossier-body { display: flex; flex-direction: column; }
 }
 </style>

@@ -13,7 +13,7 @@ describe('library read cancellation transport', () => {
     vi.mocked(api.get).mockResolvedValue({ items: [], pagination: { hasNext: true } });
     expect(await characterApi.getCharacters({ page: 2, limit: 50 }, { signal: controller.signal }))
       .toEqual({ characters: [], pagination: { hasNext: true } });
-    expect(api.get).toHaveBeenCalledWith('/characters?page=2&limit=50', { signal: controller.signal });
+    expect(api.get).toHaveBeenCalledWith('/characters?view=summary&page=2&limit=50', { signal: controller.signal });
   });
 
   it('passes the collection signal and preserves read failures', async () => {
@@ -21,12 +21,12 @@ describe('library read cancellation transport', () => {
     const failure = new Error('aborted read');
     vi.mocked(api.get).mockRejectedValue(failure);
     await expect(characterCollectionApi.getCollectionCharacters('collection-id', { signal: controller.signal })).rejects.toBe(failure);
-    expect(api.get).toHaveBeenCalledWith('/character-collections/collection-id/characters', { signal: controller.signal });
+    expect(api.get).toHaveBeenCalledWith('/character-collections/collection-id/characters?view=summary', { signal: controller.signal });
   });
 
   it('keeps callers without cancellation options working', async () => {
     vi.mocked(api.get).mockResolvedValue({ items: [] });
     expect(await characterApi.getCharacters()).toEqual({ characters: [], pagination: undefined });
-    expect(api.get).toHaveBeenCalledWith('/characters', undefined);
+    expect(api.get).toHaveBeenCalledWith('/characters?view=summary', undefined);
   });
 });

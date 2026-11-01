@@ -178,11 +178,55 @@ export async function apiRequest<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const token = localStorage.getItem('token');
+  const tenant = localStorage.getItem('tenantId');
+  try {
+    return await performApiRequest<T>(endpoint, options);
+  } catch (error) {
+    // Authentication rejects the request before the business handler runs.
+    // Never replay login, refresh, upstream LLM errors or uncertain network failures.
+    if (!(error instanceof ApiError) || error.status !== 401 || !token
+      || endpoint.startsWith('/auth')
+      || !['UNAUTHORIZED', 'CSRF_TOKEN_UNAVAILABLE'].includes(error.code)) throw error;
+    if (localStorage.getItem('token') !== token || localStorage.getItem('tenantId') !== tenant) {
+      throw new ApiError(409, 'AUTH_SESSION_CHANGED', 'Login session changed; retry from the current account');
+    }
+    const tokens = await refreshSessionTokens();
+    if (!tokens) {
+      clearExpiredSession(token);
+      throw new ApiError(401, 'SESSION_EXPIRED', '登录已过期，请重新登录后再试');
+    }
+    options.signal?.throwIfAborted();
+    if (localStorage.getItem('token') !== tokens.accessToken || localStorage.getItem('tenantId') !== tenant) {
+      throw new ApiError(409, 'AUTH_SESSION_CHANGED', 'Login session changed; retry from the current account');
+    }
+    try {
+      // Rebuild Authorization and CSRF headers, retrying at most once.
+      return await performApiRequest<T>(endpoint, options, tokens.accessToken);
+    } catch (retryError) {
+      if (retryError instanceof ApiError && retryError.status === 401
+        && ['UNAUTHORIZED', 'CSRF_TOKEN_UNAVAILABLE'].includes(retryError.code)) {
+        clearExpiredSession(tokens.accessToken);
+        throw new ApiError(401, 'SESSION_EXPIRED', '登录已过期，请重新登录后再试');
+      }
+      throw retryError;
+    }
+  }
+}
+
+async function performApiRequest<T = unknown>(
+  endpoint: string,
+  options: RequestInit = {},
+  expectedToken?: string
+): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
   // 获取 token 和 tenantId
   const token = localStorage.getItem('token');
   const tenantId = localStorage.getItem('tenantId');
+  if (expectedToken !== undefined && expectedToken !== token) {
+    throw new ApiError(409, 'AUTH_SESSION_CHANGED', 'Login session changed; retry from the current account');
+  }
 
   // 默认 headers
   const headers: Record<string, string> = {
@@ -226,6 +270,10 @@ export async function apiRequest<T = unknown>(
     headers,
   };
   requestConfig = await interceptors.applyRequestInterceptors(requestConfig, url);
+
+  if (localStorage.getItem('token') !== token || localStorage.getItem('tenantId') !== tenantId) {
+    throw new ApiError(409, 'AUTH_SESSION_CHANGED', 'Login session changed; retry from the current account');
+  }
 
   try {
     let response = await fetch(url, requestConfig);
@@ -412,78 +460,71 @@ export const api = {
   },
 };
 
-/**
- * 默认错误拦截器：处理 401 未授权错误和 403 CSRF 错误
- */
-let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
+interface SessionTokens { accessToken: string; refreshToken: string }
+let refreshOperation: { token: string | null; refreshToken: string; tenant: string | null; promise: Promise<SessionTokens> } | null = null;
 
-function subscribeTokenRefresh(callback: (token: string) => void) {
-  refreshSubscribers.push(callback);
+function notifySessionChanged(): void {
+  window.dispatchEvent(new Event('auth-session-changed'));
 }
 
-function onTokenRefreshed(token: string) {
-  refreshSubscribers.forEach(callback => callback(token));
-  refreshSubscribers = [];
+function clearExpiredSession(expectedToken: string | null): void {
+  if (localStorage.getItem('token') !== expectedToken) return;
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('tenantId');
+  csrfTokenManager.clearToken();
+  // Keep the page and unsaved form available for copying before re-login.
+  notifySessionChanged();
 }
 
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem('refreshToken');
+/** Shared by HTTP recovery and WebSocket/store recovery: rotate only once. */
+export async function refreshSessionTokens(refreshToken = localStorage.getItem('refreshToken')): Promise<SessionTokens | null> {
   if (!refreshToken) return null;
-
-  try {
-    const response = await fetch('/api/v1/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.success && typeof data.data?.accessToken === 'string' && typeof data.data?.refreshToken === 'string') {
-        const newToken = data.data.accessToken;
-        localStorage.setItem('token', newToken);
-        localStorage.setItem('refreshToken', data.data.refreshToken);
-        console.log('Token refreshed successfully');
-        return newToken;
-      }
-    }
-  } catch (refreshError) {
-    console.error('Failed to refresh token:', refreshError);
+  const token = localStorage.getItem('token');
+  const tenant = localStorage.getItem('tenantId');
+  const matchesSession = () => localStorage.getItem('token') === token
+    && localStorage.getItem('refreshToken') === refreshToken && localStorage.getItem('tenantId') === tenant;
+  if (!matchesSession()) throw new ApiError(409, 'AUTH_SESSION_CHANGED', 'Login session changed; retry from the current account');
+  if (refreshOperation?.token === token && refreshOperation.refreshToken === refreshToken && refreshOperation.tenant === tenant) {
+    return refreshOperation.promise;
   }
-  return null;
+  const operation = { token, refreshToken, tenant, promise: null! as Promise<SessionTokens> };
+  operation.promise = (async () => {
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }), signal: AbortSignal.timeout(15000),
+      });
+    } catch {
+      throw new ApiError(0, 'NETWORK_ERROR', '登录续期暂时失败，请稍后重试');
+    }
+    if (!matchesSession()) throw new ApiError(409, 'AUTH_SESSION_CHANGED', 'Login session changed; retry from the current account');
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearExpiredSession(token);
+        throw new ApiError(401, 'SESSION_EXPIRED', '登录已过期，请重新登录后再试');
+      }
+      throw new ApiError(response.status, 'SESSION_REFRESH_FAILED', '登录续期暂时失败，请稍后重试');
+    }
+    const body = await response.json().catch(() => null);
+    const tokens = body?.data;
+    if (!body?.success || typeof tokens?.accessToken !== 'string' || !tokens.accessToken
+      || typeof tokens?.refreshToken !== 'string' || !tokens.refreshToken) {
+      throw new ApiError(502, 'SESSION_REFRESH_FAILED', '登录续期响应无效，请重新登录');
+    }
+    if (!matchesSession()) throw new ApiError(409, 'AUTH_SESSION_CHANGED', 'Login session changed; retry from the current account');
+    localStorage.setItem('token', tokens.accessToken);
+    localStorage.setItem('refreshToken', tokens.refreshToken);
+    csrfTokenManager.clearToken();
+    notifySessionChanged();
+    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
+  })().finally(() => { if (refreshOperation === operation) refreshOperation = null; });
+  refreshOperation = operation;
+  return operation.promise;
 }
 
 api.addErrorInterceptor(async (error: ApiError) => {
-  if (error.status === 401) {
-    if (!isRefreshing) {
-      isRefreshing = true;
-      const newToken = await refreshAccessToken();
-      isRefreshing = false;
-
-      if (newToken) {
-        onTokenRefreshed(newToken);
-        // Token refreshed - the request will need to be retried by the caller
-        console.warn('Token refreshed, please retry the operation');
-        return;
-      }
-    } else {
-      // Wait for the refresh to complete
-      return new Promise<void>((resolve) => {
-        subscribeTokenRefresh(() => {
-          resolve();
-        });
-      });
-    }
-
-    // Refresh failed, clear auth
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    csrfTokenManager.clearToken();
-    console.warn('Unauthorized access, please login again');
-    // Redirect to login page
-    window.location.href = '/login';
-  }
 
   if (error.status === 403) {
     // CSRF token invalid, try to refresh

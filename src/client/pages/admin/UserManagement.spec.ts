@@ -11,7 +11,7 @@ import i18n from '../../i18n';
 // Mock admin API
 vi.mock('@client/services/admin.api', () => ({
   adminApi: {
-    getUsers: vi.fn().mockResolvedValue({ users: [], total: 0, page: 1, limit: 20 }),
+    getUsers: vi.fn().mockResolvedValue({ items: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false } }),
     getUser: vi.fn().mockResolvedValue({
       id: '1',
       email: 'test@example.com',

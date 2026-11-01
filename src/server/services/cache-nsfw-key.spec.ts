@@ -45,6 +45,16 @@ describe('cache keys vary with NSFW visibility', () => {
     expect(keyOf(mockGet.mock.calls[0])).not.toBe(keyOf(mockGet.mock.calls[1]));
   });
 
+  it('列表摘要使用新缓存版本，旧完整图片缓存不再命中', async () => {
+    const { cacheService } = await import('./cache.service');
+    mockGet.mockImplementation(async (key: string) =>
+      key.includes(':summary-v2:') ? null : JSON.stringify({ items: [{ avatarUrl: 'old-large-image' }] }));
+
+    expect(await cacheService.getCachedMarketplace(1, 20)).toBeNull();
+    expect(await cacheService.getCachedSearch('*', 'popular', undefined, undefined, 1, 20)).toBeNull();
+    expect(mockGet.mock.calls.every((call) => keyOf(call).includes(':summary-v2:'))).toBe(true);
+  });
+
   it('marketplace：默认参数的键与偏好关一致（未改动的调用方不受影响）', async () => {
     const { cacheService } = await import('./cache.service');
     await cacheService.getCachedMarketplace(1, 20);

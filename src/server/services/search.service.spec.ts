@@ -5,6 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import sharp from 'sharp';
+import { randomBytes } from 'node:crypto';
 
 // Sample data used across tests
 const wizardChar = {
@@ -126,6 +128,23 @@ describe('SearchService', () => {
   });
 
   describe('searchCharacters', () => {
+    it('returns small real covers and bounded text without mutating source cards or pagination', async () => {
+      const image = await sharp(randomBytes(640 * 640 * 3), { raw: { width: 640, height: 640, channels: 3 } }).png().toBuffer();
+      const row = { ...wizardChar, avatarUrl: `data:image/png;base64,${image.toString('base64')}`, description: '故事'.repeat(10000) };
+      const original = JSON.stringify(row);
+      mockSelectResults = [row];
+      mockCountResults = [{ count: 41 }];
+      const result = await service.searchCharacters({ query: '*', sort: 'popular', filter: 'public', page: 2, limit: 20 });
+      expect(result.pagination).toMatchObject({ page: 2, total: 41, hasNext: true, hasPrev: true });
+      expect(result.items[0].description!.length).toBeLessThanOrEqual(500);
+      expect(result.items[0].avatarUrl).toMatch(/^data:image\/webp;base64,/);
+      const bytes = Buffer.from(result.items[0].avatarUrl!.split(',')[1], 'base64');
+      expect(bytes.length).toBeLessThanOrEqual(32768);
+      expect((await sharp(bytes).metadata()).format).toBe('webp');
+      expect(JSON.stringify(result).length).toBeLessThan(48000);
+      expect(JSON.stringify(row)).toBe(original);
+    });
+
     it('should search by keyword with relevance ranking', async () => {
       mockSelectResults = [wizardChar];
       mockCountResults = [{ count: 1 }];

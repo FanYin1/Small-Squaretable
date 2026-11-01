@@ -187,8 +187,8 @@ describe('User Store', () => {
       expect(localStorage.getItem('token')).toBe(mockResponse.token);
     });
 
-    it('should logout on refresh failure', async () => {
-      vi.mocked(authApi.refreshToken).mockRejectedValue(new Error('Invalid token'));
+    it('clears the expired local session without invalidating other sessions', async () => {
+      vi.mocked(authApi.refreshToken).mockRejectedValue(new ApiError(401, 'SESSION_EXPIRED', 'Invalid token'));
 
       const store = useUserStore();
       store.refreshToken = 'invalid-token';
@@ -198,6 +198,24 @@ describe('User Store', () => {
 
       expect(store.user).toBeNull();
       expect(store.token).toBeNull();
+      expect(authApi.logout).not.toHaveBeenCalled();
+    });
+
+    it('preserves the account on a temporary refresh outage', async () => {
+      vi.mocked(authApi.refreshToken).mockRejectedValue(new ApiError(0, 'NETWORK_ERROR', 'offline'));
+      const store = useUserStore();
+      store.refreshToken = 'still-valid'; store.token = 'expired';
+      store.user = { id: '1', email: 'test@example.com', name: 'Test', createdAt: '2024-01-01' };
+      await expect(store.refreshAccessToken()).rejects.toThrow('offline');
+      expect(store.user?.id).toBe('1'); expect(store.token).toBe('expired');
+      expect(authApi.logout).not.toHaveBeenCalled();
+    });
+
+    it('synchronizes tokens rotated by HTTP recovery', () => {
+      const store = useUserStore();
+      localStorage.setItem('token', 'http-token'); localStorage.setItem('refreshToken', 'http-refresh');
+      window.dispatchEvent(new Event('auth-session-changed'));
+      expect(store.token).toBe('http-token'); expect(store.refreshToken).toBe('http-refresh');
     });
 
     it('should throw error if no refresh token', async () => {

@@ -7,6 +7,10 @@ import { UserService } from './user.service';
 import { userRepository } from '../../db/repositories/user.repository';
 import { NotFoundError, ValidationError } from '../../core/errors';
 import bcrypt from 'bcrypt';
+import sharp from 'sharp';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 vi.mock('../../db/repositories/user.repository');
 vi.mock('bcrypt');
@@ -47,6 +51,20 @@ describe('UserService', () => {
   });
 
   describe('updateProfile', () => {
+    it.each(['missing', 'database-error'])('removes a newly uploaded avatar on %s', async failure => {
+      const directory = await mkdtemp(join(tmpdir(), 'squaretable-user-avatar-'));
+      try {
+        const image = await sharp({ create: { width: 40, height: 40, channels: 3, background: '#345678' } }).png().toBuffer();
+        if (failure === 'missing') vi.mocked(userRepository.update).mockResolvedValue(null);
+        else vi.mocked(userRepository.update).mockRejectedValueOnce(new Error('database unavailable'));
+        await expect(new UserService(userRepository, directory).updateProfile('test', {
+          avatarUrl: `data:image/png;base64,${image.toString('base64')}`,
+        })).rejects.toThrow();
+        expect(vi.mocked(userRepository.update).mock.calls[0][1].avatarUrl).toMatch(/^\/avatars\/.+\.webp$/);
+        expect(await readdir(join(directory, 'avatars'))).toEqual([]);
+      } finally { await rm(directory, { recursive: true, force: true }); }
+    });
+
     it('should update user profile', async () => {
       const userId = 'user-123';
       const updateData = {

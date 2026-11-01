@@ -23,17 +23,17 @@
 </template>
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, watch } from 'vue';
-import { inspectStoryCapabilities, storyCapabilityMessages } from '../../../types/story-capabilities';
+import { inspectStoryCapabilities, storyCapabilityMessages, type StoryCapabilities } from '../../../types/story-capabilities';
 import { characterApi } from '../../services/character.api';
 import type { StoryDiagnostics } from '../../../types/story-diagnostics';
 import StoryDiagnosticsView from './StoryDiagnosticsView.vue';
 import { adapterReasonMessages } from '../../../types/story-adapter';
-const props = defineProps<{ cardData?: Record<string, unknown>; characterId?: string }>();
+const props = defineProps<{ cardData?: Record<string, unknown>; characterId?: string; initialCapabilities?: StoryCapabilities }>();
 const report = ref<StoryDiagnostics | null>(null);
 const loading = ref(false);
 const failed = ref(false);
 let version = 0;
-const capabilities = computed(() => report.value?.capabilities ?? inspectStoryCapabilities(props.cardData ?? {}));
+const capabilities = computed(() => report.value?.capabilities ?? props.initialCapabilities ?? inspectStoryCapabilities(props.cardData ?? {}));
 async function load() {
   const requestVersion = ++version;
   report.value = null;
