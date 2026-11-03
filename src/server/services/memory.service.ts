@@ -52,6 +52,11 @@ export class MemoryService {
   async retrieveMemories(query: MemoryQuery): Promise<ScoredMemory[]> {
     const { characterId, userId, query: queryText, chatId, limit = 10 } = query;
 
+    // Recheck each request: an empty scope can gain a vector before the next turn.
+    if (!await memoryRepository.hasRetrievableMemories(characterId, userId, chatId ?? null)) {
+      return [];
+    }
+
     // Generate embedding for query
     const embedding = await embeddingService.embed(queryText);
 

@@ -10,8 +10,8 @@
 
       <div class="bubble-col">
         <p v-if="message.extra?.storyAudience" class="bubble-meta">私下交谈 · {{ audienceNames?.join('、') || '仅所选人物知情' }}</p>
-        <p v-if="message.extra?.stateStatus === 'interrupted' && !message.extra?.storyIntentInvalid" class="bubble-meta" role="status">未完成的片段 · 其中的行动与后果未确认</p>
-        <p v-if="message.extra?.storyIntentInvalid" class="bubble-meta" role="status">模型回复未通过剧情结构校验，未提交状态变化。你可以重新发送或调整行动。</p>
+        <p v-if="message.extra?.stateStatus === 'interrupted' && !message.extra?.storyIntentInvalid" class="bubble-meta" role="status">{{ interruptedMessage }}</p>
+        <p v-if="message.extra?.storyIntentInvalid" class="bubble-meta" role="status">{{ storyValidationMessage(message.extra?.storyDiagnostics) }}</p>
         <div v-if="message.extra?.pinned" class="pin-indicator">{{ t('chat.pinnedMessage', 'Pinned') }}</div>
 
         <!-- Assistant name + emotion above bubble -->
@@ -156,6 +156,7 @@ import MessageImage from './MessageImage.vue';
 // 仅为副作用而导入：模块加载时会把字号偏好写到 <html data-chat-font-size>，
 // 聊天页刷新后无需等设置页挂载就能应用偏好。
 import '@client/composables/useChatFontSize';
+import { storyValidationMessage } from '../../../types/story-intent';
 import type { Message } from '@client/types';
 import type { RegexScript } from '@client/utils/regex-scripts';
 
@@ -178,6 +179,12 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const interruptedMessage = computed(() => {
+  const diagnostic = props.message.extra?.storyDiagnostics;
+  return diagnostic && typeof diagnostic === 'object' && 'code' in diagnostic && diagnostic.code === 'stream_incomplete'
+    ? storyValidationMessage(diagnostic) : '未完成的片段 · 其中的行动与后果未确认';
+});
 
 const emit = defineEmits<{
   (e: 'edit', messageId: string): void;

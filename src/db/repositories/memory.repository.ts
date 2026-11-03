@@ -25,6 +25,15 @@ export interface HybridSearchParams {
   limit?: number;
 }
 
+// Shared by the preflight and search so legacy undefined (all sessions),
+// null (global only), and a story ID always cover the same rows.
+function memorySearchScope(characterId: string, userId: string, chatId?: string | null) {
+  return sql`m.character_id = ${characterId}::uuid
+    AND m.user_id = ${userId}::uuid
+    ${chatId ? sql`AND m.source_chat_id = ${chatId}::uuid`
+      : chatId === null ? sql`AND m.source_chat_id IS NULL` : sql``}`;
+}
+
 export class MemoryRepository {
   constructor(private readonly database: Database = db) {}
   async create(data: NewCharacterMemory): Promise<CharacterMemory> {
@@ -70,6 +79,18 @@ export class MemoryRepository {
       .limit(limit);
   }
 
+  async hasRetrievableMemories(characterId: string, userId: string, chatId?: string | null): Promise<boolean> {
+    const result = await this.database.execute(sql`
+      SELECT EXISTS (
+        SELECT 1
+        FROM character_memories m
+        JOIN character_memory_vectors v ON v.memory_id = m.id
+        WHERE ${memorySearchScope(characterId, userId, chatId)}
+      ) AS exists
+    `);
+    return (result as unknown as Array<{ exists: boolean }>)[0]?.exists ?? false;
+  }
+
   async hybridSearch(params: HybridSearchParams): Promise<MemoryWithScore[]> {
     const { characterId, userId, embedding, chatId, limit = 10 } = params;
     const embeddingStr = `[${embedding.join(',')}]`;
@@ -78,10 +99,6 @@ export class MemoryRepository {
     const wImp = config.memoryImportanceWeight;
     const wRec = config.memoryRecencyWeight;
     const halfLifeSec = config.memoryDecayHalfLifeDays * 86400;
-
-    const chatFilter = chatId
-      ? sql`AND m.source_chat_id = ${chatId}::uuid`
-      : chatId === null ? sql`AND m.source_chat_id IS NULL` : sql``;
 
     const result = await this.database.execute(sql`
       SELECT
@@ -96,9 +113,7 @@ export class MemoryRepository {
         ) as score
       FROM character_memories m
       JOIN character_memory_vectors v ON v.memory_id = m.id
-      WHERE m.character_id = ${characterId}::uuid
-        AND m.user_id = ${userId}::uuid
-        ${chatFilter}
+      WHERE ${memorySearchScope(characterId, userId, chatId)}
       ORDER BY score DESC
       LIMIT ${limit}
     `);

@@ -62,6 +62,26 @@ describe('MessageBubble', () => {
     expect(wrapper.text()).not.toContain('未完成的片段');
   });
 
+  it('shows a specific saved failure reason without blaming the player or displaying raw control data', () => {
+    const message = { ...createMessage('assistant'), extra: { stateStatus: 'interrupted', storyIntentInvalid: true,
+      storyDiagnostics: { code: 'invalid_json', model: 'configured-model' } } };
+    const wrapper = mount(MessageBubble, { props: { message }, ...mountOptions() });
+    expect(wrapper.text()).toContain('剧情控制信息格式有误');
+    expect(wrapper.text()).toContain('未提交状态变化');
+    expect(wrapper.text()).not.toContain('调整行动');
+    expect(wrapper.text()).not.toContain('configured-model');
+  });
+
+  it('explains a saved transport interruption without exposing provider diagnostics', () => {
+    const message = { ...createMessage('assistant'), extra: { stateStatus: 'interrupted',
+      storyDiagnostics: { code: 'stream_incomplete', model: 'private-provider-alias' } } };
+    const wrapper = mount(MessageBubble, { props: { message }, ...mountOptions() });
+    expect(wrapper.text()).toContain('模型回复传输未完整结束');
+    expect(wrapper.text()).toContain('已保留收到的片段');
+    expect(wrapper.text()).toContain('未提交状态变化');
+    expect(wrapper.text()).not.toContain('private-provider-alias');
+  });
+
   it('displays message content', () => {
     const wrapper = mount(MessageBubble, {
       props: { message: createMessage() },

@@ -9,7 +9,26 @@ export interface MessagePagination {
   after?: number;
 }
 
+export const contextMessageColumns = {
+  id: messages.id, role: messages.role, content: messages.content,
+  pinned: messages.pinned, importance: messages.importance,
+};
+export type ContextMessage = Pick<Message, keyof typeof contextMessageColumns>;
+
 export class MessageRepository extends BaseRepository {
+  // Preserve all semantic inputs and chronological ordering. Attachment data,
+  // structured response metadata and search vectors are not prompt inputs.
+  async findContextByChatId(chatId: string): Promise<ContextMessage[]> {
+    return this.db.select(contextMessageColumns).from(messages).where(eq(messages.chatId, chatId))
+      .orderBy(asc(messages.sentAt), asc(messages.id));
+  }
+
+  async findRecentByChatId(chatId: string, limit = 10): Promise<Message[]> {
+    const recent = await this.db.select().from(messages).where(eq(messages.chatId, chatId))
+      .orderBy(desc(messages.sentAt), desc(messages.id)).limit(limit);
+    return recent.slice().reverse();
+  }
+
   async findByChatId(chatId: string, pagination?: MessagePagination): Promise<Message[]> {
     const conditions = [eq(messages.chatId, chatId)];
 

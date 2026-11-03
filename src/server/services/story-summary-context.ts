@@ -1,15 +1,16 @@
 import { contextManager, type ContextBuildResult, type LLMMessage } from './context-manager.service';
+import type { ModelMeta } from '../../types/llm';
 import { getModelMeta } from '../config/llm.config';
 import { ContextBudgetError, CONTEXT_BUFFER_TOKENS, estimateContextMessages, assertContextBudget } from './context-budget';
 import { countMessagesTokens } from '../utils/tokens';
 import type { StorySummary } from './story-summary.service';
 
 export function addStorySummaries(system: string, history: LLMMessage[], model: string, reservedTokens: number,
-  original: ContextBuildResult, summaries: StorySummary[]): ContextBuildResult {
+  original: ContextBuildResult, summaries: StorySummary[], resolvedLimits?: ModelMeta): ContextBuildResult {
   if (!original.truncated) return original;
   const originalIds = new Set(history.map(message => message.messageId));
   const retainedIds = new Set(original.messages.map(message => message.messageId));
-  const limits = getModelMeta(model);
+  const limits = resolvedLimits ?? getModelMeta(model);
   const allowance = Math.max(0, Math.min(1024, Math.floor((Math.min(limits.contextWindow - limits.maxOutputTokens, limits.maxInputTokens ?? limits.contextWindow) - CONTEXT_BUFFER_TOKENS) / 4)));
   const selected: Array<{ source: StorySummary; message: LLMMessage }> = [];
   let tokens = 0;
@@ -25,7 +26,7 @@ export function addStorySummaries(system: string, history: LLMMessage[], model: 
     const summaryMessages = [...selected].sort((left, right) => left.source.firstVersion - right.source.firstVersion).map(item => item.message);
     const summaryTokens = estimateContextMessages(summaryMessages);
     try {
-      const rebuilt = contextManager.buildContext(system, history, model, reservedTokens + summaryTokens);
+      const rebuilt = contextManager.buildContext(system, history, model, reservedTokens + summaryTokens, limits);
       const includedIds = new Set(rebuilt.messages.map(message => message.messageId));
       const overlap = selected.findIndex(item => item.source.sourceMessageIds.some(id => includedIds.has(id)));
       if (overlap >= 0) { selected.splice(overlap, 1); continue; }

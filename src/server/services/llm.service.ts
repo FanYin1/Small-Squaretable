@@ -4,8 +4,14 @@
  * 提供 LLM 代理服务，支持多种 LLM 提供商
  */
 
+import { setTimeout as delay } from 'node:timers/promises';
+import { buildOllamaRequest, convertOllamaStream } from './ollama-request';
+import { config } from '../../core/config';
+import { resolveGenerationParameters } from './generation-parameters';
+import { assertContextBudget, estimateContextMessages, estimateContextTokens } from './context-budget';
+import type { ModelMeta } from '../../types/llm';
 import { resolveEngineeringStoryProvider } from './engineering-story-provider';
-import { findProviderForModel, getDefaultModel } from '../config/llm.config';
+import { findProviderForModel, getDefaultModel, getModelMeta } from '../config/llm.config';
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
@@ -19,6 +25,7 @@ import { getPromptLayout } from './prompt-layout';
 import { buildGeminiRequest, convertGeminiStream, readGeminiCompletion } from './gemini-adapter';
 
 import { buildAnthropicRequest, convertAnthropicStream, readAnthropicCompletion } from './anthropic-adapter';
+import { assertAnthropicResponse } from './anthropic-api-error';
 import { prepareChatRequest, prepareNativeChatRequest } from './llm-request';
 
 const llmLogger = logger.child({ module: 'llm' });
@@ -41,6 +48,9 @@ export interface LlmCallOptions {
   chatId?: string;
   signal?: AbortSignal;
   maxAttempts?: number;
+  limits?: ModelMeta;
+  /** Already formatted legacy prompt; compatible providers use /completions. */
+  templatePrompt?: string;
 }
 
 function num(value: unknown): number | null {
@@ -157,7 +167,14 @@ function observeStreamUsage(body: ReadableStream<Uint8Array>, onUsage: (usage: u
 }
 
 export class LLMService {
-  private readonly maxRetries = 3;
+  private get maxRetries(): number { return config.llmMaxRetries; }
+
+  private requestOptions(options?: LlmCallOptions): LlmCallOptions {
+    const deadline = AbortSignal.timeout(config.llmRequestTimeoutMs);
+    const signal = options?.signal ? AbortSignal.any([options.signal, deadline]) : deadline;
+    signal.throwIfAborted();
+    return { ...options, signal };
+  }
   private readonly retryDelay = 1000; // ms
 
   /**
@@ -192,6 +209,7 @@ export class LLMService {
    * 聊天补全
    */
   async chatCompletion(request: ChatCompletionRequest, options?: LlmCallOptions): Promise<ChatCompletionResponse> {
+    options = this.requestOptions(options);
     await spendBreaker.assertAllowed();
 
     const model = request.model || getDefaultModel();
@@ -199,6 +217,10 @@ export class LLMService {
       throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
     }
 
+    const limits = resolveGenerationParameters(options?.limits ?? getModelMeta(model), request.max_tokens);
+    request = { ...request, max_tokens: limits.maxOutputTokens };
+    assertContextBudget(options?.templatePrompt === undefined ? estimateContextMessages(request.messages) + 2
+      : estimateContextTokens(options.templatePrompt), limits);
     const defaultProvider = findProviderForModel(model);
     const providerConfig = defaultProvider ? await resolveEngineeringStoryProvider(defaultProvider, model, options?.chatId) : null;
     if (!providerConfig) {
@@ -215,6 +237,18 @@ export class LLMService {
 
     // 执行请求，带重试机制
     const result = await this.executeWithRetry<ChatCompletionResponse>(async () => {
+      if (providerConfig.provider === 'ollama' && (!providerConfig.apiFormat || providerConfig.apiFormat === 'openai')) {
+        const native = buildOllamaRequest(this.requireBaseUrl(providerConfig), upstreamRequest, limits, false, options?.templatePrompt);
+        const response = await fetch(native.url, { method: 'POST', headers, body: JSON.stringify(native.body), signal: options?.signal });
+        if (!response.ok) throw new AppError(`Ollama API returned HTTP ${response.status}`, response.status, 'LLM_API_ERROR');
+        const data = await response.json();
+        return { id: data.id ?? 'ollama', object: 'chat.completion', created: Math.floor(Date.now() / 1000), model,
+          choices: [{ index: 0, message: { role: 'assistant', content: data.message?.content ?? data.response ?? '' },
+            finish_reason: data.done === true ? (data.done_reason ?? 'stop') : null }],
+          ...(Number.isFinite(data.prompt_eval_count) && Number.isFinite(data.eval_count) ? { usage: {
+            prompt_tokens: data.prompt_eval_count, completion_tokens: data.eval_count, total_tokens: data.prompt_eval_count + data.eval_count,
+          } } : {}) };
+      }
       if (anthropic) {
         const native = buildAnthropicRequest(this.requireBaseUrl(providerConfig), providerConfig.apiKey, upstreamRequest);
         return readAnthropicCompletion(await fetch(native.url, { ...native.init, signal: options?.signal }), model);
@@ -265,7 +299,8 @@ export class LLMService {
     signal?: AbortSignal,
     options?: LlmCallOptions
   ): Promise<Response> {
-    // 只在发起前检查；已经开始流式输出的回复不会被中途切断
+    options = this.requestOptions({ ...options, signal: signal ?? options?.signal });
+    signal = options.signal;
     await spendBreaker.assertAllowed();
 
     const model = request.model || getDefaultModel();
@@ -273,34 +308,32 @@ export class LLMService {
       throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
     }
 
+    const limits = resolveGenerationParameters(options?.limits ?? getModelMeta(model), request.max_tokens);
+    request = { ...request, max_tokens: limits.maxOutputTokens };
+    assertContextBudget(options?.templatePrompt === undefined ? estimateContextMessages(request.messages) + 2
+      : estimateContextTokens(options.templatePrompt), limits);
     const defaultProvider = findProviderForModel(model);
     const providerConfig = defaultProvider ? await resolveEngineeringStoryProvider(defaultProvider, model, options?.chatId) : null;
     if (!providerConfig) {
       throw new AppError(`Model ${model} not found`, 404, 'MODEL_NOT_FOUND');
     }
 
-    // Special handling for Qwen3.5 models - use Ollama native API with think: false
     const baseUrl = this.requireBaseUrl(providerConfig);
-    let url = `${baseUrl}/chat/completions`;
-    let modifiedRequest: any = prepareChatRequest(providerConfig, { ...request, model }, true);
+    const legacyCompletion = options?.templatePrompt !== undefined && providerConfig.apiFormat !== 'gemini' &&
+      providerConfig.apiFormat !== 'anthropic' && providerConfig.provider !== 'anthropic';
+    let url = `${baseUrl}/${legacyCompletion ? 'completions' : 'chat/completions'}`;
+    let modifiedRequest: Record<string, unknown> = prepareChatRequest(providerConfig, { ...request, model }, true);
+    if (legacyCompletion) {
+      delete modifiedRequest.messages;
+      modifiedRequest.prompt = options.templatePrompt;
+    }
     const upstreamRequest = prepareNativeChatRequest(providerConfig, { ...request, model });
     const anthropic = providerConfig.apiFormat === 'anthropic' || (!providerConfig.apiFormat && providerConfig.provider === 'anthropic');
-
-    if (providerConfig.provider === 'ollama' && upstreamRequest.model.includes('qwen3.5') && baseUrl.includes('11434')) {
-      // Use Ollama native API for Qwen3.5 to disable thinking
-      url = baseUrl.replace('/v1', '') + '/api/chat';
-      modifiedRequest = {
-        model: upstreamRequest.model,
-        messages: upstreamRequest.messages,
-        stream: true,
-        think: false,  // Disable thinking at top level
-        options: {
-          num_ctx: 16384,
-          num_predict: 4096,
-          ...(upstreamRequest.temperature === undefined ? {} : { temperature: upstreamRequest.temperature }),
-        },
-      };
+    if (providerConfig.provider === 'ollama' && (!providerConfig.apiFormat || providerConfig.apiFormat === 'openai')) {
+      const native = buildOllamaRequest(baseUrl, upstreamRequest, limits, true, options?.templatePrompt);
+      url = native.url; modifiedRequest = native.body;
     }
+
 
     const headers = {
       'Content-Type': 'application/json',
@@ -316,6 +349,10 @@ export class LLMService {
       signal: signal ?? options?.signal,
     });
 
+    if (providerConfig.provider === 'ollama' && (!providerConfig.apiFormat || providerConfig.apiFormat === 'openai')) {
+      response = convertOllamaStream(response, model);
+    }
+    if (anthropic) await assertAnthropicResponse(response);
     if (native) response = anthropic ? convertAnthropicStream(response, model) : convertGeminiStream(response, model);
 
     if (!response.ok) {
@@ -343,7 +380,9 @@ export class LLMService {
   /**
    * 文本补全
    */
-  async completion(request: CompletionRequest): Promise<CompletionResponse> {
+  async completion(request: CompletionRequest, options?: LlmCallOptions): Promise<CompletionResponse> {
+    if (request.stream) throw new AppError('Use the streaming chat endpoint for HTTP streaming', 400, 'STREAMING_ENDPOINT_REQUIRED');
+    options = this.requestOptions(options);
     await spendBreaker.assertAllowed();
 
     const model = request.model || getDefaultModel();
@@ -351,17 +390,22 @@ export class LLMService {
       throw new AppError('No LLM provider configured', 500, 'LLM_NOT_CONFIGURED');
     }
 
+    const limits = resolveGenerationParameters(options?.limits ?? getModelMeta(model), request.max_tokens);
+    request = { ...request, max_tokens: limits.maxOutputTokens };
+    for (const prompt of Array.isArray(request.prompt) ? request.prompt : [request.prompt]) {
+      assertContextBudget(estimateContextTokens(prompt), limits);
+    }
     const providerConfig = findProviderForModel(model);
     if (!providerConfig) {
       throw new AppError(`Model ${model} not found`, 404, 'MODEL_NOT_FOUND');
     }
 
-    if (providerConfig.apiFormat === 'gemini' || providerConfig.apiFormat === 'anthropic' || providerConfig.provider === 'anthropic') {
+    if (providerConfig.provider === 'ollama' || providerConfig.apiFormat === 'gemini' || providerConfig.apiFormat === 'anthropic' || providerConfig.provider === 'anthropic') {
       if (Array.isArray(request.prompt) && request.prompt.length !== 1) {
         throw new AppError('Native text completion requires one prompt', 400, 'NATIVE_REQUEST_UNSUPPORTED');
       }
       const prompt = Array.isArray(request.prompt) ? request.prompt[0] : request.prompt;
-      const result = await this.chatCompletion({ ...request, model, messages: [{ role: 'user', content: prompt }], stream: false });
+      const result = await this.chatCompletion({ ...request, model, messages: [{ role: 'user', content: prompt }], stream: false }, { ...options, limits, templatePrompt: providerConfig.provider === 'ollama' ? prompt : undefined });
       const choices = result.choices.map(choice => ({ index: choice.index, text: choice.message.content,
         finish_reason: choice.finish_reason === 'content_filter' ? null : choice.finish_reason }));
       return { ...result, object: 'text_completion', choices };
@@ -373,11 +417,14 @@ export class LLMService {
       Authorization: `Bearer ${providerConfig.apiKey}`,
     };
 
+    const body = prepareChatRequest(providerConfig, { ...request, model, messages: [] }, false);
+    delete body.messages;
     const result = await this.executeWithRetry<CompletionResponse>(async () => {
       const response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ ...request, model: providerConfig.modelAliases?.[model] || model }),
+        body: JSON.stringify(body),
+        signal: options?.signal,
       });
 
       if (!response.ok) {
@@ -390,7 +437,7 @@ export class LLMService {
       }
 
       return response.json();
-    });
+    }, options?.maxAttempts, options?.signal);
 
     await this.recordPlatformSpend(() => {
       if (result.usage) return result.usage.total_tokens;
@@ -461,7 +508,7 @@ export class LLMService {
 
         // 如果不是最后一次尝试，等待后重试
         if (attempt < attempts - 1) {
-          await this.sleep(this.retryDelay * Math.pow(2, attempt));
+          await delay(this.retryDelay * Math.pow(2, attempt), undefined, { signal });
         }
       }
     }
@@ -469,12 +516,6 @@ export class LLMService {
     throw lastError;
   }
 
-  /**
-   * 延迟函数
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
 }
 
 export const llmService = new LLMService();

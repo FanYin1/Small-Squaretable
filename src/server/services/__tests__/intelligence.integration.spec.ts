@@ -16,6 +16,7 @@ vi.mock('../../../db/repositories/memory.repository', () => ({
     create: vi.fn(),
     createVector: vi.fn(),
     findByCharacterAndUser: vi.fn(),
+    hasRetrievableMemories: vi.fn(),
     hybridSearch: vi.fn(),
     updateAccessTime: vi.fn(),
     updateAccessTimeBatch: vi.fn(),
@@ -50,6 +51,7 @@ vi.mock('../../../db/repositories/chat.repository', () => ({
 vi.mock('../../../db/repositories/message.repository', () => ({
   messageRepository: {
     findByChatId: vi.fn(),
+    findRecentByChatId: vi.fn(),
   },
 }));
 
@@ -90,6 +92,7 @@ import { chatOverrideRepository } from '../../../db/repositories/chat-override.r
 import { chatVariableStore } from '../chat-variable.service';
 import { embeddingService } from '../embedding.service';
 import { llmService } from '../llm.service';
+import { messageRepository } from '../../../db/repositories/message.repository';
 
 describe('Intelligence Integration', () => {
   let memoryService: MemoryService;
@@ -98,6 +101,7 @@ describe('Intelligence Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(memoryRepository.hasRetrievableMemories).mockResolvedValue(true);
     // Ensure findSimilar returns empty array by default (needed for storeMemory dedup check)
     vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
     // afterEach 的 resetAllMocks 会清掉实现，所以每个用例前重新设置
@@ -439,6 +443,25 @@ describe('Intelligence Integration', () => {
   });
 
   describe('Batch Memory Extraction', () => {
+    it('reads the recent message window only when the extraction threshold is reached', async () => {
+      vi.mocked(messageRepository.findRecentByChatId).mockResolvedValue([
+        { id: 1, role: 'user', content: 'I love coffee', chatId: 'chat-threshold', sentAt: new Date() },
+      ] as any);
+      vi.mocked(llmService.chatCompletion).mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({ facts: [], preferences: [], relationships: [], events: [] }) } }],
+      } as any);
+
+      for (let i = 0; i < 4; i++) {
+        await chatService.checkAndExtractMemories('chat-threshold', 'char-1', 'user-1');
+      }
+      expect(messageRepository.findRecentByChatId).not.toHaveBeenCalled();
+
+      await chatService.checkAndExtractMemories('chat-threshold', 'char-1', 'user-1');
+
+      expect(messageRepository.findRecentByChatId).toHaveBeenCalledOnce();
+      expect(messageRepository.findRecentByChatId).toHaveBeenCalledWith('chat-threshold', 10);
+    });
+
     it('should trigger extraction after 10 messages', async () => {
       const chatId = 'chat-1';
       const characterId = 'char-1';

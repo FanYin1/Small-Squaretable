@@ -48,6 +48,13 @@ describe('Config Module', () => {
     expect(config.host).toBe('0.0.0.0');
   });
 
+  it('loads generation deadline and total attempt settings from the documented environment variables', async () => {
+    process.env.LLM_REQUEST_TIMEOUT_MS = '45000';
+    process.env.LLM_MAX_RETRIES = '1';
+    const { loadConfig } = await import('@/core/config');
+    expect(loadConfig()).toMatchObject({ llmRequestTimeoutMs: 45000, llmMaxRetries: 1 });
+  });
+
   describe('Platform spend breaker configuration', () => {
     beforeEach(() => {
       process.env.DATABASE_URL = 'postgresql://localhost:5432/test';

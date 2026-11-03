@@ -12,6 +12,7 @@
       </ul>
     </section>
     <section v-if="recommendations.length" class="story-actions turn-recommendations" :class="{ 'opening-suggestions': opening }" aria-label="本轮推荐行动">
+      <p class="story-recommendations-lead">{{ leadText }}</p>
       <ul>
         <li v-for="suggestion in recommendations" :key="suggestion.label">
           <button type="button" class="story-action-choice" :disabled="recommendationBlocked" @click="emit('suggest', suggestion.input)">
@@ -24,16 +25,22 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { StoryStateView } from '../../../types/story-state';
-import type { StoryRecommendation } from '../../../types/story-recommendations';
+import { DEFAULT_STORY_RECOMMENDATIONS_LEAD, storyRecommendationsLeadTextSchema, type StoryRecommendation } from '../../../types/story-recommendations';
 
-defineProps<{
+const props = defineProps<{
   actions: StoryStateView['actions'];
   recommendations: StoryRecommendation[];
+  lead?: string;
   opening: boolean;
   actionBlocked: boolean;
   recommendationBlocked: boolean;
 }>();
+const leadText = computed(() => {
+  const parsed = storyRecommendationsLeadTextSchema.safeParse(props.lead);
+  return parsed.success ? parsed.data : DEFAULT_STORY_RECOMMENDATIONS_LEAD;
+});
 const emit = defineEmits<{
   action: [action: StoryStateView['actions'][number]];
   suggest: [input: string];
@@ -44,6 +51,7 @@ const actionIntents = { observe: '观察', talk: '交谈', act: '行动', travel
 <style scoped>
 .story-next-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 100%; margin: 8px 0 0; }
 .story-actions { min-width: 0; max-width: 100%; margin: 0; }
+.story-recommendations-lead { margin: 0 0 8px; color: var(--text-secondary); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .story-actions ul { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; list-style: none; padding: 0; margin: 0; }
 .story-actions li { min-width: 0; max-width: 100%; padding: 0; margin: 0; }
 .story-action-intent { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }

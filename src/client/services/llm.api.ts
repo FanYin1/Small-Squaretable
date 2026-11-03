@@ -38,13 +38,8 @@ export interface ChatCompletionResponse {
   };
 }
 
-export interface ModelMeta {
-  id: string;
-  provider: string;
-  contextWindow: number;
-  maxOutputTokens: number;
-  defaultTemperature: number;
-}
+export type { ModelMeta } from '../../types/llm';
+import type { ModelMeta } from '../../types/llm';
 
 /**
  * 流式请求非 2xx 时构造错误：能解析出标准错误体（{ error: { code, message, details } }）

@@ -8,7 +8,8 @@
 
 import { countTokens, countMessagesTokens } from '../utils/tokens';
 import { AppError } from '../../core/errors';
-import { assertContextBudget, estimateContextMessages } from './context-budget';
+import { assertContextBudget, estimateContextMessages, estimateContextText } from './context-budget';
+import type { ModelMeta } from '../../types/llm';
 import { getModelMeta } from '../config/llm.config';
 import { createLogger } from './logger.service';
 import { summarizationService } from './summarization.service';
@@ -48,37 +49,43 @@ export class ContextManager {
     systemPrompt: string,
     messages: LLMMessage[],
     model: string,
-    reservedTokens: number = 0
+    reservedTokens: number = 0,
+    resolvedLimits?: ModelMeta
   ): ContextBuildResult {
-    const meta = getModelMeta(model);
+    const meta = resolvedLimits ?? getModelMeta(model);
     if (!Number.isSafeInteger(reservedTokens) || reservedTokens < 0) {
       throw new AppError('The reserved context budget is invalid.', 500, 'CONTEXT_CONFIG_INVALID');
     }
     const system: LLMMessage = { role: 'system', content: systemPrompt };
     const fixedTokens = estimateContextMessages([system]) + 2 + reservedTokens;
     const availableTokens = assertContextBudget(fixedTokens, meta, 'critical');
-    const allTokens = fixedTokens + estimateContextMessages(messages);
+    const messageCosts = messages.map(message => estimateContextText(message.content));
+    const historyTokens = messageCosts.reduce((total, cost) => total + cost, 0);
+    const allTokens = fixedTokens + historyTokens;
     if (allTokens <= availableTokens) {
       const complete = [system, ...messages];
       return { messages: complete, totalTokens: countMessagesTokens(complete), truncated: false, truncatedCount: 0 };
     }
 
-    const turns: LLMMessage[][] = [];
-    for (const message of messages) {
-      if (message.role === 'user' || turns.length === 0) turns.push([]);
-      turns[turns.length - 1].push(message);
+    const turns: Array<{ messages: LLMMessage[]; tokens: number; start: number; end: number }> = [];
+    for (const [index, message] of messages.entries()) {
+      if (message.role === 'user' || turns.length === 0) turns.push({ messages: [], tokens: 0, start: index, end: index + 1 });
+      const turn = turns[turns.length - 1];
+      turn.messages.push(message);
+      turn.tokens += messageCosts[index];
+      turn.end = index + 1;
     }
     const latest = turns.length - 1;
     const selected = new Set<number>();
     let usedTokens = fixedTokens;
     if (latest >= 0) {
-      usedTokens += estimateContextMessages(turns[latest]);
+      usedTokens += turns[latest].tokens;
       assertContextBudget(usedTokens, meta, 'latest');
       selected.add(latest);
     }
     for (const [index, turn] of turns.entries()) {
-      if (index === latest || !turn.some(message => message.pinned)) continue;
-      usedTokens += estimateContextMessages(turn);
+      if (index === latest || !turn.messages.some(message => message.pinned)) continue;
+      usedTokens += turn.tokens;
       selected.add(index);
     }
     assertContextBudget(usedTokens, meta, 'pinned');
@@ -89,21 +96,19 @@ export class ContextManager {
     assertContextBudget(usedTokens + noticeTokens, meta, 'payload');
     usedTokens += noticeTokens;
     const recentBoundary = Math.max(0, messages.length - 20);
-    let position = 0;
     const ranked = turns.map((turn, index) => {
-      position += turn.length;
-      return { index, turn, recent: position > recentBoundary,
-        importance: Math.max(...turn.map(message => message.importance ?? 5)) };
+      return { index, turn, recent: turn.end > recentBoundary,
+        importance: Math.max(...turn.messages.map(message => message.importance ?? 5)) };
     }).filter(candidate => !selected.has(candidate.index)).sort((left, right) =>
       Number(right.recent) - Number(left.recent) ||
       (left.recent ? right.index - left.index : right.importance - left.importance || right.index - left.index));
     for (const candidate of ranked) {
-      const tokens = estimateContextMessages(candidate.turn);
+      const tokens = candidate.turn.tokens;
       if (usedTokens + tokens > availableTokens) continue;
       selected.add(candidate.index);
       usedTokens += tokens;
     }
-    const included = turns.flatMap((turn, index) => selected.has(index) ? turn : []);
+    const included = turns.flatMap((turn, index) => selected.has(index) ? turn.messages : []);
     const truncatedCount = messages.length - included.length;
     const result = [system, ...(truncatedCount ? [notice(truncatedCount)] : []), ...included];
     assertContextBudget(estimateContextMessages(result) + 2 + reservedTokens, meta);

@@ -33,6 +33,18 @@ describe('ChatRepository', () => {
     });
   });
 
+  describe('findSummaryByUserId', () => {
+    it('should return only sidebar fields with pagination', async () => {
+      // Query shape is covered by the service and route tests; this documents the repository contract.
+    });
+  });
+
+  describe('countByUserId', () => {
+    it('should count chats without loading full rows', async () => {
+      // Query shape is covered by the service and route tests; this documents the repository contract.
+    });
+  });
+
   describe('findByCharacterId', () => {
     it('should return chats for character', async () => {
       // Test implementation

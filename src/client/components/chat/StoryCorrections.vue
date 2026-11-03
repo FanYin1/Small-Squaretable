@@ -61,7 +61,7 @@
       <el-button v-if="pending" :loading="busy" @click="recover">查回创建结果</el-button>
       <el-button v-else-if="operation === 'branch' && preview" type="primary" :loading="busy" @click="commit">确认，保留原档并建立分支</el-button>
       <el-button v-else-if="readingPreview" type="primary" :loading="busy" @click="saveReading">确认保存阅读修订</el-button>
-      <el-button v-else type="primary" :loading="busy" @click="review">预览影响</el-button>
+      <el-button v-else type="primary" :loading="busy || loadingEvents" :disabled="loadingEvents || (operation === 'branch' && !branchBoundaryReady)" @click="review">预览影响</el-button>
     </template>
   </el-dialog>
 </template>
@@ -103,6 +103,8 @@ const events = ref<StoryEventView[]>([]);
 const boundaries = computed(() => events.value.filter(event => event.status === 'confirmed' &&
   !events.value.some(other => other.inputMessageId === event.inputMessageId && (other.version > event.version || other.status !== 'confirmed'))));
 const loadingEvents = ref(false);
+const branchBoundaryReady = ref(true);
+let openSequence = 0;
 const busy = ref(false);
 const error = ref('');
 const pending = ref<StoryBranchInput | null>(null);
@@ -121,6 +123,7 @@ async function refreshReadings() {
 }
 
 watch(draftKey, () => {
+  openSequence++; loadingEvents.value = false; branchBoundaryReady.value = true;
   opened.value = false; preview.value = null; pending.value = null; error.value = ''; emit('readings', []);
   try {
     const saved = JSON.parse(draft.value || '{}');
@@ -139,11 +142,19 @@ watch([direction, readingText, operation, mode, throughVersion, selectedId, evid
 }, { deep: true, flush: 'sync' });
 watch([readingText, operation, selectedId], () => { readingRequestId.value = ''; }, { flush: 'sync' });
 
-async function openFor(messageId?: number) {
+async function openFor(messageId?: number, branch = false) {
+  if (busy.value) return;
+  const sequence = ++openSequence;
+  const matches = () => sequence === openSequence && originalScope === scope();
   focusOrigin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (!pending.value && messageId) selectedId.value = messageId;
   if (!selectedId.value) selectedId.value = Number(props.messages.at(-1)?.id) || undefined;
-  opened.value = true; error.value = ''; loadingEvents.value = true;
+  if (branch && !pending.value) {
+    operation.value = 'branch'; mode.value = 'choice';
+    branchBoundaryReady.value = false;
+  }
+  opened.value = true; preview.value = null; readingPreview.value = ''; error.value = ''; loadingEvents.value = true;
+  events.value = [];
   const originalScope = scope();
   try {
     const loaded: StoryEventView[] = [];
@@ -151,14 +162,26 @@ async function openFor(messageId?: number) {
     while (loaded.length <= 2000) {
       const response = await storyApi.events(props.chatId, before);
       const page = response;
-      if (originalScope !== scope()) return;
+      if (!matches()) return;
       loaded.push(...page);
       if (page.length < 30) break;
       before = page.at(-1)!.version;
     }
+    if (loaded.length > 2000) throw new Error('故事记录过长，暂不能验证分支位置。');
     events.value = loaded;
-  } catch (caught) { if (originalScope === scope()) error.value = describeError(caught); }
-  finally { if (originalScope === scope()) loadingEvents.value = false; }
+    if (branch && !pending.value) {
+      const boundary = boundaries.value.find(event => event.messageId === messageId);
+      const target = props.messages.find(message => Number(message.id) === messageId);
+      const firstInputId = Math.min(...props.messages.filter(message => message.role === 'user').map(message => Number(message.id)),
+        ...loaded.map(event => event.inputMessageId ?? Infinity));
+      const opening = target?.role === 'assistant' && !target.extra?.stateStatus && !loaded.some(event => event.messageId === messageId)
+        && Number(target.id) < firstInputId;
+      if (!boundary && !opening) throw new Error('这条回复没有可验证的完整轮次，请选择其他已完成的回复。');
+      throughVersion.value = boundary?.version ?? 0;
+      branchBoundaryReady.value = true;
+    }
+  } catch (caught) { if (matches()) error.value = describeError(caught); }
+  finally { if (matches()) loadingEvents.value = false; }
 }
 function restoreFocus() { void nextTick(() => (focusOrigin?.isConnected ? focusOrigin : trigger.value)?.focus()); }
 
@@ -169,6 +192,7 @@ async function review() {
     if (!readingRequestId.value) readingRequestId.value = createRequestId();
     readingPreview.value = operation.value === 'annotation' ? readingText.value.trim() : readingText.value; return;
   }
+  if (loadingEvents.value || !branchBoundaryReady.value) { error.value = '请先等待分支位置核验完成，或重新选择一条已完成的回复。'; return; }
   const input: StoryBranchInput = { requestId: createRequestId(), throughVersion: throughVersion.value, mode: mode.value,
     direction: direction.value.trim(), evidenceIds: evidenceIds.value };
   busy.value = true;
@@ -234,10 +258,14 @@ async function saveReading() {
   } catch (caught) { if (originalScope === scope()) error.value = describeError(caught); }
   finally { if (originalScope === scope()) busy.value = false; }
 }
-defineExpose({ openFor, refreshReadings });
+async function openBranch(messageId: number) { await openFor(messageId, true); }
+defineExpose({ openFor, openBranch, refreshReadings });
 </script>
 
 <style scoped>
+:global(.story-correction-dialog) { display: flex; flex-direction: column; margin: 16px auto; max-height: calc(100dvh - 32px); }
+:global(.story-correction-dialog .el-dialog__body) { min-height: 0; overflow-y: auto; }
+:global(.story-correction-dialog .el-dialog__header), :global(.story-correction-dialog .el-dialog__footer) { flex-shrink: 0; }
 .correction-trigger { border: 1px solid var(--el-border-color); border-radius: 10px; padding: 8px 12px; color: var(--el-text-color-primary); background: var(--el-bg-color); cursor: pointer; }
 .correction-intro { line-height: 1.8; color: var(--el-text-color-secondary); }
 .el-form { margin-top: 20px; }

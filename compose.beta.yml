@@ -5,6 +5,8 @@ x-app: &app
   build: .
   environment: &environment
     NODE_ENV: production
+    LLM_REQUEST_TIMEOUT_MS: ${LLM_REQUEST_TIMEOUT_MS:-120000}
+    LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-3}
     EXPLORATION_CANDIDATE: ${EXPLORATION_CANDIDATE:-0}
     HOST: 0.0.0.0
     PORT: 3000

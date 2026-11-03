@@ -53,6 +53,28 @@ function proposalFixture() {
 }
 
 describe('verified independent story prefix', () => {
+  it('replays a directly executed paraphrase without requiring a historical proposal', () => {
+    const sample = fixture();
+    sample.history[1].content = '我想支付';
+    sample.history[2].extra!.storyExecutedIntent = { version: 1, disposition: 'execution',
+      steps: [{ kind: 'execute', actionId: 'pay', evidence: '支付' }], facts: [] };
+    const prefix = reconstructStoryPrefix(sample.content, sample.history, sample.events, sample.state, 1);
+    expect(prefix.values).toEqual({ coins: 80 });
+    expect(prefix.history.map(message => message.id)).toEqual([1, 2, 3]);
+    expect(reconstructStoryPrefix(sample.content, sample.history, sample.events, sample.state, 0).values).toEqual({ coins: 100 });
+  });
+  it.each(['evidence', 'duplicate', 'legacy-disposition', 'conflicting-proof', 'unavailable-rule'])('rejects invalid direct execution proof: %s', kind => {
+    const sample = fixture();
+    sample.history[1].content = '我想支付';
+    const intent = { version: 1, disposition: 'execution', steps: [{ kind: 'execute', actionId: 'pay', evidence: '支付' }], facts: [] };
+    sample.history[2].extra!.storyExecutedIntent = intent;
+    if (kind === 'evidence') intent.steps[0].evidence = '伪造';
+    if (kind === 'duplicate') intent.steps.push({ ...intent.steps[0] });
+    if (kind === 'legacy-disposition') intent.disposition = 'proposal';
+    if (kind === 'conflicting-proof') sample.history[2].extra!.storyConfirmedIntent = intent;
+    if (kind === 'unavailable-rule') intent.steps[0].actionId = 'invented';
+    expect(() => reconstructStoryPrefix(sample.content, sample.history, sample.events, sample.state, 1)).toThrow();
+  });
   it('replays the identity claim from original input and does not copy the future claim into an earlier branch', () => {
     const sample = fixture();
     sample.content.characters[0].cardData = {};

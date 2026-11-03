@@ -213,6 +213,7 @@ describe('Character Routes', () => {
         isActive: true,
       } as any);
       vi.mocked(characterService.getByTenantId).mockResolvedValue(mockResponse as any);
+      vi.mocked(characterService.getSummariesByTenantId).mockResolvedValue(mockResponse as any);
 
       const res = await app.request(`/api/v1/characters?page=1&limit=20${view}`, {
         headers: {
@@ -772,7 +773,7 @@ describe('Character Routes', () => {
         },
       };
 
-      vi.mocked(characterService.getPublicCharacters).mockResolvedValue(mockResponse as any);
+      vi.mocked(characterService.getPublicCharacterSummaries).mockResolvedValue(mockResponse as any);
 
       const res = await app.request('/api/v1/characters/marketplace?page=1&limit=20');
 

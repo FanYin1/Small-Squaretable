@@ -4,6 +4,7 @@
  * 提供聊天 CRUD 和消息管理的 API 端点
  */
 
+import { acquireChatOperation } from '../services/chat-operation';
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import { storyIdentitySnapshotSchema } from '../../types/story-identity';
@@ -14,7 +15,7 @@ import { chatService } from '../services/chat.service';
 import { chatCreationService } from '../services/chat-creation.service';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
-import { resolveStoryCharacter } from '../services/story-content.service';
+import { resolveStoryCharacter, resolveStoryCharacterListSummaries } from '../services/story-content.service';
 import { getStoryState, getStoryEvents, getStoryEvent, addStoryNote, deleteStoryNote, saveStoryOpening } from '../services/story-state.service';
 import { storyNoteSchema } from '../../types/story-state';
 import { getStoryMemoryView } from '../services/story-memory-view.service';
@@ -32,6 +33,7 @@ import {
 import { paginationSchema } from '../../types/api';
 import type { ApiResponse, PaginatedResponse } from '../../types/api';
 import type { Chat } from '../../db/schema/chats';
+import type { ChatListItem } from '../../db/repositories/chat.repository';
 import { eventBus } from '../services/event-bus.service';
 import { messageBookmarkRepository } from '../../db/repositories/message-bookmark.repository';
 import { characterGrowthRepository } from '../../db/repositories/character-growth.repository';
@@ -226,13 +228,20 @@ chatRoutes.get(
         charMap.set(row.id, { name: row.name, avatarUrl: row.avatarUrl });
       }
     }
+    const snapshotCharacters = await resolveStoryCharacterListSummaries(result.items);
     const enrichedItems = await Promise.all(result.items.map(async ch => {
-      const character = ch.contentSnapshotVersion != null ? await resolveStoryCharacter(ch, ch.characterId)
+      const summaryCharacter = ch.contentSnapshotVersion === 1
+        ? (ch.characterId ? snapshotCharacters.get(`${ch.id}:${ch.characterId}`) : undefined)
         : ch.characterId ? charMap.get(ch.characterId) : null;
+      // Keep a narrow compatibility fallback for old/incomplete snapshot rows.
+      // Normal versioned stories use the single batch query above.
+      const character = summaryCharacter ?? (ch.contentSnapshotVersion === 1
+        ? await resolveStoryCharacter({ ...ch, userId: user.id }, ch.characterId)
+        : null);
       return { ...ch, characterName: character?.name ?? null, characterAvatar: await characterListCover(character?.avatarUrl ?? null) };
     }));
 
-    return c.json<ApiResponse<PaginatedResponse<Chat>>>(
+    return c.json<ApiResponse<PaginatedResponse<ChatListItem & { characterName: string | null; characterAvatar: string | null }>>>(
       {
         success: true,
         data: { ...result, items: enrichedItems },
@@ -454,7 +463,7 @@ chatRoutes.patch(
 
     // Verify the chat belongs to the user
     const chat = await chatRepository.findById(chatId);
-    if (!chat || chat.userId !== user.id) {
+    if (!chat || chat.userId !== user.id || chat.tenantId !== user.tenantId) {
       return c.json<ApiResponse>(
         {
           success: false,
@@ -478,31 +487,40 @@ chatRoutes.patch(
       );
     }
 
-    // Merge model into existing metadata
-    const existingMetadata = (chat.metadata as Record<string, unknown>) || {};
-    const updatedChat = await chatRepository.update(chatId, chat.tenantId, {
-      metadata: { ...existingMetadata, model },
-    });
+    const release = acquireChatOperation(chatId);
+    if (!release) throw new AppError('请等待当前回复完成或停止后再切换模型。', 409, 'GENERATION_BUSY');
+    try {
+      // Re-read after acquiring the gate: the first ownership lookup may have
+      // overlapped another model update. Preserve the latest metadata.
+      const current = await chatRepository.findById(chatId);
+      if (!current || current.userId !== user.id || current.tenantId !== user.tenantId) {
+        throw new AppError('Chat not found', 404, 'NOT_FOUND');
+      }
+      const existingMetadata = (current.metadata as Record<string, unknown>) || {};
+      const updatedChat = await chatRepository.update(chatId, chat.tenantId, {
+        metadata: { ...existingMetadata, model },
+      });
 
-    if (!updatedChat) {
+      if (!updatedChat) {
+        return c.json<ApiResponse>(
+          {
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Chat not found' },
+            meta: { timestamp: new Date().toISOString() },
+          },
+          404
+        );
+      }
+
       return c.json<ApiResponse>(
         {
-          success: false,
-          error: { code: 'NOT_FOUND', message: 'Chat not found' },
+          success: true,
+          data: updatedChat,
           meta: { timestamp: new Date().toISOString() },
         },
-        404
+        200
       );
-    }
-
-    return c.json<ApiResponse>(
-      {
-        success: true,
-        data: updatedChat,
-        meta: { timestamp: new Date().toISOString() },
-      },
-      200
-    );
+    } finally { release(); }
   }
 );
 

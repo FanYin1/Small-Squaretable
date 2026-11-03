@@ -9,7 +9,7 @@ vi.mock('./logger.service', () => ({
   logger: { child: () => log, ...log },
   createLogger: () => log,
 }));
-vi.mock('../config/llm.config', () => ({
+vi.mock('../config/llm.config', () => ({ getModelMeta: (id: string) => ({ id, provider: 'test', contextWindow: 200000, maxOutputTokens: 128000, outputCapabilityTokens: 128000, defaultTemperature: 0.7 }),
   findProviderForModel: vi.fn(() => ({
     provider: 'openai',
     apiKey: 'k',

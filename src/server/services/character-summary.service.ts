@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Character } from '../../db/schema/characters';
+import type { CharacterSummarySource } from '../../db/repositories/character.repository';
 import type { PresentationVersion } from '../../types/story-presentation';
 import { storyIntroduction } from '../../types/story-opening';
 
@@ -40,7 +40,9 @@ export async function characterListCover(source: string | null): Promise<string 
   return work;
 }
 
-export async function characterSummary(character: Character & { presentation?: PresentationVersion }) {
+type CharacterSummaryInput = Omit<CharacterSummarySource, 'cardData'> & { cardData: unknown; presentation?: PresentationVersion };
+
+export async function characterSummary(character: CharacterSummaryInput) {
   const card = character.cardData && typeof character.cardData === 'object' && !Array.isArray(character.cardData)
     ? character.cardData as Record<string, unknown> : {};
   return {
@@ -58,7 +60,7 @@ export async function characterSummary(character: Character & { presentation?: P
   };
 }
 
-export async function characterSummaries(rows: (Character & { presentation?: PresentationVersion })[]) {
+export async function characterSummaries(rows: CharacterSummaryInput[]) {
   const result = [];
   for (const row of rows) result.push(await characterSummary(row));
   return result;

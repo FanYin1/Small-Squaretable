@@ -4,7 +4,7 @@
  * 处理角色的 CRUD 操作、发布/下架和 Fork 功能
  */
 
-import { characterRepository, type DiscoveryViewer } from '../../db/repositories/character.repository';
+import { characterRepository, type CharacterSummarySource, type DiscoveryViewer } from '../../db/repositories/character.repository';
 import { canViewCharacterNsfw, isNsfwAllowed } from '../../db/repositories/nsfw-visibility';
 import { NotFoundError, ForbiddenError, BadRequestError } from '../../core/errors';
 import type { CreateCharacterInput, UpdateCharacterInput } from '../../types/character';
@@ -70,6 +70,32 @@ export class CharacterService {
   ): Promise<PaginatedResponse<Character>> {
     const [characters, total] = await Promise.all([
       this.characterRepo.findByTenantId(tenantId, pagination),
+      this.characterRepo.countByTenantId(tenantId),
+    ]);
+
+    const page = pagination?.page ?? 1;
+    const limit = pagination?.limit ?? 20;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      items: characters,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  async getSummariesByTenantId(
+    tenantId: string,
+    pagination?: PaginationParams,
+  ): Promise<PaginatedResponse<CharacterSummarySource>> {
+    const [characters, total] = await Promise.all([
+      this.characterRepo.findSummaryByTenantId(tenantId, pagination),
       this.characterRepo.countByTenantId(tenantId),
     ]);
 
@@ -223,6 +249,32 @@ export class CharacterService {
   ): Promise<PaginatedResponse<Character>> {
     const characters = await this.characterRepo.findPublic(pagination, viewer);
     const total = await this.characterRepo.countPublic(viewer);
+
+    const page = pagination?.page ?? 1;
+    const limit = pagination?.limit ?? 20;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      items: characters,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  async getPublicCharacterSummaries(
+    pagination?: PaginationParams,
+    viewer?: DiscoveryViewer,
+  ): Promise<PaginatedResponse<CharacterSummarySource>> {
+    const [characters, total] = await Promise.all([
+      this.characterRepo.findPublicSummary(pagination, viewer),
+      this.characterRepo.countPublic(viewer),
+    ]);
 
     const page = pagination?.page ?? 1;
     const limit = pagination?.limit ?? 20;

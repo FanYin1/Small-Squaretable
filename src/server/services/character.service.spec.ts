@@ -383,4 +383,31 @@ describe('CharacterService', () => {
       expect(result.pagination.total).toBe(2);
     });
   });
+
+  describe('list summaries', () => {
+    it('uses the repository summary projection while preserving pagination', async () => {
+      const mockCharacters = [{ id: 'char-1', name: 'Summary', cardData: { first_mes: 'opening' } }];
+      vi.mocked(characterRepository.findSummaryByTenantId).mockResolvedValue(mockCharacters as any);
+      vi.mocked(characterRepository.countByTenantId).mockResolvedValue(3);
+
+      const result = await characterService.getSummariesByTenantId('tenant-1', { page: 2, limit: 1 });
+
+      expect(result.items).toEqual(mockCharacters);
+      expect(result.pagination).toMatchObject({ page: 2, limit: 1, total: 3, totalPages: 3 });
+      expect(characterRepository.findSummaryByTenantId).toHaveBeenCalledWith('tenant-1', { page: 2, limit: 1 });
+      expect(characterRepository.findByTenantId).not.toHaveBeenCalled();
+    });
+
+    it('uses the public summary projection for marketplace pages', async () => {
+      const mockCharacters = [{ id: 'char-1', name: 'Public summary', cardData: {} }];
+      vi.mocked(characterRepository.findPublicSummary).mockResolvedValue(mockCharacters as any);
+      vi.mocked(characterRepository.countPublic).mockResolvedValue(1);
+
+      const result = await characterService.getPublicCharacterSummaries({ page: 1, limit: 20 }, { showNsfw: false });
+
+      expect(result.items).toEqual(mockCharacters);
+      expect(characterRepository.findPublicSummary).toHaveBeenCalledWith({ page: 1, limit: 20 }, { showNsfw: false });
+      expect(characterRepository.findPublic).not.toHaveBeenCalled();
+    });
+  });
 });

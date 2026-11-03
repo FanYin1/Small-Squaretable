@@ -4,6 +4,9 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Hono } from 'hono';
+import { acquireChatOperation } from '../services/chat-operation';
+import { getAvailableModels } from '../config/llm.config';
+import { chatRepository } from '../../db/repositories/chat.repository';
 import { chatRoutes } from './chats';
 import { chatService } from '../services/chat.service';
 import { chatCreationService } from '../services/chat-creation.service';
@@ -17,6 +20,7 @@ import type { StoryReadingExport } from '../../types/story-export';
 import { getStoryMemoryView } from '../services/story-memory-view.service';
 
 vi.mock('../services/chat.service');
+vi.mock('../config/llm.config', () => ({ getAvailableModels: vi.fn() }));
 vi.mock('../services/story-memory-view.service', () => ({ getStoryMemoryView: vi.fn() }));
 vi.mock('../services/story-export.service', async (importOriginal) => ({
   ...await importOriginal<typeof import('../services/story-export.service')>(),
@@ -27,6 +31,7 @@ vi.mock('../services/chat-creation.service', () => ({ chatCreationService: { cre
 vi.mock('../../db/repositories/chat.repository', () => ({
   chatRepository: {
     findById: vi.fn(),
+    update: vi.fn(),
   },
 }));
 
@@ -112,6 +117,45 @@ describe('Chat Routes', () => {
     app.route('/api/v1/chats', chatRoutes);
     app.onError(errorHandler);
     vi.clearAllMocks();
+  });
+
+  describe('safe model switching', () => {
+    const chatId = 'model-chat';
+    const current = { id: chatId, userId: 'user-123', tenantId: 'tenant-123', metadata: { model: 'old', branch: 7 } };
+    beforeEach(async () => {
+      const { verifyAccessToken } = await import('../../core/jwt');
+      const { userRepository } = await import('../../db/repositories/user.repository');
+      vi.mocked(verifyAccessToken).mockResolvedValue({ userId: 'user-123', tenantId: 'tenant-123', email: 'test@example.com' });
+      vi.mocked(userRepository.findById).mockResolvedValue({ id: 'user-123', tenantId: 'tenant-123', isActive: true } as never);
+      vi.mocked(chatRepository.findById).mockResolvedValue(current as never);
+      vi.mocked(chatRepository.update).mockResolvedValue(current as never);
+      vi.mocked(getAvailableModels).mockReturnValue(['old', 'next']);
+    });
+    const request = () => app.request(`/api/v1/chats/${chatId}/model`, { method: 'PATCH',
+      headers: { Authorization: 'Bearer test', 'Content-Type': 'application/json' }, body: JSON.stringify({ model: 'next' }) });
+    it('blocks another device while generation owns the story, then permits the next turn', async () => {
+      const release = acquireChatOperation(chatId)!;
+      try {
+        const busy = await request();
+        expect(busy.status).toBe(409);
+        expect((await busy.json()).error.code).toBe('GENERATION_BUSY');
+        expect(chatRepository.update).not.toHaveBeenCalled();
+      } finally { release(); }
+      expect((await request()).status).toBe(200);
+      expect(chatRepository.update).toHaveBeenCalledWith(chatId, 'tenant-123', { metadata: { model: 'next', branch: 7 } });
+    });
+    it('does not expose busy state across tenants', async () => {
+      const release = acquireChatOperation(chatId)!;
+      vi.mocked(chatRepository.findById).mockResolvedValue({ ...current, tenantId: 'other' } as never);
+      try { expect((await request()).status).toBe(404); } finally { release(); }
+    });
+    it('preserves metadata changed during the ownership lookup and releases the gate on failure', async () => {
+      vi.mocked(chatRepository.findById).mockResolvedValueOnce(current as never).mockResolvedValue({ ...current, metadata: { model: 'old', branch: 9 } } as never);
+      vi.mocked(chatRepository.update).mockRejectedValueOnce(new Error('write failed'));
+      expect((await request()).status).toBe(500);
+      expect(chatRepository.update).toHaveBeenCalledWith(chatId, 'tenant-123', { metadata: { model: 'next', branch: 9 } });
+      expect((await request()).status).toBe(200);
+    });
   });
 
   describe('story memory progress', () => {

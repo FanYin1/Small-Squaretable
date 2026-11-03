@@ -124,7 +124,6 @@ import {
   creditBilling,
   InsufficientCreditsError,
   DEFAULT_MAX_OUTPUT_TOKENS,
-  HARD_MAX_OUTPUT_TOKENS,
 } from './credit-billing.service';
 
 const TENANT = 't1';
@@ -168,11 +167,11 @@ const activeHeld = (tenantId: string) =>
 beforeEach(() => fake.reset());
 
 describe('resolveMaxOutputTokens / computeHoldTokens', () => {
-  it('请求没带 max_tokens 用默认上限；带了就尊重但不超过天花板', () => {
+  it('请求没带 max_tokens 用默认值；已解析额度不再被计费层钳制', () => {
     expect(creditBilling.resolveMaxOutputTokens(undefined)).toBe(DEFAULT_MAX_OUTPUT_TOKENS);
-    expect(creditBilling.resolveMaxOutputTokens(0)).toBe(DEFAULT_MAX_OUTPUT_TOKENS);
+    expect(() => creditBilling.resolveMaxOutputTokens(0)).toThrow();
     expect(creditBilling.resolveMaxOutputTokens(512)).toBe(512);
-    expect(creditBilling.resolveMaxOutputTokens(10_000_000)).toBe(HARD_MAX_OUTPUT_TOKENS);
+    expect(creditBilling.resolveMaxOutputTokens(10_000_000)).toBe(10_000_000);
   });
 
   it('冻结额 = 输入估算 x 1.2 向上取整 + 输出上限', () => {

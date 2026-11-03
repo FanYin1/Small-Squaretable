@@ -64,7 +64,7 @@ vi.mock('../config/llm.config', () => ({
   })),
 }));
 
-const HOLD = { id: 'hold-1', tenantId: 'tenant-123', tokens: 6000, maxOutputTokens: 4096 };
+const HOLD = { id: 'hold-1', tenantId: 'tenant-123', tokens: 6000, maxOutputTokens: 2048 };
 
 const chatResponse = {
   id: 'chatcmpl-1',
@@ -140,11 +140,21 @@ describe('LLM Routes - prepaid credits', () => {
         expect.objectContaining({ tenantId: 'tenant-123', estimatedPromptTokens: expect.any(Number) })
       );
       expect(llmService.chatCompletion).toHaveBeenCalledWith(
-        expect.objectContaining({ max_tokens: HOLD.maxOutputTokens })
+        expect.objectContaining({ max_tokens: HOLD.maxOutputTokens }), expect.objectContaining({ limits: expect.objectContaining({ maxOutputTokens: 2048 }), signal: expect.any(AbortSignal) })
       );
       expect(vi.mocked(reserveForGeneration).mock.invocationCallOrder[0]).toBeLessThan(
         vi.mocked(llmService.chatCompletion).mock.invocationCallOrder[0]
       );
+    });
+
+    it.each([null, 'credits'])('uses the administrator ceiling before reserving and reports it for %s mode', async mode => {
+      vi.mocked(reserveForGeneration).mockResolvedValue(mode ? HOLD : null);
+      vi.mocked(llmService.chatCompletion).mockResolvedValue(chatResponse as never);
+      const res = await post('chat/completions', { model: 'gpt-3.5-turbo', messages: [{ role: 'user', content: 'synthetic' }], max_tokens: 100000 });
+      expect(res.status).toBe(200);
+      expect(res.headers.get('X-LLM-Max-Output-Tokens')).toBe('2048');
+      expect(reserveForGeneration).toHaveBeenCalledWith(expect.objectContaining({ requestedMaxTokens: 2048 }));
+      expect(vi.mocked(llmService.chatCompletion).mock.calls[0][0].max_tokens).toBe(2048);
     });
 
     it('settles with the provider usage after the reply', async () => {
@@ -197,7 +207,7 @@ describe('LLM Routes - prepaid credits', () => {
       expect(usageService.trackUsage).not.toHaveBeenCalled();
     });
 
-    it('leaves the request untouched when there is no hold (subscription mode)', async () => {
+    it('uses the configured output allowance even without a credit hold', async () => {
       vi.mocked(reserveForGeneration).mockResolvedValue(null);
       vi.mocked(llmService.chatCompletion).mockResolvedValue(chatResponse as never);
 
@@ -207,7 +217,7 @@ describe('LLM Routes - prepaid credits', () => {
       });
 
       const sent = vi.mocked(llmService.chatCompletion).mock.calls[0][0];
-      expect(sent).not.toHaveProperty('max_tokens');
+      expect(sent.max_tokens).toBe(2048);
     });
   });
 
@@ -229,7 +239,7 @@ describe('LLM Routes - prepaid credits', () => {
       await res.text();
 
       expect(llmService.streamChatCompletion).toHaveBeenCalledWith(
-        expect.objectContaining({ max_tokens: HOLD.maxOutputTokens })
+        expect.objectContaining({ max_tokens: HOLD.maxOutputTokens }), expect.any(AbortSignal), expect.objectContaining({ limits: expect.objectContaining({ maxOutputTokens: 2048 }) })
       );
       expect(settleGeneration).toHaveBeenCalledTimes(1);
       expect(settleGeneration).toHaveBeenCalledWith(
@@ -304,6 +314,14 @@ describe('LLM Routes - prepaid credits', () => {
   });
 
   describe('completions', () => {
+    it('rejects unsupported HTTP text streaming before reserving instead of silently returning ordinary JSON', async () => {
+      const res = await post('completions', { model: 'gpt-3.5-turbo', prompt: 'synthetic', stream: true });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error.code).toBe('STREAMING_ENDPOINT_REQUIRED');
+      expect(reserveForGeneration).not.toHaveBeenCalled();
+      expect(llmService.completion).not.toHaveBeenCalled();
+    });
+
     const completionResponse = {
       id: 'cmpl-1',
       object: 'text_completion',
@@ -320,7 +338,7 @@ describe('LLM Routes - prepaid credits', () => {
 
       expect(res.status).toBe(200);
       expect(llmService.completion).toHaveBeenCalledWith(
-        expect.objectContaining({ max_tokens: HOLD.maxOutputTokens })
+        expect.objectContaining({ max_tokens: HOLD.maxOutputTokens }), expect.objectContaining({ limits: expect.objectContaining({ maxOutputTokens: 2048 }), signal: expect.any(AbortSignal) })
       );
       expect(settleGeneration).toHaveBeenCalledWith(
         HOLD,

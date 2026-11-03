@@ -6,6 +6,8 @@ import type { Chat } from '@client/types';
 import i18n from '../../i18n';
 import { useChatStore } from '@client/stores/chat';
 import { nextTick } from 'vue';
+import { ledgerFixture } from '../../utils/fixtures/story-ledger';
+import StoryDossier from './StoryDossier.vue';
 import ScrollToBottom from './ScrollToBottom.vue';
 import MessageInput from './MessageInput.vue';
 import MarkdownRenderer from './MarkdownRenderer.vue';
@@ -14,6 +16,19 @@ import { userPersonaApi, type UserPersona } from '@client/services/user-persona.
 import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
 import { storyApi } from '@client/services/story.api';
 import type { StoryStateView } from '../../../types/story-state';
+import { chatApi, llmApi } from '@client/services';
+
+const streamHandlers = vi.hoisted(() => new Map<string, (data?: unknown) => void>());
+vi.mock('@client/services/websocket', () => ({
+  WebSocketClient: class {
+    on(event: string, handler: (data?: unknown) => void) { streamHandlers.set(event, handler); }
+    connect() {}
+    disconnect() {}
+    joinChat() {}
+    leaveChat() {}
+    sendMessage() {}
+  },
+}));
 
 vi.mock('@client/services/user-persona.api', () => ({ userPersonaApi: { getById: vi.fn() } }));
 
@@ -33,9 +48,9 @@ describe('ChatWindow', () => {
     };
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
-  function mountOpening(personaId?: string, userId = 'user', tenantId = 'tenant') {
+  function mountOpening(personaId?: string, userId = 'user', tenantId = 'tenant', renderBody = false) {
     useUserStore().user = { id: userId, tenantId, email: '', name: 'Account', createdAt: '' };
     const store = useChatStore();
     store.currentChatId = mockChat.id;
@@ -47,7 +62,9 @@ describe('ChatWindow', () => {
       props: { currentChat: { ...mockChat, personaId } },
       global: { plugins: [i18n], stubs: {
         StoryWorkspaceDrawer: { props: ['open'], template: '<div v-if="open"><slot /></div>' },
-        MessageInput: true, MarkdownRenderer: true, MessageBubble: { template: '<div class="test-message"><slot name="after-content" /></div>' }, StoryDossier: true, StoryMemoryStatus: true, IntelligenceDebugPanel: true,
+        MessageInput: true, MarkdownRenderer: !renderBody, MessageBubble: renderBody
+          ? { props: ['message', 'readingContent'], template: '<div class="test-message"><div class="markdown-content">{{ readingContent ?? message.content }}</div><slot name="after-content" /></div>' }
+          : { template: '<div class="test-message"><slot name="after-content" /></div>' }, StoryDossier: true, StoryMemoryStatus: true, IntelligenceDebugPanel: true,
         'el-button': { template: '<button><slot /></button>' },
         'el-dropdown': { template: '<div class="test-dropdown"><slot /><slot name="dropdown" /></div>' },
         'el-dropdown-menu': { template: '<div><slot /></div>' },
@@ -56,6 +73,190 @@ describe('ChatWindow', () => {
     });
     return { wrapper, store };
   }
+
+  it('folds only completed ledgers, opens the exact historical snapshot and leaves source messages untouched', async () => {
+    mockChat.contentSnapshotVersion = 1;
+    vi.spyOn(storyApi, 'state').mockResolvedValue({ protocol: 1, native: false, legacy: false, version: 2,
+      revision: null, fields: [], actions: [], map: null, events: [], notes: [] });
+    const { wrapper, store } = mountOpening(undefined, 'user', 'tenant', true);
+    const first = '原有正文。\n' + ledgerFixture;
+    const latest = ledgerFixture.replace('200文', '250文');
+    store.messages = [
+      { id: '10', chatId: mockChat.id, role: 'user', content: '看账簿', createdAt: '' },
+      { id: '11', chatId: mockChat.id, role: 'assistant', content: first, createdAt: '', extra: { stateStatus: 'confirmed', storyVersion: 1 } },
+      { id: '12', chatId: mockChat.id, role: 'assistant', content: latest, createdAt: '', extra: { stateStatus: 'confirmed', storyVersion: 2 } },
+      { id: '13', chatId: mockChat.id, role: 'assistant', content: ledgerFixture, createdAt: '', extra: { stateStatus: 'interrupted' } },
+      { id: '14', chatId: mockChat.id, role: 'assistant', content: ledgerFixture, createdAt: '' },
+    ];
+    await flushPromises();
+    expect(wrapper.findAll('.story-ledger-summary')).toHaveLength(2);
+    expect(wrapper.get('[data-message-id="11"] .markdown-content').text()).toBe('原有正文。');
+    expect(wrapper.get('[data-message-id="13"] .markdown-content').text()).toContain('config:');
+    expect(wrapper.get('[data-message-id="14"] .markdown-content').text()).toContain('config:');
+    await wrapper.get('[data-message-id="11"] .story-ledger-summary button').trigger('click');
+    expect(wrapper.getComponent(StoryDossier).props('ledger')).toMatchObject({ messageId: '11', version: 1, opening: false });
+    expect(wrapper.getComponent(StoryDossier).props('initialTab')).toBe('ledger');
+    expect(store.messages[1].content).toBe(first);
+    store.sending = true; await nextTick();
+    expect(wrapper.getComponent(StoryDossier).props('ledger').ledger.summary).toContain('现金 200文');
+    await wrapper.setProps({ currentChat: { ...mockChat, id: 'other' } });
+    expect(wrapper.getComponent(StoryDossier).props('open')).toBe(false);
+    wrapper.unmount();
+  });
+
+  async function mountStream() {
+    mockChat.contentSnapshotVersion = 1;
+    vi.spyOn(storyApi, 'state').mockResolvedValue({ protocol: 1, legacy: false, native: false, version: 0, revision: null,
+      fields: [], actions: [], map: null, events: [], notes: [] });
+    vi.spyOn(llmApi, 'getModels').mockResolvedValue([]);
+    vi.spyOn(chatApi, 'getMessages').mockResolvedValue({ messages: [], hasMore: false });
+    let now = 100;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const frames = new Map<number, FrameRequestCallback>();
+    let frameId = 0;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { frames.set(++frameId, callback); return frameId; });
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id));
+    const mounted = mountOpening(undefined, 'user', 'tenant', true);
+    const { wrapper, store } = mounted;
+    store.chats = [mockChat];
+    store.messages = [{ id: '1', chatId: mockChat.id, role: 'assistant', content: '已保存开场', createdAt: '' }];
+    store.initWebSocket('token');
+    store.wsConnected = true;
+    await flushPromises();
+    const send = async () => {
+      wrapper.getComponent(MessageInput).vm.$emit('send', '私密用户输入');
+      await flushPromises();
+      return store.messages.at(-1)!.id;
+    };
+    const requestId = await send();
+    const chunk = (text: string, request = requestId, chatId = mockChat.id) => {
+      streamHandlers.get('assistantMessageChunk')!({ chatId, requestId: request, chunk: text, provisional: true });
+    };
+    const frame = async (at: number) => {
+      now = at;
+      const callbacks = [...frames.values()];
+      frames.clear();
+      for (const callback of callbacks) callback(at);
+      await nextTick();
+      await flushPromises();
+    };
+    const metrics = () => log.mock.calls.filter(call => call[1] === 'reply_performance').map(call => call[2] as Record<string, unknown>);
+    return { ...mounted, requestId, chunk, frame, frames, metrics, send, setNow: (at: number) => { now = at; } };
+  }
+
+  it('renders the first provisional chunk, disables actions, then replaces it with the invalid final body', async () => {
+    const { wrapper, store, requestId, chunk, frame } = await mountStream();
+    chunk('未校验的正文');
+    await nextTick();
+    expect(wrapper.get('.streaming-status').text()).toBe('生成中 · 尚未确认');
+    expect(wrapper.find('.streaming .story-branch-entry').exists()).toBe(false);
+    expect(wrapper.find('.streaming .story-next-actions').exists()).toBe(false);
+    expect(wrapper.findAll('.story-branch-entry').every(button => button.attributes('disabled') !== undefined)).toBe(true);
+    expect(wrapper.findAll('.story-next-actions button').every(button => button.attributes('disabled') !== undefined)).toBe(true);
+    await frame(120);
+    expect(wrapper.get('.streaming .markdown-content').text()).toBe('未校验的正文');
+    streamHandlers.get('assistantMessageChunk')!({ chatId: mockChat.id, requestId, chunk: '', provisional: true, phase: 'control' });
+    await nextTick();
+    expect(wrapper.get('.streaming-status').text()).toBe('正文已接收 · 正在整理本轮行动与推荐');
+    expect(wrapper.find('.streaming .typing-cursor').exists()).toBe(false);
+    expect(store.sending).toBe(true);
+    streamHandlers.get('assistantMessageChunk')!({ chatId: mockChat.id, requestId, chunk: '', provisional: true, phase: 'validating' });
+    await nextTick();
+    expect(wrapper.get('.streaming-status').text()).toBe('回复已接收 · 正在校验并保存');
+    streamHandlers.get('assistantMessageDone')!({ chatId: mockChat.id, requestId, messageId: '102',
+      content: '校验未通过，本轮未推进。', storyIntentInvalid: true, stateStatus: 'invalid' });
+    streamHandlers.get('generationFinished')!({ chatId: mockChat.id, requestId, status: 'completed' });
+    await flushPromises();
+    expect(wrapper.get('.streaming').isVisible()).toBe(false);
+    await frame(140);
+    expect(wrapper.find('.streaming-status').exists()).toBe(false);
+    expect(wrapper.get('[data-message-id="102"] .markdown-content').text()).toBe('校验未通过，本轮未推进。');
+    expect(wrapper.text()).not.toContain('未校验的正文');
+    expect(store.messages.at(-1)?.extra?.storyIntentInvalid).toBe(true);
+    expect(store.sending).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('logs a presentation approximation only after real Markdown DOM and a further frame, ignoring blank and stale chunks', async () => {
+    const { wrapper, store, chunk, frame, metrics, setNow } = await mountStream();
+    chunk(''); chunk(' \n'); chunk('别的请求', 'old'); chunk('别的故事', undefined, 'other-story');
+    await nextTick();
+    expect(metrics()).toEqual([]);
+    setNow(150);
+    chunk('第一个**正文**片段');
+    await nextTick();
+    expect(metrics()).toEqual([expect.objectContaining({ phase: 'first_body_chunk', sendToFirstBodyChunkMs: 50 })]);
+    expect(wrapper.get('.streaming .markdown-content').text()).toBe('');
+    await frame(160);
+    expect(wrapper.get('.streaming .markdown-content').text()).toBe('第一个正文片段');
+    expect(metrics()).toHaveLength(1);
+    await frame(180);
+    expect(metrics()[1]).toEqual({ phase: 'presentation_approx', attempt: store.replyTiming!.attempt, selection: 0,
+      atMs: 180, sendToFirstBodyChunkMs: 50, firstBodyChunkToPresentationApproxMs: 30, sendToPresentationApproxMs: 80 });
+    await frame(200);
+    expect(metrics()).toHaveLength(2);
+    expect(JSON.stringify(metrics())).not.toMatch(/正文|私密|chat-1|temp-/);
+    wrapper.unmount();
+  });
+
+  it('measures saved DOM when chunk, authoritative done and finish arrive in the same tick', async () => {
+    const { wrapper, requestId, chunk, frame, metrics } = await mountStream();
+    chunk('临时正文');
+    streamHandlers.get('assistantMessageDone')!({ chatId: mockChat.id, requestId, messageId: '102', content: '权威正文' });
+    streamHandlers.get('generationFinished')!({ chatId: mockChat.id, requestId, status: 'completed' });
+    await nextTick();
+    await frame(130);
+    await frame(150);
+    expect(wrapper.get('[data-message-id="102"] .markdown-content').text()).toBe('权威正文');
+    expect(metrics().map(metric => metric.phase)).toEqual(['first_body_chunk', 'presentation_approx']);
+    wrapper.unmount();
+  });
+
+  it('waits for text DOM when an initial nonblank chunk renders no visible body', async () => {
+    const { wrapper, chunk, frame, metrics } = await mountStream();
+    chunk('<!-- pending -->');
+    await nextTick();
+    await frame(120);
+    await frame(140);
+    expect(wrapper.get('.streaming .markdown-content').text()).toBe('');
+    expect(metrics()).toHaveLength(1);
+    chunk('实际正文');
+    await nextTick();
+    await frame(160);
+    await frame(180);
+    await frame(200);
+    expect(wrapper.get('.streaming .markdown-content').text()).toBe('实际正文');
+    expect(metrics().map(metric => metric.phase)).toEqual(['first_body_chunk', 'presentation_approx']);
+    wrapper.unmount();
+  });
+
+  it.each(['failure', 'disconnect', 'switch', 'retry', 'unmount', 'hidden'])('ignores stale presentation callbacks after %s', async mode => {
+    const { wrapper, store, requestId, chunk, frame, frames, metrics } = await mountStream();
+    chunk('首段正文');
+    await nextTick();
+    await frame(120);
+    const staleCallbacks = [...frames.values()];
+    expect(staleCallbacks.length).toBeGreaterThan(0);
+    if (mode === 'failure' || mode === 'retry') {
+      streamHandlers.get('generationFinished')!({ chatId: mockChat.id, requestId, status: 'failed', retryable: mode === 'retry' });
+      if (mode === 'retry') {
+        await store.retryLastGeneration();
+        chunk('重试正文');
+      }
+    } else if (mode === 'disconnect') streamHandlers.get('disconnected')!();
+    else if (mode === 'switch') {
+      await store.setCurrentChat(null);
+      store.currentChatId = mockChat.id;
+    } else if (mode === 'unmount') wrapper.unmount();
+    else vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    await nextTick();
+    // Invoke callbacks even if the browser cancellation already removed them.
+    for (const callback of staleCallbacks) callback(150);
+    await flushPromises();
+    expect(metrics().filter(metric => metric.phase === 'presentation_approx')).toEqual([]);
+    if (mode !== 'unmount') wrapper.unmount();
+  });
 
   it('previews the chosen identity literally and saves the selected raw opening for server expansion', async () => {
     vi.mocked(userPersonaApi.getById).mockResolvedValue({ name: '$& {{char}}' } as UserPersona);
@@ -73,7 +274,7 @@ describe('ChatWindow', () => {
     wrapper.unmount();
   });
 
-  it('keeps opening and turn suggestions as compact buttons without extra headings or notices', async () => {
+  it('shows a short invitation and compact buttons without an extra heading', async () => {
     mockChat.contentSnapshotVersion = 1;
     const stateView: StoryStateView = { protocol: 1, legacy: false, native: false, version: 0, revision: null,
       fields: [], actions: [], map: null, events: [], notes: [] };
@@ -81,7 +282,7 @@ describe('ChatWindow', () => {
     const { wrapper, store } = mountOpening();
     await flushPromises();
     expect(wrapper.find('.story-action-heading').exists()).toBe(false);
-    expect(wrapper.get('.opening-suggestions').find('p').exists()).toBe(false);
+    expect(wrapper.get('.opening-suggestions .story-recommendations-lead').text()).toContain('也可以直接输入自己的想法');
     expect(wrapper.get('.greeting-container .message-content .story-next-actions').exists()).toBe(true);
     expect(wrapper.findAll('.opening-suggestions button')).toHaveLength(3);
     const persist = vi.spyOn(store, 'addGreetingMessage').mockResolvedValue(undefined);
@@ -100,7 +301,7 @@ describe('ChatWindow', () => {
     store.messages = [
       { id: 'u3', chatId: mockChat.id, role: 'user', content: '继续', createdAt: '' },
       { id: 'a3', chatId: mockChat.id, role: 'assistant', content: '发生了新变化。', createdAt: '',
-        extra: { storyRecommendations: [
+        extra: { storyRecommendationsLead: '新变化值得留意，也可以选择自己的行动。', storyRecommendations: [
           { label: '查看变化', input: '我查看刚才的变化' },
           { label: '询问原因', input: '我询问变化发生的原因' },
           { label: '观察周围', input: '我继续观察周围' },
@@ -110,6 +311,7 @@ describe('ChatWindow', () => {
     store.billingRevision++;
     await flushPromises();
     expect(wrapper.get('[data-message-id="a3"] .turn-recommendations').text()).toContain('查看变化');
+    expect(wrapper.get('[data-message-id="a3"] .story-recommendations-lead').text()).toBe('新变化值得留意，也可以选择自己的行动。');
     expect(wrapper.findAll('.story-next-actions')).toHaveLength(1);
     wrapper.unmount();
   });
@@ -120,6 +322,53 @@ describe('ChatWindow', () => {
     expect(wrapper.get('.reading-settings-trigger').attributes('aria-expanded')).toBe('false');
     expect(wrapper.find('.chat-header [data-command="delete"]').text()).toContain(i18n.global.t('chat.deleteTitle'));
 
+    wrapper.unmount();
+  });
+
+  it('saves the selected opening before opening its branch without requesting a model reply', async () => {
+    mockChat.contentSnapshotVersion = 1;
+    vi.spyOn(storyApi, 'readings').mockResolvedValue([]);
+    vi.spyOn(storyApi, 'events').mockResolvedValue([]);
+    const { wrapper, store } = mountOpening();
+    const send = vi.spyOn(store, 'sendMessage').mockResolvedValue(undefined);
+    const persist = vi.spyOn(store, 'addGreetingMessage').mockImplementation(async () => {
+      store.messages.push({ id: '1', chatId: mockChat.id, role: 'assistant', content: '已保存开局', createdAt: '' });
+    });
+    await flushPromises();
+    await wrapper.get('[aria-label="从当前开局建立分支剧情"]').trigger('click');
+    await flushPromises();
+    expect(persist).toHaveBeenCalledOnce();
+    expect(send).not.toHaveBeenCalled();
+    expect(storyApi.events).toHaveBeenCalledWith(mockChat.id, undefined);
+    expect(JSON.parse(sessionStorage.getItem(`story-correction:user:${mockChat.id}`)!)).toMatchObject({ selectedId: 1, operation: 'branch', throughVersion: 0 });
+    wrapper.unmount();
+  });
+
+  it('puts a compact branch entry below every assistant reply and removes routine action review', async () => {
+    mockChat.contentSnapshotVersion = 1;
+    vi.spyOn(storyApi, 'state').mockRejectedValue(new Error('unavailable'));
+    vi.spyOn(storyApi, 'events').mockResolvedValue([]);
+    const { wrapper, store } = mountOpening();
+    store.messages = [
+      { id: '1', chatId: mockChat.id, role: 'assistant', content: '开场', createdAt: '' },
+      { id: '2', chatId: mockChat.id, role: 'user', content: '探索', createdAt: '' },
+      { id: '3', chatId: mockChat.id, role: 'assistant', content: '门边有人', createdAt: '', extra: { stateStatus: 'confirmed' } },
+      { id: '4', chatId: mockChat.id, role: 'assistant', content: '旧提案', createdAt: '', extra: {
+        stateStatus: 'proposed', storyIntent: { intent: { version: 1, disposition: 'proposal', steps: [], facts: [] }, input: '探索', expectedVersion: 1 },
+      } },
+    ];
+    await flushPromises();
+    expect(wrapper.findAll('.story-branch-entry')).toHaveLength(3);
+    expect(wrapper.find('[data-message-id="2"] .story-branch-entry').exists()).toBe(false);
+    expect(wrapper.find('story-intent-review').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('确认后，故事才会继续');
+    expect(wrapper.get('[data-message-id="4"] .story-branch-entry').attributes()).toHaveProperty('disabled');
+    await wrapper.get('[data-message-id="3"] .story-branch-entry').trigger('click');
+    await flushPromises();
+    expect(storyApi.events).toHaveBeenCalledWith(mockChat.id, undefined);
+    expect(JSON.parse(sessionStorage.getItem(`story-correction:user:${mockChat.id}`)!)).toMatchObject({ selectedId: 3, operation: 'branch' });
+    store.sending = true; await nextTick();
+    expect(wrapper.findAll('.story-branch-entry').every(button => button.attributes('disabled') !== undefined)).toBe(true);
     wrapper.unmount();
   });
 
@@ -177,6 +426,7 @@ describe('ChatWindow', () => {
     ];
     await flushPromises();
     expect(wrapper.get('.turn-recommendations').text()).toContain('查看刮痕');
+    expect(wrapper.get('.story-recommendations-lead').text()).toContain('也可以直接输入自己的想法');
     const send = vi.spyOn(store, 'sendMessage').mockResolvedValue(undefined);
     await wrapper.get('.turn-recommendations button').trigger('click');
     await flushPromises();
@@ -186,7 +436,7 @@ describe('ChatWindow', () => {
       ...store.messages,
       { id: 'u2', chatId: mockChat.id, role: 'user', content: '我检查刮痕', createdAt: '' },
       { id: 'a2', chatId: mockChat.id, role: 'assistant', content: '灰尘下露出刻痕。', createdAt: '',
-        extra: { storyRecommendations: [
+        extra: { storyRecommendationsLead: '灰尘下的刻痕提供了新的观察方向。', storyRecommendations: [
           { label: '辨认刻痕', input: '我试着辨认刻痕' },
           { label: '寻找工具', input: '我看看附近有没有合适的工具' },
           { label: '暂缓判断', input: '我先记下刻痕的位置' },
@@ -194,6 +444,7 @@ describe('ChatWindow', () => {
     ];
     await flushPromises();
     expect(wrapper.get('.turn-recommendations').text()).toContain('辨认刻痕');
+    expect(wrapper.get('.story-recommendations-lead').text()).toBe('灰尘下的刻痕提供了新的观察方向。');
     expect(wrapper.get('.turn-recommendations').text()).not.toContain('查看刮痕');
     wrapper.unmount();
   });

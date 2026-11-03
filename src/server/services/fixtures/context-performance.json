@@ -1,0 +1,18 @@
+[
+  {
+    "rounds": 1,
+    "digest": "b08a002716ba36587da1928f4d4904322a0eff38ca9cd0a15f539fbb55064eca"
+  },
+  {
+    "rounds": 50,
+    "digest": "94e5415bbd14478a1a450aafb25fdab27c04b77845c02a72dd8ed4aec9214bb1"
+  },
+  {
+    "rounds": 200,
+    "digest": "eb83a75acfbcdbe9d11a20c3144ae30427067d8e6df7e207c57d1a85fc76eb0b"
+  },
+  {
+    "rounds": 1000,
+    "digest": "dfe5868bb26a33a6eddf75e2699facabce603e1900c57c1b19d6386600e46c68"
+  }
+]

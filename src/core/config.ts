@@ -13,6 +13,10 @@ const configSchema = z.object({
   port: z.coerce.number().default(3000),
   host: z.string().default('0.0.0.0'),
 
+  // LLM: retries means total attempts, including the initial request.
+  llmRequestTimeoutMs: z.coerce.number().int().min(1).max(2147483647).default(120000),
+  llmMaxRetries: z.coerce.number().int().min(1).max(10).default(3),
+
   // Database
   databaseUrl: z.string().url(),
   databasePoolMin: z.coerce.number().default(2),
@@ -160,6 +164,8 @@ const checkedConfigSchema = configSchema.superRefine((cfg, ctx) => {
 export function loadConfig(): Config {
   const rawConfig = {
     nodeEnv: process.env.NODE_ENV,
+    llmRequestTimeoutMs: process.env.LLM_REQUEST_TIMEOUT_MS,
+    llmMaxRetries: process.env.LLM_MAX_RETRIES,
     port: process.env.PORT,
     host: process.env.HOST,
     databaseUrl: process.env.DATABASE_URL,

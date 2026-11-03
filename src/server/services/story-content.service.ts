@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db, type Database } from '../../db';
 import { chats, type Chat } from '../../db/schema/chats';
 import { storyContent } from '../../db/schema/story-content';
@@ -8,6 +8,13 @@ import { AppError, NotFoundError } from '../../core/errors';
 import { storyCharacterSchema, storyContentSnapshotSchema } from '../../types/story-content';
 import type { StorySources } from './story-diagnostics.service';
 import { inspectStoryDiagnostics } from '../../types/story-diagnostics';
+
+export interface StoryCharacterListSummary {
+  chatId: string;
+  characterId: string;
+  name: string;
+  avatarUrl: string | null;
+}
 
 export function captureStoryContent(characterIds: string[], userId: string, sources: StorySources) {
   const rows = sources.characters;
@@ -40,4 +47,31 @@ export async function resolveStoryCharacter(chat: Pick<Chat, 'id' | 'userId' | '
   const character = characterId ? snapshot.characters.find(item => item.id === characterId) : snapshot.characters[0];
   if (characterId && !character) throw new AppError('Character is not part of this story', 409, 'STORY_CHARACTER_UNBOUND');
   return character ?? null;
+}
+
+/**
+ * Read only the fields needed to render saved stories in the sidebar.
+ * The full snapshot remains available through resolveStoryCharacter after selection.
+ */
+export async function resolveStoryCharacterListSummaries(
+  chats: Array<Pick<Chat, 'id' | 'contentSnapshotVersion'> & { characterId?: string | null }>,
+  database: Pick<Database, 'execute'> = db,
+): Promise<Map<string, StoryCharacterListSummary>> {
+  const snapshotChatIds = chats
+    .filter(chat => chat.contentSnapshotVersion === 1)
+    .map(chat => chat.id);
+  if (snapshotChatIds.length === 0) return new Map();
+
+  const rows = await database.execute(sql`
+    SELECT
+      story.chat_id AS "chatId",
+      character.value->>'id' AS "characterId",
+      character.value->>'name' AS "name",
+      character.value->>'avatarUrl' AS "avatarUrl"
+    FROM story_content story
+    CROSS JOIN LATERAL jsonb_array_elements(story.snapshot->'characters') AS character(value)
+    WHERE story.chat_id IN (${sql.join(snapshotChatIds.map(id => sql`${id}::uuid`), sql`, `)})
+  `) as unknown as StoryCharacterListSummary[];
+
+  return new Map(rows.map(row => [`${row.chatId}:${row.characterId}`, row]));
 }

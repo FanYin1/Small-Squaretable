@@ -11,6 +11,8 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
+      LLM_REQUEST_TIMEOUT_MS: ${LLM_REQUEST_TIMEOUT_MS:-120000}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-3}
       PORT: 3000
       HOST: 0.0.0.0
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/sillytavern_saas

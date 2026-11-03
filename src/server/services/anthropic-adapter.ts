@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { AppError } from '../../core/errors';
+import { AnthropicApiError, assertAnthropicResponse } from './anthropic-api-error';
 import type { ChatCompletionRequest, ChatCompletionResponse } from '../../types/llm';
 
 const usageSchema = z.object({
@@ -44,11 +45,8 @@ export function buildAnthropicRequest(baseUrl: string, apiKey: string, request: 
     }),
   } };
 }
-async function assertResponse(response: Response) {
-  if (!response.ok) throw new AppError(`Anthropic API returned HTTP ${response.status}`, response.status, 'LLM_API_ERROR');
-}
 export async function readAnthropicCompletion(response: Response, model: string): Promise<ChatCompletionResponse> {
-  await assertResponse(response);
+  await assertAnthropicResponse(response);
   const parsed = z.object({ id: z.string(), type: z.literal('message'),
     content: z.array(z.object({ type: z.string(), text: z.string().optional() })),
     stop_reason: z.string(), usage: usageSchema.optional() }).safeParse(await response.json().catch(() => null));
@@ -62,7 +60,7 @@ export async function readAnthropicCompletion(response: Response, model: string)
 }
 
 export function convertAnthropicStream(response: Response, model: string): Response {
-  if (!response.ok) throw new AppError(`Anthropic API returned HTTP ${response.status}`, response.status, 'LLM_API_ERROR');
+  if (!response.ok) throw new AnthropicApiError(response.status);
   if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) return invalid('Anthropic did not return SSE');
   const identity = { id: randomUUID(), object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model };
   const decoder = new TextDecoder(), encoder = new TextEncoder();

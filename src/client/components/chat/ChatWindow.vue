@@ -31,7 +31,7 @@
         </template>
       </div>
       <StoryBranchNavigator v-if="currentChat && userStore.user" :key="`branches:${userStore.user.id}:${currentChat.id}`" :chat-id="currentChat.id" :owner-id="userStore.user.id" />
-      <button v-if="currentChat?.contentSnapshotVersion != null" ref="dossierTrigger" type="button" class="dossier-open-button" aria-label="此次游玩资料" title="此次游玩资料" aria-haspopup="dialog" :aria-expanded="dossierOpen" @click="dossierOpen = true">
+      <button v-if="currentChat?.contentSnapshotVersion != null" ref="dossierTrigger" type="button" class="dossier-open-button" aria-label="此次游玩资料" title="此次游玩资料" aria-haspopup="dialog" :aria-expanded="dossierOpen" @click="openCurrentDossier">
         <el-icon><Document /></el-icon><span class="chat-tool-label">此次游玩</span><small class="sr-only">{{ dossierCompactStatus }}</small>
       </button>
       <StoryCorrections v-if="userStore.user" :key="`${userStore.user.id}:${currentChat.id}`" ref="correctionsPanel" hide-trigger :chat-id="currentChat.id" :owner-id="userStore.user.id" :messages="messages" @readings="storyReadings = $event" />
@@ -207,12 +207,18 @@
             <StoryNextActions
               :actions="storyState?.actions ?? []"
               :recommendations="turnRecommendations?.storyRecommendations ?? []"
+              :lead="turnRecommendations?.storyRecommendationsLead"
               :opening="!messages.some(message => message.role === 'user')"
               :action-blocked="actionBlocked"
               :recommendation-blocked="recommendationBlocked || greetingIdentityBlocked"
               @action="executeStoryAction"
               @suggest="sendStorySuggestion"
             />
+            <button v-if="currentChat?.contentSnapshotVersion != null" type="button" class="story-branch-entry"
+              :disabled="!userStore.user || sending || isStreaming || preparingMessage || greetingIdentityBlocked"
+              title="保存当前开局，从开场之后另建独立分支" aria-label="从当前开局建立分支剧情"
+              @click="openGreetingBranch"
+            ><span aria-hidden="true">⑂</span> 分支剧情</button>
           </div>
         </div>
         <div v-if="hasAlternateGreetings" class="greeting-swipe">
@@ -243,21 +249,22 @@
         </div>
 
         <!-- Top spacer for virtual scroll -->
-        <div :style="{ height: topSpacerHeight + 'px' }" aria-hidden="true" />
+        <div ref="messageListOrigin" :style="{ height: topSpacerHeight + 'px' }" aria-hidden="true" />
 
         <template v-for="(message, vIdx) in visibleMessages" :key="message.id">
-          <DateDivider
-            v-if="shouldShowDateDivider(visibleRange.start + vIdx)"
-            :label="getDateLabel(message.createdAt)"
-          />
           <div
             v-observe-height
             :data-message-id="String(message.id)"
+            :data-reply-timing-attempt="message.id === chatStore.replyTimingMessageId ? chatStore.replyTiming?.attempt : undefined"
             class="message-wrapper"
           >
+            <DateDivider
+              v-if="shouldShowDateDivider(visibleRange.start + vIdx)"
+              :label="getDateLabel(message.createdAt)"
+            />
             <MessageBubble
               :message="message"
-              :reading-content="storyReadings.filter(reading => reading.kind === 'layout' && reading.messageId === Number(message.id)).at(-1)?.content"
+              :reading-content="ledgerProjections.get(String(message.id))?.content ?? storyReadings.filter(reading => reading.kind === 'layout' && reading.messageId === Number(message.id)).at(-1)?.content"
               :history-fixed="currentChat?.contentSnapshotVersion != null"
               :can-correct="!!userStore.user"
               :audience-names="Array.isArray(message.extra?.storyAudience) ? message.extra.storyAudience.map((id: string) => chatStore.chatCharacters.find(character => character.id === id)?.name || '未知人物') : undefined"
@@ -281,16 +288,31 @@
               @set-importance="handleSetImportance($event)"
               @correct="correctionsPanel?.openFor(Number($event))"
             >
-              <template v-if="message.id === inlineActionMessageId" #after-content>
+              <template #after-content>
                 <StoryNextActions
+                  v-if="message.id === inlineActionMessageId"
                   :actions="storyState?.actions ?? []"
                   :recommendations="turnRecommendations?.storyRecommendations ?? []"
+                  :lead="turnRecommendations?.storyRecommendationsLead"
                   :opening="!messages.some(message => message.role === 'user')"
                   :action-blocked="actionBlocked"
                   :recommendation-blocked="recommendationBlocked || greetingIdentityBlocked"
                   @action="executeStoryAction"
                   @suggest="sendStorySuggestion"
                 />
+                <div v-if="ledgerProjections.get(String(message.id))?.ledger" class="story-ledger-summary">
+                  <span>{{ ledgerProjections.get(String(message.id))!.ledger!.summary.join(' · ') || '本轮账簿' }}</span>
+                  <button type="button" aria-haspopup="dialog" @click="openLedger(message.id, $event)">查看账簿</button>
+                  <small>{{ isLedgerOpening(message.id) ? '开局记录 · 不代表当前余额' : '模型描述 · 未经规则核验' }}</small>
+                </div>
+                <button
+                  v-if="message.role === 'assistant' && currentChat?.contentSnapshotVersion != null"
+                  type="button" class="story-branch-entry"
+                  :disabled="!userStore.user || sending || isStreaming || preparingMessage || message.extra?.stateStatus === 'interrupted' || message.extra?.stateStatus === 'proposed'"
+                  :title="message.extra?.stateStatus === 'interrupted' || message.extra?.stateStatus === 'proposed' ? '这条回复尚未完成，暂不能作为分支起点' : '保留到这条回复结束，另建独立分支'"
+                  :aria-label="`从这条回复建立分支剧情（${message.id}）`"
+                  @click="correctionsPanel?.openBranch(Number(message.id))"
+                ><span aria-hidden="true">⑂</span> 分支剧情</button>
               </template>
             </MessageBubble>
             <div v-if="storyReadings.some(item => item.messageId === Number(message.id))" class="story-reading-actions">
@@ -299,7 +321,6 @@
                 <button type="button" @click="undoReading(reading.id)">撤销</button>
               </aside>
             </div>
-            <StoryIntentReview v-if="latestStoryIntent?.messageId === Number(message.id)" :candidate="latestStoryIntent.candidate" :busy="actionBlocked" :stale="storyState?.version !== latestStoryIntent.candidate.expectedVersion" :actions="storyState?.actions ?? []" @confirm="confirmStoryIntent" />
           </div>
         </template>
 
@@ -307,7 +328,7 @@
         <div :style="{ height: bottomSpacerHeight + 'px' }" aria-hidden="true" />
 
         <!-- Streaming message -->
-        <div v-if="isStreaming" class="message-bubble message-assistant streaming">
+        <div v-show="isStreaming" class="message-bubble message-assistant streaming">
           <div class="avatar-col">
             <el-avatar :size="32" :src="streamingCharacterAvatar" class="char-avatar">
               {{ chatStore.streamingCharacterName?.[0]?.toUpperCase() || '?' }}
@@ -317,15 +338,17 @@
             <div class="streaming-header" v-if="chatStore.streamingCharacterName">
               <span class="streaming-author">{{ chatStore.streamingCharacterName }}</span>
             </div>
+            <span v-if="chatStore.streamingProvisional" class="streaming-status" role="status">{{ chatStore.streamingPhase === 'control' ? '正文已接收 · 正在整理本轮行动与推荐' : chatStore.streamingPhase === 'validating' ? '回复已接收 · 正在校验并保存' : '生成中 · 尚未确认' }}</span>
             <div class="message-content">
-              <MarkdownRenderer :content="streamingMessage" :streaming="true" :regex-scripts="streamingRegexScripts" :interactive-html="currentChat?.contentSnapshotVersion == null" />
-              <span class="typing-cursor"></span>
+              <MarkdownRenderer :content="streamingLedgerContent" :streaming="true" :regex-scripts="streamingRegexScripts" :interactive-html="currentChat?.contentSnapshotVersion == null" />
+              <span v-if="streamingLedgerContent !== streamingMessage" class="streaming-status">正在整理账簿 · 保存后可查看</span>
+              <span v-if="!chatStore.streamingPhase || chatStore.streamingPhase === 'body'" class="typing-cursor"></span>
             </div>
           </div>
         </div>
 
         <!-- Typing indicator -->
-        <div v-else-if="sending && !isStreaming" class="typing-indicator" aria-live="assertive">
+        <div v-if="sending && !isStreaming" class="typing-indicator" aria-live="assertive">
           <span class="typing-text">{{ t('chat.typing', { name: typingCharacterName }) }}</span>
           <div class="typing-dot"></div>
           <div class="typing-dot"></div>
@@ -337,6 +360,7 @@
       <StoryNextActions v-if="!inlineActionMessageId && !inlineActionsInGreeting"
         :actions="storyState?.actions ?? []"
         :recommendations="turnRecommendations?.storyRecommendations ?? []"
+        :lead="turnRecommendations?.storyRecommendationsLead"
         :opening="!messages.some(message => message.role === 'user')"
         :action-blocked="actionBlocked"
         :recommendation-blocked="recommendationBlocked || greetingIdentityBlocked"
@@ -419,7 +443,7 @@
       <p v-if="modelSwitchError" class="generation-error" role="alert">{{ modelSwitchError }}</p>
     </div>
     </main>
-    <StoryDossier v-if="currentChat?.contentSnapshotVersion != null" v-model:open="dossierOpen" :key="currentChat.id" :chat-id="currentChat.id" :state="storyState" :busy="sending || isStreaming" :loading="storyStateLoading" :error="storyStateError" :trigger="dossierTrigger" @refresh="refreshStoryState" @source="showStorySource" />
+    <StoryDossier v-if="currentChat?.contentSnapshotVersion != null" v-model:open="dossierOpen" :key="currentChat.id" :chat-id="currentChat.id" :state="storyState" :busy="sending || isStreaming" :loading="storyStateLoading" :error="storyStateError" :trigger="ledgerTrigger ?? dossierTrigger" :ledger="dossierLedger" :initial-tab="dossierInitialTab" @refresh="refreshStoryState" @source="showStorySource" />
     </div>
     <el-dialog v-if="sourceVisible" v-model="sourceVisible" title="历程原文" width="min(680px, 94vw)" append-to-body><p v-if="sourceLoading" role="status">正在读取原文…</p><MarkdownRenderer v-else :content="sourceText" /></el-dialog>
 
@@ -574,6 +598,7 @@
 </template>
 
 <script setup lang="ts">
+import { messageWindow } from '../../utils/message-window';
 import { inject, ref, computed, watch, nextTick, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { workbenchNavigation } from '../layout/workbench';
@@ -599,14 +624,13 @@ import { useTextToSpeech, type VoiceConfig } from '@client/composables/useTextTo
 import MessageBubble from './MessageBubble.vue';
 import MessageInput from './MessageInput.vue';
 import ModelPicker from './ModelPicker.vue';
+import { projectStoryLedger, ledgerStreamingText, type StoryLedgerSnapshot } from '../../utils/story-ledger';
 import StoryDossier from './StoryDossier.vue';
 import StoryMemoryStatus from './StoryMemoryStatus.vue';
-import StoryIntentReview from './StoryIntentReview.vue';
 import StoryCorrections from './StoryCorrections.vue';
 import StoryBranchNavigator from './StoryBranchNavigator.vue';
 import { storyApi } from '@client/services/story.api';
 import type { StoryReading } from '../../../types/story-corrections';
-import type { StoredStoryIntent } from '../../../types/story-intent';
 import { useStoryState } from '../../composables/useStoryState';
 import { useStoryDraft } from '../../composables/useStoryDraft';
 import StoryNextActions from './StoryNextActions.vue';
@@ -661,18 +685,6 @@ const dossierCompactStatus = computed(() => chatStore.sending || chatStore.isStr
   : storyStateError.value ? '记录暂不可用'
     : storyStateLoading.value ? '核对中'
       : storyState.value ? `第 ${storyState.value.version} 轮` : '查看记录');
-const latestStoryIntent = computed(() => {
-  const latest = chatStore.messages.at(-1);
-  const candidate = latest?.extra?.storyIntent as StoredStoryIntent | undefined;
-  return latest?.role === 'assistant' && candidate ? { messageId: Number(latest.id), candidate } : null;
-});
-async function confirmStoryIntent() {
-  if (actionBlocked.value) return;
-  const selected = latestStoryIntent.value;
-  if (!selected || storyState.value?.version !== selected.candidate.expectedVersion) return;
-  await handleSendMessage(selected.candidate.input, undefined, undefined, undefined,
-    { proposalMessageId: selected.messageId, expectedVersion: selected.candidate.expectedVersion });
-}
 const actionBlocked = computed(() => chatStore.sending || chatStore.isStreaming || preparingMessage.value || switchingModel.value || Boolean(storyStateError.value) || storyStateLoading.value || creditsBlocked.value);
 const recommendationBlocked = computed(() => chatStore.sending || chatStore.isStreaming || preparingMessage.value || switchingModel.value || creditsBlocked.value);
 const sourceVisible = ref(false);
@@ -702,7 +714,8 @@ const turnRecommendations = computed(() => {
   if (!latest) return currentGreeting.value ? sourcedStoryRecommendations(currentGreeting.value) : sourcedStoryRecommendations('');
   if (latest.extra?.stateStatus === 'interrupted') return null;
   const parsed = storyRecommendationsSchema.safeParse(latest.extra?.storyRecommendations);
-  return parsed.success ? { storyRecommendations: parsed.data, storyRecommendationsSource: latest.extra?.storyRecommendationsSource }
+  return parsed.success ? { storyRecommendations: parsed.data, storyRecommendationsSource: latest.extra?.storyRecommendationsSource,
+    storyRecommendationsLead: typeof latest.extra?.storyRecommendationsLead === 'string' ? latest.extra.storyRecommendationsLead : undefined }
     : sourcedStoryRecommendations(latest.content);
 });
 const inlineActionsInGreeting = computed(() => messages.value.length === 0 && Boolean(currentGreeting.value) && !greetingIdentityBlocked.value);
@@ -728,6 +741,51 @@ const intelligenceStore = useCharacterIntelligenceStore();
 const messagesContainer = ref<HTMLElement | null>(null);
 const correctionsPanel = ref<InstanceType<typeof StoryCorrections> | null>(null);
 const storyReadings = ref<StoryReading[]>([]);
+const selectedLedgerId = ref<string | null>(null);
+const ledgerTrigger = ref<HTMLButtonElement | null>(null);
+const dossierInitialTab = ref<'state' | 'ledger'>('state');
+const ledgerProjections = computed(() => {
+  const result = new Map<string, ReturnType<typeof projectStoryLedger>>();
+  if (props.currentChat?.contentSnapshotVersion == null) return result;
+  for (const message of messages.value) {
+    if (message.chatId !== props.currentChat.id) continue;
+    if (!message.extra?.stateStatus && !isLedgerOpening(message.id)) continue;
+    if (message.role !== 'assistant' || message.extra?.storyIntentInvalid ||
+      (message.extra?.stateStatus && message.extra.stateStatus !== 'confirmed')) continue;
+    // Explicit reading edits take precedence; never fold their text silently.
+    if (storyReadings.value.some(reading => reading.kind === 'layout' && reading.messageId === Number(message.id))) continue;
+    const projected = projectStoryLedger(message.content);
+    if (projected.ledger) result.set(String(message.id), projected);
+  }
+  return result;
+});
+const dossierLedger = computed<StoryLedgerSnapshot | null>(() => {
+  const id = selectedLedgerId.value ?? [...ledgerProjections.value.keys()].at(-1);
+  if (!id) return null;
+  const ledger = ledgerProjections.value.get(id)?.ledger;
+  const message = messages.value.find(message => String(message.id) === id);
+  if (!ledger || !message) return null;
+  return { messageId: id, ledger, opening: isLedgerOpening(message.id),
+    version: typeof message.extra?.storyVersion === 'number' ? message.extra.storyVersion : undefined };
+});
+function isLedgerOpening(id: string): boolean {
+  const first = messages.value[0];
+  return !chatStore.hasMoreMessages && first?.role === 'assistant' && first.id === id && !first.extra?.stateStatus && !first.extra?.storyRequestId;
+}
+function openLedger(id: string, event: Event) {
+  selectedLedgerId.value = String(id);
+  ledgerTrigger.value = event.currentTarget as HTMLButtonElement;
+  dossierInitialTab.value = 'ledger'; dossierOpen.value = true;
+}
+function openCurrentDossier() {
+  selectedLedgerId.value = null; ledgerTrigger.value = null;
+  dossierInitialTab.value = 'state'; dossierOpen.value = true;
+}
+watch(() => props.currentChat?.id, () => {
+  selectedLedgerId.value = null; ledgerTrigger.value = null;
+  dossierInitialTab.value = 'state'; dossierOpen.value = false;
+});
+
 async function undoReading(id: string) {
   const chatId = props.currentChat?.id;
   if (!chatId) return;
@@ -1011,6 +1069,7 @@ const handleScroll = () => {
     const { scrollTop } = messagesContainer.value;
 
     currentScrollTop.value = scrollTop;
+    measureViewport();
     readingPosition.remember();
 
     // Load older messages when near top
@@ -1063,6 +1122,7 @@ const loading = computed(() => chatStore.loading);
 const sending = computed(() => chatStore.sending);
 const isStreaming = computed(() => chatStore.isStreaming);
 const streamingMessage = computed(() => chatStore.streamingMessage);
+const streamingLedgerContent = computed(() => props.currentChat?.contentSnapshotVersion != null ? ledgerStreamingText(streamingMessage.value) : streamingMessage.value);
 
 // ---------------------------------------------------------------------------
 // Virtual scroll state
@@ -1072,15 +1132,28 @@ const BUFFER_COUNT = 5; // extra messages above/below viewport
 const messageHeightsMap = new Map<string, number>(); // non-reactive for perf
 const heightsVersion = ref(0); // bump to trigger recomputation
 const currentScrollTop = ref(0);
+const viewportHeight = ref(0);
+const messageListOrigin = ref<HTMLElement | null>(null);
+const messageListOffset = ref(0);
+const observedMessages = new Set<HTMLElement>();
+const measureViewport = () => {
+  const container = messagesContainer.value;
+  if (!container) return;
+  viewportHeight.value = container.clientHeight;
+  if (messageListOrigin.value) messageListOffset.value = messageListOrigin.value.getBoundingClientRect().top
+    - container.getBoundingClientRect().top + container.scrollTop;
+};
 
 let messageObserver: ResizeObserver | null = null;
 
 // Custom directive: observe each message wrapper's height via ResizeObserver
 const vObserveHeight = {
   mounted(el: HTMLElement) {
+    observedMessages.add(el);
     messageObserver?.observe(el);
   },
   beforeUnmount(el: HTMLElement) {
+    observedMessages.delete(el);
     messageObserver?.unobserve(el);
   },
 };
@@ -1089,78 +1162,15 @@ const getMsgHeight = (id: string | number): number => {
   return messageHeightsMap.get(String(id)) || ESTIMATED_HEIGHT;
 };
 
-const totalEstimatedHeight = computed(() => {
-  void heightsVersion.value; // reactive dependency
-  let height = 0;
-  for (const msg of messages.value) {
-    height += getMsgHeight(msg.id);
-  }
-  return height;
-});
-
 const visibleRange = computed(() => {
-  void heightsVersion.value; // reactive dependency
-  if (!messagesContainer.value || messages.value.length === 0) {
-    return { start: 0, end: messages.value.length };
-  }
-
-  const containerHeight = messagesContainer.value.clientHeight;
-  const scrollTop = currentScrollTop.value;
-  const msgs = messages.value;
-
-  // Find first visible message
-  let accHeight = 0;
-  let start = 0;
-  for (let i = 0; i < msgs.length; i++) {
-    const h = getMsgHeight(msgs[i].id);
-    if (accHeight + h >= scrollTop) {
-      start = Math.max(0, i - BUFFER_COUNT);
-      break;
-    }
-    accHeight += h;
-    // If we reach the end without finding, show last messages
-    if (i === msgs.length - 1) {
-      start = Math.max(0, msgs.length - BUFFER_COUNT);
-    }
-  }
-
-  // Find last visible message
-  let end = start;
-  let visibleHeight = 0;
-  for (let i = start; i < msgs.length; i++) {
-    const h = getMsgHeight(msgs[i].id);
-    visibleHeight += h;
-    end = i + 1;
-    if (visibleHeight > containerHeight + BUFFER_COUNT * ESTIMATED_HEIGHT * 2) break;
-  }
-
-  return { start, end: Math.min(end + BUFFER_COUNT, msgs.length) };
+  void heightsVersion.value;
+  return messageWindow(messages.value.map(message => getMsgHeight(message.id)),
+    currentScrollTop.value - messageListOffset.value, viewportHeight.value, BUFFER_COUNT);
 });
-
-const visibleMessages = computed(() => {
-  const { start, end } = visibleRange.value;
-  return messages.value.slice(start, end);
-});
-
-const topSpacerHeight = computed(() => {
-  void heightsVersion.value; // reactive dependency
-  const { start } = visibleRange.value;
-  let height = 0;
-  for (let i = 0; i < start; i++) {
-    height += getMsgHeight(messages.value[i].id);
-  }
-  return height;
-});
-
-const bottomSpacerHeight = computed(() => {
-  void heightsVersion.value; // reactive dependency
-  const { end } = visibleRange.value;
-  let height = 0;
-  for (let i = end; i < messages.value.length; i++) {
-    height += getMsgHeight(messages.value[i].id);
-  }
-  return height;
-});
+const totalEstimatedHeight = computed(() => visibleRange.value.total);
+const visibleMessages = computed(() => messages.value.slice(visibleRange.value.start, visibleRange.value.end));
+const topSpacerHeight = computed(() => visibleRange.value.top);
+const bottomSpacerHeight = computed(() => visibleRange.value.bottom);
 
 // Greeting swipe state
 const greetingIndex = ref(0);
@@ -1289,6 +1299,7 @@ const handleSendMessage = async (content: string, attachments?: MessageAttachmen
   if (switchingModel.value || preparingMessage.value || sending.value || isStreaming.value || greetingIdentityBlocked.value || creditsBlocked.value) return;
   const chatId = props.currentChat?.id;
   if (!chatId) return;
+  const startedAt = performance.now();
   preparingMessage.value = true;
   readingPosition.returnToLatest();
   try {
@@ -1299,7 +1310,7 @@ const handleSendMessage = async (content: string, attachments?: MessageAttachmen
     if (props.currentChat?.id !== chatId) return;
     preparingMessage.value = false;
     await chatStore.sendMessage(content, attachments, mentionedCharacterIds, onAccepted, undefined, storyAction,
-      privateListener.value ? [privateListener.value] : undefined);
+      privateListener.value ? [privateListener.value] : undefined, startedAt);
   } catch (error: unknown) {
     logger.error('Failed to send message', error);
     ElMessage.error(error instanceof Error ? error.message : '发送失败，输入已保留。');
@@ -1330,6 +1341,23 @@ async function persistGreeting() {
   if (!chatId) return;
   const index = Math.min(greetingIndex.value, rawGreetings.value.length - 1);
   await chatStore.addGreetingMessage(chatId, rawGreetings.value[index]);
+}
+
+async function openGreetingBranch() {
+  if (preparingMessage.value || sending.value || isStreaming.value || greetingIdentityBlocked.value || !userStore.user) return;
+  const chatId = props.currentChat?.id;
+  const ownerId = userStore.user.id;
+  if (!chatId) return;
+  preparingMessage.value = true;
+  try {
+    await persistGreeting();
+    if (props.currentChat?.id !== chatId || userStore.user?.id !== ownerId) return;
+    await nextTick();
+    const opening = messages.value.find(message => message.role === 'assistant');
+    if (opening) await correctionsPanel.value?.openBranch(Number(opening.id));
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '开局暂未保存，请重试。');
+  } finally { preparingMessage.value = false; }
 }
 
 // Context Viewer
@@ -1648,6 +1676,55 @@ watch(streamingMessage, (content) => {
   else if (content) hasNewContent.value = true;
 });
 
+// A post watcher alone precedes MarkdownRenderer's rAF-debounced DOM update.
+// Check body DOM after that update, then cross one more frame boundary. This is
+// a presentation approximation, not a hardware paint timestamp or saved status.
+watch([
+  () => chatStore.replyTiming?.attempt,
+  () => chatStore.replyTiming?.firstChunkAt,
+  () => chatStore.replyTiming?.presentedAt,
+  () => chatStore.replyTimingMessageId,
+  () => props.currentChat?.id,
+], (_values, _oldValues, onCleanup) => {
+  const sample = chatStore.replyTiming;
+  const chatId = props.currentChat?.id;
+  if (!sample || sample.firstChunkAt === null || sample.presentedAt !== null || chatStore.currentChatId !== chatId) return;
+  let cancelled = false;
+  let frame: number | null = null;
+  const valid = () => !cancelled && chatStore.replyTiming?.attempt === sample.attempt &&
+    chatStore.replyTiming.selection === sample.selection && chatStore.currentChatId === chatId &&
+    props.currentChat?.id === chatId && document.visibilityState !== 'hidden';
+  const hasBodyDom = () => {
+    const selector = chatStore.replyTimingMessageId === null
+      ? '.streaming .markdown-content'
+      : `[data-reply-timing-attempt="${sample.attempt}"] .markdown-content`;
+    return Boolean(messagesContainer.value?.querySelector(selector)?.textContent?.trim());
+  };
+  const schedule = () => {
+    if (frame !== null || !valid() || chatStore.replyTiming?.presentedAt !== null) return;
+    frame = requestAnimationFrame(async () => {
+      await nextTick();
+      frame = null;
+      if (!valid() || !hasBodyDom()) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        if (valid() && hasBodyDom()) chatStore.recordReplyPresentation(sample.attempt);
+      });
+    });
+  };
+  // Formatting/control-only chunks can render no text. Observe the renderer so
+  // a later body DOM update can start the frame check without restarting it on
+  // every incoming chunk. No DOM text is retained or logged.
+  const observer = new MutationObserver(schedule);
+  if (messagesContainer.value) observer.observe(messagesContainer.value, { childList: true, characterData: true, subtree: true });
+  schedule();
+  onCleanup(() => {
+    cancelled = true;
+    observer.disconnect();
+    if (frame !== null) cancelAnimationFrame(frame);
+  });
+}, { flush: 'post' });
+
 // Pull-to-refresh state
 const pullRefreshState = ref<'idle' | 'pulling' | 'ready' | 'refreshing'>('idle');
 const pullDistance = ref(0);
@@ -1719,12 +1796,14 @@ const handleTouchEnd = async () => {
 // Auto-scroll on mount + set up ResizeObserver for virtual scroll
 onMounted(() => {
   messageObserver = new ResizeObserver((entries) => {
+    measureViewport();
     let changed = false;
     for (const entry of entries) {
       const el = entry.target as HTMLElement;
       const msgId = el.dataset.messageId;
       if (msgId) {
-        const newHeight = entry.contentRect.height;
+        const newHeight = el.getBoundingClientRect().height;
+        if (newHeight <= 0) continue;
         if (messageHeightsMap.get(msgId) !== newHeight) {
           messageHeightsMap.set(msgId, newHeight);
           changed = true;
@@ -1737,12 +1816,16 @@ onMounted(() => {
     }
   });
 
+  for (const el of observedMessages) messageObserver.observe(el);
+  if (messagesContainer.value) messageObserver.observe(messagesContainer.value);
+  measureViewport();
   scrollToBottom(false);
   chatStore.fetchModels();
 });
 
 // Handle scroll on window resize
 const handleResize = () => {
+  measureViewport();
   if (followingLatest.value) scrollToBottom(false);
 };
 
@@ -1754,6 +1837,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   messageObserver?.disconnect();
   messageObserver = null;
+  observedMessages.clear();
   if (scrollRafId !== null) {
     cancelAnimationFrame(scrollRafId);
   }
@@ -1765,6 +1849,25 @@ onUnmounted(() => {
 .reading-position-status { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px; color: var(--text-secondary); background: var(--bg-subtle); border-bottom: 1px solid var(--border-default); font-size: 13px; line-height: 1.7; }
 .reading-position-status button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--border-default); border-radius: 8px; color: var(--text-primary); background: var(--bg-surface); font: inherit; cursor: pointer; }
 .reading-position-status button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.story-branch-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  margin-top: 8px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.story-branch-entry:hover:not(:disabled) { color: var(--el-color-primary); background: var(--el-fill-color-light); }
+.story-branch-entry:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.story-branch-entry:disabled { opacity: .5; cursor: not-allowed; }
+@media (pointer: coarse) { .story-branch-entry { min-height: 44px; } }
 .story-reading-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1823,6 +1926,9 @@ onUnmounted(() => {
 .is-exploration :deep(.message-user .bubble) { border-left: 2px solid var(--accent); border-radius: 0; background: var(--bg-subtle); }
 .is-exploration :deep(.message-author) { letter-spacing: .08em; font-size: 12px; color: var(--accent); }
 .is-exploration .greeting-container, .is-exploration .messages-list { width: min(100%, 1120px); margin-left: auto; margin-right: auto; }
+.story-ledger-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 12px; padding-block: 8px; border-top: 1px solid var(--border-default); font-size: 13px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.story-ledger-summary small { flex-basis: 100%; }
+.story-ledger-summary button { min-height: 44px; border: 0; background: transparent; color: var(--accent-text); cursor: pointer; font: inherit; }
 .story-reading { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .story-audience { width: min(100%, 1120px); max-width: 1120px; margin: 0 auto 12px; color: var(--text-secondary); font-size: 14px; }
 .story-audience select { margin-left: 12px; padding: 8px; max-width: 65%; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-interactive); border-radius: 6px; }
@@ -2068,10 +2174,12 @@ onUnmounted(() => {
 .message-bubble.message-assistant {
   display: flex;
   gap: 10px;
-  max-width: 720px;
+  // The parent messages-list owns the reading width in every workspace layout.
+  // A second fixed width made live replies narrower than their saved version.
+  max-width: 100%;
   padding: 0 20px;
   width: 100%;
-  margin-inline: auto;
+  margin-inline: 0;
 }
 
 .streaming .avatar-col {
@@ -2107,11 +2215,20 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
+.streaming-status {
+  display: block;
+  padding: 0 15px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 .streaming .message-content {
   position: relative;
-  padding: 12px 16px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
   background: transparent;
-  border-radius: 12px;
+  color: var(--text-primary);
+  border-radius: 0;
   font-family: var(--font-reading);
   font-size: var(--chat-font-size);
   line-height: var(--chat-line-height);
@@ -2431,7 +2548,13 @@ onUnmounted(() => {
     overflow-x: hidden;
   }
   .message-bubble.message-assistant {
-    padding: 0 8px;
+    padding: 0 12px;
+  }
+  .streaming .message-content {
+    padding: 8px 12px;
+  }
+  .streaming-status {
+    padding-inline: 13px;
   }
   .greeting-container {
     padding: 0;

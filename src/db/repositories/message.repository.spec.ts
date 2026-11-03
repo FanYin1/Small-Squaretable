@@ -17,6 +17,48 @@ describe('MessageRepository', () => {
     });
   });
 
+  describe('findContextByChatId', () => {
+    it('selects only prompt-relevant fields and orders messages chronologically', async () => {
+      const rows = [{ id: 1, role: 'user', content: 'hello', pinned: false, importance: 0 }];
+      const orderBy = vi.fn().mockResolvedValue(rows);
+      const where = vi.fn(() => ({ orderBy }));
+      const from = vi.fn(() => ({ where }));
+      const select = vi.fn(() => ({ from }));
+      const repo = new MessageRepository({ select } as unknown as typeof db);
+
+      const result = await repo.findContextByChatId('chat-1');
+
+      expect(select).toHaveBeenCalledWith(expect.objectContaining({
+        id: expect.anything(), role: expect.anything(), content: expect.anything(),
+        pinned: expect.anything(), importance: expect.anything(),
+      }));
+      expect(Object.keys(select.mock.calls[0][0] as object)).toEqual(['id', 'role', 'content', 'pinned', 'importance']);
+      expect(where).toHaveBeenCalledOnce();
+      expect(orderBy).toHaveBeenCalledOnce();
+      expect(result).toEqual(rows);
+    });
+  });
+
+  describe('findRecentByChatId', () => {
+    it('returns a bounded recent window in chronological order', async () => {
+      const rows = [
+        { id: 3, content: 'third' },
+        { id: 2, content: 'second' },
+      ];
+      const limit = vi.fn().mockResolvedValue(rows);
+      const orderBy = vi.fn(() => ({ limit }));
+      const where = vi.fn(() => ({ orderBy }));
+      const from = vi.fn(() => ({ where }));
+      const select = vi.fn(() => ({ from }));
+      const repo = new MessageRepository({ select } as unknown as typeof db);
+
+      const result = await repo.findRecentByChatId('chat-1', 2);
+
+      expect(limit).toHaveBeenCalledWith(2);
+      expect(result).toEqual([...rows].reverse());
+    });
+  });
+
   describe('update', () => {
     // 链式 fake：update().set().where().returning() / select().from().where()
     function createFakeDb(row: Record<string, unknown>) {

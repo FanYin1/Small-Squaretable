@@ -11,10 +11,11 @@ import { frozenStoryRules } from '../../types/story-adapter';
 import { applyRitualTurn, ritualScope, ritualIdentityEffect, ritualIdentityClaim, type RitualEffect } from '../../types/story-ritual';
 import { buildStoryTurnPrompt } from './story-turn-prompt';
 import { storyKnowledgeVisible, storyAudienceExtra, type StoryAudience } from '../../types/story-knowledge';
-import { storyIntentSchema, parseStoryIntentOutput, storyIntentVisiblePrefix, storyIntentPresentation, shouldPersistStoryIntentInvalid, type StoryIntent, type StoredStoryIntent } from '../../types/story-intent';
-import { buildStoryIntentPrompt } from './story-intent-prompt';
+import { storyIntentSchema, parseStoryIntentOutput, storyIntentVisiblePrefix, storyIntentPresentation, shouldPersistStoryIntentInvalid, type StoryIntent, type StoredStoryIntent, type StoryTurnDiagnostics, type StoryValidationCode } from '../../types/story-intent';
+import { resolveStoryExecution } from '../../types/story-execution';
+import { buildDirectStoryPrompt, buildStoryIntentPrompt } from './story-intent-prompt';
 import type { StoryAdaptationReport } from '../../types/story-adaptation';
-import { sourcedStoryRecommendations } from '../../types/story-recommendations';
+import { DEFAULT_STORY_RECOMMENDATIONS_LEAD, sourcedStoryRecommendations } from '../../types/story-recommendations';
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 type StoredState = typeof storyStates.$inferSelect;
@@ -83,7 +84,7 @@ export interface PreparedStoryTurn {
   chatId: string; userId: string; version: number; rules: StoryRules | null; action: StoryAction | null;
   values: StoryValues; nextValues: StoryValues; completedActions: string[]; sources: Record<string, string>; prompt: string;
   audience?: StoryAudience;
-  input: string; intentProtocol?: boolean; confirmedIntent?: StoryIntent; actionIds?: string[];
+  input: string; intentProtocol?: boolean; directResponse?: boolean; confirmedIntent?: StoryIntent; actionIds?: string[];
   turnEffect?: RitualEffect;
   ruleScope?: StoryAdaptationReport['ruleScope'];
 }
@@ -152,7 +153,8 @@ async function readStoryTurn(chat: Chat, text: string, actionRequest: StoryActio
   }
   const combinedAction = selectedActions.length > 1 ? { ...selectedActions[0], label: selectedActions.map(item => item.label).join(' → '),
     outcome: selectedActions.map(item => item.outcome).join('\n') } : action;
-  let prompt = buildStoryTurnPrompt(view, combinedAction ?? null);
+  const directResponse = content.characters.length === 1 && !confirmedIntent;
+  let prompt = buildStoryTurnPrompt(view, combinedAction ?? null, directResponse);
   const turnEffect = content.characters[0]?.adaptation?.turnEffect;
   if (turnEffect) {
     const completedValues = applyRitualTurn(turnEffect, nextValues, text);
@@ -163,25 +165,59 @@ async function readStoryTurn(chat: Chat, text: string, actionRequest: StoryActio
   }
   const intentProtocol = content.characters.length === 1;
   if (confirmedIntent) prompt += `\nThe player reviewed and confirmed this interpretation: ${JSON.stringify(confirmedIntent)}. Only the authored rule outcome above changes structured resources. Exploration and typed claims have no numeric authority; respond to the confirmed free action now without proposing it again.`;
-  else if (intentProtocol && !action) prompt += `\n${buildStoryIntentPrompt(available.map(item => ({ id: item.id, label: item.label })))}`;
+  else if (intentProtocol && !action) prompt += `\n${buildDirectStoryPrompt(available.map(item => ({ id: item.id, label: item.label, outcome: item.outcome })))}`;
   if (intentProtocol && (action || confirmedIntent)) prompt += '\n' + buildStoryIntentPrompt([], true);
   return { chatId: chat.id, userId: chat.userId, version: state.version, rules, action: combinedAction ?? null,
     values: state.values, nextValues, completedActions: state.completedActions, sources: state.sources, prompt, audience: knowledge?.audience,
-    input: text, intentProtocol, confirmedIntent, actionIds: selectedActions.map(item => item.id), turnEffect,
+    input: text, intentProtocol, directResponse, confirmedIntent, actionIds: selectedActions.map(item => item.id), turnEffect,
     ruleScope: view.adaptationReport?.ruleScope };
 }
 
-export async function commitStoryTurn(turn: PreparedStoryTurn, inputMessageId: number, requestId: string, text: string, interrupted: boolean, database: Database = db, characterId?: string, originalOutput?: string) {
+export async function commitStoryTurn(turn: PreparedStoryTurn, inputMessageId: number, requestId: string, text: string, interrupted: boolean, database: Database = db, characterId?: string, originalOutput?: string, generation?: Pick<StoryTurnDiagnostics, 'model' | 'finishReason' | 'streamIncomplete'>) {
+  interrupted ||= Boolean(generation?.streamIncomplete);
   const raw = originalOutput ?? text;
   const parsed = turn.intentProtocol ? parseStoryIntentOutput(raw, turn.input ?? '',
     availableStoryActions(turn.rules, turn.values, turn.completedActions).map(action => action.id)) : null;
   const interpreting = turn.intentProtocol && !turn.action && !turn.confirmedIntent;
-  const unconfirmed = interrupted || Boolean(interpreting && parsed?.invalid);
-  const proposed = !interrupted && interpreting && parsed?.intent?.disposition === 'proposal';
-  if (interpreting && (proposed || parsed?.invalid || originalOutput === undefined)) text = storyIntentPresentation(raw, turn.input ?? '',
-    availableStoryActions(turn.rules, turn.values, turn.completedActions).map(action => action.id), interrupted);
+  let unconfirmed = interrupted || Boolean(interpreting && (parsed?.invalid ||
+    (turn.directResponse && (parsed?.intent?.disposition === 'proposal' || (turn.rules && !parsed?.intent)))));
+  let validationCode: StoryValidationCode | undefined = interpreting ? parsed?.invalidReason : undefined;
+  if (!interrupted && turn.intentProtocol && (!parsed?.content.trim() || !text.trim())) {
+    unconfirmed = true; validationCode = 'empty_narrative';
+  }
+  if (!interrupted && interpreting && turn.directResponse) {
+    if (parsed?.intent?.disposition === 'proposal') validationCode = 'unexpected_proposal';
+    else if (turn.rules && !parsed?.intent && !validationCode) validationCode = 'missing_protocol';
+  }
+  let appliedAction = turn.action;
+  let actionIds = turn.actionIds ?? (turn.action ? [turn.action.id] : []);
+  let resolvedValues = turn.nextValues;
+  if (!unconfirmed && turn.directResponse && interpreting) {
+    try {
+      const resolved = resolveStoryExecution(turn.rules, turn.values, turn.completedActions, parsed?.intent);
+      resolvedValues = resolved.nextValues;
+      actionIds = resolved.actions.map(action => action.id);
+      appliedAction = resolved.actions.length ? { ...resolved.actions[0],
+        label: resolved.actions.map(action => action.label).join(' → '),
+        outcome: resolved.actions.map(action => action.outcome).join('\n') } : null;
+    } catch { unconfirmed = true; validationCode = 'rule_execution_rejected'; }
+  }
+  const proposed = !unconfirmed && !turn.directResponse && interpreting && parsed?.intent?.disposition === 'proposal';
+  if (interpreting && (proposed || unconfirmed || originalOutput === undefined)) text = storyIntentPresentation(raw, turn.input ?? '',
+    availableStoryActions(turn.rules, turn.values, turn.completedActions).map(action => action.id), interrupted, turn.directResponse);
   else if (parsed && originalOutput === undefined) text = interrupted ? storyIntentVisiblePrefix(parsed.content) : parsed.content;
+  if (!interrupted && unconfirmed && turn.directResponse) text = '这轮回复未能完成校验，故事状态未更新。请重试或补充说明。';
   if (parsed?.intent) parsed.intent.facts = parsed.intent.facts.filter(fact => fact.speaker === 'player' || text.includes(fact.evidence));
+  const diagnostic: StoryTurnDiagnostics | undefined = turn.intentProtocol ? {
+    version: 1, ...generation, protocol: 'text-tag-v1',
+    validation: interrupted ? 'interrupted' : unconfirmed ? 'failed' : 'passed',
+    ...(generation?.streamIncomplete ? { code: 'stream_incomplete' as const }
+      : generation?.finishReason === 'length' ? { code: 'output_truncated' as const }
+      : validationCode ? { code: validationCode } : {}),
+    warnings: parsed?.warnings ?? [],
+    ...(parsed?.jsonFailure ? { jsonFailure: parsed.jsonFailure } : {}),
+    ...(parsed?.protocolFailure ? { protocolFailure: parsed.protocolFailure } : {}),
+  } : undefined;
   return database.transaction(async transaction => {
     const [chat] = await transaction.select({ id: chats.id }).from(chats)
       .where(and(eq(chats.id, turn.chatId), eq(chats.userId, turn.userId))).for('key share');
@@ -206,29 +242,33 @@ export async function commitStoryTurn(turn: PreparedStoryTurn, inputMessageId: n
     if (JSON.stringify(sourceAudience ?? null) !== JSON.stringify(storyAudienceExtra(turn.audience).storyAudience ?? null)) {
       throw new AppError('The response audience does not match its source.', 409, 'STORY_AUDIENCE_CONFLICT');
     }
-    const nextValues = unconfirmed || proposed ? state.values : applyRitualTurn(turn.turnEffect, turn.nextValues, source.content);
+    const nextValues = unconfirmed || proposed ? state.values : applyRitualTurn(turn.turnEffect, resolvedValues, source.content);
     const changes = Object.fromEntries(Object.entries(nextValues).filter(([key, value]) => state.values[key] !== value)
       .map(([key, value]) => [key, { before: state.values[key], after: value }]));
     const [message] = await transaction.insert(messages).values({ chatId: turn.chatId, role: 'assistant', content: text, characterId,
       extra: { storyRequestId: requestId, storyVersion: state.version + 1, stateStatus: unconfirmed ? 'interrupted' : proposed ? 'proposed' : 'confirmed',
         ...storyAudienceExtra(turn.audience),
+        ...(diagnostic ? { storyDiagnostics: diagnostic } : {}),
         ...(turn.intentProtocol && !unconfirmed ? !proposed && parsed?.recommendations?.length === 3
-          ? { storyRecommendations: parsed.recommendations, storyRecommendationsSource: 'generated' }
+          ? { storyRecommendations: parsed.recommendations, storyRecommendationsSource: 'generated',
+            storyRecommendationsLead: parsed.recommendationLead ?? DEFAULT_STORY_RECOMMENDATIONS_LEAD }
           : sourcedStoryRecommendations(text) : {}),
-        ...(!interrupted && !turn.confirmedIntent && !turn.action && parsed?.intent ? {
+        ...(!unconfirmed && !turn.directResponse && !turn.confirmedIntent && !turn.action && parsed?.intent ? {
           storyIntent: { intent: parsed.intent, input: turn.input, expectedVersion: state.version + 1 },
         } : {}),
-        ...(shouldPersistStoryIntentInvalid({ interrupted, interpreting: interpreting === true }, parsed) ? { storyIntentInvalid: true } : {}),
-        ...(!interrupted && turn.confirmedIntent ? { storyConfirmedIntent: turn.confirmedIntent } : {}),
-        ...(!interrupted && !proposed && (turn.confirmedIntent?.facts.length || parsed?.intent?.facts.length) ? {
+        ...(!unconfirmed && turn.directResponse && interpreting && parsed?.intent?.disposition === 'execution'
+          ? { storyExecutedIntent: parsed.intent } : {}),
+        ...((!interrupted && unconfirmed) || shouldPersistStoryIntentInvalid({ interrupted, interpreting: interpreting === true }, parsed) ? { storyIntentInvalid: true } : {}),
+        ...(!unconfirmed && turn.confirmedIntent ? { storyConfirmedIntent: turn.confirmedIntent } : {}),
+        ...(!unconfirmed && !proposed && (turn.confirmedIntent?.facts.length || parsed?.intent?.facts.length) ? {
           storyFacts: turn.confirmedIntent?.facts ?? parsed?.intent?.facts,
         } : {}),
       } }).returning();
     const [event] = await transaction.insert(storyEvents).values({ chatId: turn.chatId, requestId, version: state.version + 1,
-      actionId: turn.action?.id, actionLabel: turn.action?.label, outcome: !interrupted ? turn.action?.outcome : null,
+      actionId: !unconfirmed && !proposed ? appliedAction?.id : null, actionLabel: !unconfirmed && !proposed ? appliedAction?.label : null, outcome: !unconfirmed && !proposed ? appliedAction?.outcome : null,
       status: unconfirmed ? 'interrupted' : proposed ? 'proposed' : 'confirmed', inputMessageId, messageId: message.id, changes, excerpt: text.slice(0, 600) }).returning();
     await transaction.update(storyStates).set({ version: event.version, values: nextValues,
-      completedActions: !interrupted && turn.action ? [...new Set([...state.completedActions, ...(turn.actionIds ?? [turn.action.id])])] : state.completedActions,
+      completedActions: !unconfirmed && !proposed && appliedAction ? [...new Set([...state.completedActions, ...actionIds])] : state.completedActions,
       sources: { ...state.sources, ...Object.fromEntries(Object.keys(changes).map(key => [key, event.id])) }, updatedAt: new Date(),
     }).where(eq(storyStates.chatId, turn.chatId));
     return message;

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { ChatCompletionRequest, LLMProviderConfig } from '../../types/llm';
 const state = vi.hoisted(() => ({ provider: {} as LLMProviderConfig, record: vi.fn() }));
-vi.mock('../config/llm.config', () => ({ findProviderForModel: () => state.provider, getDefaultModel: () => 'public-alias' }));
+vi.mock('../config/llm.config', () => ({ getModelMeta: (id: string) => ({ id, provider: 'test', contextWindow: 200000, maxOutputTokens: 128000, outputCapabilityTokens: 128000, defaultTemperature: 0.7 }), findProviderForModel: () => state.provider, getDefaultModel: () => 'public-alias' }));
 vi.mock('./spend-breaker.service', () => ({ spendBreaker: { assertAllowed: vi.fn(), record: state.record } }));
 vi.mock('./engineering-story-provider', () => ({ resolveEngineeringStoryProvider: (provider: unknown) => provider }));
 import { LLMService } from './llm.service';
@@ -11,6 +11,18 @@ beforeEach(() => {
   state.record.mockClear();
 });
 afterEach(() => vi.unstubAllGlobals());
+it.each([false, true])('preserves safe Anthropic rejection diagnostics without retry or billing (stream=%s)', async stream => {
+  state.provider.apiFormat = 'anthropic';
+  const fetchMock = vi.fn().mockImplementation(async () => Response.json({ error: {
+    type: 'invalid_request_error', message: 'max_tokens: too large SECRET_SENTINEL',
+  } }, { status: 400 }));
+  vi.stubGlobal('fetch', fetchMock);
+  const service = new LLMService();
+  const result = stream ? service.streamChatCompletion(request) : service.chatCompletion(request);
+  await expect(result).rejects.toMatchObject({ statusCode: 400, code: 'LLM_API_ERROR', category: 'output', retryable: false });
+  expect(fetchMock).toHaveBeenCalledOnce();
+  expect(state.record).not.toHaveBeenCalled();
+});
 it('routes ordinary Anthropic calls to Messages and records actual usage', async () => {
   state.provider.apiFormat = 'anthropic';
   const fetchMock = vi.fn().mockResolvedValue(Response.json({ id: 'm', type: 'message', content: [{ type: 'text', text: 'Hello' }], stop_reason: 'end_turn', usage: { input_tokens: 11, output_tokens: 2 } }));
@@ -41,7 +53,8 @@ it('uses per-channel compatibility options on ordinary and streamed OpenAI calls
     expect(body).toMatchObject({ model: 'upstream-id', max_completion_tokens: 200 });
     expect(body.temperature).toBeUndefined(); expect(body.presence_penalty).toBeUndefined(); expect(body.stream_options).toBeUndefined();
   }
-  expect(fetchMock.mock.calls[1][1].signal).toBe(controller.signal);
+  controller.abort();
+  expect(fetchMock.mock.calls[1][1].signal.aborted).toBe(true);
 });
 it('normalizes the Anthropic stream through the service and preserves cancellation signal', async () => {
   state.provider.apiFormat = 'anthropic';
@@ -53,7 +66,7 @@ it('normalizes the Anthropic stream through the service and preserves cancellati
   const controller = new AbortController();
   const result = await new LLMService().streamChatCompletion(request, controller.signal);
   expect(fetchMock.mock.calls[0][0]).toBe('https://test.invalid/v1/messages');
-  expect(fetchMock.mock.calls[0][1].signal).toBe(controller.signal);
+  expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   const text = await result.text();
   expect(text).toContain('Hello'); expect(text).toContain('"total_tokens":5'); expect(text).toContain('[DONE]');
   expect(state.record).not.toHaveBeenCalled(); // Stream caller performs settlement.

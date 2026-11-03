@@ -270,6 +270,10 @@ export interface CreditEntryListResponse {
 }
 
 export interface AdminModelMeta {
+  channelId?: string;
+  channelName?: string;
+  upstreamId?: string;
+  hidden?: boolean;
   id: string;
   provider: string;
   contextWindow: number;
@@ -303,6 +307,7 @@ export interface AdminModelsResponse {
 }
 
 export interface AdminModelUpdateInput {
+  hiddenModels?: string[];
   id?: string;
   name?: string;
   makeDefault?: boolean;
@@ -420,6 +425,11 @@ export const adminApi = {
   getModels: () => api.get<AdminModelsResponse>('/admin/models'),
 
   updateModels: (data: AdminModelUpdateInput) => api.put<{ models: AdminModelMeta[] }>('/admin/models', data),
+  createModel: (data: { channelId: string; id: string; upstreamId?: string; limits: ModelLimitsInput; hidden?: boolean; makeDefault?: boolean }) =>
+    api.post('/admin/models/entries', data),
+  editModel: (id: string, data: { upstreamId?: string; limits?: ModelLimitsInput; hidden?: boolean; makeDefault?: boolean }) =>
+    api.patch(`/admin/models/entries/${encodeURIComponent(id)}`, data),
+  deleteModel: (id: string) => api.delete(`/admin/models/entries/${encodeURIComponent(id)}`),
 
   // ── System ──
 

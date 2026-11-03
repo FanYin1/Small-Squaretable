@@ -96,12 +96,14 @@ describe('ChatService', () => {
         },
       ];
 
-      vi.mocked(chatRepository.findByUserId).mockResolvedValue(mockChats as any);
+      vi.mocked(chatRepository.findSummaryByUserId).mockResolvedValue(mockChats as any);
+      vi.mocked(chatRepository.countByUserId).mockResolvedValue(2);
 
       const result = await chatService.getByUserId(userId, { page: 1, limit: 20 });
 
       expect(result.items).toEqual(mockChats);
       expect(result.pagination.total).toBe(2);
+      expect(chatRepository.findByUserId).not.toHaveBeenCalled();
     });
   });
 

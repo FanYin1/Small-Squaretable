@@ -135,13 +135,16 @@ characterRoutes.get(
   async (c) => {
     const user = c.get('user');
     const pagination = c.req.valid('query');
-    const result = await characterService.getByTenantId(user.tenantId, pagination);
-    const decorated = await decorateCharacterPresentations(result.items);
-    if (c.req.query('view') === 'summary') {
+    const summaryView = c.req.query('view') === 'summary';
+    if (summaryView) {
+      const result = await characterService.getSummariesByTenantId(user.tenantId, pagination);
+      const decorated = await decorateCharacterPresentations(result.items);
       c.header('Cache-Control', 'private, no-store');
       return c.json({ success: true, data: { ...result, items: await characterSummaries(decorated) },
         meta: { timestamp: new Date().toISOString() } });
     }
+    const result = await characterService.getByTenantId(user.tenantId, pagination);
+    const decorated = await decorateCharacterPresentations(result.items);
     result.items = decorated;
 
     return c.json<ApiResponse<PaginatedResponse<Character>>>(
@@ -202,7 +205,7 @@ characterRoutes.get(
       );
     }
 
-    const full = await characterService.getPublicCharacters(pagination, { showNsfw });
+    const full = await characterService.getPublicCharacterSummaries(pagination, { showNsfw });
     const result = { ...full, items: await characterSummaries(full.items) };
 
     // Cache the result

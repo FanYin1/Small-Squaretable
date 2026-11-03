@@ -56,3 +56,57 @@ describe('independent model channels', () => {
     expect(() => config.updateLLMConfig({ ...channel, defaultModel: 'missing' })).toThrow('default');
   });
 });
+
+
+describe('individual model lifecycle and visibility', () => {
+  const limits = { contextWindow: 200000, maxOutputTokens: 64000, requestOutputTokens: 10000 };
+  it('creates, updates, hides, restores and deletes one model without changing sibling capacities or credentials', () => {
+    config.updateLLMConfig(channel);
+    config.saveModelEntry('vendor/model', { upstreamId: 'upstream', limits, makeDefault: true }, 'first');
+    expect(config.getDefaultModel()).toBe('vendor/model');
+    expect(config.getAvailableModelsWithMeta()[0].id).toBe('vendor/model');
+    config.saveModelEntry('vendor/model', { hidden: true, limits: { ...limits, requestOutputTokens: 8000 } });
+    expect(config.getAvailableModels()).toEqual(['gemini']);
+    expect(config.getDefaultModel()).toBe('gemini');
+    expect(config.getModelMeta('vendor/model').maxOutputTokens).toBe(8000);
+    expect(config.findProviderForModel('vendor/model')?.apiKey).toBe('secret-one');
+    config.llmConfigs.splice(0); config.loadPersistedLLMConfig();
+    expect(config.getAvailableModels()).toEqual(['gemini']);
+    expect(config.findProviderForModel('vendor/model')?.modelAliases?.['vendor/model']).toBe('upstream');
+    config.saveModelEntry('vendor/model', { hidden: false });
+    expect(config.getAvailableModels()).toContain('vendor/model');
+    config.deleteModelEntry('vendor/model');
+    expect(config.findProviderForModel('vendor/model')).toBeNull();
+    expect(config.llmConfigs[0].modelAliases).not.toHaveProperty('vendor/model');
+    expect(config.llmConfigs[0].modelLimits).not.toHaveProperty('vendor/model');
+    expect(config.getModelMeta('gemini').maxOutputTokens).toBe(4096);
+  });
+  it('preserves an empty channel for reuse after restart and selects a visible default from another channel', () => {
+    config.updateLLMConfig(channel);
+    config.updateLLMConfig({ ...channel, id: 'second', models: ['second'], modelLimits: {} });
+    config.deleteModelEntry('gemini');
+    expect(config.getDefaultModel()).toBe('second');
+    config.llmConfigs.splice(0); config.loadPersistedLLMConfig();
+    expect(config.llmConfigs[0].models).toEqual([]);
+    config.saveModelEntry('replacement', { limits }, 'first');
+    expect(config.getDefaultModel()).toBe('replacement');
+  });
+  it('rejects last-visible removal, duplicates and invalid capacities atomically', () => {
+    config.updateLLMConfig(channel);
+    const before = fs.readFileSync(config.getPersistedLLMConfigPath(), 'utf8');
+    expect(() => config.saveModelEntry('gemini', { hidden: true })).toThrow('至少');
+    expect(() => config.deleteModelEntry('gemini')).toThrow('至少');
+    expect(() => config.saveModelEntry('gemini', { limits }, 'first')).toThrow('已存在');
+    expect(() => config.saveModelEntry('new', { limits: { ...limits, requestOutputTokens: 64001 } }, 'first')).toThrow('CUSTOM_LLM_MODEL_LIMITS');
+    expect(fs.readFileSync(config.getPersistedLLMConfigPath(), 'utf8')).toBe(before);
+    expect(config.getAvailableModels()).toEqual(['gemini']);
+  });
+  it('keeps visibility and routing unchanged when writing the encrypted file fails', () => {
+    config.updateLLMConfig(channel);
+    config.saveModelEntry('new', { limits }, 'first');
+    fs.unlinkSync(config.getPersistedLLMConfigPath()); fs.mkdirSync(config.getPersistedLLMConfigPath());
+    expect(() => config.saveModelEntry('new', { hidden: true })).toThrow();
+    expect(() => config.deleteModelEntry('new')).toThrow();
+    expect(config.getAvailableModels()).toEqual(['gemini', 'new']);
+  });
+});

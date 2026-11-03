@@ -30,6 +30,45 @@ export interface CursorPaginatedResult<T> {
 }
 
 /**
+ * 列表摘要需要的角色字段。
+ *
+ * cardData 只保留开场回退所需的两个字段；详情、编辑和故事运行继续使用
+ * Character 的完整 cardData。这样大角色卡不会在列表请求中进入应用内存。
+ */
+export type CharacterSummarySource = Pick<Character,
+  'id' | 'tenantId' | 'creatorId' | 'name' | 'description' | 'avatarUrl' |
+  'tags' | 'category' | 'isPublic' | 'isNsfw' | 'moderationStatus' |
+  'violationCategory' | 'moderationNote' | 'downloadCount' | 'viewCount' |
+  'ratingAvg' | 'ratingCount' | 'createdAt' | 'updatedAt'
+> & { cardData: Record<string, unknown> };
+
+const characterSummarySelection = {
+  id: characters.id,
+  tenantId: characters.tenantId,
+  creatorId: characters.creatorId,
+  name: characters.name,
+  description: characters.description,
+  avatarUrl: characters.avatarUrl,
+  cardData: sql<Record<string, unknown>>`jsonb_strip_nulls(jsonb_build_object(
+    'first_mes', ${characters.cardData}->'first_mes',
+    'alternate_greetings', ${characters.cardData}->'alternate_greetings'
+  ))`,
+  tags: characters.tags,
+  category: characters.category,
+  isPublic: characters.isPublic,
+  isNsfw: characters.isNsfw,
+  moderationStatus: characters.moderationStatus,
+  violationCategory: characters.violationCategory,
+  moderationNote: characters.moderationNote,
+  downloadCount: characters.downloadCount,
+  viewCount: characters.viewCount,
+  ratingAvg: characters.ratingAvg,
+  ratingCount: characters.ratingCount,
+  createdAt: characters.createdAt,
+  updatedAt: characters.updatedAt,
+};
+
+/**
  * 公开发现入口的观看者上下文。
  *
  * showNsfw 必须是服务端从数据库读出的用户偏好，不能取自客户端传参。
@@ -97,8 +136,56 @@ export class CharacterRepository extends BaseRepository {
     return await query;
   }
 
+  async findSummaryByTenantId(tenantId: string, pagination?: PaginationParams): Promise<CharacterSummarySource[]> {
+    let query: any = this.db.select(characterSummarySelection).from(characters).where(eq(characters.tenantId, tenantId));
+
+    if (pagination?.sortBy) {
+      if (pagination.sortBy === 'downloadCount') {
+        query = pagination.sortOrder === 'asc'
+          ? query.orderBy(asc(characters.downloadCount))
+          : query.orderBy(desc(characters.downloadCount));
+      } else if (pagination.sortBy === 'viewCount') {
+        query = pagination.sortOrder === 'asc'
+          ? query.orderBy(asc(characters.viewCount))
+          : query.orderBy(desc(characters.viewCount));
+      } else if (pagination.sortBy === 'createdAt') {
+        query = pagination.sortOrder === 'asc'
+          ? query.orderBy(asc(characters.createdAt))
+          : query.orderBy(desc(characters.createdAt));
+      } else if (pagination.sortBy === 'updatedAt') {
+        query = pagination.sortOrder === 'asc'
+          ? query.orderBy(asc(characters.updatedAt))
+          : query.orderBy(desc(characters.updatedAt));
+      }
+    }
+
+    if (pagination) {
+      const offset = (pagination.page - 1) * pagination.limit;
+      query = query.limit(pagination.limit).offset(offset);
+    }
+
+    return await query;
+  }
+
   async findPublic(pagination?: PaginationParams, viewer?: DiscoveryViewer): Promise<Character[]> {
     let query: any = this.db.select().from(characters).where(PUBLIC_VISIBLE(viewer)).orderBy(desc(characters.downloadCount));
+
+    if (pagination) {
+      const offset = (pagination.page - 1) * pagination.limit;
+      query = query.limit(pagination.limit).offset(offset);
+    }
+
+    return await query;
+  }
+
+  async findPublicSummary(
+    pagination?: PaginationParams,
+    viewer?: DiscoveryViewer,
+  ): Promise<CharacterSummarySource[]> {
+    let query: any = this.db.select(characterSummarySelection)
+      .from(characters)
+      .where(PUBLIC_VISIBLE(viewer))
+      .orderBy(desc(characters.downloadCount));
 
     if (pagination) {
       const offset = (pagination.page - 1) * pagination.limit;

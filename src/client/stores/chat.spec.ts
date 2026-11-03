@@ -2,7 +2,7 @@
  * Chat Store 测试
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useChatStore } from './chat';
 import { useUserStore } from './user';
@@ -112,6 +112,15 @@ describe('Chat Store', () => {
       chat: { id: chatId, title: chatId, characterId: 'char1', characterName: 'Character', createdAt: '2024-01-01' },
     }));
     vi.mocked(chatApi.getChatCharacters).mockResolvedValue([]);
+  });
+
+  it.each(['sending', 'stopping', 'isStreaming'] as const)('blocks model switching while %s without changing selection', async state => {
+    const store = useChatStore(); store.currentChatId = 'active';
+    store.chats = [{ id: 'active', title: 'Story', createdAt: '', metadata: { model: 'original' } }];
+    store[state] = true;
+    await expect(store.switchModel('next-model')).rejects.toThrow('等待当前回复');
+    expect(chatApi.updateChatModel).not.toHaveBeenCalled();
+    expect(store.currentModel).toBe('original');
   });
 
   describe('fetchModels', () => {
@@ -669,6 +678,161 @@ describe('Chat Store', () => {
     });
   });
 
+  describe('provisional replies and timing', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    async function start() {
+      const store = useChatStore();
+      store.initWebSocket('token');
+      store.wsConnected = true;
+      store.currentChatId = 'story';
+      vi.mocked(chatApi.getMessages).mockResolvedValue({ messages: [], hasMore: false });
+      await store.sendMessage('Private user input');
+      return { store, requestId: store.messages[0].id };
+    }
+
+    it('tracks control and validation phases without appending text or finishing before commit, and resets on failure', async () => {
+      const { store, requestId } = await start();
+      const chunk = (phase?: string) => wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: phase ? '' : '正文。', provisional: true, phase });
+      chunk(); expect(store.streamingPhase).toBe('body');
+      chunk('control'); expect(store.streamingPhase).toBe('control');
+      expect(store.streamingMessage).toBe('正文。'); expect(store.sending).toBe(true);
+      chunk('validating'); chunk('control'); expect(store.streamingPhase).toBe('validating');
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'other', requestId, chunk: '', phase: 'control' });
+      expect(store.streamingPhase).toBe('validating');
+      wsHandlers.get('generationFinished')!({ chatId: 'story', requestId, status: 'failed', retryable: false });
+      expect(store.streamingPhase).toBe('body'); expect(store.sending).toBe(false); expect(store.isStreaming).toBe(false);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    it('retains the saved validation reason through DONE and recovery without offering a transport retry', async () => {
+      const { store, requestId } = await start();
+      const storyDiagnostics = { version: 1, model: 'selected-model', finishReason: 'stop', protocol: 'text-tag-v1',
+        validation: 'failed', code: 'invalid_json', warnings: [] };
+      const saved: Message = { id: '102', chatId: 'story', role: 'assistant', content: '本轮未提交状态变化。', createdAt: '',
+        extra: { storyRequestId: requestId, storyIntentInvalid: true, stateStatus: 'interrupted', storyDiagnostics } };
+      vi.mocked(chatApi.getMessages).mockResolvedValue({ messages: [saved], hasMore: false });
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: '尚未校验的正文', provisional: true });
+      wsHandlers.get('assistantMessageDone')!({ chatId: 'story', requestId, messageId: saved.id, content: saved.content,
+        storyIntentInvalid: true, stateStatus: 'interrupted', storyDiagnostics });
+      expect(store.messages.at(-1)?.extra).toEqual(saved.extra);
+      wsHandlers.get('generationFinished')!({ chatId: 'story', requestId, status: 'failed', retryable: false, errorCode: 'STORY_INVALID_JSON' });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(store.messages.at(-1)).toEqual(saved);
+      expect(store.error).toBeNull();
+      expect(store.canRetryGeneration).toBe(false);
+      expect(store.sending).toBe(false);
+      expect(store.streamingMessage).toBe('');
+      expect(sendMessageRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ['经过正则的权威正文', {}],
+      ['本轮校验失败，未推进故事。', { storyIntentInvalid: true, stateStatus: 'invalid' }],
+      ['', {}],
+    ])('replaces provisional text with authoritative content (%s), including duplicate acknowledgements', async (content, extra) => {
+      const { store, requestId } = await start();
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: '尚未校验的正文', provisional: true,
+        stateStatus: 'confirmed', storyRecommendations: [{ label: '不可提前生效', input: '继续' }] });
+      expect(store.streamingProvisional).toBe(true);
+      expect(store.messages.filter(message => message.role === 'assistant')).toEqual([]);
+      const done = { chatId: 'story', requestId, messageId: '102', content, ...extra };
+      wsHandlers.get('assistantMessageDone')!(done);
+      wsHandlers.get('assistantMessageDone')!(done);
+      expect(store.messages.filter(message => message.role === 'assistant')).toEqual([
+        expect.objectContaining({ id: '102', content, extra: expect.objectContaining(extra) }),
+      ]);
+      expect(store.streamingMessage).toBe('');
+      expect(store.streamingProvisional).toBe(false);
+      expect(store.isStreaming).toBe(false);
+    });
+
+    it('accepts authoritative done without a chunk, and retains the old no-content protocol', async () => {
+      const { store, requestId } = await start();
+      wsHandlers.get('assistantMessageDone')!({ chatId: 'story', requestId, messageId: '102', content: '完整回复' });
+      expect(store.messages.at(-1)?.content).toBe('完整回复');
+      expect(store.replyTiming?.firstChunkAt).toBeNull();
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: '旧协议正文' });
+      wsHandlers.get('assistantMessageDone')!({ chatId: 'story', requestId, messageId: '103' });
+      expect(store.messages.at(-1)?.content).toBe('旧协议正文');
+    });
+
+    it('times only the first nonblank matching body chunk and logs only numbers and fixed labels', async () => {
+      let now = 10;
+      vi.spyOn(performance, 'now').mockImplementation(() => now);
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const { store, requestId } = await start();
+      for (const event of [
+        { chatId: 'story', requestId, chunk: '' },
+        { chatId: 'story', requestId, chunk: ' \n\t' },
+        { chatId: 'other', requestId, chunk: 'Other story' },
+        { chatId: 'story', requestId: 'old-request', chunk: 'Old request' },
+      ]) wsHandlers.get('assistantMessageChunk')!(event);
+      expect(store.replyTiming?.firstChunkAt).toBeNull();
+      now = 25;
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: 'Private body', provisional: true });
+      now = 30;
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: 'More private body', provisional: true });
+      expect(store.replyTiming?.firstChunkAt).toBe(25);
+      now = 40;
+      store.recordReplyPresentation(store.replyTiming!.attempt);
+      store.recordReplyPresentation(store.replyTiming!.attempt);
+      const metrics = log.mock.calls.filter(call => call[1] === 'reply_performance');
+      expect(metrics).toEqual([
+        ['[Chat]', 'reply_performance', { phase: 'first_body_chunk', attempt: 1, selection: 0, atMs: 25, sendToFirstBodyChunkMs: 15 }],
+        ['[Chat]', 'reply_performance', { phase: 'presentation_approx', attempt: 1, selection: 0, atMs: 40,
+          sendToFirstBodyChunkMs: 15, firstBodyChunkToPresentationApproxMs: 15, sendToPresentationApproxMs: 30 }],
+      ]);
+      expect(JSON.stringify(metrics)).not.toMatch(/Private|story|temp-/);
+    });
+
+    it.each(['failed', 'conflict', 'disconnect', 'missing-done'])('reconciles %s without promoting provisional body to saved text', async mode => {
+      const { store, requestId } = await start();
+      wsHandlers.get('userMessage')!({ chatId: 'story', messageId: '101', clientMessageId: requestId, content: 'Private user input' });
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: 'Never saved preview', provisional: true });
+      const oldAttempt = store.replyTiming!.attempt;
+      vi.mocked(chatApi.getMessages).mockResolvedValue({ messages: [
+        { id: '102', chatId: 'story', role: 'assistant', content: '数据库权威回复', createdAt: '' },
+      ], hasMore: false });
+      if (mode === 'disconnect') {
+        wsHandlers.get('disconnected')!();
+        wsHandlers.get('generationState')!({ chatId: 'story', requestId, status: 'idle' });
+      } else {
+        if (mode === 'conflict') wsHandlers.get('error')!({ chatId: 'story', requestId, code: 'STORY_STATE_CONFLICT', message: 'Conflict' });
+        wsHandlers.get('generationFinished')!({ chatId: 'story', requestId, status: mode === 'missing-done' ? 'completed' : 'failed' });
+      }
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(chatApi.getMessages).toHaveBeenCalled();
+      expect(store.messages.filter(message => message.role === 'assistant').map(message => message.content)).toEqual(['数据库权威回复']);
+      expect(store.replyTiming).toBeNull();
+      store.recordReplyPresentation(oldAttempt);
+      expect(store.replyTiming).toBeNull();
+      expect(store.streamingProvisional).toBe(false);
+    });
+
+    it('ignores retired requests across navigation and gives same-request retries a new timing attempt', async () => {
+      const { store, requestId } = await start();
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: 'First preview', provisional: true });
+      const oldAttempt = store.replyTiming!.attempt;
+      wsHandlers.get('generationFinished')!({ chatId: 'story', requestId, status: 'failed', retryable: true });
+      await store.retryLastGeneration();
+      expect(store.replyTiming?.attempt).toBeGreaterThan(oldAttempt);
+      expect(store.replyTiming?.firstChunkAt).toBeNull();
+      store.recordReplyPresentation(oldAttempt);
+      expect(store.replyTiming?.presentedAt).toBeNull();
+      await store.setCurrentChat(null);
+      store.currentChatId = 'story';
+      const revision = store.billingRevision;
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: 'Stale preview', provisional: true });
+      wsHandlers.get('assistantMessageDone')!({ chatId: 'story', requestId, messageId: 'old', content: 'Stale final' });
+      wsHandlers.get('generationFinished')!({ chatId: 'story', requestId, status: 'completed' });
+      expect(store.billingRevision).toBe(revision);
+      expect(store.messages).toEqual([]);
+      expect(store.isStreaming).toBe(false);
+      expect(store.replyTiming).toBeNull();
+    });
+  });
+
   describe('addGreetingMessage', () => {
     it('keeps streamed text until the server acknowledges a stop', () => {
       const store = useChatStore();
@@ -717,9 +881,10 @@ describe('Chat Store', () => {
           { label: '查看房间', input: '我检查房间' },
           { label: '询问角色', input: '我询问她刚才的话' },
           { label: '暂时观察', input: '我先观察情况' },
-        ], storyRecommendationsSource: 'generated' });
+        ], storyRecommendationsSource: 'generated', storyRecommendationsLead: '你可以继续了解房间，也可以另提问题。' });
       expect(store.messages).toHaveLength(1);
-      expect(store.messages[0].extra).toMatchObject({ storyRecommendationsSource: 'generated', storyRecommendations: expect.arrayContaining([
+      expect(store.messages[0].extra).toMatchObject({ storyRecommendationsSource: 'generated',
+        storyRecommendationsLead: '你可以继续了解房间，也可以另提问题。', storyRecommendations: expect.arrayContaining([
         { label: '查看房间', input: '我检查房间' },
       ]) });
       expect(store.sending).toBe(true);

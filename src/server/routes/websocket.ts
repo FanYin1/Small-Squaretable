@@ -1,3 +1,5 @@
+import type { ModelMeta } from '../../types/llm';
+import { resolveGenerationParameters } from '../services/generation-parameters';
 /**
  * WebSocket Route
  *
@@ -16,6 +18,7 @@ import { chats } from '../../db/schema/chats';
 const wsLogger = logger.child({ module: 'websocket' });
 import { websocketService } from '../services/websocket.service';
 import { llmService } from '../services/llm.service';
+import { AnthropicApiError } from '../services/anthropic-api-error';
 import { getDefaultModel, getModelMeta } from '../config/llm.config';
 import { config } from '../../core/config';
 import { chatService, getChatModel } from '../services/chat.service';
@@ -27,7 +30,7 @@ import { AppError, NotFoundError } from '../../core/errors';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { resolveStoryCharacter, loadStoryContent } from '../services/story-content.service';
 import { storyAudienceSchema, storyAudienceExtra, storyKnowledgeVisible, type StoryAudience } from '../../types/story-knowledge';
-import { storyIntentVisiblePrefix, storyIntentPresentation } from '../../types/story-intent';
+import { storyIntentVisiblePrefix, storyIntentPresentation, type StoryTurnDiagnostics } from '../../types/story-intent';
 import { prepareStoryTurn, commitStoryTurn, type PreparedStoryTurn } from '../services/story-state.service';
 import { appendStoryTurnContext, projectOpeningModeSourcePrompt } from '../services/story-turn-prompt';
 import { storyActionRequestSchema, availableStoryActions } from '../../types/story-state';
@@ -69,19 +72,26 @@ import {
   type WSAbortGenerationMessage,
   type WSChatReadMessage,
 } from '../../types/websocket';
+import { acquireChatOperation } from '../services/chat-operation';
 import { nanoid } from 'nanoid';
-
-/** 提示词模板路径（text completion）的固定输出上限；点数预扣按同一个数算 */
-const TEMPLATE_COMPLETION_MAX_TOKENS = 2048;
 
 /** 一次流式生成的结果：完整文本 + provider 在流末尾返回的真实 usage（拿不到为 null） */
 interface StreamedLlmResult {
   content: string;
   usage: ProviderUsage | null;
   outputTruncated?: boolean;
+  streamIncomplete?: boolean;
+  finishReason?: StoryTurnDiagnostics['finishReason'];
+}
+
+function normalizeFinishReason(value: unknown): StoryTurnDiagnostics['finishReason'] {
+  if (value == null) return undefined;
+  return value === 'stop' || value === 'length' || value === 'content_filter' || value === 'tool_calls' ? value : 'other';
 }
 
 function assertNotTruncated(result: StreamedLlmResult): void {
+  if (result.streamIncomplete) throw new AppError('模型回复传输未完整结束，已保留收到的片段，本轮未提交状态变化。',
+    502, 'GENERATION_STREAM_INCOMPLETE');
   if (result.outputTruncated) throw new AppError('The response reached its output limit and was interrupted. Review the text before continuing.',
     502, 'GENERATION_OUTPUT_TRUNCATED');
 }
@@ -92,6 +102,9 @@ function assertNotTruncated(result: StreamedLlmResult): void {
  */
 interface StreamProgress extends StreamedLlmResult {
   started: boolean;
+  firstChunkAt?: number;
+  firstVisibleAt?: number;
+  modelRequestedAt?: number;
 }
 
 function newStreamProgress(): StreamProgress {
@@ -276,6 +289,12 @@ export class WebSocketHandler {
       });
       return;
     }
+    const releaseOperation = acquireChatOperation(chatId);
+    if (!releaseOperation) {
+      websocketService.sendToClient(clientId, { type: WSMessageType.ERROR, timestamp: new Date().toISOString(),
+        data: { code: 'GENERATION_BUSY', message: '请等待当前操作完成后再发送。', chatId, requestId } });
+      return;
+    }
     const turn = { controller: new AbortController(), userId: clientInfo.userId, tenantId: clientInfo.tenantId, requestId };
     this.activeGenerations.set(chatId, turn);
     let status: 'completed' | 'stopped' | 'failed' = 'completed';
@@ -294,6 +313,7 @@ export class WebSocketHandler {
         throw new AppError('You do not have access to this chat', 403, 'FORBIDDEN');
       }
       authorized = true;
+      const selectedModel = getChatModel(chat) || getDefaultModel() || 'glm-4.5-air';
       if (turn.controller.signal.aborted) return;
       if (typeof requestId !== 'string' || requestId.length > 200) {
         throw new AppError('Invalid generation request id', 400, 'INVALID_REQUEST_ID');
@@ -420,7 +440,7 @@ export class WebSocketHandler {
         );
       } else {
         // --- Single-character path (unchanged) ---
-        await this.handleSingleCharacterResponse(
+        const result = await this.handleSingleCharacterResponse(
           chatId,
           content,
           clientInfo.userId,
@@ -428,8 +448,12 @@ export class WebSocketHandler {
           clientInfo.tenantId,
           turn.controller.signal,
           preparedStory,
-          requestId
+          requestId,
+          selectedModel
         );
+        if (result?.validationError) {
+          status = 'failed'; errorCode = result.validationError; retryable = false;
+        }
       }
     } catch (error) {
       if (turn.controller.signal.aborted && error instanceof Error && error.name === 'AbortError') {
@@ -438,8 +462,13 @@ export class WebSocketHandler {
       }
       status = 'failed';
       errorCode = error instanceof AppError ? error.code : 'MESSAGE_ERROR';
-      if (error instanceof ContextBudgetError || errorCode === 'GENERATION_OUTPUT_TRUNCATED') retryable = false;
-      wsLogger.error('Error handling user message', { error: (error as Error).message, stack: (error as Error).stack });
+      if (error instanceof ContextBudgetError || errorCode === 'GENERATION_OUTPUT_TRUNCATED' || errorCode === 'GENERATION_STREAM_INCOMPLETE') retryable = false;
+      if (error instanceof AnthropicApiError && !error.retryable) retryable = false;
+      wsLogger.error('Error handling user message', error instanceof AnthropicApiError ? error : undefined, {
+        chatId, requestId, errorCode,
+        ...(error instanceof AppError ? { statusCode: error.statusCode } : {}),
+        ...(error instanceof AnthropicApiError ? { provider: 'anthropic', category: error.category, bodyState: error.bodyState } : {}),
+      });
       websocketService.sendToClient(clientId, {
         type: WSMessageType.ERROR,
         timestamp: new Date().toISOString(),
@@ -465,10 +494,11 @@ export class WebSocketHandler {
         }
       }
       if (this.activeGenerations.get(chatId) === turn) this.activeGenerations.delete(chatId);
+      releaseOperation();
       const finished = {
         type: WSMessageType.GENERATION_FINISHED as const,
         timestamp: new Date().toISOString(),
-        data: { chatId, requestId, retryable: status === 'failed' && retryable, status },
+        data: { chatId, requestId, retryable: status === 'failed' && retryable, status, ...(errorCode ? { errorCode } : {}) },
       };
       if (authorized && !duplicateRequest) websocketService.broadcastToChat(chatId, finished);
       else websocketService.sendToClient(clientId, finished);
@@ -486,21 +516,24 @@ export class WebSocketHandler {
     tenantId?: string,
     signal?: AbortSignal,
     preparedStory?: PreparedStoryTurn | null,
-    requestId?: string
-  ): Promise<void> {
+    requestId?: string,
+    selectedModel?: string
+  ): Promise<{ validationError?: string } | void> {
     if (signal?.aborted) return;
+    const turnStartedAt = performance.now();
     const chat = await chatRepository.findById(chatId);
     if (!chat) throw new Error('Chat not found');
 
     const character = await resolveStoryCharacter(chat, chat.characterId);
     const interpretation = preparedStory?.intentProtocol && !preparedStory.action && !preparedStory.confirmedIntent
-      ? { input: content, actionIds: availableStoryActions(preparedStory.rules, preparedStory.values, preparedStory.completedActions).map(action => action.id) }
+      ? { input: content, direct: preparedStory.directResponse, actionIds: availableStoryActions(preparedStory.rules, preparedStory.values, preparedStory.completedActions).map(action => action.id) }
       : undefined;
 
     const chatMetadata = (chat.metadata as Record<string, unknown>) || {};
     const activeBranchLeaf = chatMetadata.activeBranchLeafId as number | undefined;
 
     let chatMessages: LLMMessage[];
+    const historyReadStartedAt = performance.now();
     if (activeBranchLeaf) {
       chatMessages = (await messageRepository.findBranch(chatId, activeBranchLeaf)).map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
@@ -510,7 +543,7 @@ export class WebSocketHandler {
         messageId: m.id,
       }));
     } else {
-      const messages = await chatService.getMessages(chatId);
+      const messages = await chatService.getContextMessages(chatId);
       chatMessages = messages.map(m => ({
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
@@ -519,14 +552,17 @@ export class WebSocketHandler {
         messageId: m.id,
       }));
     }
+    const historyReadMs = Math.round(performance.now() - historyReadStartedAt);
 
     // Determine model from chat metadata or default
-    const model = getChatModel(chat) || getDefaultModel() || 'glm-4.5-air';
+    const model = selectedModel || getChatModel(chat) || getDefaultModel() || 'glm-4.5-air';
+    const generationLimits = resolveGenerationParameters(getModelMeta(model));
 
     let systemPrompt = '';
     let atDepthEntries: Array<{ depth: number; content: string; role: 'system' | 'user' | 'assistant' }> = [];
     // cache_friendly 布局下变动块在截断之后才注入，预算要预先扣掉它（P3-3）
     let reservedTokens = 0;
+    const promptBuildStartedAt = performance.now();
     if (character) {
       const enhancedPrompt = await chatService.buildEnhancedSystemPrompt({
         character,
@@ -545,10 +581,15 @@ export class WebSocketHandler {
       atDepthEntries = enhancedPrompt.atDepthEntries;
       reservedTokens = enhancedPrompt.reservedTokens ?? 0;
 
-      await chatService.updateEmotionFromMessage(
-        character.id, userId, chatId, content, userMessageId
-      );
+      // Isolated stories do not consume generic emotion in their prompt. Derive it
+      // after the saved reply, so sentiment inference cannot delay the first word.
+      if (chat.contentSnapshotVersion !== 1) {
+        await chatService.updateEmotionFromMessage(
+          character.id, userId, chatId, content, userMessageId
+        );
+      }
     }
+    const promptBuildMs = Math.round(performance.now() - promptBuildStartedAt);
 
     systemPrompt = projectOpeningModeSourcePrompt(systemPrompt, preparedStory?.ruleScope);
     atDepthEntries = appendStoryTurnContext(atDepthEntries.map(entry => ({ ...entry,
@@ -591,11 +632,13 @@ export class WebSocketHandler {
     // Use context manager to fit within token budget
     const promptTemplate = (character?.cardData as { extensions?: { promptTemplate?: string } } | null)?.extensions?.promptTemplate || 'default';
     const depthBudget = Math.max(reservedTokens, estimateContextMessages(atDepthEntries));
-    let contextResult = contextManager.buildContext(systemPrompt, chatMessages, model, depthBudget);
+    const contextBuildStartedAt = performance.now();
+    let contextResult = contextManager.buildContext(systemPrompt, chatMessages, model, depthBudget, generationLimits);
     if (chat.contentSnapshotVersion === 1 && character && promptTemplate === 'default' && contextResult.truncated) {
       contextResult = addStorySummaries(systemPrompt, chatMessages, model, depthBudget, contextResult,
-        await getStorySummaries(chatId, userId, chat.tenantId, character.id));
+        await getStorySummaries(chatId, userId, chat.tenantId, character.id), generationLimits);
     }
+    const contextBuildMs = Math.round(performance.now() - contextBuildStartedAt);
 
     // Debug: Log what's actually being sent to LLM
     if (config.nodeEnv !== 'production' && chatMessages.length <= 3) {
@@ -615,7 +658,7 @@ export class WebSocketHandler {
 
     // Inject depth entries (depth_prompt, world book atDepth) into the message array
     contextResult.messages = contextManager.injectAtDepth(contextResult.messages, atDepthEntries);
-    assertContextBudget(estimateContextMessages(contextResult.messages) + 2, getModelMeta(model));
+    assertContextBudget(estimateContextMessages(contextResult.messages) + 2, generationLimits);
 
 
     const assistantMessageId = nanoid();
@@ -625,11 +668,11 @@ export class WebSocketHandler {
     // 输入 token 估算：context-manager 的 totalTokens 不含之后注入的 atDepth 条目，这里补上
     let estimatedPromptTokens =
       contextResult.totalTokens + estimateInjectedTokens(atDepthEntries);
-    // 模板路径走 llmService.completion，平台花费已在 llm.service 里记过
-    let platformSpendRecorded = false;
+    // 所有模板复用流式路径，在本调用方记录平台花费
     // 预付点数模式下的预扣；订阅模式恒为 null
     let hold: CreditHold | null = null;
     const progress = newStreamProgress();
+    const modelStartedAt = performance.now();
     try {
       if (promptTemplate !== 'default') {
         // Use text completion with formatted prompt for non-default templates
@@ -638,18 +681,17 @@ export class WebSocketHandler {
         // Build full message array with system prompt
         // Format messages using the template
         const formattedPrompt = formatMessagesWithTemplate(contextResult.messages, promptTemplate);
-        assertContextBudget(estimateContextTokens(formattedPrompt), getModelMeta(model), 'template', TEMPLATE_COMPLETION_MAX_TOKENS);
+        assertContextBudget(estimateContextTokens(formattedPrompt), generationLimits, 'template', generationLimits.maxOutputTokens);
 
         // 模板路径实际发给 provider 的是格式化后的整段 prompt，按它估算输入
         estimatedPromptTokens = countTokens(formattedPrompt);
-        platformSpendRecorded = true;
 
-        // 模板路径的输出上限是固定的 2048，预扣按同一个数算
+        // 模板和普通聊天共用已解析的模型额度，预扣与请求一致
         hold = await reserveForGeneration({
           tenantId,
           chatId,
           estimatedPromptTokens,
-          requestedMaxTokens: TEMPLATE_COMPLETION_MAX_TOKENS,
+          requestedMaxTokens: generationLimits.maxOutputTokens,
           metadata: { transport: 'websocket', model, template: promptTemplate },
         });
 
@@ -661,14 +703,15 @@ export class WebSocketHandler {
           model,
           signal,
           preparedStory?.intentProtocol,
-          interpretation
+          interpretation,
+          { limits: generationLimits, progress }
         );
       } else {
         hold = await reserveForGeneration({
           tenantId,
           chatId,
           estimatedPromptTokens,
-          requestedMaxTokens: Math.min(getModelMeta(model).maxOutputTokens, DEFAULT_MAX_OUTPUT_TOKENS),
+          requestedMaxTokens: generationLimits.maxOutputTokens,
           metadata: { transport: 'websocket', model },
         });
 
@@ -681,7 +724,7 @@ export class WebSocketHandler {
           undefined,
           model,
           signal,
-          { maxTokens: hold?.maxOutputTokens ?? getModelMeta(model).maxOutputTokens, progress, storyIntent: preparedStory?.intentProtocol, interpretation }
+          { maxTokens: hold?.maxOutputTokens ?? generationLimits.maxOutputTokens, limits: generationLimits, progress, storyIntent: preparedStory?.intentProtocol, interpretation }
         );
       }
     } catch (error) {
@@ -690,6 +733,19 @@ export class WebSocketHandler {
       throw error;
     }
     let fullContent = generated.content;
+    wsLogger.info('WebSocket generation performance', {
+      chatId,
+      historyReadMs,
+      promptBuildMs,
+      contextBuildMs,
+      preparationMs: Math.round(modelStartedAt - turnStartedAt),
+      firstTokenMs: progress.firstChunkAt == null ? null : Math.round(progress.firstChunkAt - (progress.modelRequestedAt ?? modelStartedAt)),
+      firstVisibleMs: progress.firstVisibleAt == null ? null : Math.round(progress.firstVisibleAt - turnStartedAt),
+      modelTotalMs: Math.round(performance.now() - modelStartedAt),
+      generationTotalMs: Math.round(performance.now() - turnStartedAt),
+      contextMessageCount: contextResult.messages.length,
+      truncatedMessageCount: contextResult.truncatedCount,
+    });
 
     // llm_tokens 计「输入 + 输出」（P0-1）：provider 的真实 usage 优先，拿不到才估算。
     // 放在空内容判断之前：被中断的请求，provider 也已经为输入收了费。
@@ -698,20 +754,21 @@ export class WebSocketHandler {
       tenantId,
       { providerUsage: generated.usage, estimatedPromptTokens, outputText: fullContent },
       { transport: 'websocket', chatId, model },
-      { recordPlatformSpend: !platformSpendRecorded }
+      { recordPlatformSpend: true }
     );
 
     // 结算在保存助手消息之后做，这样流水能记下 messageId；
     // 空内容（中断）/ 保存失败 / 后处理抛错时 finally 仍会结算（不带 messageId），不会留悬空预扣
     let assistantMessage: Awaited<ReturnType<typeof chatService.addMessage>>;
     let savedMessageId: number | null = null;
-    const interrupted = Boolean(signal?.aborted || generated.outputTruncated);
+    const interrupted = Boolean(signal?.aborted || generated.outputTruncated || generated.streamIncomplete);
     try {
-      // Don't save empty message if aborted before any content was generated
-      if (!fullContent) { assertNotTruncated(generated); return; }
+      // A stopped empty request has no fragment to save. A normally completed
+      // empty story reply must still be diagnosed instead of reporting success.
+      if (!fullContent && (interrupted || !preparedStory?.intentProtocol)) { assertNotTruncated(generated); return; }
 
       if (preparedStory?.intentProtocol) fullContent = interpretation
-        ? storyIntentPresentation(generated.content, interpretation.input, interpretation.actionIds, interrupted)
+        ? storyIntentPresentation(generated.content, interpretation.input, interpretation.actionIds, interrupted, interpretation.direct)
         : storyIntentVisiblePrefix(generated.content, !interrupted);
 
       // Apply regex_scripts post-processing on AI output (skip markdownOnly scripts — those run client-side)
@@ -723,7 +780,8 @@ export class WebSocketHandler {
       const activeTurn = this.activeGenerations.get(chatId);
       if (!interrupted && activeTurn) activeTurn.commitStarted = true;
       assistantMessage = preparedStory && requestId
-        ? await commitStoryTurn(preparedStory, userMessageId, requestId, fullContent, interrupted, db, undefined, generated.content)
+        ? await commitStoryTurn(preparedStory, userMessageId, requestId, fullContent, interrupted, db, undefined, generated.content, { model, finishReason: generated.finishReason,
+          ...(generated.streamIncomplete ? { streamIncomplete: true } : {}) })
         : chat.contentSnapshotVersion == null && !interrupted
         ? await saveLegacyAssistantMessage({ chatId, role: 'assistant', content: fullContent }, requestId)
         : await chatService.addMessage(chatId, {
@@ -743,6 +801,12 @@ export class WebSocketHandler {
       });
     }
 
+    const diagnostic = (assistantMessage.extra as { storyDiagnostics?: StoryTurnDiagnostics } | null)?.storyDiagnostics;
+    const validationFailed = (assistantMessage.extra as Record<string, unknown> | null)?.storyIntentInvalid === true;
+    if (diagnostic) wsLogger[validationFailed ? 'warn' : 'info']('Story turn validation', {
+      chatId, requestId, messageId: assistantMessage.id, ...diagnostic,
+    });
+
     // 助手消息同样计入 messages：HTTP 回退路径下用户消息和助手消息
     // 是两次独立请求、各记一条，这里少记的话同样的对话在两条通道上
     // 会得出不同的用量。
@@ -755,7 +819,7 @@ export class WebSocketHandler {
     const hasVarChanges = chat.contentSnapshotVersion == null && !interrupted && applyLegacyVariables(fullContent, {}).changed;
 
     // After saving assistant message, increment character growth
-    if (character && !interrupted) {
+    if (character && !interrupted && (!preparedStory?.directResponse || (assistantMessage.extra as Record<string, unknown> | null)?.stateStatus === 'confirmed')) {
       characterGrowthRepository.getOrCreate(character.id, userId)
         .then((growth) => characterGrowthRepository.incrementMessages(growth.id))
         .catch((err) => wsLogger.warn('Failed to increment message growth', { error: err }));
@@ -772,9 +836,12 @@ export class WebSocketHandler {
       data: {
         chatId,
         messageId: assistantMessage.id.toString(),
+        content: fullContent,
         requestId: this.activeGenerations.get(chatId)?.requestId,
         variablesChanged: hasVarChanges,
+        ...(diagnostic ? { storyDiagnostics: diagnostic } : {}),
         stateStatus: (assistantMessage.extra as { stateStatus?: 'confirmed' | 'interrupted' | 'proposed' } | null)?.stateStatus,
+        ...((assistantMessage.extra as Record<string, unknown> | null)?.storyExecutedIntent ? { storyExecutedIntent: (assistantMessage.extra as Record<string, unknown>).storyExecutedIntent as import('../../types/story-intent').StoryIntent } : {}),
         ...((assistantMessage.extra as Record<string, unknown> | null)?.storyIntent ? { storyIntent: (assistantMessage.extra as Record<string, unknown>).storyIntent as import('../../types/story-intent').StoredStoryIntent } : {}),
         ...((assistantMessage.extra as Record<string, unknown> | null)?.storyConfirmedIntent ? { storyConfirmedIntent: (assistantMessage.extra as Record<string, unknown>).storyConfirmedIntent as import('../../types/story-intent').StoryIntent } : {}),
         ...((assistantMessage.extra as Record<string, unknown> | null)?.storyIntentInvalid ? { storyIntentInvalid: true } : {}),
@@ -782,21 +849,27 @@ export class WebSocketHandler {
           ? { storyRecommendations: (assistantMessage.extra as Record<string, unknown>).storyRecommendations as Array<{ label: string; input: string }> } : {}),
         ...((assistantMessage.extra as Record<string, unknown> | null)?.storyRecommendationsSource
           ? { storyRecommendationsSource: (assistantMessage.extra as Record<string, unknown>).storyRecommendationsSource as import('../../types/story-recommendations').StoryRecommendationsSource } : {}),
+        ...((assistantMessage.extra as Record<string, unknown> | null)?.storyRecommendationsLead
+          ? { storyRecommendationsLead: (assistantMessage.extra as Record<string, unknown>).storyRecommendationsLead as string } : {}),
       },
     });
 
     assertNotTruncated(generated);
-    if (character && !interrupted) {
+    if (character && !interrupted && (!preparedStory?.directResponse ||
+      (assistantMessage.extra as Record<string, unknown> | null)?.stateStatus === 'confirmed')) {
       try {
         if (!preparedStory) {
-          const allMessages = await chatService.getMessages(chatId);
-          await chatService.checkAndExtractMemories(chatId, character.id, userId, allMessages);
+          await chatService.checkAndExtractMemories(chatId, character.id, userId);
+        }
+        if (chat.contentSnapshotVersion === 1) {
+          await chatService.updateEmotionFromMessage(character.id, userId, chatId, content, userMessageId);
         }
         await chatService.updateEmotionFromMessage(character.id, userId, chatId, fullContent, assistantMessage.id);
       } catch (error) {
         wsLogger.warn('Derived memory update failed after the response was saved', { chatId, error: (error as Error).message });
       }
     }
+    if (validationFailed) return { validationError: `STORY_${(diagnostic?.code ?? 'VALIDATION_FAILED').toUpperCase()}` };
   }
 
   /**
@@ -940,7 +1013,7 @@ export class WebSocketHandler {
       // 结算在保存之后（流水要记 messageId）；空内容 / 保存失败时 finally 仍会结算（不带 messageId）
       let savedMessage: Awaited<ReturnType<typeof messageRepository.create>>;
       let savedMessageId: number | null = null;
-      const interrupted = Boolean(signal?.aborted || generated.outputTruncated);
+      const interrupted = Boolean(signal?.aborted || generated.outputTruncated || generated.streamIncomplete);
       try {
         // Don't save empty message if aborted before any content was generated
         if (!fullContent) { assertNotTruncated(generated); break; }
@@ -1022,8 +1095,7 @@ export class WebSocketHandler {
             character.id, userId, chatId, fullContent, savedMessage.id
           );
           if (!storyTurn) {
-            const allMessages = await chatService.getMessages(chatId);
-            await chatService.checkAndExtractMemories(chatId, character.id, userId, allMessages);
+            await chatService.checkAndExtractMemories(chatId, character.id, userId);
           }
         } catch (error) {
           wsLogger.warn('Derived group memory update failed after the response was saved', { chatId, characterId: character.id, error: (error as Error).message });
@@ -1050,19 +1122,24 @@ export class WebSocketHandler {
     model?: string,
     signal?: AbortSignal,
     options?: {
-      /** 点数模式下预扣对应的输出上限；订阅模式不传，请求与之前完全一致 */
+      /** 本轮已解析的输出上限，与上下文预留和点数预扣保持一致 */
       maxTokens?: number;
+      limits?: ModelMeta;
+      templatePrompt?: string;
       /** 实时进度，调用方在失败/中断时据此结算或释放预扣 */
       progress?: StreamProgress;
       storyIntent?: boolean;
-      interpretation?: { input: string; actionIds: string[] };
+      interpretation?: { input: string; actionIds: string[]; direct?: boolean };
     }
   ): Promise<StreamedLlmResult> {
     signal?.throwIfAborted();
     const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
-    const meta = getModelMeta(selectedModel);
-    const maxTokens = Math.min(options?.maxTokens ?? meta.maxOutputTokens, meta.maxOutputTokens);
-    assertContextBudget(estimateContextMessages(llmMessages) + 2, meta, 'payload', maxTokens);
+    const meta = resolveGenerationParameters(options?.limits ?? getModelMeta(selectedModel), options?.maxTokens);
+    const maxTokens = meta.maxOutputTokens;
+    assertContextBudget(options?.templatePrompt === undefined ? estimateContextMessages(llmMessages) + 2
+      : estimateContextTokens(options.templatePrompt), meta, 'payload', maxTokens);
+    const streamState: StreamProgress = options?.progress ?? newStreamProgress();
+    streamState.modelRequestedAt = performance.now();
     const response = await llmService.streamChatCompletion({
       messages: llmMessages,
       model: selectedModel,
@@ -1072,18 +1149,30 @@ export class WebSocketHandler {
       presence_penalty: 0,
       frequency_penalty: 0,
       max_tokens: maxTokens,
-    }, signal, { chatId });
+    }, signal, { chatId, limits: meta, templatePrompt: options?.templatePrompt });
 
     // progress 同时承载累积内容与 usage（用对象，避免闭包内赋值被 TS 控制流收窄成 null）
-    const streamState: StreamProgress = options?.progress ?? newStreamProgress();
     streamState.started = true;
     let chunkIndex = 0;
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
     let displayed = '';
+    let controlStartedAt: number | undefined;
+    let finishedAt: number | undefined;
+    const sendPhase = (phase: 'control' | 'validating'): void => {
+      if (!options?.interpretation?.direct) return;
+      websocketService.broadcastToChat(chatId, {
+        type: WSMessageType.ASSISTANT_MESSAGE_CHUNK, timestamp: new Date().toISOString(),
+        data: { chatId, messageId, requestId: this.activeGenerations.get(chatId)?.requestId,
+          chunk: '', index: chunkIndex++, provisional: true, phase,
+          ...(characterId && { characterId }), ...(characterName && { characterName }),
+        },
+      });
+    };
     const sendVisible = (content: string): void => {
       if (!content) return;
+      streamState.firstVisibleAt ??= performance.now();
       websocketService.broadcastToChat(chatId, {
         type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
         timestamp: new Date().toISOString(),
@@ -1093,93 +1182,142 @@ export class WebSocketHandler {
           requestId: this.activeGenerations.get(chatId)?.requestId,
           chunk: content,
           index: chunkIndex++,
+          ...(options?.interpretation?.direct ? { provisional: true } : {}),
           ...(characterId && { characterId }),
           ...(characterName && { characterName }),
         },
       });
     };
     const emitChunk = (content: string): void => {
+      streamState.firstChunkAt ??= performance.now();
       streamState.content += content;
-      if (options?.interpretation) return;
-      const visible = options?.storyIntent ? storyIntentVisiblePrefix(streamState.content) : streamState.content;
+      // Legacy action review still waits for interpretation. Direct replies can
+      // show narrative immediately, without publishing protocol or committing state.
+      if (options?.interpretation && !options.interpretation.direct) return;
+      const visible = options?.storyIntent || options?.interpretation?.direct
+        ? storyIntentVisiblePrefix(streamState.content) : streamState.content;
       sendVisible(visible.slice(displayed.length));
       displayed = visible;
+      if (controlStartedAt === undefined && (options?.storyIntent || options?.interpretation?.direct)
+        && streamState.content.includes('<story-intent>')) {
+        controlStartedAt = performance.now();
+        sendPhase('control');
+      }
     };
 
-    const handleLine = (line: string): void => {
-      // Handle OpenAI-style SSE format (data: {...})
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6);
-        if (data === '[DONE]') return;
-
-        try {
-          const parsed = JSON.parse(data);
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) emitChunk(content);
-          if (parsed.choices?.[0]?.finish_reason === 'length') streamState.outputTruncated = true;
-
-          // include_usage 的最后一个 chunk：choices 为空，带真实 usage
-          streamState.usage = readOpenAiUsage(parsed.usage) ?? streamState.usage;
-        } catch (e) {
-          wsLogger.error('Error parsing SSE data', e as Error);
-        }
-        return;
-      }
-
-      // Handle Ollama native format (plain JSON per line)
+    let protocolError = false, transportError = false, terminal = false;
+    let eventData: string[] = [];
+    let eventSize = 0;
+    const consumeFrame = (data: string, native: boolean): void => {
+      if (!native && data.trim() === '[DONE]') { terminal = true; return; }
       try {
-        const parsed = JSON.parse(line);
-        // Ollama native API format: message.content
-        const content = parsed.message?.content;
-        if (content) emitChunk(content);
-        if (parsed.done === true && parsed.done_reason === 'length') streamState.outputTruncated = true;
-
-        // Ollama 的最后一行（done: true）带 prompt_eval_count / eval_count
-        streamState.usage = readOllamaUsage(parsed) ?? streamState.usage;
-      } catch (e) {
-        // Not JSON, skip this line
+        const parsed = JSON.parse(data);
+        if (!parsed || typeof parsed !== 'object' || parsed.error) { protocolError = true; return; }
+        const choice = parsed.choices?.[0];
+        const content = native ? (parsed.message?.content ?? parsed.response) : (choice?.delta?.content ?? (options?.templatePrompt !== undefined ? choice?.text : undefined));
+        if (content != null && typeof content !== 'string') { protocolError = true; return; }
+        if (content) {
+          // A terminal/finish frame may be followed by usage, never new text.
+          if (terminal || streamState.finishReason) { protocolError = true; return; }
+          emitChunk(content);
+        }
+        if (native && parsed.done === true) {
+          streamState.finishReason = normalizeFinishReason(parsed.done_reason ?? 'stop');
+          terminal = true;
+        } else if (!native && choice?.finish_reason != null) {
+          const reason = normalizeFinishReason(choice.finish_reason);
+          if (typeof choice.finish_reason !== 'string' || !choice.finish_reason ||
+            (streamState.finishReason && streamState.finishReason !== reason)) protocolError = true;
+          else streamState.finishReason = reason;
+        }
+        if (streamState.finishReason === 'length') streamState.outputTruncated = true;
+        if (streamState.finishReason && finishedAt === undefined) {
+          finishedAt = performance.now();
+          sendPhase('validating');
+        }
+        streamState.usage = (native ? readOllamaUsage(parsed) : readOpenAiUsage(parsed.usage)) ?? streamState.usage;
+      } catch {
+        // JSON errors can quote private text. Store a fixed failure category only.
+        protocolError = true;
       }
+    };
+    const flushEvent = (): void => {
+      if (eventData.length) consumeFrame(eventData.join('\n'), false);
+      eventData = []; eventSize = 0;
+    };
+    const handleLine = (raw: string): void => {
+      const line = raw.replace(/\r$/, '');
+      if (!line) { flushEvent(); return; }
+      if (line.startsWith('data:')) {
+        const data = line.slice(5).replace(/^ /, '');
+        eventSize += data.length;
+        if (eventSize > 1024 * 1024) { protocolError = true; eventData = []; return; }
+        eventData.push(data);
+      } else if (line.startsWith('{')) {
+        flushEvent(); consumeFrame(line, true);
+      }
+      // SSE comments/event/id/retry fields are metadata, not JSON payloads.
     };
 
     if (reader) {
-      // SSE 行可能被网络分包切开；usage 在流的最后，丢了就只能退回估算，所以按行缓冲
       let pending = '';
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
-
-          // Check if aborted between chunks
-          if (signal?.aborted) break;
-
+          if (done || signal?.aborted) break;
           pending += decoder.decode(value, { stream: true });
           const lines = pending.split('\n');
           pending = lines.pop() ?? '';
-
-          for (const line of lines) {
-            if (line.trim() !== '') handleLine(line);
-          }
+          for (const line of lines) handleLine(line);
+          // [DONE] (or native done:true) ends this response. Do not wait for
+          // a gateway to close its HTTP connection after the terminal event.
+          // Consume the whole received chunk first so extra text is rejected.
+          if (terminal) break;
+          if (pending.length > 1024 * 1024) { protocolError = true; break; }
         }
-
-        if (!signal?.aborted && pending.trim() !== '') handleLine(pending);
-      } catch (e) {
-        // AbortError is expected when generation is cancelled
-        if ((e as Error).name !== 'AbortError') {
-          throw e;
+        if (!signal?.aborted) {
+          pending += decoder.decode();
+          if (pending) handleLine(pending);
+          flushEvent();
         }
-        wsLogger.info('LLM stream aborted', { chatId });
+      } catch {
+        // Keep partial text for display/settlement but never confirm it. An
+        // upstream read failure is not a user cancellation unless our signal is set.
+        if (!signal?.aborted) transportError = true;
       } finally {
-        // Ensure the reader is released
-        try { await reader.cancel(); } catch { /* ignore */ }
+        void reader.cancel().catch(() => {});
+        reader.releaseLock();
       }
     }
+    // EOF and [DONE] alone do not prove the model finished its text. OpenAI
+    // finish_reason is required; native Ollama's done:true is its equivalent.
+    // A finish frame without [DONE] is accepted for compatible gateways.
+    if (!signal?.aborted && (protocolError || transportError || !streamState.finishReason)) {
+      streamState.streamIncomplete = true;
+      wsLogger.warn('LLM stream incomplete', { chatId, model: selectedModel,
+        reason: protocolError ? 'protocol' : transportError ? 'transport' : 'missing_finish_reason',
+        contentCharacters: streamState.content.length, finishReason: streamState.finishReason });
+    }
+    const interrupted = Boolean(signal?.aborted || streamState.outputTruncated || streamState.streamIncomplete);
+    wsLogger.info('LLM stream completion', {
+      chatId, model: selectedModel, maxOutputTokens: maxTokens,
+      finishReason: streamState.finishReason,
+      outputTruncated: streamState.outputTruncated === true,
+      streamIncomplete: streamState.streamIncomplete === true,
+      contentCharacters: streamState.content.length,
+      providerOutputTokens: streamState.usage?.completionTokens ?? null,
+      controlTailMs: controlStartedAt === undefined ? null : Math.round((finishedAt ?? performance.now()) - controlStartedAt),
+      finishToReleaseMs: finishedAt === undefined ? null : Math.round(performance.now() - finishedAt),
+    });
 
     const finalVisible = options?.interpretation
-      ? storyIntentPresentation(streamState.content, options.interpretation.input, options.interpretation.actionIds, Boolean(signal?.aborted || streamState.outputTruncated))
-      : options?.storyIntent ? storyIntentVisiblePrefix(streamState.content, !signal?.aborted && !streamState.outputTruncated) : streamState.content;
-    sendVisible(finalVisible.slice(displayed.length));
-    return { content: streamState.content, usage: streamState.usage,
-      ...(streamState.outputTruncated ? { outputTruncated: true } : {}) };
+      ? storyIntentPresentation(streamState.content, options.interpretation.input, options.interpretation.actionIds, interrupted, options.interpretation.direct)
+      : options?.storyIntent ? storyIntentVisiblePrefix(streamState.content, !interrupted) : streamState.content;
+    if (!options?.interpretation?.direct) sendVisible(finalVisible.slice(displayed.length));
+    else sendVisible(storyIntentVisiblePrefix(streamState.content, !interrupted).slice(displayed.length));
+    return { content: streamState.content, usage: streamState.usage, finishReason: streamState.finishReason,
+      ...(streamState.outputTruncated ? { outputTruncated: true } : {}),
+      ...(streamState.streamIncomplete ? { streamIncomplete: true } : {}) };
   }
 
   /**
@@ -1192,43 +1330,11 @@ export class WebSocketHandler {
     model?: string,
     signal?: AbortSignal,
     storyIntent?: boolean,
-    interpretation?: { input: string; actionIds: string[] }
+    interpretation?: { input: string; actionIds: string[]; direct?: boolean },
+    options?: { limits?: ModelMeta; progress?: StreamProgress }
   ): Promise<StreamedLlmResult> {
-    signal?.throwIfAborted();
-    const selectedModel = model || getDefaultModel() || 'glm-4.5-air';
-    const meta = getModelMeta(selectedModel);
-
-    // Note: Most LLM providers don't support streaming for text completion
-    // We'll use non-streaming completion and send the full response
-    const response = await llmService.completion({
-      prompt,
-      model: selectedModel,
-      temperature: meta.defaultTemperature,
-      max_tokens: TEMPLATE_COMPLETION_MAX_TOKENS,
-      n: 1,
-      stream: false,
-      presence_penalty: 0,
-      frequency_penalty: 0,
-    });
-
-    const fullContent = response.choices?.[0]?.text || '';
-
-    // Send the full content as a single chunk
-    websocketService.broadcastToChat(chatId, {
-      type: WSMessageType.ASSISTANT_MESSAGE_CHUNK,
-      timestamp: new Date().toISOString(),
-      data: {
-        chatId,
-        messageId,
-        requestId: this.activeGenerations.get(chatId)?.requestId,
-        chunk: interpretation ? storyIntentPresentation(fullContent, interpretation.input, interpretation.actionIds, response.choices?.[0]?.finish_reason === 'length')
-          : storyIntent ? storyIntentVisiblePrefix(fullContent, true) : fullContent,
-        index: 0,
-      },
-    });
-
-    return { content: fullContent, usage: readOpenAiUsage(response.usage),
-      ...(response.choices?.[0]?.finish_reason === 'length' ? { outputTruncated: true } : {}) };
+    return this.streamLlmResponse(chatId, messageId, [{ role: 'user', content: prompt }],
+      undefined, undefined, model, signal, { ...options, templatePrompt: prompt, storyIntent, interpretation });
   }
 
   /**

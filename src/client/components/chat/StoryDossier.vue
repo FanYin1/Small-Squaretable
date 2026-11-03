@@ -4,12 +4,13 @@
       <button type="button" class="story-dossier-backdrop" tabindex="-1" aria-label="关闭此次游玩资料" @click="closePanel" />
       <aside ref="dialogPanel" :id="panelId" class="story-dossier" role="dialog" aria-modal="true" :aria-labelledby="`${panelId}-title`" tabindex="-1">
         <div class="dossier-body">
-      <div class="dossier-heading"><header><span class="dossier-eyebrow">留在这个世界的痕迹</span><h2 :id="`${panelId}-title`">此次游玩</h2><p role="status">{{ busy ? '剧情正在展开 · 状态尚未确认' : error ? state ? '显示上次记录 · 本次读取失败' : '记录读取失败' : loading ? state ? '正在核对最新记录' : '读取记录中' : state ? `已读取记录 · 第 ${state.version} 轮` : '读取记录中' }}</p></header><button ref="closeButton" type="button" class="dossier-close" @click="closePanel">返回故事</button></div>
+      <div class="dossier-heading"><header><span class="dossier-eyebrow">留在这个世界的痕迹</span><h2 :id="`${panelId}-title`">此次游玩</h2><p role="status">{{ tab === 'ledger' ? '查看已保存回复中的账簿描述' : busy ? '剧情正在展开 · 状态尚未确认' : error ? state ? '显示上次记录 · 本次读取失败' : '记录读取失败' : loading ? state ? '正在核对最新记录' : '读取记录中' : state ? `已读取记录 · 第 ${state.version} 轮` : '读取记录中' }}</p></header><button ref="closeButton" type="button" class="dossier-close" @click="closePanel">返回故事</button></div>
       <nav aria-label="游玩资料">
         <button v-for="item in tabs" :key="item.id" type="button" :aria-pressed="tab === item.id" @click="tab = item.id">{{ item.label }}</button>
       </nav>
       <div class="dossier-content">
       <p v-if="error" role="alert">{{ error }} <button type="button" @click="$emit('refresh')">重新读取</button></p>
+      <StoryLedgerDetails v-if="tab === 'ledger' && ledger" :snapshot="ledger" :busy="busy" @source="readSource" />
       <section v-if="tab === 'state'" :key="chatId" aria-label="已知状态">
         <section class="current-state" data-testid="current-story-state" :aria-busy="loading || busy">
           <div class="section-heading"><h3>当前状态</h3><span v-if="state" class="state-badge">{{ busy || error || loading ? '上次确认' : '已确认记录' }}</span></div>
@@ -72,9 +73,11 @@
 import { computed, ref, watch, nextTick, onScopeDispose, useId } from 'vue';
 import type { StoryStateView, StoryEventView, StoryNoteInput, StoryValue } from '../../../types/story-state';
 import { storyApi } from '../../services/story.api';
+import StoryLedgerDetails from './StoryLedgerDetails.vue';
+import type { StoryLedgerSnapshot } from '../../utils/story-ledger';
 import StoryMemoryStatus from './StoryMemoryStatus.vue';
 import StoryAdaptationReport from './StoryAdaptationReport.vue';
-const props = defineProps<{ chatId: string; state: StoryStateView | null; busy: boolean; loading?: boolean; error: string; trigger?: HTMLButtonElement | null; open: boolean }>();
+const props = defineProps<{ ledger?: StoryLedgerSnapshot | null; initialTab?: 'state' | 'ledger'; chatId: string; state: StoryStateView | null; busy: boolean; loading?: boolean; error: string; trigger?: HTMLButtonElement | null; open: boolean }>();
 const emit = defineEmits<{ refresh: []; source: [messageId: number]; 'update:open': [open: boolean] }>();
 const expanded = computed(() => props.open);
 const panelId = useId();
@@ -132,7 +135,9 @@ function readSource(messageId: number) {
   emit('source', messageId);
 }
 const tab = ref('state');
-const tabs = computed(() => [{ id: 'state', label: '概况' }, ...(props.state?.map ? [{ id: 'map', label: '地图' }] : []), { id: 'history', label: '历程' }, { id: 'notes', label: '记忆' }]);
+watch(() => [props.open, props.initialTab], () => { if (props.open) tab.value = props.initialTab === 'ledger' && props.ledger ? 'ledger' : 'state'; }, { immediate: true });
+watch(() => props.ledger, ledger => { if (!ledger && tab.value === 'ledger') tab.value = 'state'; });
+const tabs = computed(() => [{ id: 'state', label: '概况' }, ...(props.ledger ? [{ id: 'ledger', label: '账簿' }] : []), ...(props.state?.map ? [{ id: 'map', label: '地图' }] : []), { id: 'history', label: '历程' }, { id: 'notes', label: '记忆' }]);
 watch(() => props.state?.map, map => { if (!map && tab.value === 'map') tab.value = 'state'; });
 const noteLabels = { style: '风格偏好', note: '重要线索', thread: '未完成事项' };
 const factLabels = { claim: '主张 · 未证实', intention: '意向 · 非执行凭据', inference: '推测', observation: '叙事见闻', style: '表达偏好' };

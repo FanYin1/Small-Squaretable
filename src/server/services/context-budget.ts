@@ -16,8 +16,12 @@ export function estimateContextTokens(content: string): number {
   return Math.max(countTokens(content), Math.ceil(Buffer.byteLength(content, 'utf8') / 3));
 }
 
+export function estimateContextText(content: string): number {
+  return estimateContextTokens(content) + 4;
+}
+
 export function estimateContextMessages(messages: ReadonlyArray<{ content: string }> = []): number {
-  return messages.reduce((total, message) => total + estimateContextTokens(message.content) + 4, 0);
+  return messages.reduce((total, message) => total + estimateContextText(message.content), 0);
 }
 
 export function assertContextBudget(requiredTokens: number, limits: ContextLimits,

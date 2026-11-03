@@ -4,7 +4,7 @@ import { validateModelLimits, type ModelLimitsInput } from '../../../types/model
 import { llmPresets } from '../../../types/llm-presets';
 import { useI18n } from 'vue-i18n';
 import { Cpu, Refresh, Lock } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { adminApi, type AdminModelMeta, type AdminModelsResponse, type AdminModelUpdateInput } from '@client/services/admin.api';
 
 const { t } = useI18n();
@@ -30,6 +30,75 @@ const form = reactive<AdminModelUpdateInput & { modelsText: string; limitsText: 
 
 const providerCount = computed(() => config.value?.providers.length ?? 0);
 const modelCount = computed(() => config.value?.models.length ?? 0);
+const search = ref('');
+const visibility = ref('all');
+const entryOpen = ref(false);
+const entryMode = ref<'create' | 'view' | 'edit'>('create');
+const entry = reactive({ id: '', channelId: '', upstreamId: '', hidden: false, makeDefault: false,
+  contextWindow: undefined as number | undefined, maxInputTokens: undefined as number | undefined,
+  maxOutputTokens: undefined as number | undefined, requestOutputTokens: undefined as number | undefined });
+const filteredModels = computed(() => (config.value?.models ?? []).filter(model =>
+  [model.id, model.channelName, model.upstreamId].some(value => value?.toLowerCase().includes(search.value.trim().toLowerCase()))
+  && (visibility.value === 'all' || (visibility.value === 'hidden') === Boolean(model.hidden))));
+
+function openEntry(model?: AdminModelMeta, readOnly = false) {
+  entryMode.value = model ? readOnly ? 'view' : 'edit' : 'create';
+  Object.assign(entry, { id: model?.id ?? '', channelId: model?.channelId ?? selectedChannel.value ?? '',
+    upstreamId: model?.upstreamId ?? '', hidden: model?.hidden ?? false, makeDefault: false,
+    contextWindow: model?.contextWindow, maxInputTokens: model?.maxInputTokens,
+    maxOutputTokens: model ? model.outputCapabilityTokens ?? model.maxOutputTokens : undefined,
+    requestOutputTokens: model?.maxOutputTokens });
+  if (!entry.channelId) entry.channelId = config.value?.providers[0]?.id ?? '';
+  entryOpen.value = true;
+}
+
+async function saveEntry() {
+  if (saving.value || entryMode.value === 'view') return;
+  const id = entry.id.trim();
+  let limits: ModelLimitsInput;
+  try {
+    if (!id || !entry.channelId) throw new Error('请选择渠道并填写模型名称');
+    limits = validateModelLimits({ [id]: { contextWindow: entry.contextWindow,
+      ...(entry.maxInputTokens == null ? {} : { maxInputTokens: entry.maxInputTokens }),
+      maxOutputTokens: entry.maxOutputTokens, requestOutputTokens: entry.requestOutputTokens } }, [id])[id];
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : '请检查容量参数'); return; }
+  saving.value = true;
+  try {
+    const data = { upstreamId: entry.upstreamId.trim(), limits, hidden: entry.hidden, makeDefault: entry.makeDefault };
+    if (entryMode.value === 'create') await adminApi.createModel({ ...data, id, channelId: entry.channelId });
+    else await adminApi.editModel(id, data);
+    entryOpen.value = false;
+    ElMessage.success('模型已保存，聊天模型列表在下次打开时更新');
+    await fetchModels();
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : '模型保存失败'); }
+  finally { saving.value = false; }
+}
+
+async function toggleModel(model: AdminModelMeta) {
+  if (saving.value) return;
+  saving.value = true;
+  try {
+    await adminApi.editModel(model.id, { hidden: !model.hidden });
+    ElMessage.success(model.hidden ? '模型已恢复显示' : '模型已隐藏，已有会话仍可使用');
+    await fetchModels();
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : '修改失败'); }
+  finally { saving.value = false; }
+}
+
+async function removeModel(model: AdminModelMeta) {
+  if (saving.value) return;
+  try {
+    await ElMessageBox.confirm(`删除模型“${model.id}”后，使用它的会话需要重新选择模型。历史消息不会删除；如果只想从选择列表中移除，请使用隐藏。`,
+      '删除模型', { type: 'warning', confirmButtonText: '删除模型', cancelButtonText: '取消' });
+  } catch { return; }
+  saving.value = true;
+  try {
+    await adminApi.deleteModel(model.id);
+    ElMessage.success('模型已删除，历史会话保留');
+    await fetchModels();
+  } catch (error) { ElMessage.error(error instanceof Error ? error.message : '删除失败'); }
+  finally { saving.value = false; }
+}
 
 const capacityRows = computed(() => {
   let limits: Record<string, Partial<ModelLimitsInput>> = {};
@@ -174,6 +243,60 @@ onMounted(fetchModels);
       description="分别配置供应商端点、密钥和模型。保存后即时生效；模型名称和容量请以供应商文档为准。"
     />
 
+    <el-card v-if="config" v-loading="loading" shadow="never" class="models-card">
+      <template #header>
+        <div class="card-heading">
+          <span>{{ t('admin.models.configuredModels') }}</span>
+          <el-tag type="success" size="small">当前生效配置</el-tag>
+        </div>
+      </template>
+      <div class="model-toolbar">
+        <el-input v-model="search" clearable placeholder="搜索模型、上游名称或渠道" aria-label="搜索模型" />
+        <el-select v-model="visibility" aria-label="模型显示状态">
+          <el-option label="全部模型" value="all" /><el-option label="公开可选" value="visible" /><el-option label="已隐藏" value="hidden" />
+        </el-select>
+        <el-button type="primary" :disabled="saving || loading || !config.providers.length" @click="openEntry()">新增模型</el-button>
+      </div>
+      <p class="form-help">隐藏模型不再出现在用户选择列表，但已有会话仍可使用。删除会移除调用配置，历史消息保留。平台至少保留一个公开可选模型。</p>
+      <el-table :data="filteredModels" stripe empty-text="没有匹配的模型">
+        <el-table-column prop="id" :label="t('admin.models.model')" min-width="220" />
+        <el-table-column prop="channelName" label="渠道" min-width="140" />
+        <el-table-column :label="t('admin.models.provider')" width="140">
+          <template #default="{ row }">{{ modelProvider(row) }}</template>
+        </el-table-column>
+        <el-table-column :label="t('admin.models.context')" width="150">
+          <template #default="{ row }">{{ row.contextWindow.toLocaleString() }}</template>
+        </el-table-column>
+        <el-table-column label="最大输入" width="150">
+          <template #default="{ row }">{{ row.maxInputTokens === undefined ? '未提供' : row.maxInputTokens.toLocaleString() }}</template>
+        </el-table-column>
+        <el-table-column label="每次输出额度" width="150">
+          <template #default="{ row }">{{ row.maxOutputTokens.toLocaleString() }}</template>
+        </el-table-column>
+        <el-table-column :label="t('admin.models.maxOutput')" width="150">
+          <template #default="{ row }">{{ (row.outputCapabilityTokens ?? row.maxOutputTokens).toLocaleString() }}</template>
+        </el-table-column>
+        <el-table-column :label="t('admin.models.status')" width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.hidden" type="info" size="small">已隐藏</el-tag>
+            <el-tag v-else-if="row.id === config?.defaultModel" type="primary" size="small">
+              {{ t('admin.models.default') }}
+            </el-tag>
+            <el-tag v-else type="success" size="small">{{ t('admin.models.available') }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" fixed="right" width="250">
+          <template #default="{ row }">
+            <el-button link :disabled="saving || loading" @click="openEntry(row, true)">查看</el-button>
+            <el-button link type="primary" :disabled="saving || loading" @click="openEntry(row)">编辑</el-button>
+            <el-button link :disabled="saving || loading" @click="toggleModel(row)">{{ row.hidden ? '显示' : '隐藏' }}</el-button>
+            <el-button link type="danger" :disabled="saving || loading" @click="removeModel(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+
     <el-card class="edit-card" shadow="never">
       <template #header>
         <div class="card-heading">
@@ -220,7 +343,7 @@ onMounted(fetchModels);
         </el-form-item>
         <section class="capacity-editor" aria-label="逐模型容量参数">
           <h3>模型容量（token）</h3>
-          <p class="form-help">按供应商对准确型号的说明填写整数；1M = 1,000,000。上下文为输入与输出合计上限，最大输入可选；实际可用输入还需预留本次输出和 100 token 缓冲。每次输出额度是应用设置，可小于模型最大输出。</p>
+          <p class="form-help">按供应商对准确型号的说明填写整数；1M = 1,000,000。上下文为输入与输出合计上限，最大输入可选；实际可用输入还需预留本次输出和 100 token 缓冲。每次输出额度是所有生成入口的应用上限，可小于模型最大输出。单次请求可申请更少；计费按生效额度预扣，不再另设输出硬上限。</p>
           <p class="form-help">以下是管理员配置值，系统不会通过模型名称推测真实容量。未填写独立输入上限表示未提供该参数。</p>
           <div v-for="row in capacityRows" :key="row.id" class="capacity-model" :data-model="row.id">
             <strong>{{ row.id }}</strong>
@@ -273,40 +396,28 @@ onMounted(fetchModels);
       </el-card>
     </div>
 
-    <el-card v-if="config" v-loading="loading" shadow="never" class="models-card">
-      <template #header>
-        <div class="card-heading">
-          <span>{{ t('admin.models.configuredModels') }}</span>
-          <el-tag type="success" size="small">当前生效配置</el-tag>
+
+    <el-dialog v-model="entryOpen" :title="entryMode === 'create' ? '新增模型' : entryMode === 'view' ? '模型详情' : '编辑模型'" width="min(640px, 94vw)" :close-on-click-modal="!saving" :close-on-press-escape="!saving" :show-close="!saving">
+      <el-form class="model-entry-form" label-position="top" :disabled="saving || entryMode === 'view'" @submit.prevent="saveEntry">
+        <el-form-item label="所属渠道"><el-select v-model="entry.channelId" :disabled="entryMode !== 'create'" style="width:100%">
+          <el-option v-for="channel in config?.providers ?? []" :key="channel.id" :label="channel.name" :value="channel.id" />
+        </el-select></el-form-item>
+        <el-form-item label="用户看到的模型名称"><el-input v-model="entry.id" :disabled="entryMode !== 'create'" maxlength="200" /></el-form-item>
+        <p class="form-help">模型名称作为会话引用标识，创建后保持不变。新增到现有渠道会沿用该渠道的端点、密钥和协议。</p>
+        <el-form-item label="供应商模型名称 / 部署 ID"><el-input v-model="entry.upstreamId" placeholder="留空则使用上面的模型名称" maxlength="200" /></el-form-item>
+        <div class="form-grid">
+          <el-form-item label="上下文总上限"><el-input-number v-model="entry.contextWindow" :min="1" :max="Number.MAX_SAFE_INTEGER" :precision="0" /></el-form-item>
+          <el-form-item label="最大输入（可选）"><el-input-number v-model="entry.maxInputTokens" :min="1" :max="Number.MAX_SAFE_INTEGER" :precision="0" /></el-form-item>
+          <el-form-item label="模型最大输出"><el-input-number v-model="entry.maxOutputTokens" :min="1" :max="Number.MAX_SAFE_INTEGER" :precision="0" /></el-form-item>
+          <el-form-item label="每次输出额度"><el-input-number v-model="entry.requestOutputTokens" :min="1" :max="Number.MAX_SAFE_INTEGER" :precision="0" /></el-form-item>
         </div>
-      </template>
-      <el-table :data="config.models" stripe>
-        <el-table-column prop="id" :label="t('admin.models.model')" min-width="220" />
-        <el-table-column :label="t('admin.models.provider')" width="140">
-          <template #default="{ row }">{{ modelProvider(row) }}</template>
-        </el-table-column>
-        <el-table-column :label="t('admin.models.context')" width="150">
-          <template #default="{ row }">{{ row.contextWindow.toLocaleString() }}</template>
-        </el-table-column>
-        <el-table-column label="最大输入" width="150">
-          <template #default="{ row }">{{ row.maxInputTokens === undefined ? '未提供' : row.maxInputTokens.toLocaleString() }}</template>
-        </el-table-column>
-        <el-table-column label="每次输出额度" width="150">
-          <template #default="{ row }">{{ row.maxOutputTokens.toLocaleString() }}</template>
-        </el-table-column>
-        <el-table-column :label="t('admin.models.maxOutput')" width="150">
-          <template #default="{ row }">{{ (row.outputCapabilityTokens ?? row.maxOutputTokens).toLocaleString() }}</template>
-        </el-table-column>
-        <el-table-column :label="t('admin.models.status')" width="120">
-          <template #default="{ row }">
-            <el-tag v-if="row.id === config?.defaultModel" type="primary" size="small">
-              {{ t('admin.models.default') }}
-            </el-tag>
-            <el-tag v-else type="success" size="small">{{ t('admin.models.available') }}</el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+        <p class="form-help">容量单位为 token，请按供应商文档填写；每次输出额度不能超过模型最大输出，上下文需容纳输入与输出。</p>
+        <el-checkbox v-model="entry.hidden" @change="entry.hidden && (entry.makeDefault = false)">在用户模型列表中隐藏</el-checkbox>
+        <el-checkbox v-model="entry.makeDefault" :disabled="entry.hidden">设为平台默认模型（也影响记忆整理）</el-checkbox>
+        <div class="form-actions"><el-button v-if="entryMode !== 'view'" type="primary" native-type="submit" :loading="saving">保存模型</el-button></div>
+      </el-form>
+      <template #footer><el-button :disabled="saving" @click="entryOpen = false">{{ entryMode === 'view' ? '关闭' : '取消' }}</el-button></template>
+    </el-dialog>
 
     <div v-if="config" class="provider-list">
       <el-card v-for="provider in config.providers" :key="provider.id" shadow="hover">
@@ -354,6 +465,10 @@ onMounted(fetchModels);
 .summary-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
 .summary-card span { color: var(--text-secondary); font-size: 13px; }
 .models-card { margin-bottom: 20px; }
+.model-toolbar { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.model-toolbar .el-input { flex: 1; min-width: 180px; }
+.model-toolbar .el-select { width: 150px; }
+.model-entry-form :deep(.el-input-number) { width: 100%; }
 .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; }
 .provider-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
 .provider-details { display: grid; gap: 12px; margin: 0; }

@@ -37,8 +37,6 @@ const creditLogger = logger.child({ module: 'credit-billing' });
 export const INPUT_ESTIMATE_MARGIN = 1.2;
 /** 请求没指定 max_tokens 时使用的输出上限，同时也是冻结额的一部分 */
 export const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
-/** 单次生成的输出上限天花板，避免请求带一个巨大的 max_tokens 把冻结额撑爆 */
-export const HARD_MAX_OUTPUT_TOKENS = 16384;
 /** 单次清扫最多处理多少条 */
 const SWEEP_BATCH = 500;
 
@@ -103,19 +101,22 @@ export const creditBilling = {
   },
 
   /**
-   * 本次生成允许的输出上限。请求自带 max_tokens 就尊重它（但不超过天花板）；
+   * 本次生成允许的输出上限。调用方先按模型能力和管理员策略解析 max_tokens，计费不再另行钳制；
    * 没带就用默认值。provider 不设上限时输出量不可控，预扣就失去意义，所以必须有。
    */
   resolveMaxOutputTokens(requested?: number | null): number {
-    if (typeof requested === 'number' && Number.isFinite(requested) && requested > 0) {
-      return Math.min(Math.floor(requested), HARD_MAX_OUTPUT_TOKENS);
+    if (requested == null) return DEFAULT_MAX_OUTPUT_TOKENS;
+    if (!Number.isSafeInteger(requested) || requested <= 0) {
+      throw new AppError('Invalid resolved output limit', 400, 'OUTPUT_LIMIT_INVALID');
     }
-    return DEFAULT_MAX_OUTPUT_TOKENS;
+    return requested;
   },
 
   /** 冻结额 = 输入估算 x 余量 + 输出上限 */
   computeHoldTokens(estimatedInputTokens: number, maxOutputTokens: number): number {
-    return Math.ceil(toNonNegativeInt(estimatedInputTokens) * INPUT_ESTIMATE_MARGIN) + maxOutputTokens;
+    const tokens = Math.ceil(toNonNegativeInt(estimatedInputTokens) * INPUT_ESTIMATE_MARGIN) + this.resolveMaxOutputTokens(maxOutputTokens);
+    if (!Number.isSafeInteger(tokens)) throw new AppError('Generation reservation is too large', 400, 'OUTPUT_LIMIT_INVALID');
+    return tokens;
   },
 
   /**

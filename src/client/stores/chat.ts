@@ -1,4 +1,5 @@
 import { createRequestId } from '@client/utils/request-id';
+import { firstBodyChunk, presentationApprox, type ReplyTiming } from '@client/utils/reply-timing';
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
 import type { Chat, Message, Character, MessageAttachment } from '@client/types';
@@ -31,6 +32,12 @@ export const useChatStore = defineStore('chat', () => {
   const wsConnected = ref(false);
   const wsConnectionState = ref<WSConnectionState>(WSConnectionState.DISCONNECTED);
   const streamingMessage = ref<string>('');
+  const streamingProvisional = ref(false);
+  const streamingPhase = ref<'body' | 'control' | 'validating'>('body');
+  const replyTiming = ref<ReplyTiming | null>(null);
+  const replyTimingMessageId = ref<string | null>(null);
+  let timingAttempt = 0;
+  let timingBinding: { chatId: string; requestId?: string } | null = null;
   const streamingCharacterId = ref<string | null>(null);
   const streamingCharacterName = ref<string | null>(null);
   const isStreaming = ref(false);
@@ -74,6 +81,7 @@ export const useChatStore = defineStore('chat', () => {
   let pendingAcceptance: { messageId: string; accept: () => void } | null = null;
   let activeRequestId: string | null = null;
   let lastFinishedRequestId: string | null = null;
+  const retiredRequestIds = new Set<string>();
   let generationRecoveryPending = false;
   const requestPayloads = new Map<string, {
     content: string;
@@ -85,6 +93,33 @@ export const useChatStore = defineStore('chat', () => {
   }>();
 
   type GenerationState = { chatId: string; status: 'running' | 'idle'; requestId?: string };
+
+  function cancelReplyTiming(): void {
+    replyTiming.value = null;
+    replyTimingMessageId.value = null;
+    timingBinding = null;
+  }
+
+  function recordFirstBodyChunk(chunk: string, requestId?: string): void {
+    const sample = replyTiming.value;
+    if (!chunk.trim() || !sample || sample.firstChunkAt !== null || sample.selection !== selectionVersion ||
+      timingBinding?.chatId !== currentChatId.value || (requestId && timingBinding.requestId !== requestId)) return;
+    const at = performance.now();
+    replyTiming.value = firstBodyChunk(sample, at);
+    logger.info('reply_performance', { phase: 'first_body_chunk', attempt: sample.attempt,
+      selection: sample.selection, atMs: at, sendToFirstBodyChunkMs: at - sample.startedAt });
+  }
+
+  function recordReplyPresentation(attempt: number): void {
+    const sample = replyTiming.value;
+    if (!sample || sample.attempt !== attempt || sample.selection !== selectionVersion ||
+      timingBinding?.chatId !== currentChatId.value) return;
+    const at = performance.now();
+    const metric = presentationApprox(sample, at);
+    if (!metric) return;
+    replyTiming.value = { ...sample, presentedAt: at };
+    logger.info('reply_performance', metric);
+  }
 
   const canRetryGeneration = computed(() => Boolean(
     failedGeneration.value &&
@@ -120,6 +155,8 @@ export const useChatStore = defineStore('chat', () => {
 
   function clearStreamingState(): void {
     streamingMessage.value = '';
+    streamingProvisional.value = false;
+    streamingPhase.value = 'body';
     streamingCharacterId.value = null;
     streamingCharacterName.value = null;
     isStreaming.value = false;
@@ -219,7 +256,7 @@ export const useChatStore = defineStore('chat', () => {
 
   function acceptGenerationEvent(requestId?: string): boolean {
     if (!requestId) return true;
-    if (requestId === lastFinishedRequestId || (activeRequestId && requestId !== activeRequestId)) return false;
+    if (retiredRequestIds.has(requestId) || requestId === lastFinishedRequestId || (activeRequestId && requestId !== activeRequestId)) return false;
     activeRequestId = requestId;
     sending.value = true;
     return true;
@@ -337,6 +374,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 断开连接
     wsClient.on('disconnected', () => {
+      cancelReplyTiming();
       generationRecoveryPending = !httpGenerationController && Boolean(activeRequestId || sending.value || isStreaming.value);
     });
 
@@ -344,24 +382,30 @@ export const useChatStore = defineStore('chat', () => {
       const state = data as GenerationState;
       if (state.chatId !== currentChatId.value) return;
       if (httpGenerationController) return;
+      if (state.requestId && activeRequestId && state.requestId !== activeRequestId) return;
+      const stateVersion = selectionVersion;
 
       if (state.status === 'running') {
+        cancelReplyTiming();
         generationRecoveryPending = true;
         if (state.requestId) activeRequestId = state.requestId;
         sending.value = true;
         stopping.value = false;
         void reconcileMessages(state.chatId).then(({ assistantRecovered }) => {
-          if (assistantRecovered && currentChatId.value === state.chatId) clearStreamingState();
+          if (assistantRecovered && stateVersion === selectionVersion && currentChatId.value === state.chatId) clearStreamingState();
         });
         return;
       }
 
       const wasGenerating = generationRecoveryPending || Boolean(activeRequestId || sending.value || isStreaming.value);
+      const stateRequestId = activeRequestId;
+      cancelReplyTiming();
       void reconcileMessages(state.chatId).then(({ assistantRecovered }) => {
-        if (currentChatId.value !== state.chatId || !wasGenerating) return;
+        if (stateVersion !== selectionVersion || currentChatId.value !== state.chatId || activeRequestId !== stateRequestId || !wasGenerating) return;
         failedGeneration.value = null;
         if (assistantRecovered || isStreaming.value) clearStreamingState();
         lastFinishedRequestId = state.requestId || activeRequestId;
+        if (lastFinishedRequestId) retiredRequestIds.add(lastFinishedRequestId);
         activeRequestId = null;
         generationRecoveryPending = false;
         pendingAcceptance = null;
@@ -417,7 +461,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 接收助手消息块（流式）
     wsClient.on('assistantMessageChunk', (data: unknown) => {
-      const chunkData = data as { chatId: string; requestId?: string; chunk: string; characterId?: string; characterName?: string };
+      const chunkData = data as { chatId: string; requestId?: string; chunk: string; provisional?: boolean; phase?: 'control' | 'validating'; characterId?: string; characterName?: string };
       if (chunkData.chatId !== currentChatId.value) return;
       if (!acceptGenerationEvent(chunkData.requestId)) return;
       if (isStreaming.value && (chunkData.characterId ?? null) !== streamingCharacterId.value) {
@@ -427,58 +471,67 @@ export const useChatStore = defineStore('chat', () => {
       if (!isStreaming.value) {
         isStreaming.value = true;
         streamingMessage.value = '';
+        streamingPhase.value = 'body';
         streamingCharacterId.value = chunkData.characterId ?? null;
         streamingCharacterName.value = chunkData.characterName ?? null;
       }
+      streamingProvisional.value = chunkData.provisional === true || streamingProvisional.value;
+      if (chunkData.phase === 'validating' || (chunkData.phase === 'control' && streamingPhase.value !== 'validating')) streamingPhase.value = chunkData.phase;
       streamingMessage.value += chunkData.chunk;
+      recordFirstBodyChunk(chunkData.chunk, chunkData.requestId);
     });
 
     // 助手消息完成
     wsClient.on('assistantMessageDone', (data: unknown) => {
-      const doneData = data as { messageId: string; chatId: string; requestId?: string; characterId?: string; characterName?: string; variablesChanged?: boolean; storyAudience?: string[];
-        storyIntent?: import('../../types/story-intent').StoredStoryIntent; storyConfirmedIntent?: import('../../types/story-intent').StoryIntent; storyIntentInvalid?: boolean; storyRecommendations?: Array<{ label: string; input: string }>; storyRecommendationsSource?: import('../../types/story-recommendations').StoryRecommendationsSource; stateStatus?: string };
+      const doneData = data as { messageId: string; chatId: string; requestId?: string; content?: string; characterId?: string; characterName?: string; variablesChanged?: boolean; storyAudience?: string[];
+        storyIntent?: import('../../types/story-intent').StoredStoryIntent; storyConfirmedIntent?: import('../../types/story-intent').StoryIntent; storyExecutedIntent?: import('../../types/story-intent').StoryIntent; storyIntentInvalid?: boolean; storyDiagnostics?: import('../../types/story-intent').StoryTurnDiagnostics; storyRecommendations?: Array<{ label: string; input: string }>; storyRecommendationsSource?: import('../../types/story-recommendations').StoryRecommendationsSource; storyRecommendationsLead?: string; stateStatus?: string };
       if (doneData.chatId !== currentChatId.value) return;
       if (!acceptGenerationEvent(doneData.requestId)) return;
       if (doneData.variablesChanged) void refreshLegacyVariables(doneData.chatId);
       if (!doneData.requestId) stopping.value = false;
-      if (isStreaming.value && streamingMessage.value && doneData.messageId) {
+      const finalContent = typeof doneData.content === 'string' ? doneData.content : streamingMessage.value;
+      if ((typeof doneData.content === 'string' || (isStreaming.value && streamingMessage.value)) && doneData.messageId) {
         const message: Message = {
           id: doneData.messageId,
           chatId: doneData.chatId,
           role: 'assistant',
-          content: streamingMessage.value,
+          content: finalContent,
           characterId: doneData.characterId ?? streamingCharacterId.value ?? undefined,
           characterName: doneData.characterName ?? streamingCharacterName.value ?? undefined,
-          extra: { ...(doneData.storyAudience ? { storyAudience: doneData.storyAudience } : {}),
+          extra: { ...(doneData.requestId ? { storyRequestId: doneData.requestId } : {}), ...(doneData.storyAudience ? { storyAudience: doneData.storyAudience } : {}),
             ...(doneData.stateStatus ? { stateStatus: doneData.stateStatus } : {}),
             ...(doneData.storyIntent ? { storyIntent: doneData.storyIntent } : {}),
+            ...(doneData.storyExecutedIntent ? { storyExecutedIntent: doneData.storyExecutedIntent } : {}),
             ...(doneData.storyConfirmedIntent ? { storyConfirmedIntent: doneData.storyConfirmedIntent } : {}),
+            ...(doneData.storyDiagnostics ? { storyDiagnostics: doneData.storyDiagnostics } : {}),
             ...(doneData.storyIntentInvalid ? { storyIntentInvalid: true } : {}),
             ...(doneData.storyRecommendations ? { storyRecommendations: doneData.storyRecommendations } : {}),
             ...(doneData.storyRecommendationsSource ? { storyRecommendationsSource: doneData.storyRecommendationsSource } : {}),
+            ...(doneData.storyRecommendationsLead ? { storyRecommendationsLead: doneData.storyRecommendationsLead } : {}),
           },
           createdAt: new Date().toISOString(),
         };
-        if (!messages.value.some(existing => existing.id === message.id)) messages.value.push(message);
-        streamingMessage.value = '';
-        streamingCharacterId.value = null;
-        streamingCharacterName.value = null;
-        isStreaming.value = false;
+        const existingIndex = messages.value.findIndex(existing => existing.id === message.id);
+        if (existingIndex === -1) messages.value.push(message);
+        else if (typeof doneData.content === 'string') messages.value[existingIndex] = message;
+        if (replyTiming.value?.firstChunkAt != null && replyTimingMessageId.value === null) replyTimingMessageId.value = message.id;
+        clearStreamingState();
         if (!doneData.requestId) sending.value = false;
 
       }
       if (!doneData.requestId) {
         sending.value = false;
-        isStreaming.value = false;
+        clearStreamingState();
         activeRequestId = null;
       }
     });
 
     wsClient.on('generationFinished', (data: unknown) => {
       const finished = data as { chatId: string; requestId: string; status: 'completed' | 'stopped' | 'failed'; retryable?: boolean };
-      if (finished.chatId === currentChatId.value) billingRevision.value += 1;
       if (finished.chatId !== currentChatId.value || finished.requestId !== activeRequestId) return;
-      const needsReconciliation = generationRecoveryPending || finished.status !== 'completed';
+      billingRevision.value += 1;
+      const needsReconciliation = generationRecoveryPending || finished.status !== 'completed' || isStreaming.value;
+      if (needsReconciliation) cancelReplyTiming();
       const recoveryVersion = selectionVersion;
       if (finished.status === 'failed' && finished.retryable === true && contextRecovery.value?.requestId !== finished.requestId) rememberFailedGeneration(finished.requestId);
       else {
@@ -486,16 +539,16 @@ export const useChatStore = defineStore('chat', () => {
         requestPayloads.delete(finished.requestId);
       }
       lastFinishedRequestId = finished.requestId;
+      retiredRequestIds.add(finished.requestId);
       activeRequestId = null;
       generationRecoveryPending = false;
       pendingAcceptance = null;
-      streamingMessage.value = '';
-      streamingCharacterId.value = null;
-      streamingCharacterName.value = null;
-      isStreaming.value = false;
+      clearStreamingState();
       sending.value = false;
       stopping.value = false;
-      if (finished.status === 'failed' && !error.value) error.value = i18n.global.t('chat.generationFailed');
+      const hasSavedValidationFailure = messages.value.some(message => message.role === 'assistant' &&
+        message.extra?.storyRequestId === finished.requestId && message.extra?.storyIntentInvalid === true);
+      if (finished.status === 'failed' && !error.value && !hasSavedValidationFailure) error.value = i18n.global.t('chat.generationFailed');
       if (needsReconciliation) {
         void reconcileMessages(finished.chatId, true, finished.requestId).then(({ failed }) => {
           if (failed && recoveryVersion === selectionVersion && currentChatId.value === finished.chatId && !error.value) {
@@ -511,6 +564,8 @@ export const useChatStore = defineStore('chat', () => {
       if (errorData.code === 'CONNECTION_ERROR') return;
       if (errorData.chatId && errorData.chatId !== currentChatId.value) return;
       if (errorData.requestId && errorData.requestId !== activeRequestId) return;
+      cancelReplyTiming();
+      clearStreamingState();
       failedGeneration.value = null;
       contextRecovery.value = null;
       logger.error('WebSocket error', undefined, { errorData });
@@ -622,6 +677,7 @@ export const useChatStore = defineStore('chat', () => {
    * 断开 WebSocket
    */
   function disconnectWebSocket(): void {
+    cancelReplyTiming();
     if (wsClient) {
       wsClient.disconnect();
       wsClient = null;
@@ -711,7 +767,8 @@ export const useChatStore = defineStore('chat', () => {
     onAccepted?: () => void,
     retryRequestId?: string,
     storyAction?: import('../../types/story-state').StoryActionRequest,
-    storyAudience?: import('../../types/story-knowledge').StoryAudience
+    storyAudience?: import('../../types/story-knowledge').StoryAudience,
+    startedAt = performance.now()
   ): Promise<void> {
     if (!currentChatId.value) {
       throw new Error('No active chat');
@@ -724,6 +781,9 @@ export const useChatStore = defineStore('chat', () => {
     stopping.value = false;
     const requestChatId = currentChatId.value;
     const requestVersion = selectionVersion;
+    replyTiming.value = { attempt: ++timingAttempt, selection: requestVersion, startedAt, firstChunkAt: null, presentedAt: null };
+    replyTimingMessageId.value = null;
+    timingBinding = { chatId: requestChatId };
     failedGeneration.value = null;
     contextRecovery.value = null;
 
@@ -733,6 +793,8 @@ export const useChatStore = defineStore('chat', () => {
     // 如果 WebSocket 已连接，使用 WebSocket 发送
     if (wsConnected.value && wsClient) {
       const localMessageId = retryRequestId || `temp-${createRequestId()}`;
+      retiredRequestIds.delete(localMessageId);
+      timingBinding.requestId = localMessageId;
       sending.value = true;
       error.value = null;
       requestPayloads.set(localMessageId, { content, attachments, mentionedCharacterIds, onAccepted, storyAction, storyAudience });
@@ -763,7 +825,15 @@ export const useChatStore = defineStore('chat', () => {
       replyingTo.value = null;
 
       // 通过 WebSocket 发送 (包含附件和提及)
-      wsClient.sendMessage(currentChatId.value, content, attachments, mentionedCharacterIds, localMessageId, storyAction, storyAudience);
+      try {
+        wsClient.sendMessage(currentChatId.value, content, attachments, mentionedCharacterIds, localMessageId, storyAction, storyAudience);
+      } catch (sendError) {
+        cancelReplyTiming();
+        clearStreamingState();
+        sending.value = false;
+        activeRequestId = null;
+        throw sendError;
+      }
     } else {
       // 降级到 HTTP API
       sending.value = true;
@@ -811,7 +881,10 @@ export const useChatStore = defineStore('chat', () => {
             // onChunk
             (chunk: string) => {
               responseContent += chunk;
-              if (requestVersion === selectionVersion) streamingMessage.value = responseContent;
+              if (requestVersion === selectionVersion) {
+                streamingMessage.value = responseContent;
+                recordFirstBodyChunk(chunk);
+              }
             },
             // onDone
             async () => {
@@ -822,8 +895,12 @@ export const useChatStore = defineStore('chat', () => {
                     role: 'assistant',
                     content: responseContent,
                   });
-                  if (requestVersion === selectionVersion) messages.value.push(aiResponse.message);
+                  if (requestVersion === selectionVersion) {
+                    messages.value.push(aiResponse.message);
+                    if (replyTimingMessageId.value === null) replyTimingMessageId.value = aiResponse.message.id;
+                  }
                 } catch (saveError) {
+                  if (requestVersion === selectionVersion) cancelReplyTiming();
                   const tempMessage: Message = {
                     id: `temp-ai-${Date.now()}`,
                     chatId: requestChatId,
@@ -847,6 +924,7 @@ export const useChatStore = defineStore('chat', () => {
             (err: Error) => {
               if (requestVersion !== selectionVersion) return;
               logger.error('LLM stream error', err);
+              cancelReplyTiming();
               error.value = err.message;
               streamingMessage.value = '';
               streamingCharacterId.value = null;
@@ -861,6 +939,7 @@ export const useChatStore = defineStore('chat', () => {
         if (requestVersion === selectionVersion) sending.value = false;
       } catch (e) {
         if (requestVersion !== selectionVersion || controller.signal.aborted) return;
+        cancelReplyTiming();
         if (isInsufficientCredits(e)) {
           // 点数不足（P3-1）：输入框处显示本地化文案，同时弹窗提醒充值
           error.value = i18n.global.t('credits.insufficient');
@@ -1018,6 +1097,8 @@ export const useChatStore = defineStore('chat', () => {
 
   async function setCurrentChat(chatId: string | null): Promise<void> {
     const version = ++selectionVersion;
+    cancelReplyTiming();
+    if (activeRequestId) retiredRequestIds.add(activeRequestId);
     pendingAcceptance = null;
     activeRequestId = null;
     generationRecoveryPending = false;
@@ -1036,10 +1117,7 @@ export const useChatStore = defineStore('chat', () => {
     loadingOlder.value = false;
     hasMoreMessages.value = true;
     chatCharacters.value = [];
-    streamingMessage.value = '';
-    streamingCharacterId.value = null;
-    streamingCharacterName.value = null;
-    isStreaming.value = false;
+    clearStreamingState();
     sending.value = false;
     stopping.value = false;
     replyingTo.value = null;
@@ -1235,6 +1313,7 @@ export const useChatStore = defineStore('chat', () => {
     const chatId = currentChatId.value;
     const version = accountVersion;
     if (!chatId) return;
+    if (sending.value || isStreaming.value || stopping.value) throw new Error('请等待当前回复完成或停止后再切换模型。');
     try {
       await chatApi.updateChatModel(chatId, model);
       if (version !== accountVersion) return;
@@ -1459,6 +1538,11 @@ export const useChatStore = defineStore('chat', () => {
     wsConnected,
     wsConnectionState,
     streamingMessage,
+    streamingProvisional,
+    streamingPhase,
+    replyTiming,
+    replyTimingMessageId,
+    recordReplyPresentation,
     streamingCharacterId,
     streamingCharacterName,
     isStreaming,

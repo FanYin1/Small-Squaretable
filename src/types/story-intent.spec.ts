@@ -1,12 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { parseStoryIntentOutput, shouldPersistStoryIntentInvalid, storyIntentSchema, storyIntentVisiblePrefix, storyIntentPresentation, STORY_INTENT_MARKER, STORY_INTENT_REVIEW_TEXT } from './story-intent';
-import { buildStoryIntentPrompt } from '../server/services/story-intent-prompt';
+import { buildDirectStoryPrompt, buildStoryIntentPrompt } from '../server/services/story-intent-prompt';
 
 const execute = { kind: 'execute', actionId: 'buy', evidence: '买一张通行证' };
 const proposal = { version: 1, disposition: 'proposal', steps: [execute], facts: [] };
 const encode = (value: unknown) => `我理解你想购买通行证，请确认。${STORY_INTENT_MARKER}${JSON.stringify(value)}</story-intent>`;
 
 describe('reviewable story intent protocol', () => {
+  it('publishes a direct execution reply and rejects a legacy proposal in direct mode', () => {
+    const intent = { ...proposal, disposition: 'execution' };
+    const raw = `你已买好通行证。${STORY_INTENT_MARKER}${JSON.stringify(intent)}</story-intent>`;
+    expect(parseStoryIntentOutput(raw, '买一张通行证', ['buy']).intent).toEqual(intent);
+    expect(storyIntentPresentation(raw, '买一张通行证', ['buy'], false, true)).toBe('你已买好通行证。');
+    expect(storyIntentPresentation(encode(proposal), '买一张通行证', ['buy'], false, true)).toContain('故事状态未更新');
+    expect(storyIntentPresentation(raw, '先等等', ['buy'], false, true)).toContain('故事状态未更新');
+    expect(storyIntentSchema.safeParse({ ...intent, steps: [execute, { kind: 'refuse', description: '不买', evidence: '不买' }] }).success).toBe(false);
+  });
+  it('requests direct narration while preserving genuine ambiguity, refusal and authored rule limits', () => {
+    const prompt = buildDirectStoryPrompt([{ id: 'buy', label: '买票', outcome: '按规则扣除票款' }]);
+    expect(prompt).toContain('Do not show an action interpretation');
+    expect(prompt).toContain('genuinely ambiguous');
+    expect(prompt).toContain('request to wait is not permission');
+    expect(prompt).toContain('exactly 3 distinct recommendations');
+    expect(prompt).toContain('server rechecks their conditions');
+  });
   it('only marks an invalid protocol while an action is awaiting confirmation', () => {
     expect(shouldPersistStoryIntentInvalid({ interrupted: false, interpreting: true }, { invalid: true })).toBe(true);
     expect(shouldPersistStoryIntentInvalid({ interrupted: false, interpreting: false }, { invalid: true })).toBe(false);
@@ -17,6 +34,21 @@ describe('reviewable story intent protocol', () => {
     expect(prompt).toContain('without asking for confirmation again');
     expect(prompt).toContain('exactly 3 distinct recommendations');
     expect(prompt).toContain('never rule actions or completed outcomes');
+    expect(prompt).toContain('recommendationLead');
+    expect(buildStoryIntentPrompt([])).toContain('maximum 120 characters');
+  });
+  it('parses optional grounded guidance separately from action authority', () => {
+    const intent = { version: 1, disposition: 'expression', steps: [], facts: [] };
+    const recommendationLead = { text: '你可以先了解通行证，也可以另提问题。', evidence: '购买通行证' };
+    const parsed = parseStoryIntentOutput(encode({ ...intent, recommendationLead }), '先解释', []);
+    expect(parsed.recommendationLead).toBe(recommendationLead.text);
+    expect(parsed.intent).toEqual(intent);
+    for (const invalid of [null, '非法格式', { ...recommendationLead, evidence: '不存在的线索' }, { ...recommendationLead, text: '字'.repeat(121) }]) {
+      const result = parseStoryIntentOutput(encode({ ...intent, recommendationLead: invalid }), '先解释', []);
+      expect(result.invalid).toBe(false);
+      expect(result.intent).toEqual(intent);
+      expect(result.recommendationLead).toBeUndefined();
+    }
   });
   it('keeps a real-provider missing-question failure closed without discarding valid explanation intents', () => {
     const input = '请解释仪式。我暂时不采取行动。';
@@ -160,5 +192,229 @@ describe('reviewable story intent protocol', () => {
     expect(parseStoryIntentOutput('普通回应', '你好', []).invalid).toBe(false);
     expect(parseStoryIntentOutput(`${encode(proposal)}\n`, '买一张通行证', ['buy']).intent).toEqual(proposal);
     expect(parseStoryIntentOutput(`${encode(proposal)}more`, '买一张通行证', ['buy']).intent).toBeNull();
+  });
+});
+
+
+describe('cross-model text protocol normalization', () => {
+  const value = { version: 1, disposition: 'expression', steps: [], facts: [] };
+  const json = JSON.stringify(value);
+  const variants = [
+    `门边仍然安静。<story-intent>${json}</story-intent>`,
+    `门边仍然安静。\r\n  <story-intent>${json}</story-intent>  \r\n`,
+    `门边仍然安静。\n<story-intent>\n\`\`\`json\n${json}\n\`\`\`\n</story-intent>`,
+    `门边仍然安静。\n\`\`\`json\n<story-intent>${json}</story-intent>\n\`\`\``,
+  ];
+  it.each(variants)('accepts only cosmetic differences and hides control syntax at every boundary: %s', raw => {
+    const parsed = parseStoryIntentOutput(raw, '先解释', []);
+    expect(parsed).toMatchObject({ content: '门边仍然安静。', intent: value, invalid: false });
+    expect(parsed.warnings).toContain('format_normalized');
+    let visible = '';
+    for (let end = 1; end <= raw.length; end++) {
+      const next = storyIntentVisiblePrefix(raw.slice(0, end));
+      expect(next.startsWith(visible)).toBe(true);
+      expect(next).not.toMatch(/<story|```|"version"/);
+      visible = next;
+    }
+    expect(visible).toBe('门边仍然安静。');
+    expect(storyIntentVisiblePrefix(raw, true)).toBe(visible);
+  });
+  it.each([
+    ['正文\n<story-intent>{oops}</story-intent>', 'invalid_json'],
+    ['正文\n<story-intent>{}', 'protocol_incomplete'],
+    [`正文\n<story-intent>${json}</story-intent>trailing`, 'protocol_incomplete'],
+    [`正文\n<story-intent>${JSON.stringify({ ...value, changes: { coins: 100 } })}</story-intent>`, 'invalid_schema'],
+    ['正文\n<story-intent>' + 'x'.repeat(16001) + '{}</story-intent>', 'protocol_too_large'],
+    ['正文\n<story-intent', 'protocol_incomplete'],
+  ])('classifies failure without returning raw payload details', (raw, invalidReason) => {
+    const result = parseStoryIntentOutput(raw, '先解释', []);
+    expect(result).toMatchObject({ invalid: true, intent: null, invalidReason });
+    expect(result).not.toHaveProperty('error');
+  });
+  it('keeps optional suggestions separate while preserving authority checks through fences', () => {
+    const wrap = (authority: object) => `正文\n<story-intent>\n\`\`\`json\n${JSON.stringify({ ...authority, recommendations: 'bad', recommendationLead: 'bad' })}\n\`\`\`\n</story-intent>`;
+    const parsed = parseStoryIntentOutput(wrap(value), '先解释', []);
+    expect(parsed.invalid).toBe(false);
+    expect(parsed.recommendations).toEqual([]);
+    expect(parsed.warnings).toEqual(expect.arrayContaining(['recommendations_fallback', 'guidance_fallback']));
+    expect(parseStoryIntentOutput(wrap({ ...proposal, disposition: 'execution' }), '没有选择', ['buy']).invalidReason).toBe('ungrounded_action');
+    expect(parseStoryIntentOutput(wrap({ ...proposal, disposition: 'execution' }), '买一张通行证', []).invalidReason).toBe('unavailable_action');
+  });
+});
+
+
+describe('redundant control object closer', () => {
+  const value = { version: 1, disposition: 'expression', steps: [], facts: [] };
+  const parse = (encoded: string, input = '') => parseStoryIntentOutput(`正文\n<story-intent>${encoded}</story-intent>`, input, ['buy']);
+
+  it.each(['}', ' \n } \n'])('accepts exactly one extra root closer (%j)', suffix => {
+    const parsed = parse(JSON.stringify(value) + suffix);
+    expect(parsed).toMatchObject({ invalid: false, intent: value });
+    expect(parsed.warnings).toContain('redundant_closer_removed');
+    expect(parsed.jsonFailure).toBeUndefined();
+  });
+
+  it('preserves nested objects, escaped quotes, backslashes and quoted closers exactly', () => {
+    const input = String.raw`观察 } ] { [ "引号" C:\notes` + '\\';
+    const intent = { ...value, facts: [{ kind: 'claim', speaker: 'player', content: input, evidence: input }] };
+    const parsed = parse(JSON.stringify(intent) + '}', input);
+    expect(parsed.invalid).toBe(false);
+    expect(parsed.intent).toEqual(intent);
+  });
+
+  it.each([
+    ['extra array closer', JSON.stringify(value) + ']'],
+    ['multiple closers', JSON.stringify(value) + '}}'],
+    ['second object', JSON.stringify(value) + '{}'],
+    ['prose', JSON.stringify(value) + 'private'],
+    ['comment', JSON.stringify(value) + '/* comment */}'],
+    ['root array', JSON.stringify([value]) + '}'],
+    ['trailing comma', '{"version":1,}}'],
+    ['missing separator', '{"version":1 "facts":[]}}'],
+    ['invalid escape', String.raw`{"facts":["private\q"]}}`],
+    ['unterminated string', '{"facts":["private}}'],
+    ['missing closer', '{"facts":[]'],
+    ['mismatched brackets', '{"facts":[}}'],
+  ])('does not repair %s', (_name, encoded) => {
+    const parsed = parse(encoded);
+    expect(parsed).toMatchObject({ invalid: true, invalidReason: 'invalid_json', intent: null });
+    expect(parsed.warnings).not.toContain('redundant_closer_removed');
+    expect(JSON.stringify(parsed.jsonFailure)).not.toContain('private');
+  });
+
+  it.each([
+    [{ ...value, injected: true }, '', 'invalid_schema'],
+    [{ ...proposal, disposition: 'execution' }, '没有选择', 'ungrounded_action'],
+    [{ ...proposal, disposition: 'execution', steps: [{ ...execute, actionId: 'invented' }] }, '买一张通行证', 'unavailable_action'],
+  ] as const)('still checks schema and action authority after normalization (%j)', (intent, input, code) => {
+    const parsed = parse(JSON.stringify(intent) + '}', input);
+    expect(parsed).toMatchObject({ invalid: true, invalidReason: code, intent: null });
+    expect(parsed.warnings).toContain('redundant_closer_removed');
+  });
+});
+
+describe('private JSON syntax diagnostics', () => {
+  it.each([
+    ['{"version":1,}', 'object_close'],
+    ['{"version":1}]', 'array_close'],
+    ['{"version":1 "private":2}', 'quote'],
+    ['{"version":1}:', 'colon'],
+    ['{"version":1},', 'comma'],
+    ['{"version":1}private', 'letter'],
+  ] as const)('classifies the failing punctuation without storing source text (%s)', (encoded, token) => {
+    const parsed = parseStoryIntentOutput(`正文\n<story-intent>${encoded}</story-intent>`, '', []);
+    expect(parsed.jsonFailure).toMatchObject({ token, length: encoded.length });
+    expect(JSON.stringify(parsed.jsonFailure)).not.toContain('private');
+  });
+  it.each([
+    ['{"version":1,}', 'trailing_comma'],
+    ['{"facts":["private\nquote"]}', 'unescaped_control'],
+    [String.raw`{"facts":["private\q"]}`, 'invalid_escape'],
+    ['{"facts":["private', 'unterminated_string'],
+    ['{"facts":', 'unexpected_end'],
+    ['{version:1}', 'expected_property'],
+    ['{"version" 1}', 'missing_separator'],
+    ['{"version":1}extra', 'unexpected_content'],
+  ] as const)('keeps invalid JSON rejected and reports only fixed diagnostics (%s)', (encoded, kind) => {
+    const result = parseStoryIntentOutput(`正文\n<story-intent>${encoded}</story-intent>`, '输入', []);
+    expect(result).toMatchObject({ invalid: true, intent: null, invalidReason: 'invalid_json', jsonFailure: { kind, length: encoded.length } });
+    expect(JSON.stringify(result.jsonFailure)).not.toMatch(/private|quote|facts|extra/);
+    if (result.jsonFailure?.offset != null) expect(result.jsonFailure.offset).toBeLessThanOrEqual(encoded.length);
+  });
+  it('preserves escaped evidence without rewriting authority or characters', () => {
+    const input = '他说"等等"，路径 C:\\notes\n下一行';
+    const value = { version: 1, disposition: 'expression', steps: [], facts: [{ kind: 'claim', speaker: 'player', content: input, evidence: input }] };
+    const parsed = parseStoryIntentOutput(`正文\n<story-intent>${JSON.stringify(value)}</story-intent>`, input, []);
+    expect(parsed.invalid).toBe(false);
+    expect(parsed.intent?.facts[0].evidence).toBe(input);
+    expect(parsed.jsonFailure).toBeUndefined();
+  });
+  it('requires valid JSON encoding in direct, approved and legacy prompts', () => {
+    for (const prompt of [buildDirectStoryPrompt([]), buildStoryIntentPrompt([], true), buildStoryIntentPrompt([])]) {
+      expect(prompt).toContain('exactly one valid JSON object');
+      expect(prompt).toContain('no extra closing brace');
+      expect(prompt).toContain('Separate adjacent properties/items with commas');
+      expect(prompt).toContain('decoding must reproduce the original evidence exactly');
+      expect(prompt).toContain('never omit or change the actual action');
+      expect(prompt).toContain(String.raw`"He said \"wait\""`);
+    }
+  });
+});
+
+describe('control envelope diagnostics', () => {
+  const json = JSON.stringify({ version: 1, disposition: 'expression', steps: [], facts: [] });
+  it.each([
+    ['正文\n<story-intent private', 'partial_open', 0],
+    [`正文\n<story-intent>${json}`, 'missing_close', 0],
+    [`正文\n<story-intent>${json}</story-intent>.`, 'trailing_content', 1],
+    [`正文\n<story-intent>${json}</story-intent>\nprivate panel`, 'trailing_content', 13],
+  ] as const)('rejects malformed framing without retaining private text (%s)', (raw, kind, trailingCharacters) => {
+    const result = parseStoryIntentOutput(raw, '', []);
+    expect(result).toMatchObject({ invalid: true, intent: null, invalidReason: 'protocol_incomplete',
+      protocolFailure: { kind, trailingCharacters } });
+    expect(result.protocolFailure?.controlCharacters).toBeGreaterThan(0);
+    expect(JSON.stringify(result.protocolFailure)).not.toContain('private');
+  });
+  it('accepts the literal direct prompt example without having to remove punctuation or commentary', () => {
+    const prompt = buildDirectStoryPrompt([]);
+    const example = prompt.slice(prompt.lastIndexOf('\n正文。') + 1);
+    expect(example).toMatch(/^正文。\n<story-intent>/);
+    expect(example.endsWith('</story-intent>')).toBe(true);
+    expect(parseStoryIntentOutput(example, '', [])).toMatchObject({ invalid: false, intent: { disposition: 'expression' } });
+    expect(parseStoryIntentOutput(example, '', []).protocolFailure).toBeUndefined();
+  });
+});
+
+
+describe('single redundant control quote', () => {
+  const value = { version: 1, disposition: 'expression', steps: [], facts: [] };
+  const wrap = (encoded: string) => `正文。\n<story-intent>${encoded}</story-intent>`;
+  it('accepts only one quote after a complete valid object and records normalization', () => {
+    const result = parseStoryIntentOutput(wrap(JSON.stringify(value) + '"'), '', []);
+    expect(result).toMatchObject({ invalid: false, intent: value, warnings: expect.arrayContaining(['redundant_quote_removed']) });
+  });
+  it.each(['""', '"private', '{}"', ',"', "''"])( 'rejects ambiguous suffix %s', suffix => {
+    expect(parseStoryIntentOutput(wrap(JSON.stringify(value) + suffix), '', []).invalidReason).toBe('invalid_json');
+  });
+  it.each(['{"version":1 "facts":[]}"', '{"facts":["unfinished}"', '[{}]"'])( 'never repairs incomplete or invalid JSON %s', encoded => {
+    expect(parseStoryIntentOutput(wrap(encoded), '', []).invalidReason).toBe('invalid_json');
+  });
+  it('still rejects ungrounded actions and unavailable rules after removing the suffix', () => {
+    const execution = { ...proposal, disposition: 'execution' };
+    expect(parseStoryIntentOutput(wrap(JSON.stringify(execution) + '"'), '没有选择', ['buy']).invalidReason).toBe('ungrounded_action');
+    expect(parseStoryIntentOutput(wrap(JSON.stringify(execution) + '"'), '买一张通行证', []).invalidReason).toBe('unavailable_action');
+    expect(parseStoryIntentOutput(wrap(JSON.stringify({ ...value, extra: true }) + '"'), '', []).invalidReason).toBe('invalid_schema');
+  });
+  it('preserves escaped quotes and quoted braces inside evidence', () => {
+    const input = '查看 "门}边"';
+    const intent = { ...value, facts: [{ kind: 'claim', speaker: 'player', content: input, evidence: input }] };
+    expect(parseStoryIntentOutput(wrap(JSON.stringify(intent) + '"'), input, []).intent).toEqual(intent);
+  });
+});
+
+describe('bounded presentation suffix normalization', () => {
+  const value = { version: 1, disposition: 'expression', steps: [], facts: [] };
+  const wrap = (json: string) => `正文。\n<story-intent>${json}</story-intent>`;
+  it.each(["'", '`', '.', ';', '。', '；', '”', '’'])('accepts the single presentation suffix %s without changing values', suffix => {
+    const input = '查看 `路径`，他说“等等”。';
+    const intent = { ...value, facts: [{ kind: 'claim', speaker: 'player', content: input, evidence: input }] };
+    const result = parseStoryIntentOutput(wrap(JSON.stringify(intent) + ' \n' + suffix), input, []);
+    expect(result).toMatchObject({ invalid: false, intent, warnings: expect.arrayContaining(['trailing_punctuation_removed']) });
+  });
+  it.each(['x', '1', '。说明', '..', '```', ';{}', '{}', '[]', 'null', 'true', ',', ':', ']', '+', '/', '\\', '\u200b'])(
+    'rejects ambiguous or meaningful suffix %s', suffix => {
+      expect(parseStoryIntentOutput(wrap(JSON.stringify(value) + suffix), '', [])).toMatchObject({ invalid: true, invalidReason: 'invalid_json', intent: null });
+    });
+  it.each(['{"version":1 "facts":[]}.', '{"facts":["unfinished}.', '[{}].', '{"facts":[]}{}.', '{"facts":[],}.'])(
+    'does not repair a malformed root %s', json => {
+      expect(parseStoryIntentOutput(wrap(json), '', []).invalidReason).toBe('invalid_json');
+    });
+  it.each([
+    ["'private", 'apostrophe'], ['`private', 'backtick'], ['.private', 'period'], [';private', 'semicolon'],
+    ['”private', 'typographic_quote'], ['private', 'letter'], ['7private', 'digit'],
+  ])('reports only fixed punctuation categories for rejected suffix %s', (suffix, token) => {
+    const result = parseStoryIntentOutput(wrap(JSON.stringify(value) + suffix), '', []);
+    expect(result.jsonFailure).toMatchObject({ kind: 'unexpected_content', token });
+    expect(JSON.stringify(result.jsonFailure)).not.toContain('private');
   });
 });

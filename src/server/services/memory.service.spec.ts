@@ -8,6 +8,7 @@ vi.mock('../../db/repositories/memory.repository', () => ({
     createVector: vi.fn(),
     findByCharacterAndUser: vi.fn(),
     findSimilar: vi.fn(),
+    hasRetrievableMemories: vi.fn(),
     hybridSearch: vi.fn(),
     updateAccessTime: vi.fn(),
     updateAccessTimeBatch: vi.fn(),
@@ -42,11 +43,58 @@ describe('MemoryService', () => {
   let service: MemoryService;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    vi.mocked(embeddingService.embed).mockResolvedValue(new Array(384).fill(0.1));
+    vi.mocked(memoryRepository.hasRetrievableMemories).mockResolvedValue(true);
     service = new MemoryService();
   });
 
   describe('retrieveMemories', () => {
+    it('skips embedding, hybrid search and access updates for an empty vector scope', async () => {
+      vi.mocked(memoryRepository.hasRetrievableMemories).mockResolvedValue(false);
+
+      await expect(service.retrieveMemories({
+        characterId: 'char-1', userId: 'user-1', chatId: 'story-1', query: 'first turn',
+      })).resolves.toEqual([]);
+
+      expect(memoryRepository.hasRetrievableMemories).toHaveBeenCalledWith('char-1', 'user-1', 'story-1');
+      expect(embeddingService.embed).not.toHaveBeenCalled();
+      expect(memoryRepository.hybridSearch).not.toHaveBeenCalled();
+      expect(memoryRepository.updateAccessTimeBatch).not.toHaveBeenCalled();
+    });
+
+    it('keeps preflight and search in the same story scope', async () => {
+      vi.mocked(memoryRepository.hybridSearch).mockResolvedValue([]);
+
+      await service.retrieveMemories({
+        characterId: 'char-1', userId: 'user-1', chatId: 'story-1', query: 'next turn', limit: 3,
+      });
+
+      expect(memoryRepository.hasRetrievableMemories).toHaveBeenCalledWith('char-1', 'user-1', 'story-1');
+      expect(memoryRepository.hybridSearch).toHaveBeenCalledWith({
+        characterId: 'char-1', userId: 'user-1', chatId: 'story-1', embedding: expect.any(Array), limit: 3,
+      });
+    });
+
+    it('keeps omitted service chatId restricted to global memories', async () => {
+      vi.mocked(memoryRepository.hybridSearch).mockResolvedValue([]);
+
+      await service.retrieveMemories({ characterId: 'char-1', userId: 'user-1', query: 'legacy' });
+
+      expect(memoryRepository.hasRetrievableMemories).toHaveBeenCalledWith('char-1', 'user-1', null);
+      expect(memoryRepository.hybridSearch).toHaveBeenCalledWith(expect.objectContaining({ chatId: null }));
+    });
+
+    it('propagates preflight failures without treating them as empty memory', async () => {
+      vi.mocked(memoryRepository.hasRetrievableMemories).mockRejectedValue(new Error('database unavailable'));
+
+      await expect(service.retrieveMemories({
+        characterId: 'char-1', userId: 'user-1', query: 'first turn',
+      })).rejects.toThrow('database unavailable');
+      expect(embeddingService.embed).not.toHaveBeenCalled();
+      expect(memoryRepository.hybridSearch).not.toHaveBeenCalled();
+    });
+
     it('should call hybridSearch with embedding', async () => {
       const mockMemories = [
         { id: '1', content: 'User likes coffee', type: 'fact', score: 0.9 },
@@ -99,6 +147,105 @@ describe('MemoryService', () => {
         type: 'preference',
         score: 0.9,
       });
+    });
+  });
+
+  describe('empty-scope transitions', () => {
+    type StoredMemory = {
+      id: string; characterId: string; userId: string; sourceChatId?: string | null;
+      content: string; type: string; score: number;
+    };
+    let rows: StoredMemory[];
+    let vectors: Set<string>;
+    const query = { characterId: 'char-1', userId: 'user-1', chatId: 'story-1', query: 'recall' };
+
+    beforeEach(() => {
+      rows = [];
+      vectors = new Set();
+      const searchable = (characterId: string, userId: string, chatId?: string | null) => rows.filter(row =>
+        row.characterId === characterId && row.userId === userId &&
+        (row.sourceChatId ?? null) === chatId && vectors.has(row.id)
+      );
+      vi.mocked(memoryRepository.hasRetrievableMemories).mockImplementation(async (characterId, userId, chatId) =>
+        searchable(characterId, userId, chatId).length > 0
+      );
+      vi.mocked(memoryRepository.hybridSearch).mockImplementation(async ({ characterId, userId, chatId }) =>
+        searchable(characterId, userId, chatId) as any
+      );
+      vi.mocked(memoryRepository.findSimilar).mockResolvedValue([]);
+      vi.mocked(memoryRepository.countByCharacterUser).mockResolvedValue(0);
+      vi.mocked(memoryRepository.create).mockImplementation(async data => {
+        const row = { ...data, id: `mem-${rows.length + 1}`, score: 0.9 };
+        rows.push(row);
+        return row as any;
+      });
+      vi.mocked(memoryRepository.createVector).mockImplementation(async ({ memoryId }) => {
+        vectors.add(memoryId);
+      });
+    });
+
+    it('retrieves a newly stored memory on the very next call after an empty result', async () => {
+      expect(await service.retrieveMemories(query)).toEqual([]);
+      expect(embeddingService.embed).not.toHaveBeenCalled();
+
+      await service.storeMemory(query.characterId, query.userId, {
+        type: 'event', content: 'The gate opened', importance: 0.8,
+      }, query.chatId);
+      vi.mocked(embeddingService.embed).mockClear();
+
+      expect(await service.retrieveMemories(query)).toEqual([
+        expect.objectContaining({ id: 'mem-1', content: 'The gate opened', score: 0.9 }),
+      ]);
+      expect(memoryRepository.hasRetrievableMemories).toHaveBeenCalledTimes(2);
+      expect(embeddingService.embed).toHaveBeenCalledExactlyOnceWith('recall');
+      expect(memoryRepository.hybridSearch).toHaveBeenCalledOnce();
+      expect(memoryRepository.updateAccessTimeBatch).toHaveBeenCalledWith(['mem-1']);
+    });
+
+    it('skips a memory without a vector and sees its vector as soon as it is added', async () => {
+      await memoryRepository.create({
+        characterId: query.characterId, userId: query.userId, sourceChatId: query.chatId,
+        type: 'event', content: 'The gate opened',
+      });
+      expect(await service.retrieveMemories(query)).toEqual([]);
+      expect(embeddingService.embed).not.toHaveBeenCalled();
+      expect(memoryRepository.hybridSearch).not.toHaveBeenCalled();
+
+      await memoryRepository.createVector({ memoryId: 'mem-1', embedding: [0.1] });
+
+      expect(await service.retrieveMemories(query)).toEqual([expect.objectContaining({ id: 'mem-1' })]);
+      expect(embeddingService.embed).toHaveBeenCalledExactlyOnceWith('recall');
+    });
+
+    it.each([
+      { characterId: 'char-2', userId: 'user-1', chatId: 'story-1' },
+      { characterId: 'char-1', userId: 'user-2', chatId: 'story-1' },
+      { characterId: 'char-1', userId: 'user-1', chatId: 'story-2' },
+      { characterId: 'char-1', userId: 'user-1', chatId: undefined },
+    ])('ignores vector memories outside the current scope: %j', async scope => {
+      await service.storeMemory(scope.characterId, scope.userId, {
+        type: 'event', content: 'Other scope event', importance: 0.8,
+      }, scope.chatId);
+      vi.mocked(embeddingService.embed).mockClear();
+
+      expect(await service.retrieveMemories(query)).toEqual([]);
+      expect(embeddingService.embed).not.toHaveBeenCalled();
+      expect(memoryRepository.hybridSearch).not.toHaveBeenCalled();
+
+      expect(await service.retrieveMemories({ ...query, ...scope })).toEqual([
+        expect.objectContaining({ content: 'Other scope event' }),
+      ]);
+    });
+
+    it('does not expose story vectors to an omitted service chatId', async () => {
+      await service.storeMemory(query.characterId, query.userId, {
+        type: 'event', content: 'Story only', importance: 0.8,
+      }, query.chatId);
+      vi.mocked(embeddingService.embed).mockClear();
+
+      expect(await service.retrieveMemories({ ...query, chatId: undefined })).toEqual([]);
+      expect(embeddingService.embed).not.toHaveBeenCalled();
+      expect(memoryRepository.hybridSearch).not.toHaveBeenCalled();
     });
   });
 

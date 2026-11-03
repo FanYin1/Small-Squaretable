@@ -9,7 +9,7 @@
       <template #reference>
         <div class="counter-badge" :class="getStatusClass()">
           <el-icon><Histogram /></el-icon>
-          <span class="token-text">{{ usedTokens }}/{{ maxTokens }}</span>
+          <span class="token-text">≈{{ usedTokens }}/{{ maxTokens ?? '未知' }}</span>
           <el-progress
             :percentage="percentage"
             :color="getProgressColor()"
@@ -20,19 +20,20 @@
       </template>
 
       <div class="token-breakdown">
+        <p>仅估算当前页面已加载的文字，不包含完整后端世界书、记忆与提示词，也不代表实际选入的历史。每次输出上限：{{ currentMeta?.maxOutputTokens ?? '未知' }} token。</p>
         <div class="breakdown-header">
-          <h4>Context Token Usage</h4>
+          <h4>页面文字估算</h4>
           <el-tag :type="getTagType()" size="small">
-            {{ percentage.toFixed(0) }}% Used
+            {{ currentMeta ? `${percentage.toFixed(0)}% 估算占比` : '容量未知' }}
           </el-tag>
         </div>
 
-        <!-- Character (Permanent) -->
+        <!-- 已加载角色文字 -->
         <div class="breakdown-section">
           <div class="section-header">
             <span class="section-title">
               <el-icon><User /></el-icon>
-              Character (Permanent)
+              已加载角色文字
             </span>
             <span class="tokens">{{ characterTokens }}</span>
           </div>
@@ -56,69 +57,28 @@
           </div>
         </div>
 
-        <!-- World Info -->
-        <div v-if="worldInfoTokens > 0" class="breakdown-section">
-          <div class="section-header">
-            <span class="section-title">
-              <el-icon><Document /></el-icon>
-              World Info
-            </span>
-            <span class="tokens">{{ worldInfoTokens }}</span>
-          </div>
-          <div class="section-items">
-            <div v-for="entry in activeWorldInfoEntries" :key="entry.id" class="item">
-              <span>{{ entry.name }}</span>
-              <span>{{ entry.tokens }}</span>
-            </div>
-            <div v-if="activeWorldInfoEntries.length === 0" class="item empty">
-              <span>No entries triggered</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Chat History -->
+        <!-- 已加载对话文字 -->
         <div class="breakdown-section">
           <div class="section-header">
             <span class="section-title">
               <el-icon><ChatDotRound /></el-icon>
-              Chat History
+              已加载对话文字
             </span>
             <span class="tokens">{{ historyTokens }}</span>
           </div>
           <div class="section-items">
             <div class="item">
-              <span>Messages included</span>
-              <span>{{ includedMessageCount }}/{{ totalMessageCount }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Intelligence -->
-        <div v-if="intelligenceTokens > 0" class="breakdown-section">
-          <div class="section-header">
-            <span class="section-title">
-              <el-icon><MagicStick /></el-icon>
-              Intelligence
-            </span>
-            <span class="tokens">{{ intelligenceTokens }}</span>
-          </div>
-          <div class="section-items">
-            <div v-if="memoryTokens > 0" class="item">
-              <span>Memories</span>
-              <span>{{ memoryTokens }}</span>
-            </div>
-            <div v-if="emotionTokens > 0" class="item">
-              <span>Emotion</span>
-              <span>{{ emotionTokens }}</span>
+              <span>页面已加载消息</span>
+              <span>{{ totalMessageCount }}</span>
             </div>
           </div>
         </div>
 
         <!-- Available -->
         <div class="breakdown-total">
-          <span>Available for Response</span>
+          <span>估算剩余输入空间</span>
           <span class="available" :class="{ warning: availableTokens < 500 }">
-            {{ availableTokens }}
+            {{ currentMeta ? availableTokens : '未知' }}
           </span>
         </div>
 
@@ -128,7 +88,7 @@
           style="width: 100%; margin-top: 12px;"
         >
           <el-icon><View /></el-icon>
-          View Full Context
+          上下文详情
         </el-button>
       </div>
     </el-popover>
@@ -138,34 +98,26 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useChatStore } from '@client/stores/chat';
-import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
 import type { Message } from '@client/types';
 import {
   Histogram,
   User,
-  Document,
   ChatDotRound,
-  MagicStick,
   View,
 } from '@element-plus/icons-vue';
 
-interface WorldInfoEntry {
-  id: string;
-  name: string;
-  tokens: number;
-}
-
 const chatStore = useChatStore();
-const intelligenceStore = useCharacterIntelligenceStore();
 
 const emit = defineEmits<{
   showContextViewer: [];
 }>();
 
+const currentMeta = computed(() => chatStore.availableModels.find(model => model.id === chatStore.currentModel));
+
 // Token calculations
 const maxTokens = computed(() => {
   // Get from current model's context window
-  return chatStore.currentModelContextWindow || 128000;
+  return currentMeta.value?.contextWindow;
 });
 
 const characterTokens = computed(() => {
@@ -191,57 +143,25 @@ const authorNoteTokens = computed(() => {
   return estimateTokens(chatStore.currentCharacter?.cardData?.character_author_note || '');
 });
 
-const worldInfoTokens = computed(() => {
-  return activeWorldInfoEntries.value.reduce((sum, entry) => sum + entry.tokens, 0);
-});
-
-const activeWorldInfoEntries = computed<WorldInfoEntry[]>(() => {
-  // TODO: Get from worldbook store when implemented
-  return [];
-});
-
 const historyTokens = computed(() => {
   const messages = chatStore.messages || [];
   return messages.reduce((sum: number, msg: Message) => sum + estimateTokens(msg.content), 0);
-});
-
-const includedMessageCount = computed(() => {
-  return chatStore.messages?.length || 0;
 });
 
 const totalMessageCount = computed(() => {
   return chatStore.messages?.length || 0;
 });
 
-const memoryTokens = computed(() => {
-  const memories = intelligenceStore.memories || [];
-  return memories.reduce((sum: number, mem: any) => sum + estimateTokens(mem.content), 0);
-});
-
-const emotionTokens = computed(() => {
-  // Emotion state is small, estimate ~50 tokens
-  return intelligenceStore.currentEmotion ? 50 : 0;
-});
-
-const intelligenceTokens = computed(() => {
-  return memoryTokens.value + emotionTokens.value;
-});
-
-const usedTokens = computed(() => {
-  return characterTokens.value +
-    worldInfoTokens.value +
-    historyTokens.value +
-    intelligenceTokens.value;
-});
+const usedTokens = computed(() => characterTokens.value + historyTokens.value);
 
 const availableTokens = computed(() => {
-  const maxOutput = 4096; // Reserve for model output
-  const buffer = 100; // Safety buffer
-  return Math.max(0, maxTokens.value - usedTokens.value - maxOutput - buffer);
+  const meta = currentMeta.value;
+  if (!meta) return 0;
+  return Math.max(0, Math.min(meta.contextWindow - meta.maxOutputTokens, meta.maxInputTokens ?? meta.contextWindow) - usedTokens.value - 100);
 });
 
 const percentage = computed(() => {
-  return (usedTokens.value / maxTokens.value) * 100;
+  return maxTokens.value ? Math.min(100, (usedTokens.value / maxTokens.value) * 100) : 0;
 });
 
 // Helper function to estimate tokens (rough approximation)

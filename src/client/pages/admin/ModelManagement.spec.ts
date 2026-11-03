@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { shallowMount, flushPromises } from '@vue/test-utils';
 import ModelManagement from './ModelManagement.vue';
 import i18n from '../../i18n';
-const mocks = vi.hoisted(() => ({ getModels: vi.fn(), updateModels: vi.fn(), error: vi.fn(), success: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getModels: vi.fn(), updateModels: vi.fn(), error: vi.fn(), success: vi.fn(), createModel: vi.fn(), editModel: vi.fn(), deleteModel: vi.fn(), confirm: vi.fn() }));
 vi.mock('@client/services/admin.api', () => ({ adminApi: mocks }));
-vi.mock('element-plus', () => ({ ElMessage: { error: mocks.error, success: mocks.success } }));
+vi.mock('element-plus', () => ({ ElMessage: { error: mocks.error, success: mocks.success }, ElMessageBox: { confirm: mocks.confirm } }));
 const meta = { id: 'first-model', provider: 'custom', contextWindow: 10000, maxOutputTokens: 2048, defaultTemperature: 0.7 };
 const providers = [{ id: 'custom', name: 'Existing', provider: 'custom', apiFormat: 'gemini', baseUrl: 'https://existing.invalid', hasApiKey: true,
   models: [meta], defaultModel: meta.id, modelCount: 1, modelAliases: {}, requestOptions: {} },
@@ -63,4 +63,34 @@ describe('Model management channels', () => {
     wrapper.unmount();
   });
 
+});
+
+
+describe('individual model controls', () => {
+  it('creates a model with explicit capacities and keeps the draft when saving fails', async () => {
+    const { wrapper, vm } = await setup(); vm.openEntry();
+    Object.assign(vm.entry, { id: 'new', upstreamId: 'upstream', contextWindow: 100000, maxOutputTokens: 8000, requestOutputTokens: 4000 });
+    mocks.createModel.mockRejectedValueOnce(new Error('save unavailable'));
+    await vm.saveEntry();
+    expect(vm.entryOpen).toBe(true); expect(vm.entry.id).toBe('new');
+    expect(mocks.error).toHaveBeenCalledWith('save unavailable');
+    await vm.saveEntry();
+    expect(mocks.createModel).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'new', channelId: 'custom', limits: { contextWindow: 100000, maxOutputTokens: 8000, requestOutputTokens: 4000 } }));
+    expect(vm.entryOpen).toBe(false); wrapper.unmount();
+  });
+  it('views without saving and filters hidden models by status and search', async () => {
+    const { wrapper, vm } = await setup();
+    vm.config.models.push({ ...meta, id: 'private', hidden: true, channelName: 'Hidden channel' });
+    vm.visibility = 'hidden'; vm.search = 'channel'; expect(vm.filteredModels.map((m: any) => m.id)).toEqual(['private']);
+    vm.openEntry(meta, true); await vm.saveEntry();
+    expect(mocks.editModel).not.toHaveBeenCalled(); wrapper.unmount();
+  });
+  it('updates visibility separately, confirms deletion and cancels without an API call', async () => {
+    const { wrapper, vm } = await setup();
+    await vm.toggleModel(meta); expect(mocks.editModel).toHaveBeenCalledWith(meta.id, { hidden: true });
+    mocks.confirm.mockRejectedValueOnce('cancel'); await vm.removeModel(meta);
+    expect(mocks.deleteModel).not.toHaveBeenCalled();
+    mocks.confirm.mockResolvedValueOnce('confirm'); await vm.removeModel(meta);
+    expect(mocks.deleteModel).toHaveBeenCalledWith(meta.id); wrapper.unmount();
+  });
 });

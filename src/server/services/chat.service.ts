@@ -22,6 +22,7 @@ const chatLogger = logger.child({ module: 'chat' });
 import type { CreateChatInput, UpdateChatInput, CreateMessageInput } from '../../types/chat';
 import type { PaginationParams, PaginatedResponse } from '../../types/api';
 import type { Chat, Message } from '../../db/schema/chats';
+import type { ChatListItem } from '../../db/repositories/chat.repository';
 import type { MessagePagination } from '../../db/repositories/message.repository';
 import { memoryService } from './memory.service';
 import { emotionService } from './emotion.service';
@@ -155,12 +156,11 @@ export class ChatService {
   async getByUserId(
     userId: string,
     pagination?: PaginationParams
-  ): Promise<PaginatedResponse<Chat>> {
-    const chats = await this.chatRepo.findByUserId(userId, pagination);
-
-    // Count total chats for user
-    const allChats = await this.chatRepo.findByUserId(userId);
-    const total = allChats.length;
+  ): Promise<PaginatedResponse<ChatListItem>> {
+    const [chats, total] = await Promise.all([
+      this.chatRepo.findSummaryByUserId(userId, pagination),
+      this.chatRepo.countByUserId(userId),
+    ]);
 
     const page = pagination?.page ?? 1;
     const limit = pagination?.limit ?? 20;
@@ -220,6 +220,14 @@ export class ChatService {
 
   async getMessages(chatId: string, pagination?: MessagePagination): Promise<Message[]> {
     return await this.messageRepo.findByChatId(chatId, pagination);
+  }
+
+  async getContextMessages(chatId: string) {
+    return this.messageRepo.findContextByChatId(chatId);
+  }
+
+  async getRecentMessages(chatId: string, limit = 10) {
+    return this.messageRepo.findRecentByChatId(chatId, limit);
   }
 
   async deleteMessage(chatId: string, messageId: number, userId: string, tenantId: string): Promise<void> {
@@ -589,7 +597,7 @@ export class ChatService {
     chatId: string,
     characterId: string,
     userId: string,
-    messages: Message[]
+    messages?: Message[]
   ): Promise<void> {
     const key = `${chatId}`;
     const count = (this.messageCounters.get(key) ?? 0) + 1;
@@ -601,7 +609,7 @@ export class ChatService {
     // Extract memories every 5 messages (batch extraction to reduce LLM cost)
     if (count >= 5) {
       this.messageCounters.set(key, 0);
-      const recentMessages = messages.slice(-10);
+      const recentMessages = (messages ?? await this.getRecentMessages(chatId, 10)).slice(-10);
       const extracted = await memoryService.extractMemories(characterId, userId, recentMessages);
 
       // Memory-emotion interaction: boost importance based on current arousal

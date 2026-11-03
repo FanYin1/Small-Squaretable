@@ -180,6 +180,8 @@ export interface LLMProviderConfig {
   apiKey: string;
   baseUrl?: string;
   models: string[];
+  /** Hidden from user selection; existing stories may still use this model. */
+  hiddenModels?: string[];
   defaultModel?: string;
   modelLimits?: Record<string, {
     contextWindow: number;

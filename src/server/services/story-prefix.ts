@@ -38,7 +38,13 @@ export function reconstructStoryPrefix(content: StoryContentSnapshot, history: M
     let next = values;
     let actions: string[] = [];
     if (event.status === 'confirmed') {
-      if (extra?.storyConfirmedIntent) {
+      if (extra?.storyExecutedIntent) {
+        const intent = storyIntentSchema.safeParse(extra.storyExecutedIntent);
+        if (extra.storyConfirmedIntent || !intent.success || intent.data.disposition !== 'execution' ||
+          intent.data.steps.some(step => !input.content.includes(step.evidence)) ||
+          intent.data.facts.some(fact => !(fact.speaker === 'player' ? input.content : reply.content).includes(fact.evidence))) fail();
+        actions = intent.data.steps.flatMap(step => step.kind === 'execute' ? [step.actionId] : []);
+      } else if (extra?.storyConfirmedIntent) {
         const intent = storyIntentSchema.safeParse(extra.storyConfirmedIntent);
         if (!intent.success || intent.data.disposition !== 'proposal' || typeof input.content !== 'string' ||
           intent.data.steps.some(step => !input.content.includes(step.evidence)) ||

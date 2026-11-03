@@ -13,6 +13,10 @@ import { WSMessageType } from '../../types/websocket';
 import type { WSUserMessage, WSAbortGenerationMessage } from '../../types/websocket';
 import type { PreparedStoryTurn } from '../services/story-state.service';
 import { saveLegacyAssistantMessage } from '../services/legacy-variables.service';
+import { AnthropicApiError } from '../services/anthropic-api-error';
+
+const performanceLog = vi.hoisted(() => vi.fn());
+const errorLog = vi.hoisted(() => vi.fn());
 
 vi.mock('../services/legacy-variables.service', async importOriginal => ({
   ...await importOriginal<typeof import('../services/legacy-variables.service')>(),
@@ -55,7 +59,7 @@ vi.mock('../services/websocket.service', () => ({
 
 vi.mock('../services/logger.service', () => ({
   logger: {
-    child: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
+    child: () => ({ info: performanceLog, warn: vi.fn(), error: errorLog, debug: vi.fn() }),
   },
 }));
 
@@ -71,6 +75,7 @@ vi.mock('../services/chat.service', () => ({
   chatService: {
     addMessage: vi.fn(),
     getMessages: vi.fn().mockResolvedValue([]),
+    getContextMessages: vi.fn().mockResolvedValue([]),
     buildEnhancedSystemPrompt: vi.fn(),
     updateEmotionFromMessage: vi.fn(),
     checkAndExtractMemories: vi.fn(),
@@ -163,7 +168,8 @@ import { WebSocketHandler } from './websocket';
 import { websocketService } from '../services/websocket.service';
 import { usageService } from '../services/usage.service';
 import { featureService } from '../services/feature.service';
-import { chatService } from '../services/chat.service';
+import { chatService, getChatModel } from '../services/chat.service';
+import { acquireChatOperation } from '../services/chat-operation';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { characterRepository } from '../../db/repositories/character.repository';
 import { groupChatService } from '../services/group-chat.service';
@@ -174,7 +180,7 @@ import {
   settleGeneration,
   releaseGeneration,
 } from '../services/credit-generation';
-import { InsufficientCreditsError } from '../services/credit-billing.service';
+import { creditBilling, InsufficientCreditsError } from '../services/credit-billing.service';
 import { AppError } from '../../core/errors';
 import { prepareStoryTurn, commitStoryTurn } from '../services/story-state.service';
 import { resolveStoryCharacter } from '../services/story-content.service';
@@ -283,6 +289,9 @@ describe('WebSocket chat - prepaid credits', () => {
     vi.mocked(chatService.getMessages).mockResolvedValue([
       { id: 1, role: 'user', content: 'Hello', pinned: false, importance: 0 },
     ] as never);
+    vi.mocked(chatService.getContextMessages).mockResolvedValue([
+      { id: 1, role: 'user', content: 'Hello', pinned: false, importance: 0 },
+    ] as never);
   });
 
   describe('precheck', () => {
@@ -299,6 +308,47 @@ describe('WebSocket chat - prepaid credits', () => {
         }));
       }
     );
+    it('blocks generation while an HTTP model update holds the shared gate', async () => {
+      const release = acquireChatOperation(CHAT)!;
+      try { await h.handleUserMessage(CLIENT_ID, userMessage()); } finally { release(); }
+      expect(generationRequestRepository.claim).not.toHaveBeenCalled();
+      expect(chatService.addMessage).not.toHaveBeenCalled();
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        data: expect.objectContaining({ code: 'GENERATION_BUSY' }),
+      }));
+    });
+    it('captures the model before asynchronous preparation and releases the gate after the turn', async () => {
+      const single = vi.spyOn(h, 'handleSingleCharacterResponse').mockResolvedValue(undefined);
+      vi.mocked(getChatModel).mockReturnValueOnce('first-model');
+      vi.mocked(prepareStoryTurn).mockImplementationOnce(async () => {
+        const competing = acquireChatOperation(CHAT);
+        expect(competing).toBeNull();
+        return null;
+      });
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+      expect(single.mock.calls[0].at(-1)).toBe('first-model');
+      const release = acquireChatOperation(CHAT);
+      expect(release).not.toBeNull(); release?.();
+    });
+    it.each([
+      ['invalid_json', '正文\n<story-intent>{bad}</story-intent>'],
+      ['empty_narrative', ''],
+    ])('records %s as failed without sending a second error or automatically retrying', async (code, content) => {
+      vi.mocked(prepareStoryTurn).mockResolvedValue({ intentProtocol: true, directResponse: true, input: 'Hello',
+        rules: null, values: {}, completedActions: [], prompt: 'direct' } as never);
+      vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content, usage: null, finishReason: 'stop' });
+      vi.mocked(commitStoryTurn).mockResolvedValue({ id: 12, content: '未更新', extra: { stateStatus: 'interrupted', storyIntentInvalid: true,
+        storyDiagnostics: { version: 1, model: 'test-model', finishReason: 'stop', protocol: 'text-tag-v1', validation: 'failed', code, warnings: [] } } } as never);
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+      expect(commitStoryTurn).toHaveBeenCalled();
+      expect(generationRequestRepository.finish).toHaveBeenCalledWith('generation-1', 'failed', `STORY_${code.toUpperCase()}`);
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({ type: WSMessageType.ASSISTANT_MESSAGE_DONE,
+        data: expect.objectContaining({ storyDiagnostics: expect.objectContaining({ code, model: 'test-model' }) }) }));
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({ type: WSMessageType.GENERATION_FINISHED,
+        data: expect.objectContaining({ status: 'failed', retryable: false, errorCode: `STORY_${code.toUpperCase()}` }) }));
+      expect(websocketService.sendToClient).not.toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({ type: WSMessageType.ERROR }));
+      expect(chatService.checkAndExtractMemories).not.toHaveBeenCalled();
+    });
     it('refuses before saving the user message when there are no credits, and forwards the code', async () => {
       vi.mocked(assertCreditsAvailable).mockRejectedValue(
         new InsufficientCreditsError({ requiredTokens: 1, availableTokens: 0 })
@@ -355,6 +405,235 @@ describe('WebSocket chat - prepaid credits', () => {
   });
 
   describe('single character reply', () => {
+    const frame = (content: string, finish?: string) => `data: ${JSON.stringify({ choices: [{ delta: { content }, ...(finish ? { finish_reason: finish } : {}) }] })}\n\n`;
+
+    it.each(['', 'data: [DONE]\n\n', 'data: {broken}\n\n', 'data: {"error":{"message":"private provider detail"}}\n\n'])(
+      'keeps text provisional when the stream ends without valid completion: %s', async tail => {
+        vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(frame('掌柜转身，又看向') + tail));
+        await expect(h.streamLlmResponse(CHAT, 'short', [])).resolves.toMatchObject({
+          content: '掌柜转身，又看向', streamIncomplete: true,
+        });
+        expect(JSON.stringify(vi.mocked(websocketService.broadcastToChat).mock.calls)).not.toContain('private provider detail');
+      },
+    );
+
+    it('parses SSE without spaces, CRLF, multiline data and split UTF-8, retaining the usage tail', async () => {
+      const wire = ': keepalive\r\nevent: message\r\ndata:{"choices":[{\r\ndata:"delta":{"content":"掌柜向你点头。"},"finish_reason":null}]}\r\n\r\n' +
+        'data:{"choices":[{"delta":{},"finish_reason":"stop"}]}\r\n\r\n' +
+        'data:{"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":6,"total_tokens":18}}\r\n\r\n';
+      const bytes = new TextEncoder().encode(wire);
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(new ReadableStream({
+        start(controller) { for (const byte of bytes) controller.enqueue(new Uint8Array([byte])); controller.close(); },
+      })));
+      const result = await h.streamLlmResponse(CHAT, 'complete', []);
+      expect(result).toMatchObject({ content: '掌柜向你点头。', finishReason: 'stop', usage: { promptTokens: 12, completionTokens: 6 } });
+      expect(result).not.toHaveProperty('streamIncomplete');
+    });
+
+    it.each(['data: [DONE]\n\n', ''])( 'accepts an explicit finish with or without a DONE marker: %s', async tail => {
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(frame('正文完整。', 'stop') + tail));
+      const result = await h.streamLlmResponse(CHAT, 'complete', []);
+      expect(result).toMatchObject({ content: '正文完整。', finishReason: 'stop' });
+      expect(result).not.toHaveProperty('streamIncomplete');
+    });
+
+    it.each(['openai', 'ollama'])('releases %s terminal streams even if the gateway never closes HTTP', async protocol => {
+      const cancel = vi.fn();
+      const body = protocol === 'openai'
+        ? frame('正文。', 'stop') + 'data: {"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":5}}\n\ndata: [DONE]\n\n'
+        : JSON.stringify({ message: { content: '正文。' }, done: true, done_reason: 'stop', prompt_eval_count: 10, eval_count: 5 }) + '\n';
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(new ReadableStream({
+        start(controller) { controller.enqueue(new TextEncoder().encode(body)); }, cancel,
+      })));
+      const result = await h.streamLlmResponse(CHAT, 'terminal-open', []);
+      expect(result).toMatchObject({ content: '正文。', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5 } });
+      expect(result.streamIncomplete).not.toBe(true);
+      expect(cancel).toHaveBeenCalledOnce();
+    }, 1000);
+
+    it('still rejects extra text in the received terminal chunk', async () => {
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(frame('正文。', 'stop') + 'data: [DONE]\n\n' + frame('extra')));
+      expect(await h.streamLlmResponse(CHAT, 'terminal-extra', [])).toMatchObject({ streamIncomplete: true });
+    });
+
+    it('rejects new text or invalid JSON after a finish frame', async () => {
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(frame('正文。', 'stop') + frame('不应继续') + 'data: broken\n\n'));
+      await expect(h.streamLlmResponse(CHAT, 'bad-tail', [])).resolves.toMatchObject({ content: '正文。', streamIncomplete: true });
+    });
+
+    it('preserves received text when an upstream read fails', async () => {
+      let reads = 0;
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(new ReadableStream({
+        pull(controller) {
+          if (reads++ === 0) controller.enqueue(new TextEncoder().encode(frame('收到的片段')));
+          else controller.error(new Error('private upstream failure'));
+        },
+      })));
+      await expect(h.streamLlmResponse(CHAT, 'failed-read', [])).resolves.toMatchObject({ content: '收到的片段', streamIncomplete: true });
+    });
+
+    it('accepts native Ollama done:true even without done_reason', async () => {
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(
+        '{"message":{"content":"正文。"},"done":false}\n{"message":{"content":""},"done":true}\n'));
+      const result = await h.streamLlmResponse(CHAT, 'native', []);
+      expect(result).toMatchObject({ content: '正文。', finishReason: 'stop' });
+      expect(result).not.toHaveProperty('streamIncomplete');
+    });
+
+    it('saves incomplete transport as a fragment, fails the request without replay and settles once', async () => {
+      const prepared = { input: 'Hello', prompt: 'saved state', intentProtocol: true, directResponse: true,
+        rules: null, values: {}, nextValues: {}, completedActions: [] } as unknown as PreparedStoryTurn;
+      vi.mocked(prepareStoryTurn).mockResolvedValueOnce(prepared);
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(frame('收到的片段')));
+      vi.mocked(commitStoryTurn).mockResolvedValueOnce({ id: 12, content: '收到的片段', extra: {
+        stateStatus: 'interrupted', storyDiagnostics: { version: 1, validation: 'interrupted', code: 'stream_incomplete' },
+      } } as never);
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+      expect(commitStoryTurn).toHaveBeenCalledWith(prepared, expect.any(Number), expect.any(String), '收到的片段', true,
+        expect.anything(), undefined, '收到的片段', expect.objectContaining({ streamIncomplete: true }));
+      expect(generationRequestRepository.finish).toHaveBeenCalledWith('generation-1', 'failed', 'GENERATION_STREAM_INCOMPLETE');
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.ASSISTANT_MESSAGE_DONE, data: expect.objectContaining({ content: '收到的片段', stateStatus: 'interrupted' }),
+      }));
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.GENERATION_FINISHED, data: expect.objectContaining({ status: 'failed', retryable: false }),
+      }));
+      expect(llmService.streamChatCompletion).toHaveBeenCalledOnce();
+      expect(settleGeneration).toHaveBeenCalledOnce();
+      expect(releaseGeneration).not.toHaveBeenCalled();
+      expect(chatService.checkAndExtractMemories).not.toHaveBeenCalled();
+      expect(chatVariableStore.setChatVar).not.toHaveBeenCalled();
+    });
+
+    it('streams provisional narrative before completion and publishes saved text and recommendations only after commit', async () => {
+      const raw = '来客向你点头。\n<story-intent>{"version":1,"disposition":"execution","steps":[{"kind":"explore","intent":"talk","description":"向来客打招呼","evidence":"Hello"}],"facts":[]}</story-intent>';
+      const saved = { id: 12, content: '来客向你点头。', extra: { stateStatus: 'confirmed',
+        storyExecutedIntent: { version: 1, disposition: 'execution', steps: [{ kind: 'explore', intent: 'talk', description: '向来客打招呼', evidence: 'Hello' }], facts: [] },
+        storyRecommendations: [{ label: '询问来意', input: '我询问来意' }, { label: '查看四周', input: '我查看四周' }, { label: '稍作等待', input: '我稍作等待' }],
+      } };
+      const prepared = { input: 'Hello', intentProtocol: true, directResponse: true, rules: null,
+        values: {}, nextValues: {}, completedActions: [], prompt: 'direct' } as unknown as PreparedStoryTurn;
+      vi.mocked(commitStoryTurn).mockImplementationOnce(async () => {
+        expect(vi.mocked(websocketService.broadcastToChat).mock.calls.filter(call => call[1].type === WSMessageType.ASSISTANT_MESSAGE_DONE)).toEqual([]);
+        return saved as never;
+      });
+      let controller!: ReadableStreamDefaultController<Uint8Array>;
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(new ReadableStream({ start(value) { controller = value; } })));
+      const send = (content: string) => controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`));
+      const running = h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, undefined, prepared, 'turn-1');
+      send('来客向');
+      await vi.waitFor(() => expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.ASSISTANT_MESSAGE_CHUNK, data: expect.objectContaining({ chunk: '来客向', provisional: true }),
+      })));
+      expect(commitStoryTurn).not.toHaveBeenCalled();
+      expect(settleGeneration).not.toHaveBeenCalled();
+      send('你点头。\n<story-');
+      send(raw.slice(raw.indexOf('intent>')));
+      controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'));
+      controller.close();
+      await running;
+      const sent = vi.mocked(websocketService.broadcastToChat).mock.calls.map(call => call[1]);
+      const chunks = sent.filter(message => message.type === WSMessageType.ASSISTANT_MESSAGE_CHUNK);
+      expect(chunks.map(message => (message.data as { chunk: string }).chunk).join('')).toBe(saved.content);
+      expect(chunks.every(message => (message.data as { provisional?: boolean }).provisional)).toBe(true);
+      expect(chunks.map(message => (message.data as { phase?: string }).phase).filter(Boolean)).toEqual(['control', 'validating']);
+      expect(sent.find(message => message.type === WSMessageType.ASSISTANT_MESSAGE_DONE)?.data).toMatchObject({ ...saved.extra, content: saved.content });
+      expect(llmService.streamChatCompletion).toHaveBeenCalledOnce();
+      expect(commitStoryTurn).toHaveBeenCalledOnce();
+      expect(settleGeneration).toHaveBeenCalledOnce();
+      expect(performanceLog).toHaveBeenCalledWith('WebSocket generation performance', expect.objectContaining({
+        promptBuildMs: expect.any(Number), preparationMs: expect.any(Number),
+        firstTokenMs: expect.any(Number), firstVisibleMs: expect.any(Number),
+      }));
+    });
+
+    it.each(['abort', 'length'])('keeps an incomplete protocol marker hidden in a provisional %s fragment', async reason => {
+      const abort = new AbortController();
+      const raw = '仍在门边。\n<story-';
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ choices: [{
+            delta: { content: raw }, ...(reason === 'length' ? { finish_reason: 'length' } : {}),
+          }] })}\n\n`));
+          controller.close();
+        },
+      })));
+      // Abort after consuming a delta, rather than before the request starts.
+      if (reason === 'abort') vi.mocked(websocketService.broadcastToChat).mockImplementationOnce(() => abort.abort());
+      const result = await h.streamLlmResponse(CHAT, 'fragment', [{ role: 'user', content: 'hello' }],
+        undefined, undefined, undefined, reason === 'abort' ? abort.signal : undefined,
+        { interpretation: { input: 'hello', actionIds: [], direct: true } });
+      const chunks = vi.mocked(websocketService.broadcastToChat).mock.calls.map(call => call[1])
+        .filter(message => message.type === WSMessageType.ASSISTANT_MESSAGE_CHUNK);
+      expect(chunks.map(message => (message.data as { chunk: string }).chunk).join('')).toBe('仍在门边。');
+      expect(chunks.every(message => (message.data as { provisional?: boolean }).provisional)).toBe(true);
+      expect(result).toMatchObject({ content: raw, ...(reason === 'length' ? { outputTruncated: true } : {}) });
+      expect(result).not.toHaveProperty('streamIncomplete');
+    });
+
+    it('replaces streamed narrative with the saved validation failure instead of appending it', async () => {
+      const prepared = { input: 'Hello', intentProtocol: true, directResponse: true, rules: null,
+        values: {}, completedActions: [], prompt: 'direct' } as unknown as PreparedStoryTurn;
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(
+        `data: ${JSON.stringify({ choices: [{ delta: { content: '未验证的正文\n<story-intent>{bad}</story-intent>' }, finish_reason: 'stop' }] })}\n\n`));
+      vi.mocked(commitStoryTurn).mockResolvedValueOnce({ id: 12, content: '故事状态未更新',
+        extra: { stateStatus: 'interrupted', storyIntentInvalid: true } } as never);
+      await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, undefined, prepared, 'invalid-turn');
+      const sent = vi.mocked(websocketService.broadcastToChat).mock.calls.map(call => call[1]);
+      expect(sent.filter(message => message.type === WSMessageType.ASSISTANT_MESSAGE_CHUNK).map(message =>
+        (message.data as { chunk: string }).chunk).join('')).toBe('未验证的正文');
+      expect(sent.find(message => message.type === WSMessageType.ASSISTANT_MESSAGE_DONE)?.data).toMatchObject({
+        content: '故事状态未更新', stateStatus: 'interrupted', storyIntentInvalid: true,
+      });
+    });
+
+    it('moves isolated story input sentiment after the saved reply', async () => {
+      vi.mocked(chatRepository.findById).mockResolvedValue({ id: CHAT, contentSnapshotVersion: 1 } as never);
+      vi.mocked(resolveStoryCharacter).mockResolvedValue({ id: 'char-1', name: 'Test', cardData: {} } as never);
+      vi.mocked(chatService.buildEnhancedSystemPrompt).mockResolvedValue({ systemPrompt: '', atDepthEntries: [] });
+      const prepared = { input: 'Hello', intentProtocol: true, directResponse: true, rules: null,
+        values: {}, completedActions: [], prompt: 'direct' } as unknown as PreparedStoryTurn;
+      vi.spyOn(h, 'streamLlmResponse').mockImplementationOnce(async () => {
+        expect(chatService.updateEmotionFromMessage).not.toHaveBeenCalled();
+        return { content: '正文', usage: null };
+      });
+      vi.mocked(commitStoryTurn).mockResolvedValueOnce({ id: 12, content: '正文', extra: { stateStatus: 'confirmed' } } as never);
+      await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, undefined, prepared, 'turn-1');
+      expect(chatService.updateEmotionFromMessage).toHaveBeenNthCalledWith(1, 'char-1', USER, CHAT, 'Hello', 1);
+      expect(chatService.updateEmotionFromMessage).toHaveBeenNthCalledWith(2, 'char-1', USER, CHAT, '正文', 12);
+      const doneCall = vi.mocked(websocketService.broadcastToChat).mock.calls.findIndex(call => call[1].type === WSMessageType.ASSISTANT_MESSAGE_DONE);
+      expect(vi.mocked(chatService.updateEmotionFromMessage).mock.invocationCallOrder[0]).toBeGreaterThan(
+        vi.mocked(websocketService.broadcastToChat).mock.invocationCallOrder[doneCall]);
+    });
+
+    it('does not confirm a preview or publish recommendations after a version conflict', async () => {
+      const prepared = { input: 'Hello', intentProtocol: true, directResponse: true, rules: null,
+        values: {}, completedActions: [], prompt: 'direct' } as unknown as PreparedStoryTurn;
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(
+        `data: ${JSON.stringify({ choices: [{ delta: { content: '未提交的结果' } }] })}\n\n`));
+      vi.mocked(commitStoryTurn).mockRejectedValueOnce(new AppError('Version changed', 409, 'STORY_STATE_CONFLICT'));
+      await expect(h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, undefined, prepared, 'turn-1')).rejects.toThrow('Version changed');
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.ASSISTANT_MESSAGE_CHUNK, data: expect.objectContaining({ provisional: true }),
+      }));
+      expect(vi.mocked(websocketService.broadcastToChat).mock.calls.filter(call => call[1].type === WSMessageType.ASSISTANT_MESSAGE_DONE)).toEqual([]);
+      expect(settleGeneration).toHaveBeenCalledOnce();
+    });
+
+    it('does not update derived character emotion from an invalid direct turn', async () => {
+      vi.mocked(chatRepository.findById).mockResolvedValue({ id: CHAT, contentSnapshotVersion: 1 } as never);
+      vi.mocked(resolveStoryCharacter).mockResolvedValue({ id: 'char-1', name: 'Test', cardData: {} } as never);
+      vi.mocked(chatService.buildEnhancedSystemPrompt).mockResolvedValue({ systemPrompt: '', atDepthEntries: [] });
+      const prepared = { input: 'Hello', intentProtocol: true, directResponse: true, rules: null,
+        values: {}, completedActions: [], prompt: 'direct' } as unknown as PreparedStoryTurn;
+      vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content: '非法输出', usage: null });
+      vi.mocked(commitStoryTurn).mockResolvedValueOnce({ id: 12, content: '故事状态未更新', extra: { stateStatus: 'interrupted', storyIntentInvalid: true } } as never);
+      await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, undefined, prepared, 'invalid-turn');
+      expect(chatService.updateEmotionFromMessage).not.toHaveBeenCalled();
+      expect(chatService.checkAndExtractMemories).not.toHaveBeenCalled();
+      expect(settleGeneration).toHaveBeenCalledOnce();
+    });
+
     it('retains native Gemini output truncation across split SSE chunks and usage frames', async () => {
       const body = `data: ${JSON.stringify({ candidates: [{ content: { parts: [{ text: '还没说完' }] }, finishReason: 'MAX_TOKENS' }] })}\n\n`
         + `data: ${JSON.stringify({ usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 } })}\n\n`;
@@ -385,13 +664,13 @@ describe('WebSocket chat - prepaid credits', () => {
       vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content: VARIABLE_OUTPUT, usage: null, outputTruncated: true });
       await expect(h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, undefined, prepared, 'turn-1'))
         .rejects.toMatchObject({ code: 'GENERATION_OUTPUT_TRUNCATED' });
-      if (versioned) expect(commitStoryTurn).toHaveBeenCalledWith(prepared, 1, 'turn-1', VARIABLE_OUTPUT, true, expect.anything(), undefined, VARIABLE_OUTPUT);
+      if (versioned) expect(commitStoryTurn).toHaveBeenCalledWith(prepared, 1, 'turn-1', VARIABLE_OUTPUT, true, expect.anything(), undefined, VARIABLE_OUTPUT, expect.objectContaining({ model: expect.any(String) }));
       else expect(chatService.addMessage).toHaveBeenCalledWith(CHAT, expect.objectContaining({ extra: { stateStatus: 'interrupted' } }));
       expect(chatVariableStore.setChatVar).not.toHaveBeenCalled();
       expect(chatVariableStore.deleteChatVar).not.toHaveBeenCalled();
       expect(chatService.checkAndExtractMemories).not.toHaveBeenCalled();
-      expect(chatService.updateEmotionFromMessage).toHaveBeenCalledTimes(1);
-      expect(chatService.updateEmotionFromMessage).toHaveBeenCalledWith(character.id, USER, CHAT, 'Hello', 1);
+      expect(chatService.updateEmotionFromMessage).toHaveBeenCalledTimes(versioned ? 0 : 1);
+      if (!versioned) expect(chatService.updateEmotionFromMessage).toHaveBeenCalledWith(character.id, USER, CHAT, 'Hello', 1);
       expect(settleGeneration).toHaveBeenCalledOnce();
       expect(releaseGeneration).not.toHaveBeenCalled();
     });
@@ -406,11 +685,46 @@ describe('WebSocket chat - prepaid credits', () => {
       expect(settleGeneration).toHaveBeenCalledOnce();
     });
 
+    it.each([400, 429, 503])('reports provider HTTP %s without replaying an accepted turn and releases the failed hold', async status => {
+      vi.spyOn(h, 'streamLlmResponse').mockRejectedValue(new AnthropicApiError(Number(status), 'output', 'read'));
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+      expect(generationRequestRepository.finish).toHaveBeenCalledWith('generation-1', 'failed', 'LLM_API_ERROR');
+      expect(errorLog).toHaveBeenCalledWith('Error handling user message', expect.any(AnthropicApiError),
+        expect.objectContaining({ chatId: CHAT, errorCode: 'LLM_API_ERROR', statusCode: status, provider: 'anthropic', category: 'output', bodyState: 'read' }));
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.GENERATION_FINISHED, data: expect.objectContaining({ status: 'failed', retryable: false }),
+      }));
+      expect(websocketService.sendToClient).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({
+        type: WSMessageType.ERROR, data: expect.objectContaining({ code: 'LLM_API_ERROR', message: expect.stringContaining(`HTTP ${status}`) }),
+      }));
+      expect(releaseGeneration).toHaveBeenCalledOnce();
+      expect(settleGeneration).not.toHaveBeenCalled();
+      expect(commitStoryTurn).not.toHaveBeenCalled();
+    });
+
     it('preserves truncation from a text-completion template', async () => {
-      vi.mocked(llmService.completion).mockResolvedValue({ choices: [{ text: 'unfinished', finish_reason: 'length' }] } as never);
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response('data: {"choices":[{"text":"unfinished","finish_reason":"length"}]}\n\n'));
       await expect(h.streamTextCompletion(CHAT, 'template-fragment', 'prompt')).resolves.toMatchObject({
         content: 'unfinished', outputTruncated: true,
       });
+    });
+
+    it('publishes a template chunk before completion and keeps caller cancellation', async () => {
+      let controller!: ReadableStreamDefaultController<Uint8Array>;
+      const body = new ReadableStream<Uint8Array>({ start(value) { controller = value; } });
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(body));
+      const abort = new AbortController();
+      const result = h.streamTextCompletion(CHAT, 'template-stream', 'formatted', 'glm-4.5-air', abort.signal);
+      controller.enqueue(new TextEncoder().encode('data: {"choices":[{"text":"first paragraph","finish_reason":null}]}\n\n'));
+      await vi.waitFor(() => expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({
+        type: WSMessageType.ASSISTANT_MESSAGE_CHUNK, data: expect.objectContaining({ chunk: 'first paragraph' }),
+      })));
+      expect(llmService.streamChatCompletion).toHaveBeenCalledWith(expect.objectContaining({ max_tokens: 4096 }), abort.signal,
+        expect.objectContaining({ templatePrompt: 'formatted' }));
+      abort.abort(); controller.close();
+      expect(await result).toMatchObject({ content: 'first paragraph' });
+      expect(llmService.streamChatCompletion).toHaveBeenCalledOnce();
+      expect(llmService.completion).not.toHaveBeenCalled();
     });
 
     it('rejects oversized final payload before any generation credit hold or provider call', async () => {
@@ -438,7 +752,7 @@ describe('WebSocket chat - prepaid credits', () => {
       vi.mocked(chatService.buildEnhancedSystemPrompt).mockResolvedValue({ systemPrompt: 'sys', atDepthEntries: entries, reservedTokens: 10 });
       vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content: 'reply', usage: null });
       await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT);
-      expect(contextManager.buildContext).toHaveBeenCalledWith('sys', expect.any(Array), 'glm-4.5-air', estimateContextMessages(entries));
+      expect(contextManager.buildContext).toHaveBeenCalledWith('sys', expect.any(Array), 'glm-4.5-air', estimateContextMessages(entries), expect.objectContaining({ maxOutputTokens: 4096 }));
     });
 
     it('propagates mandatory-context overflow without reserving credits', async () => {
@@ -455,12 +769,10 @@ describe('WebSocket chat - prepaid credits', () => {
       vi.mocked(chatService.buildEnhancedSystemPrompt).mockResolvedValue({ systemPrompt: 'sys', atDepthEntries: [] });
       vi.mocked(contextManager.buildContext).mockReturnValueOnce({ messages: [{ role: 'system', content: 'sys' },
         { role: 'user', content: 'story '.repeat(300) }], totalTokens: 600, truncated: false, truncatedCount: 0 });
-      const stream = vi.spyOn(h, 'streamTextCompletion').mockResolvedValue({ content: 'must not run', usage: null });
-      await expect(h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT)).rejects.toMatchObject({
-        code: 'CONTEXT_BUDGET_EXCEEDED', details: { reason: 'template', outputTokens: 2048 },
-      });
-      expect(reserveForGeneration).not.toHaveBeenCalled();
-      expect(stream).not.toHaveBeenCalled();
+      const stream = vi.spyOn(h, 'streamTextCompletion').mockResolvedValue({ content: 'reply', usage: null });
+      await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT);
+      expect(reserveForGeneration).toHaveBeenCalledWith(expect.objectContaining({ requestedMaxTokens: 100 }));
+      expect(stream).toHaveBeenCalled();
     });
 
     it('includes the system prompt once when formatting a text-completion template', async () => {
@@ -494,8 +806,8 @@ describe('WebSocket chat - prepaid credits', () => {
       expect(chatVariableStore.setChatVar).not.toHaveBeenCalled();
       expect(chatVariableStore.deleteChatVar).not.toHaveBeenCalled();
       expect(chatService.checkAndExtractMemories).toHaveBeenCalledTimes(versioned || interrupted ? 0 : 1);
-      expect(chatService.updateEmotionFromMessage).toHaveBeenCalledTimes(interrupted ? 1 : 2);
-      if (versioned) expect(commitStoryTurn).toHaveBeenCalledWith(prepared, 1, 'turn-1', expect.any(String), interrupted, expect.anything(), undefined, VARIABLE_OUTPUT);
+      expect(chatService.updateEmotionFromMessage).toHaveBeenCalledTimes(interrupted ? (versioned ? 0 : 1) : 2);
+      if (versioned) expect(commitStoryTurn).toHaveBeenCalledWith(prepared, 1, 'turn-1', expect.any(String), interrupted, expect.anything(), undefined, VARIABLE_OUTPUT, expect.objectContaining({ model: expect.any(String) }));
       else if (interrupted) expect(chatService.addMessage).toHaveBeenCalledWith(CHAT, expect.objectContaining({ extra: { stateStatus: 'interrupted' } }));
     });
 
@@ -519,7 +831,7 @@ describe('WebSocket chat - prepaid credits', () => {
         return { id: 12 } as never;
       });
       await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, controller.signal, { prompt: 'saved state' } as PreparedStoryTurn, 'turn-1');
-      expect(commitStoryTurn).toHaveBeenCalledWith(expect.anything(), 1, 'turn-1', 'Confirmed response', false, expect.anything(), undefined, 'Confirmed response');
+      expect(commitStoryTurn).toHaveBeenCalledWith(expect.anything(), 1, 'turn-1', 'Confirmed response', false, expect.anything(), undefined, 'Confirmed response', expect.objectContaining({ model: expect.any(String) }));
       expect(chatService.checkAndExtractMemories).not.toHaveBeenCalled();
       expect(settleGeneration).toHaveBeenCalledWith(HOLD, expect.objectContaining({ messageId: 12 }));
     });
@@ -546,6 +858,24 @@ describe('WebSocket chat - prepaid credits', () => {
       await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT);
       expect(reserveForGeneration).toHaveBeenCalledWith(expect.objectContaining({ requestedMaxTokens: 2048 }));
       expect((stream.mock.calls[0][7] as StreamOptions).maxTokens).toBe(2048);
+    });
+
+    it.each([10000, 128000])('uses a configured output budget above 4096 (%i) and sends the billed cap upstream', async requested => {
+      vi.mocked(getModelMeta).mockReturnValue({ id: 'reasoning-model', provider: 'custom', contextWindow: 1000000,
+        maxOutputTokens: requested, outputCapabilityTokens: 128000, defaultTemperature: 0.7 });
+      const effective = creditBilling.resolveMaxOutputTokens(requested);
+      vi.mocked(reserveForGeneration).mockImplementationOnce(async request => ({ ...HOLD,
+        maxOutputTokens: creditBilling.resolveMaxOutputTokens(request.requestedMaxTokens),
+      }));
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValueOnce(new Response(
+        'data: {"choices":[{"delta":{"content":"完整回复"},"finish_reason":null}]}\n\n' +
+        'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n' +
+        'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } }));
+      await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT);
+      expect(reserveForGeneration).toHaveBeenCalledWith(expect.objectContaining({ requestedMaxTokens: requested }));
+      expect(effective).toBe(requested);
+      expect(llmService.streamChatCompletion).toHaveBeenCalledWith(expect.objectContaining({ max_tokens: effective }), undefined, expect.objectContaining({ chatId: CHAT, limits: expect.objectContaining({ maxOutputTokens: effective }) }));
+      expect(settleGeneration).toHaveBeenCalledWith(expect.objectContaining({ maxOutputTokens: effective }), expect.objectContaining({ outputText: '完整回复' }));
     });
 
     it('settles after the assistant message is saved, tracing it to chat and message', async () => {

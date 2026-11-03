@@ -132,6 +132,7 @@ export interface EditableLLMConfig {
   apiKey?: string;
   baseUrl?: string;
   models: string[];
+  hiddenModels?: string[];
   defaultModel?: string;
   modelLimits?: Record<string, ModelLimitsInput>;
 }
@@ -160,7 +161,7 @@ export function loadPersistedLLMConfig(): void {
       ...provider,
       apiKey: decryptApiKey(encryptedApiKey),
     }));
-    if (providers.some((provider) => !provider.apiKey || provider.models.length === 0)) {
+    if (providers.some((provider) => !provider.apiKey || !Array.isArray(provider.models))) {
       throw new Error('runtime model configuration is incomplete');
     }
     llmConfigs.splice(0, llmConfigs.length, ...providers);
@@ -196,6 +197,7 @@ export function updateLLMConfig(input: EditableLLMConfig): void {
     provider: input.provider,
     apiFormat: input.apiFormat ?? current?.apiFormat ?? (input.provider === 'anthropic' ? 'anthropic' : 'openai'),
     apiKey, baseUrl, models, modelAliases,
+    hiddenModels: (input.hiddenModels ?? current?.hiddenModels ?? []).filter(model => models.includes(model)),
     requestOptions: input.requestOptions ?? current?.requestOptions,
     defaultModel: input.defaultModel?.trim() || models[0], modelLimits,
   };
@@ -204,8 +206,66 @@ export function updateLLMConfig(input: EditableLLMConfig): void {
   if (index < 0) providers.push(next); else providers[index] = next;
   if (input.makeDefault) { providers.splice(providers.indexOf(next), 1); providers.unshift(next); }
   // Publish only after the encrypted file was replaced successfully.
-  persistLLMConfigs(providers);
-  llmConfigs.splice(0, llmConfigs.length, ...providers);
+  publishModelConfiguration(providers);
+}
+
+function publishModelConfiguration(providers: LLMProviderConfig[]): void {
+  if (!providers.some(provider => provider.models.some(model => !provider.hiddenModels?.includes(model)))) {
+    throw new Error('请至少保留一个公开可选模型；请先新增或恢复显示其他模型');
+  }
+  const normalized = providers.map(provider => ({ ...provider,
+    defaultModel: provider.defaultModel && provider.models.includes(provider.defaultModel) && !provider.hiddenModels?.includes(provider.defaultModel)
+      ? provider.defaultModel : provider.models.find(model => !provider.hiddenModels?.includes(model)),
+  }));
+  persistLLMConfigs(normalized);
+  llmConfigs.splice(0, llmConfigs.length, ...normalized);
+}
+
+export interface ModelEntryInput {
+  upstreamId?: string;
+  limits?: ModelLimitsInput;
+  hidden?: boolean;
+  makeDefault?: boolean;
+}
+
+/** Mutate one model against current state, never overwrite sibling models with stale UI data. */
+export function saveModelEntry(model: string, input: ModelEntryInput, channelId?: string): void {
+  const current = channelId === undefined ? findProviderForModel(model)
+    : llmConfigs.find(provider => (provider.id || provider.provider) === channelId);
+  if (!current) throw new Error('模型或渠道不存在，请刷新列表');
+  if (channelId !== undefined && findProviderForModel(model)) throw new Error('模型名称已存在，请使用不同的模型名称');
+  if (channelId !== undefined && current.models.length >= 50) throw new Error('每个渠道最多配置50个模型');
+  if (channelId !== undefined && !input.limits) throw new Error('新增模型必须填写容量参数');
+  const next = structuredClone(current);
+  if (channelId !== undefined) next.models.push(model);
+  if (input.upstreamId !== undefined) {
+    next.modelAliases = { ...next.modelAliases };
+    if (input.upstreamId.trim()) next.modelAliases[model] = input.upstreamId.trim();
+    else delete next.modelAliases[model];
+  }
+  if (input.limits) next.modelLimits = { ...next.modelLimits, ...parseCustomModelLimits(JSON.stringify({ [model]: input.limits }), next.models) };
+  const hidden = new Set(next.hiddenModels ?? []);
+  if (input.hidden === true) hidden.add(model);
+  if (input.hidden === false) hidden.delete(model);
+  next.hiddenModels = [...hidden];
+  if (input.makeDefault) {
+    if (hidden.has(model)) throw new Error('隐藏模型不能设为默认，请先恢复显示');
+    next.defaultModel = model;
+  }
+  const providers = llmConfigs.map(provider => provider === current ? next : provider);
+  if (input.makeDefault) { providers.splice(providers.indexOf(next), 1); providers.unshift(next); }
+  publishModelConfiguration(providers);
+}
+
+export function deleteModelEntry(model: string): void {
+  const current = findProviderForModel(model);
+  if (!current) throw new Error('模型不存在，请刷新列表');
+  const next = structuredClone(current);
+  next.models = next.models.filter(id => id !== model);
+  next.hiddenModels = next.hiddenModels?.filter(id => id !== model);
+  if (next.modelLimits) delete next.modelLimits[model];
+  if (next.modelAliases) delete next.modelAliases[model];
+  publishModelConfiguration(llmConfigs.map(provider => provider === current ? next : provider));
 }
 
 export function getPersistedLLMConfigPath(): string {
@@ -231,7 +291,7 @@ export function parseCustomModelLimits(raw: string | undefined, models: string[]
 export function getAvailableModels(): string[] {
   const models = new Set<string>();
   llmConfigs.forEach((config) => {
-    config.models.forEach((model) => models.add(model));
+    config.models.filter(model => !config.hiddenModels?.includes(model)).forEach((model) => models.add(model));
   });
   return Array.from(models);
 }
@@ -252,10 +312,11 @@ export function findProviderForModel(model: string): LLMProviderConfig | null {
  * 获取默认模型
  */
 export function getDefaultModel(): string | null {
-  if (llmConfigs.length === 0) {
-    return null;
+  for (const provider of llmConfigs) {
+    const visible = provider.models.filter(model => !provider.hiddenModels?.includes(model));
+    if (visible.length) return provider.defaultModel && visible.includes(provider.defaultModel) ? provider.defaultModel : visible[0];
   }
-  return llmConfigs[0].defaultModel || llmConfigs[0].models[0];
+  return null;
 }
 
 /**
@@ -315,5 +376,8 @@ export function getModelMeta(model: string): ModelMeta {
  * 获取所有可用模型及其元数据
  */
 export function getAvailableModelsWithMeta(): ModelMeta[] {
-  return getAvailableModels().map(getModelMeta);
+  const models = getAvailableModels();
+  const defaultModel = getDefaultModel();
+  if (defaultModel) models.sort((a, b) => Number(b === defaultModel) - Number(a === defaultModel));
+  return models.map(getModelMeta);
 }

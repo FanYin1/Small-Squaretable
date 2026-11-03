@@ -52,6 +52,7 @@ vi.mock('../services/chat.service', () => ({
   chatService: {
     addMessage: vi.fn(),
     getMessages: vi.fn().mockResolvedValue([]),
+    getContextMessages: vi.fn().mockResolvedValue([]),
     buildEnhancedSystemPrompt: vi.fn(),
     updateEmotionFromMessage: vi.fn(),
     checkAndExtractMemories: vi.fn(),
@@ -317,7 +318,7 @@ describe('WebSocket chat — quota metering and enforcement', () => {
       expect(generationRequestRepository.finish).toHaveBeenCalledWith('generation-1', 'completed', undefined);
     });
 
-    it('allows only one of two handler instances to generate the same request', async () => {
+    it('rejects a concurrent handler before claiming or billing the same request', async () => {
       type Dispatch = {
         handleUserMessage: (clientId: string, message: WSUserMessage) => Promise<void>;
         handleSingleCharacterResponse: () => Promise<void>;
@@ -347,13 +348,14 @@ describe('WebSocket chat — quota metering and enforcement', () => {
         expect(chatService.addMessage).toHaveBeenCalledTimes(1);
         expect(messagesMetered()).toHaveLength(1);
         expect(secondGeneration).not.toHaveBeenCalled();
+        expect(generationRequestRepository.claim).toHaveBeenCalledTimes(1);
         expect(generationRequestRepository.finish).not.toHaveBeenCalled();
         expect(websocketService.broadcastToChat).not.toHaveBeenCalledWith(CHAT, expect.objectContaining({
           type: WSMessageType.GENERATION_FINISHED,
         }));
         expect(websocketService.sendToClient).toHaveBeenCalledWith('other-client', expect.objectContaining({
           type: WSMessageType.ERROR,
-          data: expect.objectContaining({ code: 'GENERATION_ALREADY_ACCEPTED' }),
+          data: expect.objectContaining({ code: 'GENERATION_BUSY' }),
         }));
       } finally {
         releaseGeneration();
@@ -616,6 +618,9 @@ describe('WebSocket chat — quota metering and enforcement', () => {
       vi.mocked(chatService.getMessages).mockResolvedValue([
         { id: 1, role: 'user', content: 'Hello', pinned: false, importance: 0 },
       ] as never);
+      vi.mocked(chatService.getContextMessages).mockResolvedValue([
+        { id: 1, role: 'user', content: 'Hello', pinned: false, importance: 0 },
+      ] as never);
       vi.mocked(chatService.addMessage).mockResolvedValue({ id: 2 } as never);
     });
 
@@ -652,17 +657,19 @@ describe('WebSocket chat — quota metering and enforcement', () => {
 
     // WebSocket 流式生成走的是自己的 streamLlmResponse，不经过
     // llm.ts 那两个路由，所以 llm_tokens 在这条链路上也是 0
-    it('awaits a rejected reader cancellation after an aborted stream', async () => {
+    it('handles rejected cancellation and classifies an upstream abort as incomplete', async () => {
       const { llmService } = await import('../services/llm.service');
       const aborted = new DOMException('Stopped', 'AbortError');
       const cancel = vi.fn().mockRejectedValue(aborted);
+      const releaseLock = vi.fn();
       vi.mocked(llmService.streamChatCompletion).mockResolvedValue({
-        body: { getReader: () => ({ read: vi.fn().mockRejectedValue(aborted), cancel }) },
+        body: { getReader: () => ({ read: vi.fn().mockRejectedValue(aborted), cancel, releaseLock }) },
       } as never);
       const streamer = handler as unknown as { streamLlmResponse: (chatId: string, messageId: string, messages: unknown[]) => Promise<{ content: string }> };
-      await expect(streamer.streamLlmResponse(CHAT, 'partial', [])).resolves.toMatchObject({ content: '' });
+      await expect(streamer.streamLlmResponse(CHAT, 'partial', [])).resolves.toMatchObject({ content: '', streamIncomplete: true });
+      expect(releaseLock).toHaveBeenCalledOnce();
       expect(cancel).toHaveBeenCalledOnce();
-      expect(llmService.streamChatCompletion).toHaveBeenCalledWith(expect.objectContaining({ max_tokens: 4096 }), undefined, { chatId: CHAT });
+      expect(llmService.streamChatCompletion).toHaveBeenCalledWith(expect.objectContaining({ max_tokens: 4096 }), undefined, expect.objectContaining({ chatId: CHAT, limits: expect.objectContaining({ maxOutputTokens: 4096 }) }));
     });
 
     it('meters the llm tokens produced by the stream', async () => {
@@ -734,7 +741,7 @@ describe('WebSocket chat — quota metering and enforcement', () => {
 
       await runReply('Hi');
 
-      expect(contextManager.buildContext).toHaveBeenCalledWith('sys', expect.any(Array), 'glm-4.5-air', 321);
+      expect(contextManager.buildContext).toHaveBeenCalledWith('sys', expect.any(Array), 'glm-4.5-air', 321, expect.objectContaining({ maxOutputTokens: 4096 }));
     });
 
     it('prefers the provider usage over the estimate', async () => {

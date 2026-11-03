@@ -1,8 +1,30 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { BaseRepository } from './base.repository';
 import { db } from '../index';
 import { chats, type Chat, type NewChat } from '../schema/chats';
 import type { PaginationParams } from '../../types/api';
+
+/** Fields needed by the story sidebar. Full snapshots stay behind the detail endpoint. */
+export type ChatListItem = Pick<Chat,
+  'id' | 'characterId' | 'personaId' | 'title' | 'summary' | 'metadata' |
+  'identitySnapshot' | 'worldbookSnapshotVersion' | 'contentSnapshotVersion' |
+  'unreadCount' | 'createdAt' | 'updatedAt'
+>;
+
+const chatListSelection = {
+  id: chats.id,
+  characterId: chats.characterId,
+  personaId: chats.personaId,
+  title: chats.title,
+  summary: chats.summary,
+  metadata: chats.metadata,
+  identitySnapshot: chats.identitySnapshot,
+  worldbookSnapshotVersion: chats.worldbookSnapshotVersion,
+  contentSnapshotVersion: chats.contentSnapshotVersion,
+  unreadCount: chats.unreadCount,
+  createdAt: chats.createdAt,
+  updatedAt: chats.updatedAt,
+};
 
 export class ChatRepository extends BaseRepository {
   async findById(id: string): Promise<Chat | null> {
@@ -27,6 +49,26 @@ export class ChatRepository extends BaseRepository {
     }
 
     return await query;
+  }
+
+  async findSummaryByUserId(userId: string, pagination?: PaginationParams): Promise<ChatListItem[]> {
+    let query = this.db.select(chatListSelection).from(chats).where(eq(chats.userId, userId))
+      .orderBy(desc(chats.updatedAt)).$dynamic();
+
+    if (pagination) {
+      const offset = (pagination.page - 1) * pagination.limit;
+      query = query.limit(pagination.limit).offset(offset);
+    }
+
+    return await query;
+  }
+
+  async countByUserId(userId: string): Promise<number> {
+    const result = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(chats)
+      .where(eq(chats.userId, userId));
+    return result[0]?.count ?? 0;
   }
 
   async findByCharacterId(characterId: string): Promise<Chat[]> {

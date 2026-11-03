@@ -10,7 +10,7 @@ import { AppError } from '../../core/errors';
 import type { ChatCompletionRequest } from '../../types/llm';
 
 // Mock the LLM config
-vi.mock('../config/llm.config', () => ({
+vi.mock('../config/llm.config', () => ({ getModelMeta: (id: string) => ({ id, provider: 'test', contextWindow: 200000, maxOutputTokens: 128000, outputCapabilityTokens: 128000, defaultTemperature: 0.7 }),
   findProviderForModel: vi.fn(() => ({
     provider: 'openai',
     apiKey: 'test-api-key',
@@ -45,7 +45,7 @@ describe('LLMService', () => {
       await expect(llmService.chatCompletion({ model: 'gpt-3.5-turbo', messages: [], stream: false },
         { signal, maxAttempts: 1 })).rejects.toThrow();
       expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(global.fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ signal }));
+      expect(global.fetch).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ signal: expect.any(AbortSignal) }));
     });
 
     it('does not start a request when the queue deadline has expired', async () => {

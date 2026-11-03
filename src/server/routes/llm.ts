@@ -1,9 +1,12 @@
+import { AppError } from '../../core/errors';
 /**
  * LLM 路由
  *
  * 提供 LLM 代理 API 端点
  */
 
+import { resolveGenerationParameters } from '../services/generation-parameters';
+import { assertContextBudget, estimateContextMessages, estimateContextTokens } from '../services/context-budget';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { stream } from 'hono/streaming';
@@ -23,7 +26,7 @@ import {
   type ChatCompletionResponse,
   type CompletionResponse,
 } from '../../types/llm';
-import { getAvailableModelsWithMeta } from '../config/llm.config';
+import { getAvailableModelsWithMeta, getModelMeta } from '../config/llm.config';
 
 export const llmRoutes = new Hono();
 
@@ -38,8 +41,12 @@ llmRoutes.post(
   zValidator('json', chatCompletionRequestSchema),
   async (c) => {
     const tenantId = c.get('tenantId');
-    const request = c.req.valid('json');
+    const submitted = c.req.valid('json');
+    const limits = resolveGenerationParameters(getModelMeta(submitted.model), submitted.max_tokens);
+    const request = { ...submitted, max_tokens: limits.maxOutputTokens };
+    c.header('X-LLM-Max-Output-Tokens', String(limits.maxOutputTokens));
 
+    assertContextBudget(estimateContextMessages(request.messages) + 2, limits);
     const estimatedPromptTokens = request.messages.reduce(
       (sum, m) => sum + countTokens(m.content) + 4,
       0
@@ -47,7 +54,9 @@ llmRoutes.post(
 
     // 如果是流式请求
     if (request.stream) {
-      // 预付点数模式：先预扣，并把输出上限作为 max_tokens 交给 provider（订阅模式 hold 为 null，原样透传）
+      const controller = new AbortController();
+      const upstreamSignal = AbortSignal.any([c.req.raw.signal, controller.signal]);
+      // 预付点数模式：先预扣，并把输出上限作为 max_tokens 交给 provider（订阅模式也发送已解析额度）
       const hold = await reserveForGeneration({
         tenantId,
         estimatedPromptTokens,
@@ -58,7 +67,7 @@ llmRoutes.post(
       let response: Response;
       try {
         response = await llmService.streamChatCompletion(
-          hold ? { ...request, max_tokens: hold.maxOutputTokens } : request
+          hold ? { ...request, max_tokens: hold.maxOutputTokens } : request, upstreamSignal, { limits }
         );
       } catch (error) {
         // 连接 provider 就失败：一个 token 都没产生，释放预扣
@@ -85,6 +94,7 @@ llmRoutes.post(
 
       // 返回流式响应
       return stream(c, async (stream) => {
+        stream.onAbort(() => controller.abort());
         if (!response.body) {
           await releaseGeneration(hold);
           throw new Error('No response body');
@@ -109,6 +119,8 @@ llmRoutes.post(
           }
           handleLine(pending);
         } finally {
+          controller.abort();
+          void reader.cancel().catch(() => {});
           reader.releaseLock();
 
           // 流结束（含客户端中断）后记录用量；输入 token 此时已被 provider 计费，
@@ -136,7 +148,7 @@ llmRoutes.post(
     let response: ChatCompletionResponse;
     try {
       response = await llmService.chatCompletion(
-        hold ? { ...request, max_tokens: hold.maxOutputTokens } : request
+        hold ? { ...request, max_tokens: hold.maxOutputTokens } : request, { signal: c.req.raw.signal, limits }
       );
     } catch (error) {
       await releaseGeneration(hold);
@@ -174,8 +186,15 @@ llmRoutes.post(
   zValidator('json', completionRequestSchema),
   async (c) => {
     const tenantId = c.get('tenantId');
-    const request = c.req.valid('json');
+    const submitted = c.req.valid('json');
+    if (submitted.stream) throw new AppError('Use /chat/completions for HTTP streaming', 400, 'STREAMING_ENDPOINT_REQUIRED');
+    const limits = resolveGenerationParameters(getModelMeta(submitted.model), submitted.max_tokens);
+    const request = { ...submitted, max_tokens: limits.maxOutputTokens };
+    c.header('X-LLM-Max-Output-Tokens', String(limits.maxOutputTokens));
 
+    for (const item of Array.isArray(request.prompt) ? request.prompt : [request.prompt]) {
+      assertContextBudget(estimateContextTokens(item), limits);
+    }
     const prompt = Array.isArray(request.prompt) ? request.prompt.join('') : request.prompt;
     const estimatedPromptTokens = countTokens(prompt ?? '');
 
@@ -188,7 +207,7 @@ llmRoutes.post(
 
     let response: CompletionResponse;
     try {
-      response = await llmService.completion(hold ? { ...request, max_tokens: hold.maxOutputTokens } : request);
+      response = await llmService.completion(hold ? { ...request, max_tokens: hold.maxOutputTokens } : request, { signal: c.req.raw.signal, limits });
     } catch (error) {
       await releaseGeneration(hold);
       throw error;

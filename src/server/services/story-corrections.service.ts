@@ -112,8 +112,8 @@ export class StoryCorrectionsService {
       for (const original of prefix.history) {
         const extra = original.extra as Record<string, unknown> | null;
         const retainedExtra = extra ? Object.fromEntries(Object.entries(extra).filter(([key]) => [
-          'storyRequestId', 'storyVersion', 'stateStatus', 'storyAudience', 'storyIntent', 'storyIntentInvalid', 'storyConfirmedIntent', 'storyFacts',
-          'storyRecommendations', 'storyRecommendationsSource',
+          'storyRequestId', 'storyVersion', 'stateStatus', 'storyAudience', 'storyIntent', 'storyIntentInvalid', 'storyConfirmedIntent', 'storyExecutedIntent', 'storyFacts',
+          'storyRecommendations', 'storyRecommendationsSource', 'storyRecommendationsLead', 'storyDiagnostics',
         ].includes(key))) : null;
         const [copy] = await transaction.insert(messages).values({ chatId: branch.id, role: original.role, content: original.content,
           attachments: original.attachments, extra: retainedExtra, characterId: original.characterId, sentAt: original.sentAt }).returning();

@@ -115,6 +115,9 @@ export interface WSAssistantMessageChunk extends WSMessage {
     messageId: string;
     chunk: string;
     index: number;
+    /** Preview only; story state and the saved reply are not confirmed yet. */
+    provisional?: boolean;
+    phase?: 'control' | 'validating';
     characterId?: string;
     characterName?: string;
   };
@@ -130,6 +133,8 @@ export interface WSAssistantMessageDone extends WSMessage {
     requestId?: string;
     messageId: string;
     totalTokens?: number;
+    /** Authoritative saved text; replaces any streamed preview, including validation failures. */
+    content?: string;
     characterId?: string;
     characterName?: string;
     /** 本轮回复是否改动了聊天变量（客户端据此刷新 ERA 变量面板） */
@@ -138,9 +143,12 @@ export interface WSAssistantMessageDone extends WSMessage {
     storyAudience?: import('./story-knowledge').StoryAudience;
     storyIntent?: import('./story-intent').StoredStoryIntent;
     storyConfirmedIntent?: import('./story-intent').StoryIntent;
+    storyExecutedIntent?: import('./story-intent').StoryIntent;
     storyIntentInvalid?: boolean;
+    storyDiagnostics?: import('./story-intent').StoryTurnDiagnostics;
     storyRecommendations?: Array<{ label: string; input: string }>;
     storyRecommendationsSource?: import('./story-recommendations').StoryRecommendationsSource;
+    storyRecommendationsLead?: string;
   };
 }
 
@@ -205,6 +213,7 @@ export interface WSGenerationFinishedMessage extends WSMessage {
     chatId: string;
     requestId: string;
     status: 'completed' | 'stopped' | 'failed';
+    errorCode?: string;
     retryable?: boolean;
   };
 }
