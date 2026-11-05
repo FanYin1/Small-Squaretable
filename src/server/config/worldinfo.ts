@@ -17,4 +17,3 @@ export function worldInfoScanDefaults() {
     tokenBudget: configuredInteger('WORLD_INFO_TOKEN_BUDGET', 2048, 1, 100000),
   };
 }
-

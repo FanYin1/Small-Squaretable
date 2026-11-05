@@ -18,6 +18,13 @@
 
 ## 状态
 
-发布产物准备完成；远程切换和公网验证结果将在执行后补记。未发起测试模型调用、用户故事写入或历史重放。运行中的正常后台任务和用户业务活动不等同于发布脚本主动调用模型。
+已部署 `small-squaretable:remote-20261105-four-packages`，镜像 ID `b5f3aca4a97f26186c0c6cdea87dcffd6e09e6d4a0ca497cc7c1be03e63480bc`。发布目录 `/srv/small-squaretable/releases/four-packages-20261105T153323Z`，内含受限数据库备份及配置、数据核对证据。
+
+- 应用、PostgreSQL、Redis、ML 四容器健康，ready200。七张核心表和生成/记忆/适配队列切换前后指纹一致；模型配置和 Nginx 保持，环境仅 BETA_IMAGE 改变。无数据库迁移或旧故事扫描版本升级。
+- 公网首页、登录、注册、故事、私人卡片和后台页面的 HTML 与发布包一致，全部 210 个 assets 逐字节一致；匿名管理 API 仍拒绝访问。
+- 公网 1440/390 视口下真实首页（含公开角色加载）、登录页均为中文，未发现横向溢出、页面脚本异常或 API 5xx。未使用合成接口；仍不等同手机真机和登录后全旅程验收。
+- GitHub `master` 源码提交 `9133a3a` 已推送；发布结果随文档补记提交同步。补记仅修整配置源码末尾空行及文档，不改变已发布程序行为。
+
+未发起测试模型调用、用户故事写入或历史重放。运行中的正常后台任务和用户业务活动不等同于发布脚本主动调用模型。
 
 本机证据：`/tmp/squaretable-four-packages-tests.log`、`/tmp/squaretable-four-packages-lint.log`、`/tmp/squaretable-four-packages-release-20261105/`。生产备份和执行证据保存在远程受限的 release 目录，不能提交 Git。
