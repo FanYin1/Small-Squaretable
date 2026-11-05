@@ -1,11 +1,11 @@
 import { cardRecord } from './card-fields';
 
 export const worldbookPositions = ['before', 'after', 'ANTop', 'ANBottom', 'atDepth', 'EMTop', 'EMBottom'] as const;
-export const worldbookLogics = ['AND_ANY', 'AND_ALL', 'NOT_ANY', 'NOT_ALL'] as const;
+export const worldbookLogics = ['AND_ANY', 'NOT_ALL', 'NOT_ANY', 'AND_ALL'] as const;
 
 export function exportWorldbookEntry(entry: {
   keyword: string; content: string; position: number; isEnabled: boolean; settings: unknown;
-  recursive?: boolean; preventRecursion?: boolean;
+  recursive?: boolean; preventRecursion?: boolean; scanDepth?: number | null;
 }) {
   const settings = cardRecord(entry.settings);
   const position = typeof settings.position === 'string' ? worldbookPositions.indexOf(settings.position as typeof worldbookPositions[number]) : -1;
@@ -30,6 +30,7 @@ export function exportWorldbookEntry(entry: {
     prevent_recursion: entry.preventRecursion ?? false,
     exclude_recursion: settings.excludeRecursion === true,
     recursive: entry.recursive ?? true,
+    ...(entry.scanDepth != null ? { scan_depth: entry.scanDepth } : {}),
     extensions: {
       ...(typeof settings.role === 'number' ? { role: settings.role } : {}),
       ...(typeof settings.squaretablePurpose === 'string' ? { squaretable: { purpose: settings.squaretablePurpose } } : {}),

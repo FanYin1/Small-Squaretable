@@ -9,6 +9,7 @@ import { useWorldBookStore } from '@client/stores/worldbook';
 import DashboardLayout from '@client/components/layout/DashboardLayout.vue';
 import type { WorldBookEntry, CreateEntryInput } from '@client/services/worldbook.api';
 import { worldbookApi } from '@client/services/worldbook.api';
+import WorldBookTester from '@client/components/worldbook/WorldBookTester.vue';
 import WorldbookPurposeField from '@client/components/worldbook/WorldbookPurposeField.vue';
 import { worldbookPositions, worldbookLogics } from '../../types/worldbook-export';
 
@@ -236,6 +237,7 @@ async function handleDeleteEntry(entry: WorldBookEntry) {
 
 // Import / Export
 const importFileInput = ref<HTMLInputElement | null>(null);
+const scanVisible = ref(false);
 
 async function handleExport() {
   try {
@@ -301,6 +303,7 @@ async function handleImportFile(event: Event) {
       </div>
     </template>
     <template #actions>
+      <el-button :icon="Search" @click="scanVisible = true">单本触发预览</el-button>
       <el-button :icon="Upload" @click="triggerImport">
         {{ t('worldBookEditor.import', 'Import') }}
       </el-button>
@@ -314,6 +317,12 @@ async function handleImportFile(event: Event) {
         @change="handleImportFile" />
     </template>
 
+    <details class="worldbook-scope">
+      <summary>编辑范围与预览说明</summary>
+      <p>这里只修改资料库中的世界书。新故事按角色卡绑定加载资料，已冻结的故事继续使用开局版本；未冻结的旧式会话沿用原有加载方式。保存不会给所有故事自动绑定这本世界书。</p>
+      <p>“单本触发预览”使用本书已保存版本和你填写的测试文本，不会调用模型。它不包含故事历史、其他绑定世界书及最终容量裁剪，不能代替真实请求诊断。真实请求请到“故事 → 更多 → 故事工具 → 诊断与兼容”查看。</p>
+    </details>
+    <WorldBookTester v-model="scanVisible" :world-book-id="worldbookId" />
     <div class="worldbook-detail" v-loading="store.loading">
       <div class="toolbar">
         <el-input v-model="searchQuery" :placeholder="t('worldBookEditor.searchEntries')"
@@ -396,6 +405,7 @@ async function handleImportFile(event: Event) {
             <el-form-item :label="t('worldBookEditor.probability')">
               <el-slider v-model="newEntryForm.settings.probability" :min="0" :max="100" show-input />
             </el-form-item>
+            <p class="timing-compatibility-note">Sticky（持续）和 Cooldown（冷却）仅保存供兼容导出，当前故事引擎不执行这两个计时效果。</p>
             <el-form-item :label="t('worldBookEditor.sticky')">
               <el-input-number v-model="newEntryForm.settings.sticky" :min="0" :max="999" />
             </el-form-item>
@@ -529,7 +539,8 @@ async function handleImportFile(event: Event) {
                 <el-form-item :label="t('worldBookEditor.probability')">
                   <el-slider v-model="editForms[entry.id].settings.probability" :min="0" :max="100" show-input />
                 </el-form-item>
-                <el-form-item :label="t('worldBookEditor.sticky')">
+                <p class="timing-compatibility-note">Sticky（持续）和 Cooldown（冷却）仅保存供兼容导出，当前故事引擎不执行这两个计时效果。</p>
+            <el-form-item :label="t('worldBookEditor.sticky')">
                   <el-input-number v-model="editForms[entry.id].settings.sticky" :min="0" :max="999" />
                 </el-form-item>
                 <el-form-item :label="t('worldBookEditor.cooldown')">
@@ -567,6 +578,9 @@ async function handleImportFile(event: Event) {
   </DashboardLayout>
 </template>
 <style scoped lang="scss">
+.worldbook-scope, .timing-compatibility-note { margin-block: 12px; font-size: 13px; line-height: 1.7; color: var(--text-secondary); }
+.worldbook-scope summary { cursor: pointer; color: var(--text-primary); }
+
 .header-title {
   display: flex;
   align-items: center;

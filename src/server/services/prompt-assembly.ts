@@ -23,6 +23,7 @@ export interface AtDepthEntry {
  * cache_friendly 把 dynamic 片段按原有相对顺序抽出来，作为靠近末尾的注入块。
  */
 export interface PromptSection {
+  source?: string;
   parts: string[];
   dynamic: boolean;
 }
@@ -76,7 +77,8 @@ export function assemblePrompt(input: AssembleInput): AssembleResult {
  */
 export function injectAtDepth<M extends { role: AtDepthRole; content: string }>(
   messages: M[],
-  entries: AtDepthEntry[] | null | undefined
+  entries: AtDepthEntry[] | null | undefined,
+  onInsert?: (message: M, entry: AtDepthEntry) => void
 ): M[] {
   if (!entries || entries.length === 0) return messages;
 
@@ -85,7 +87,9 @@ export function injectAtDepth<M extends { role: AtDepthRole; content: string }>(
 
   for (const entry of sorted) {
     const insertIdx = Math.max(1, result.length - entry.depth);
-    result.splice(insertIdx, 0, { role: entry.role, content: entry.content } as M);
+    const inserted = { role: entry.role, content: entry.content } as M;
+    result.splice(insertIdx, 0, inserted);
+    onInsert?.(inserted, entry);
   }
 
   return result;
@@ -263,18 +267,19 @@ export interface PromptSectionInput {
 export function buildPromptSections(input: PromptSectionInput): PromptSection[] {
   const { layout, worldInfo, personaStableBlock, cardParts, exampleParts, memoryParts, emotionParts } = input;
   const wi = (position: WorldInfoPosition): PromptSection[] =>
-    worldInfoPositionSections(worldInfo, position, layout, position === 'ANTop' ? personaStableBlock : '');
+    worldInfoPositionSections(worldInfo, position, layout, position === 'ANTop' ? personaStableBlock : '')
+      .map(section => ({ ...section, source: position === 'ANTop' ? 'worldbook_persona.ANTop' : `worldbook.${position}` }));
 
   return [
     ...wi('before'),
-    { parts: cardParts, dynamic: false },
-    { parts: exampleParts, dynamic: false },
+    { source: 'card', parts: cardParts, dynamic: false },
+    { source: 'examples', parts: exampleParts, dynamic: false },
     ...wi('EMTop'),
     ...wi('EMBottom'),
     ...wi('ANTop'),
-    { parts: [...BEHAVIOR_GUIDELINE_PARTS], dynamic: false },
-    { parts: memoryParts, dynamic: true },
-    { parts: emotionParts, dynamic: true },
+    { source: 'behavior_guidelines', parts: [...BEHAVIOR_GUIDELINE_PARTS], dynamic: false },
+    { source: 'memories', parts: memoryParts, dynamic: true },
+    { source: 'emotion', parts: emotionParts, dynamic: true },
     ...wi('ANBottom'),
     ...wi('after'),
   ];

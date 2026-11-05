@@ -8,6 +8,10 @@ import { useChatStore } from '@client/stores/chat';
 import { nextTick } from 'vue';
 import { ledgerFixture } from '../../utils/fixtures/story-ledger';
 import StoryDossier from './StoryDossier.vue';
+import StoryTools from './StoryTools.vue';
+import CharacterTuner from './CharacterTuner.vue';
+import ContextViewer from './ContextViewer.vue';
+import { promptTraceApi } from '../../services/prompt-trace.api';
 import ScrollToBottom from './ScrollToBottom.vue';
 import MessageInput from './MessageInput.vue';
 import MarkdownRenderer from './MarkdownRenderer.vue';
@@ -62,6 +66,7 @@ describe('ChatWindow', () => {
       props: { currentChat: { ...mockChat, personaId } },
       global: { plugins: [i18n], stubs: {
         StoryWorkspaceDrawer: { props: ['open'], template: '<div v-if="open"><slot /></div>' },
+        RouterLink: true, CharacterTuner: true, GrowthPanel: true,
         MessageInput: true, MarkdownRenderer: !renderBody, MessageBubble: renderBody
           ? { props: ['message', 'readingContent'], template: '<div class="test-message"><div class="markdown-content">{{ readingContent ?? message.content }}</div><slot name="after-content" /></div>' }
           : { template: '<div class="test-message"><slot name="after-content" /></div>' }, StoryDossier: true, StoryMemoryStatus: true, IntelligenceDebugPanel: true,
@@ -73,6 +78,55 @@ describe('ChatWindow', () => {
     });
     return { wrapper, store };
   }
+
+  it('keeps reading preferences small and routes frozen-story tools without loading legacy overrides', async () => {
+    mockChat.contentSnapshotVersion = 1;
+    const traces = vi.spyOn(promptTraceApi, 'list').mockResolvedValue({ traces: [], retentionHours: 24, limit: 10 });
+    const { wrapper } = mountOpening();
+    await flushPromises();
+    expect(wrapper.findComponent(StoryTools).exists()).toBe(false);
+    expect(wrapper.findComponent(CharacterTuner).exists()).toBe(false);
+    expect(traces).not.toHaveBeenCalled();
+    await wrapper.get('.reading-settings-trigger').trigger('click');
+    expect(wrapper.get('.reading-settings-body').findAll('button')).toHaveLength(3);
+    expect(wrapper.findComponent(StoryTools).exists()).toBe(false);
+    wrapper.getComponent('.test-dropdown').vm.$emit('command', 'tools');
+    await flushPromises();
+    expect(wrapper.find('.reading-settings-body').exists()).toBe(false);
+    expect(wrapper.findComponent(StoryTools).exists()).toBe(true);
+    await wrapper.setProps({ currentChat: { ...mockChat, title: 'Same story updated' } });
+    expect(wrapper.findComponent(StoryTools).exists()).toBe(true);
+    const window = wrapper.vm as unknown as { handleToolsDropdown: (command: string) => Promise<void> };
+    await window.handleToolsDropdown('tuner');
+    expect(wrapper.findComponent(CharacterTuner).exists()).toBe(false);
+    wrapper.getComponent(StoryTools).vm.$emit('select', 'context');
+    await flushPromises();
+    expect(wrapper.findComponent(StoryTools).exists()).toBe(false);
+    expect(wrapper.getComponent(ContextViewer).props('modelValue')).toBe(true);
+    expect(traces).toHaveBeenCalledOnce();
+    await wrapper.setProps({ currentChat: { ...mockChat, id: 'other-story' } });
+    expect(wrapper.getComponent(ContextViewer).props('modelValue')).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('opens legacy parameters only on request and closes them when the account changes', async () => {
+    const { wrapper } = mountOpening();
+    const window = wrapper.vm as unknown as { handleToolsDropdown: (command: string) => Promise<void> };
+    await flushPromises();
+    expect(wrapper.findComponent(CharacterTuner).exists()).toBe(false);
+    await window.handleToolsDropdown('tuner');
+    expect(wrapper.findComponent(CharacterTuner).exists()).toBe(true);
+    useUserStore().user = { id: 'other', tenantId: 'tenant', email: '', name: '', createdAt: '' };
+    await nextTick();
+    expect(wrapper.findComponent(CharacterTuner).exists()).toBe(false);
+    // A pending drawer transition cannot reopen tools in a different account scope.
+    const pending = window.handleToolsDropdown('tuner');
+    useUserStore().user = { id: 'third', tenantId: 'tenant', email: '', name: '', createdAt: '' };
+    await pending;
+    await nextTick();
+    expect(wrapper.findComponent(CharacterTuner).exists()).toBe(false);
+    wrapper.unmount();
+  });
 
   it('folds only completed ledgers, opens the exact historical snapshot and leaves source messages untouched', async () => {
     mockChat.contentSnapshotVersion = 1;
@@ -166,6 +220,9 @@ describe('ChatWindow', () => {
     expect(wrapper.get('.streaming-status').text()).toBe('回复已接收 · 正在校验并保存');
     streamHandlers.get('assistantMessageDone')!({ chatId: mockChat.id, requestId, messageId: '102',
       content: '校验未通过，本轮未推进。', storyIntentInvalid: true, stateStatus: 'invalid' });
+    await nextTick();
+    expect(wrapper.get('.typing-text').text()).toBe('回复已接收 · 正在结束本轮');
+    expect(store.sending).toBe(true);
     streamHandlers.get('generationFinished')!({ chatId: mockChat.id, requestId, status: 'completed' });
     await flushPromises();
     expect(wrapper.get('.streaming').isVisible()).toBe(false);
@@ -585,8 +642,11 @@ describe('ChatWindow', () => {
     expect(wrapper.get('.chat-subtitle').text()).toContain('Traveler $&');
     expect(wrapper.getComponent(MarkdownRenderer).props('content')).toBe('Mara welcomes Traveler $&.');
     await wrapper.get('.reading-settings-trigger').trigger('click');
-    expect(wrapper.get('.reading-settings-body').text()).toContain(i18n.global.t('personas.storyIdentityFixed'));
-    expect(wrapper.get('.reading-settings-body').text()).toContain(i18n.global.t('chat.savedWorldbooks'));
+    expect(wrapper.get('.reading-settings-body').text()).not.toContain(i18n.global.t('personas.storyIdentityFixed'));
+    wrapper.getComponent('.test-dropdown').vm.$emit('command', 'tools');
+    await flushPromises();
+    expect(wrapper.getComponent(StoryTools).text()).toContain(i18n.global.t('personas.storyIdentityFixed'));
+    expect(wrapper.getComponent(StoryTools).text()).toContain(i18n.global.t('chat.savedWorldbooks'));
     expect(wrapper.getComponent(MessageInput).props('disabled')).toBe(false);
     expect(userPersonaApi.getById).not.toHaveBeenCalled();
     wrapper.unmount();

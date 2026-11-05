@@ -13,7 +13,7 @@ import { tenantRepository } from '../../db/repositories/tenant.repository';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../core/jwt';
 import { redis } from '../../core/redis';
 import { BadRequestError } from '../../core/errors';
-import { inviteCodeService, InviteCodeError, normalizeInviteCode } from './invite-code.service';
+import { inviteCodeService } from './invite-code.service';
 import { ageConfirmationFields } from '../utils/age-confirmation';
 import type { AuthUser, AuthTokens } from '../../types/auth';
 
@@ -136,7 +136,7 @@ export const oauthService = {
    * 2. Else if a user with the same email exists → link the account + login.
    * 3. Else create a new user (emailVerified=true) + tenant + link account.
    *
-   * 分支 3 是注册，要和邮箱注册一样过年龄门和邀请码门；分支 1、2 是登录，不重复要求。
+   * 分支 3 是注册，要和邮箱注册一样过年龄门；邀请码选填。分支 1、2 是登录，不重复要求。
    */
   async authenticateWithOAuth(
     profile: OAuthProfile,
@@ -178,11 +178,6 @@ export const oauthService = {
     // 3. Brand-new user —— 建号之前先过年龄门，不能先建再补。
     if (consent.ageConfirmed !== true) {
       throw new BadRequestError('age_confirmation_required');
-    }
-
-    // 邀请码门：缺码在开事务之前就拒绝。
-    if (!normalizeInviteCode(consent.inviteCode)) {
-      throw new InviteCodeError('INVITE_CODE_REQUIRED');
     }
 
     // 消费邀请码、建租户、建用户、绑定 OAuth、记录使用 在同一个事务里，

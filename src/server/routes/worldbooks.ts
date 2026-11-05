@@ -12,7 +12,7 @@ import { worldBookRepository } from '../../db/repositories/worldbook.repository'
 import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.repository';
 import type { ApiResponse } from '../../types/api';
 import { worldInfoEngine } from '../services/worldinfo-engine.service';
-import { countTokens } from '../utils/tokens';
+import { storyWorldbookEntrySchema } from '../../types/story-worldbooks';
 import { db } from '../../db';
 import { importStandaloneWorldbook } from '../../db/worldbook-import';
 import { prepareStandaloneWorldbook } from '../../types/worldbook-import';
@@ -23,7 +23,7 @@ import { AppError, NotFoundError } from '../../core/errors';
 import { exportWorldbookEntry } from '../../types/worldbook-export';
 
 /**
- * 把 DB 行（keyword + settings JSONB）显式映射为 world-info 引擎 scanText 期望的条目结构。
+ * 把 DB 行映射为预览结果的展示结构；不用于引擎输入（输入保留完整 DB 字段）。
  * 读取方式与导出路由保持一致：settings 中的值缺失或类型不符时回退到列值。
  */
 function toScanEntry(row: Awaited<ReturnType<typeof worldBookEntryRepository.findByWorldBook>>[number]) {
@@ -500,13 +500,16 @@ worldbooksRouter.delete('/:id/entries/:entryId', authMiddleware(), async (c) => 
 
 // Scan entries - test which entries would be triggered by sample text
 const scanSchema = z.object({
-  text: z.string().min(1),
+  text: z.string().min(1).max(100000),
+  scanMessageCount: z.number().int().min(1).max(1000).optional(),
+  maxRecursionDepth: z.number().int().min(1).max(10).optional(),
+  tokenBudget: z.number().int().min(1).max(100000).optional(),
 });
 
 worldbooksRouter.post('/:id/scan', authMiddleware(), zValidator('json', scanSchema), async (c) => {
   const user = c.get('user');
   const id = c.req.param('id');
-  const { text } = c.req.valid('json');
+  const { text, ...scanOptions } = c.req.valid('json');
 
   const worldbook = await worldBookRepository.findById(id);
   if (!worldbook || worldbook.userId !== user.id) {
@@ -523,27 +526,25 @@ worldbooksRouter.post('/:id/scan', authMiddleware(), zValidator('json', scanSche
   // Get all entries for this world book
   const entries = await worldBookEntryRepository.findByWorldBook(id);
 
-  // Scan text against entries using the world info engine
-  const scanResult = worldInfoEngine.scanText(text, entries.map(toScanEntry));
-
-  // Format results with token counts and recursion depth
-  const matches = scanResult.map(match => ({
-    id: match.entry.id,
-    keys: match.entry.keys,
-    secondaryKeys: match.entry.secondaryKeys,
-    content: match.entry.content,
-    comment: match.entry.comment,
-    depth: match.entry.depth,
-    constant: match.entry.constant,
-    matchedKeys: match.matchedKeys,
-    tokens: countTokens(match.entry.content),
-    recursionDepth: match.recursionDepth,
+  const normalized = entries.map(entry => storyWorldbookEntrySchema.parse({ ...entry,
+    isEnabled: entry.isEnabled && worldbook.isEnabled,
   }));
+  const scanResult = await worldInfoEngine.scanText(text, normalized, {
+    ...scanOptions, characterId: worldbook.characterId ?? '', userId: user.id, chatId: '',
+  });
+  const decisions = scanResult.debugInfo?.decisions ?? [];
+  const matches = decisions.filter(decision => decision.status === 'injected').map(decision => {
+    const entry = entries.find(entry => entry.id === decision.entryId)!;
+    return { ...toScanEntry(entry), matchedKeys: decision.keyword ? [decision.keyword] : [],
+      tokens: decision.tokens ?? 0, recursionDepth: decision.recursionDepth ?? 0 };
+  });
 
   return c.json<ApiResponse>(
     {
       success: true,
-      data: { matches },
+      data: { matches, diagnostics: scanResult.debugInfo,
+        mode: 'single_book_preview',
+        note: '单本世界书预览，使用一条输入消息；未加载故事快照、历史或玩家宏，概率每次重新抽样。' },
       meta: { timestamp: new Date().toISOString() },
     },
     200

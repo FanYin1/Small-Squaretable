@@ -78,7 +78,7 @@ export function inspectCharacterImport(source: CharacterAuditSource, books: Stor
       keyword: mapped.keyword, content: mapped.content, position: mapped.position,
       is_enabled: mapped.isEnabled, priority: mapped.priority, settings: mapped.settings,
       prevent_recursion: mapped.preventRecursion, recursive: mapped.recursive, character_filter: [],
-      scan_depth: null, context_percentage: null,
+      scan_depth: mapped.scanDepth, context_percentage: null,
     }));
   }).sort();
   if (expected.length === 0) return result('empty_embedded_source', 0);

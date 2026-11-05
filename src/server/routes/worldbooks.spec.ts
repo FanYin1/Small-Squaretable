@@ -9,7 +9,13 @@ import { join } from 'node:path';
 import { importStandaloneWorldbook } from '../../db/worldbook-import';
 import { prepareStandaloneWorldbook } from '../../types/worldbook-import';
 
-vi.mock('../../db', () => ({ db: {} }));
+const persistence = vi.hoisted(() => ({ values: vi.fn(), returning: vi.fn() }));
+vi.mock('../../db', () => {
+  const db = { insert: vi.fn(() => ({ values: persistence.values })), transaction: vi.fn() };
+  db.transaction.mockImplementation(async callback => callback(db));
+  persistence.values.mockImplementation(() => ({ returning: persistence.returning }));
+  return { db };
+});
 vi.mock('../../db/worldbook-import', () => ({ importStandaloneWorldbook: vi.fn() }));
 
 // --- Mocks (must precede router import) ---
@@ -54,6 +60,7 @@ describe('World Book Routes', () => {
     app = new Hono();
     app.route('/worldbooks', worldbooksRouter);
     vi.clearAllMocks();
+    persistence.returning.mockResolvedValue([]);
   });
 
   describe.skipIf(!process.env.CARD_LIBRARY_SAMPLE_ROOT)('Local library worldbook import mapping', () => {
@@ -67,7 +74,7 @@ describe('World Book Routes', () => {
           headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(source) });
         expect(response.status).toBe(201);
         expect((await response.json()).data.imported).toBe(entries.length);
-        expect(importStandaloneWorldbook).toHaveBeenCalledWith({}, { userId: 'user-1', tenantId: 'tenant-1' }, source);
+        expect(importStandaloneWorldbook).toHaveBeenCalledWith(expect.anything(), { userId: 'user-1', tenantId: 'tenant-1' }, source);
         const prepared = prepareStandaloneWorldbook(source);
         entries.forEach((entry, index) => {
           expect(prepared.entries[index]).toMatchObject({ content: entry.content,
@@ -108,7 +115,7 @@ describe('World Book Routes', () => {
   describe('POST /', () => {
     it('creates a world book', async () => {
       const created = { id: 'wb-new', name: 'My Lore', scope: 'global', userId: 'user-1' };
-      vi.mocked(worldBookRepository.create).mockResolvedValue(created as any);
+      persistence.returning.mockResolvedValue([created]);
 
       const res = await app.request('/worldbooks', {
         method: 'POST',
@@ -120,10 +127,11 @@ describe('World Book Routes', () => {
       const body = await res.json();
       expect(body.success).toBe(true);
       expect(body.data).toEqual(created);
-      expect(worldBookRepository.create).toHaveBeenCalledWith({
+      expect(persistence.values).toHaveBeenCalledWith({
         name: 'My Lore',
         scope: 'global',
-        ownerId: 'user-1',
+        userId: 'user-1',
+        description: undefined,
         tenantId: 'tenant-1',
         characterId: undefined,
       });
@@ -164,7 +172,7 @@ describe('World Book Routes', () => {
       vi.mocked(worldBookRepository.findById).mockResolvedValue(wb as any);
 
       const entry = { id: 'e-1', worldbookId: 'wb-1', keyword: 'dragon', content: 'A fire-breathing creature' };
-      vi.mocked(worldBookEntryRepository.create).mockResolvedValue(entry as any);
+      persistence.returning.mockResolvedValue([entry]);
 
       const res = await app.request('/worldbooks/wb-1/entries', {
         method: 'POST',
@@ -176,16 +184,9 @@ describe('World Book Routes', () => {
       const body = await res.json();
       expect(body.success).toBe(true);
       expect(body.data).toEqual(entry);
-      expect(worldBookEntryRepository.create).toHaveBeenCalledWith({
-        worldBookId: 'wb-1',
-        keys: ['dragon'],
-        content: 'A fire-breathing creature',
-        order: 0,
-        enabled: true,
-        depth: 0,
-        // createEntrySchema 的默认值：路由始终显式传入递归开关
-        recursive: true,
-        preventRecursion: false,
+      expect(persistence.values).toHaveBeenCalledWith({
+        worldbookId: 'wb-1', keyword: 'dragon', content: 'A fire-breathing creature',
+        position: 0, isEnabled: true, priority: 0, settings: {}, recursive: true, preventRecursion: false,
       });
     });
   });
@@ -232,7 +233,53 @@ describe('World Book Routes', () => {
       const body = await res.json();
       expect(body.success).toBe(true);
       expect(body.data.imported).toBe(2);
-      expect(worldBookEntryRepository.create).toHaveBeenCalledTimes(2);
+      expect(persistence.values).toHaveBeenCalledTimes(2);
+      expect(persistence.values.mock.calls[0][0].settings.selectiveLogic).toBe('NOT_ALL');
     });
+  });
+});
+
+
+describe('World book preview uses generation scan', () => {
+  const bookId = '10000000-0000-4000-8000-000000000001';
+  const entryId = '10000000-0000-4000-8000-000000000002';
+  const fixture = { id: entryId, worldbookId: bookId, keyword: 'gate', content: 'Long lore '.repeat(100),
+    position: 0, priority: 0, settings: { keys: ['gate'], sticky: 2 }, isEnabled: true,
+    characterFilter: [], scanDepth: null, contextPercentage: null, recursive: true, preventRecursion: false };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(worldBookRepository.findById).mockResolvedValue({ id: bookId, userId: 'user-1', isEnabled: true } as any);
+    vi.mocked(worldBookEntryRepository.findByWorldBook).mockResolvedValue([fixture] as any);
+  });
+  const request = (body: object) => new Hono().route('/worldbooks', worldbooksRouter).request(`/worldbooks/${bookId}/scan`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  it('reports budget exclusion and unsupported timers instead of reporting a keyword hit as injection', async () => {
+    const response = await request({ text: 'gate', tokenBudget: 10 });
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(data.matches).toEqual([]);
+    expect(data.mode).toBe('single_book_preview');
+    expect(data.diagnostics.decisions).toEqual([expect.objectContaining({ entryId,
+      reason: 'token_budget_exceeded', unsupported: ['sticky'] })]);
+    expect(persistence.values).not.toHaveBeenCalled();
+  });
+  it('honors disabled books and entry case sensitivity', async () => {
+    vi.mocked(worldBookRepository.findById).mockResolvedValue({ id: bookId, userId: 'user-1', isEnabled: false } as any);
+    const { data } = await (await request({ text: 'gate' })).json();
+    expect(data.matches).toEqual([]);
+    expect(data.diagnostics.decisions[0].reason).toBe('disabled');
+    vi.mocked(worldBookRepository.findById).mockResolvedValue({ id: bookId, userId: 'user-1', isEnabled: true } as any);
+    vi.mocked(worldBookEntryRepository.findByWorldBook).mockResolvedValue([{ ...fixture, settings: { keys: ['Gate'], caseSensitive: true } }] as any);
+    expect((await (await request({ text: 'gate' })).json()).data.matches).toEqual([]);
+  });
+  it('refuses another owner before reading entries', async () => {
+    vi.mocked(worldBookRepository.findById).mockResolvedValue({ id: bookId, userId: 'other' } as any);
+    expect((await request({ text: 'gate' })).status).toBe(404);
+    expect(worldBookEntryRepository.findByWorldBook).not.toHaveBeenCalled();
+  });
+  it.each([{ tokenBudget: 0 }, { maxRecursionDepth: 99 }, { scanMessageCount: -1 }])('validates scan options %j', async options => {
+    expect((await request({ text: 'gate', ...options })).status).toBe(400);
+    expect(worldBookRepository.findById).not.toHaveBeenCalled();
   });
 });

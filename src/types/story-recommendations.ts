@@ -10,7 +10,7 @@ export type StoryRecommendationsSource = 'generated' | 'excerpt' | 'fallback';
 export const DEFAULT_STORY_RECOMMENDATIONS_LEAD = '你可以从下面的方向继续，也可以直接输入自己的想法。';
 export const storyRecommendationsLeadTextSchema = z.string().trim().min(1).max(120)
   .refine(text => !/[<>]/.test(text) && ![...text].some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127));
-const storyRecommendationsLeadSchema = z.object({
+export const storyRecommendationsLeadSchema = z.object({
   text: storyRecommendationsLeadTextSchema,
   evidence: z.string().trim().min(2).max(300),
 }).strict();

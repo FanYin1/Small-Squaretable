@@ -96,14 +96,6 @@ const validateConfirmPassword = (_rule: any, value: any, callback: any) => {
   }
 };
 
-const validateInviteCode = (_rule: any, value: any, callback: any) => {
-  if (!value || !String(value).trim()) {
-    callback(new Error(t('auth.inviteCodeRequired')));
-  } else {
-    callback();
-  }
-};
-
 const validateTerms = (_rule: any, value: any, callback: any) => {
   if (!value) {
     callback(new Error(t('auth.agreeTermsRequired')));
@@ -135,9 +127,6 @@ const rules = reactive<FormRules>({
   ],
   confirmPassword: [
     { required: true, validator: validateConfirmPassword, trigger: 'blur' },
-  ],
-  inviteCode: [
-    { required: true, validator: validateInviteCode, trigger: 'blur' },
   ],
   agreeToTerms: [
     { required: true, validator: validateTerms, trigger: 'change' },
@@ -221,12 +210,9 @@ const loginWithOAuth = (provider: string) => {
     return;
   }
   const inviteCode = formData.inviteCode.trim();
-  if (!inviteCode) {
-    toast.error(t('auth.inviteCodeRequired'));
-    return;
-  }
-  window.location.href =
-    `/api/v1/auth/oauth/${provider}?ageConfirmed=1&inviteCode=${encodeURIComponent(inviteCode)}`;
+  const query = new URLSearchParams({ ageConfirmed: '1' });
+  if (inviteCode) query.set('inviteCode', inviteCode);
+  window.location.href = `/api/v1/auth/oauth/${provider}?${query.toString()}`;
 };
 </script>
 
@@ -333,10 +319,10 @@ const loginWithOAuth = (provider: string) => {
         </el-form-item>
 
         <!-- Invite Code Field -->
-        <el-form-item :label="t('auth.inviteCode')" prop="inviteCode">
+        <el-form-item :label="t('auth.inviteCodeOptional')" prop="inviteCode">
           <el-input
             v-model="formData.inviteCode"
-            :placeholder="t('auth.enterInviteCode')"
+            :placeholder="t('auth.enterInviteCodeOptional')"
             :disabled="loading"
             maxlength="64"
             clearable

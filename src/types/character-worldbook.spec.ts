@@ -34,6 +34,22 @@ describe('embedded character world books', () => {
     });
   });
 
+  it.each([
+    [0, 'AND_ANY'], [1, 'NOT_ALL'], [2, 'NOT_ANY'], [3, 'AND_ALL'],
+  ] as const)('maps SillyTavern numeric selective logic %s', (source, expected) => {
+    const book = characterWorldbookSchema.parse({ entries: [{ keys: ['gate'], secondary_keys: ['key'],
+      selective: true, content: 'A gate.', extensions: { selectiveLogic: source } }] });
+    expect(mapCharacterWorldbookEntry(book.entries[0]).settings.selectiveLogic).toBe(expected);
+  });
+
+  it('preserves per-entry scan depth and timing values without claiming runtime support', () => {
+    const book = characterWorldbookSchema.parse({ entries: [{ keys: ['gate'], content: 'A gate.', scan_depth: 4,
+      sticky: 2, cooldown: 3 }] });
+    const mapped = mapCharacterWorldbookEntry(book.entries[0]);
+    expect(mapped.scanDepth).toBe(4);
+    expect(mapped.settings).toMatchObject({ sticky: 2, cooldown: 3 });
+  });
+
   it.each([{}, { entries: {} }, { entries: [null] }, { entries: [{ content: 42 }] },
     { entries: [{ content: 'Gate', keys: [42] }] }])('rejects malformed embedded books: %j', value => {
     expect(characterWorldbookSchema.safeParse(value).success).toBe(false);

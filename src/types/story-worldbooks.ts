@@ -9,6 +9,9 @@ export const storyWorldbookEntrySchema = z.object({
 });
 
 export const storyWorldbooksSnapshotSchema = z.object({
+  scan: z.object({ version: z.literal(2), scanMessageCount: z.number().int().min(1).max(1000),
+    maxRecursionDepth: z.number().int().min(1).max(10), tokenBudget: z.number().int().min(1).max(100000),
+  }).strict().optional(),
   protocol: z.literal(1), capturedAt: z.string().datetime(), revision: z.string().regex(/^[a-f0-9]{64}$/),
   bindings: z.array(z.object({
     characterId: z.string().uuid(),

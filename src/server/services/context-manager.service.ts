@@ -124,8 +124,8 @@ export class ContextManager {
    * (after the system prompt). Entries are sorted by depth descending
    * so deeper entries don't shift shallower ones.
    */
-  injectAtDepth(messages: LLMMessage[], entries: AtDepthEntry[]): LLMMessage[] {
-    return injectAtDepthPure(messages, entries);
+  injectAtDepth(messages: LLMMessage[], entries: AtDepthEntry[], onInsert?: (message: LLMMessage, entry: AtDepthEntry) => void): LLMMessage[] {
+    return injectAtDepthPure(messages, entries, onInsert);
   }
 
   /**

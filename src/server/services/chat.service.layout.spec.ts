@@ -16,9 +16,10 @@ const mocks = vi.hoisted(() => ({
   findPersona: vi.fn(),
   findOverride: vi.fn(),
   loadWorldbooks: vi.fn(),
+  scanConfiguration: undefined as undefined | { version: 2; scanMessageCount: number; maxRecursionDepth: number; tokenBudget: number },
 }));
 
-vi.mock('./story-worldbooks.service', () => ({ loadStoryWorldbookEntries: mocks.loadWorldbooks }));
+vi.mock('./story-worldbooks.service', () => ({ loadStoryWorldbookScan: async (...args: unknown[]) => ({ entries: await mocks.loadWorldbooks(...args), scan: mocks.scanConfiguration }) }));
 
 vi.mock('../../db/repositories/chat.repository', () => ({ chatRepository: {} }));
 vi.mock('../../db/repositories/message.repository', () => ({ messageRepository: {} }));
@@ -104,6 +105,28 @@ describe('buildEnhancedSystemPrompt layout', () => {
   const service = new ChatService({} as never, {} as never);
   const originalLayout = process.env.PROMPT_LAYOUT;
 
+  it.each(['legacy', 'cache_friendly'])('captures actual assembly without re-running retrieval or changing prompt bytes (%s)', async layout => {
+    process.env.PROMPT_LAYOUT = layout;
+    const baseline = await service.buildEnhancedSystemPrompt(baseParams);
+    vi.clearAllMocks();
+    const capture = vi.fn();
+    const result = await service.buildEnhancedSystemPrompt({ ...baseParams, onPromptTrace: capture });
+    expect(result).toEqual(baseline);
+    expect(mocks.scan).toHaveBeenCalledOnce(); expect(mocks.retrieveMemories).toHaveBeenCalledOnce();
+    expect(capture).toHaveBeenCalledOnce();
+    const trace = capture.mock.calls[0][0];
+    expect(trace.memoryIds).toEqual(['m1', 'm2', 'm3', 'm4']);
+    expect(trace.depthEntries.map((entry: { depth: number }) => entry.depth)).toEqual(result.atDepthEntries.map(entry => entry.depth));
+    expect(JSON.stringify(trace)).not.toContain('likes tea');
+    expect(JSON.stringify(trace)).not.toContain('A wandering bard.');
+  });
+
+  it('ignores a failing optional diagnostic observer', async () => {
+    const baseline = await service.buildEnhancedSystemPrompt(baseParams);
+    expect(await service.buildEnhancedSystemPrompt({ ...baseParams, onPromptTrace: () => { throw new Error('fixture'); } })).toEqual(baseline);
+  });
+
+
   it.each([null, 1])('keeps macro persistence within legacy stories (version %s)', async contentSnapshotVersion => {
     const withVariables = { ...character, cardData: { ...character.cardData, system_prompt: '{{setvar::coins::10}}{{setglobalvar::visit::1}}Stay here.' } };
     await service.buildEnhancedSystemPrompt({ ...baseParams, character: withVariables as never, contentSnapshotVersion });
@@ -146,7 +169,15 @@ describe('buildEnhancedSystemPrompt layout', () => {
     mocks.loadWorldbooks.mockResolvedValue([]);
     await service.buildEnhancedSystemPrompt({ ...baseParams, worldbookSnapshotVersion: 1 });
     expect(mocks.loadWorldbooks).toHaveBeenCalledWith('chat-1', 'user-1', 'char-1');
-    expect(mocks.scan).toHaveBeenCalledWith(expect.objectContaining({ entries: [], chat: baseParams.messages }));
+    expect(mocks.scan).toHaveBeenCalledWith(expect.objectContaining({ entries: [], chat: baseParams.messages, compatibilityVersion: 1 }));
+  });
+
+  it('passes frozen v2 scan parameters instead of current defaults into generation', async () => {
+    mocks.loadWorldbooks.mockResolvedValue([]);
+    mocks.scanConfiguration = { version: 2, scanMessageCount: 7, maxRecursionDepth: 2, tokenBudget: 2500 };
+    await service.buildEnhancedSystemPrompt({ ...baseParams, worldbookSnapshotVersion: 1 });
+    expect(mocks.scan).toHaveBeenCalledWith(expect.objectContaining({ entries: [], compatibilityVersion: 2,
+      scanMessageCount: 7, maxRecursionDepth: 2, tokenBudget: 2500 }));
   });
 
   it('scans the current action even when there is no prior history', async () => {
@@ -170,6 +201,7 @@ describe('buildEnhancedSystemPrompt layout', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.scanConfiguration = undefined;
     delete process.env.PROMPT_LAYOUT;
     mocks.findOverride.mockResolvedValue(undefined);
     mocks.findPersona.mockResolvedValue(undefined);

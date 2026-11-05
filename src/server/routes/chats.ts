@@ -4,6 +4,7 @@
  * 提供聊天 CRUD 和消息管理的 API 端点
  */
 
+import { promptTraceRoutes } from './prompt-traces';
 import { acquireChatOperation } from '../services/chat-operation';
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
@@ -52,6 +53,7 @@ import { branchInputSchema, branchCommitSchema, readingInputSchema } from '../..
 const logger = createLogger({ service: 'chats-route' });
 
 export const chatRoutes = new Hono();
+chatRoutes.route('/', promptTraceRoutes);
 
 chatRoutes.get('/:id/story-branches', authMiddleware(), zValidator('param', z.object({ id: z.string().uuid() })), async (c) => {
   const user = c.get('user');

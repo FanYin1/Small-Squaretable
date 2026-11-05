@@ -41,6 +41,9 @@ export const useChatStore = defineStore('chat', () => {
   const streamingCharacterId = ref<string | null>(null);
   const streamingCharacterName = ref<string | null>(null);
   const isStreaming = ref(false);
+  const replyReceived = ref(false);
+  const awaitingGenerationFinish = computed(() => sending.value && !isStreaming.value && replyReceived.value);
+  let completedSingleRequestId: string | null = null;
   const stopping = ref(false);
   const billingRevision = ref(0);
   const hasMoreMessages = ref(true);
@@ -160,6 +163,7 @@ export const useChatStore = defineStore('chat', () => {
     streamingCharacterId.value = null;
     streamingCharacterName.value = null;
     isStreaming.value = false;
+    replyReceived.value = false;
   }
 
   async function refreshLegacyVariables(chatId: string) {
@@ -464,6 +468,8 @@ export const useChatStore = defineStore('chat', () => {
       const chunkData = data as { chatId: string; requestId?: string; chunk: string; provisional?: boolean; phase?: 'control' | 'validating'; characterId?: string; characterName?: string };
       if (chunkData.chatId !== currentChatId.value) return;
       if (!acceptGenerationEvent(chunkData.requestId)) return;
+      if (chunkData.requestId && !chunkData.characterId && chunkData.requestId === completedSingleRequestId) return;
+      replyReceived.value = false;
       if (isStreaming.value && (chunkData.characterId ?? null) !== streamingCharacterId.value) {
         generationRecoveryPending = true;
         isStreaming.value = false;
@@ -516,6 +522,8 @@ export const useChatStore = defineStore('chat', () => {
         else if (typeof doneData.content === 'string') messages.value[existingIndex] = message;
         if (replyTiming.value?.firstChunkAt != null && replyTimingMessageId.value === null) replyTimingMessageId.value = message.id;
         clearStreamingState();
+        replyReceived.value = true;
+        if (doneData.requestId && !doneData.characterId) completedSingleRequestId = doneData.requestId;
         if (!doneData.requestId) sending.value = false;
 
       }
@@ -1546,6 +1554,7 @@ export const useChatStore = defineStore('chat', () => {
     streamingCharacterId,
     streamingCharacterName,
     isStreaming,
+    awaitingGenerationFinish,
     stopping,
     billingRevision,
     hasMoreMessages,

@@ -73,9 +73,12 @@ describe('Auth Routes', () => {
       ['缺少', {}],
       ['空串', { inviteCode: '' }],
       ['纯空白', { inviteCode: '   ' }],
-      ['超长', { inviteCode: 'A'.repeat(65) }],
-    ])('邀请码%s直接 400，服务层都不该被调用', async (_label, extra) => {
+    ])('邀请码%s仍允许进入注册服务', async (_label, extra) => {
       const { authService } = await import('../services/auth.service');
+      vi.mocked(authService.register).mockResolvedValue({
+        user: { id: '123', email: 'test@example.com', tenantId: '456', displayName: null, avatarUrl: null },
+        tokens: { accessToken: 'access', refreshToken: 'refresh', expiresIn: 900 },
+      });
 
       const res = await app.request('/api/v1/auth/register', {
         method: 'POST',
@@ -88,6 +91,16 @@ describe('Auth Routes', () => {
         }),
       });
 
+      expect(res.status).toBe(201);
+      expect(authService.register).toHaveBeenCalledWith(expect.objectContaining({ email: 'test@example.com', ageConfirmed: true }));
+    });
+
+    it('邀请码仍有长度上限', async () => {
+      const { authService } = await import('../services/auth.service');
+      const res = await app.request('/api/v1/auth/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'test@example.com', password: 'password123', ageConfirmed: true, inviteCode: 'A'.repeat(65) }),
+      });
       expect(res.status).toBe(400);
       expect(authService.register).not.toHaveBeenCalled();
     });

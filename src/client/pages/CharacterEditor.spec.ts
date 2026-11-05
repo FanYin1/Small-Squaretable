@@ -382,7 +382,7 @@ describe('CharacterEditor Save as Template', () => {
     await nextTick();
 
     const buttons = wrapper.findAll('button');
-    const templateBtn = buttons.find(b => b.text().includes('Save as Template'));
+    const templateBtn = buttons.find(b => b.text().includes(i18n.global.t('characterEditor.saveAsTemplate')));
     expect(templateBtn).toBeDefined();
   });
 
@@ -394,7 +394,7 @@ describe('CharacterEditor Save as Template', () => {
     await nextTick();
 
     const buttons = wrapper.findAll('button');
-    const templateBtn = buttons.find(b => b.text().includes('Save as Template'));
+    const templateBtn = buttons.find(b => b.text().includes(i18n.global.t('characterEditor.saveAsTemplate')));
     expect(templateBtn).toBeUndefined();
   });
 
@@ -534,7 +534,7 @@ describe('CharacterEditor persistence boundaries', () => {
     expect(await leaveGuards.leave.mock.calls.at(-1)![0]()).toBe(false);
     expect(editor.form.name).toBe('Unsaved name');
     expect(mockPush).not.toHaveBeenCalled();
-    expect(wrapper.get('[data-testid="editor-save-status"]').text()).toContain('could not be confirmed');
+    expect(wrapper.get('[data-testid="editor-save-status"]').text()).toBe(i18n.global.t('characterEditor.saveUncertain'));
     wrapper.unmount();
   });
 
@@ -590,7 +590,7 @@ describe('CharacterEditor persistence boundaries', () => {
     await (wrapper.vm as any).handleSave();
     expect(mockUpdateCharacter).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
-    expect(wrapper.get('[data-testid="editor-save-status"]').text()).toContain('load');
+    expect(wrapper.get('[data-testid="editor-save-status"]').text()).toBe(i18n.global.t('characterEditor.loadFailed'));
     await (wrapper.vm as any).initializeEditor();
     expect((wrapper.vm as any).form.name).toBe('Test Character');
     wrapper.unmount();

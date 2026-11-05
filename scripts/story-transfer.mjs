@@ -91,7 +91,8 @@ function remapReferences(tables, maps, owner) {
     binding.characterId = reference('characters', binding.characterId);
     for (const book of binding.books) for (const entry of book.entries) entry.characterFilter = entry.characterFilter.map(id => maps.characters.get(id) ?? id);
   }
-  mapped.story_worldbooks[0].snapshot.revision = digest(mapped.story_worldbooks[0].snapshot.bindings);
+  const mappedBooks = mapped.story_worldbooks[0].snapshot;
+  mappedBooks.revision = digest(mappedBooks.scan ? { bindings: mappedBooks.bindings, scan: mappedBooks.scan } : mappedBooks.bindings);
   for (const message of mapped.messages) if (message.extra?.storyAudience) message.extra.storyAudience = message.extra.storyAudience.map(id => reference('characters', id));
   mapped.story_states[0].sources = Object.fromEntries(Object.entries(mapped.story_states[0].sources).map(([key, value]) => [key, reference('story_events', value)]));
   for (const job of mapped.story_memory_jobs) if (job.extracted !== null) {
@@ -185,7 +186,8 @@ export async function importStoryBundle(target, input, options) {
         lineageId: bundle.lineageId, bundleSha256: digest(bundle), originalIdentityRevision: bundle.tables.chats[0].identity_snapshot.revision,
         originalContentRevision: bundle.tables.story_content[0].snapshot.revision, originalWorldbookRevision: bundle.tables.story_worldbooks[0].snapshot.revision };
       tables.story_content[0].snapshot.revision = digest(tables.story_content[0].snapshot.characters);
-      tables.story_worldbooks[0].snapshot.revision = digest(tables.story_worldbooks[0].snapshot.bindings);
+      const transferredBooks = tables.story_worldbooks[0].snapshot;
+      transferredBooks.revision = digest(transferredBooks.scan ? { bindings: transferredBooks.bindings, scan: transferredBooks.scan } : transferredBooks.bindings);
       for (const job of tables.story_memory_jobs) if (job.extracted !== null) job.source_digest = digest(memorySources(tables, job));
       const destinationFiles = bundle.files.map(file => ({ ...file, url: replacements.get(file.url) }));
       validateStoryBundle({ ...bundle, tables, files: destinationFiles });

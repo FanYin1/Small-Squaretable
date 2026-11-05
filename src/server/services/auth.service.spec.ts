@@ -264,14 +264,13 @@ describe('AuthService', () => {
       expect(mockRecordUse).not.toHaveBeenCalled();
     }
 
-    it.each([undefined, '', '   '])('缺码（%j）→ 400 INVITE_CODE_REQUIRED，不建租户不建用户', async (inviteCode) => {
-      const err = await service.register({ ...base, inviteCode } as never).catch((e) => e);
-
-      expect(err).toBeInstanceOf(InviteCodeError);
-      expect(err.statusCode).toBe(400);
-      expect(err.code).toBe('INVITE_CODE_REQUIRED');
-      expect(mockWithTransaction).not.toHaveBeenCalled();
-      await expectNothingCreated();
+    it.each([undefined, '', '   '])('邀请码为空（%j）时允许注册且不消费邀请码', async (inviteCode) => {
+      await expect(service.register({ ...base, inviteCode })).resolves.toMatchObject({
+        user: { email: base.email }, tokens: { accessToken: 'access_token' },
+      });
+      expect(mockWithTransaction).toHaveBeenCalledOnce();
+      expect(mockConsume).not.toHaveBeenCalled();
+      expect(mockRecordUse).not.toHaveBeenCalled();
     });
 
     it('错码 / 过期 / 用尽 / 禁用（consume 无返回行）→ 400 INVITE_CODE_INVALID，不建租户不建用户', async () => {

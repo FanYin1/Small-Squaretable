@@ -49,7 +49,7 @@ function entryDigest(entries: Row[]) { return digest(entries.map(entry => canoni
 function mappedFields(entry: MappedEntry): Row {
   return { keyword: entry.keyword, content: entry.content, position: entry.position, is_enabled: entry.isEnabled,
     priority: entry.priority, prevent_recursion: entry.preventRecursion, recursive: entry.recursive,
-    settings: JSON.parse(JSON.stringify(entry.settings)), character_filter: [], scan_depth: null, context_percentage: null };
+    settings: JSON.parse(JSON.stringify(entry.settings)), character_filter: [], scan_depth: entry.scanDepth, context_percentage: null };
 }
 function mappedSource(value: unknown) {
   const parsed = characterWorldbookSchema.safeParse(value);
@@ -196,9 +196,9 @@ export async function applyCharacterLegacy(client: Sql, input: Plan, expectedPla
         VALUES ($1, $2, $3, $4, 'character') RETURNING id`, [request.tenantId, request.ownerId, request.characterId, source.name]);
       bookId = book.id as string;
       for (const entry of source.entries) {
-        await transaction.unsafe(`INSERT INTO worldbook_entries (worldbook_id, keyword, content, position, is_enabled, priority, prevent_recursion, recursive, settings)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text::jsonb)`,
-        [bookId, entry.keyword, entry.content, entry.position, entry.isEnabled, entry.priority, entry.preventRecursion, entry.recursive, JSON.stringify(entry.settings)]);
+        await transaction.unsafe(`INSERT INTO worldbook_entries (worldbook_id, keyword, content, position, is_enabled, priority, prevent_recursion, recursive, settings, scan_depth)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text::jsonb, $10)`,
+        [bookId, entry.keyword, entry.content, entry.position, entry.isEnabled, entry.priority, entry.preventRecursion, entry.recursive, JSON.stringify(entry.settings), entry.scanDepth]);
       }
     }
     for (const binding of request.bindings) {

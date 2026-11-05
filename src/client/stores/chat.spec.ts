@@ -752,9 +752,25 @@ describe('Chat Store', () => {
       wsHandlers.get('assistantMessageDone')!({ chatId: 'story', requestId, messageId: '102', content: '完整回复' });
       expect(store.messages.at(-1)?.content).toBe('完整回复');
       expect(store.replyTiming?.firstChunkAt).toBeNull();
-      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: '旧协议正文' });
-      wsHandlers.get('assistantMessageDone')!({ chatId: 'story', requestId, messageId: '103' });
+      wsHandlers.get('generationFinished')!({ chatId: 'story', requestId, status: 'completed' });
+      await store.sendMessage('下一轮');
+      const nextRequestId = store.messages.at(-1)!.id;
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId: nextRequestId, chunk: '旧协议正文' });
+      wsHandlers.get('assistantMessageDone')!({ chatId: 'story', requestId: nextRequestId, messageId: '103' });
       expect(store.messages.at(-1)?.content).toBe('旧协议正文');
+    });
+
+    it('keeps the input locked after saved DONE, labels finalization and ignores late single-story chunks', async () => {
+      const { store, requestId } = await start();
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: '预览正文', provisional: true });
+      wsHandlers.get('assistantMessageDone')!({ chatId: 'story', requestId, messageId: 'saved', content: '已保存正文' });
+      expect(store.awaitingGenerationFinish).toBe(true);
+      expect(store.sending).toBe(true); expect(store.isStreaming).toBe(false);
+      wsHandlers.get('assistantMessageChunk')!({ chatId: 'story', requestId, chunk: '过期片段', provisional: true });
+      expect(store.isStreaming).toBe(false); expect(store.streamingMessage).toBe('');
+      expect(store.messages.at(-1)?.content).toBe('已保存正文');
+      wsHandlers.get('generationFinished')!({ chatId: 'story', requestId, status: 'completed' });
+      expect(store.awaitingGenerationFinish).toBe(false); expect(store.sending).toBe(false);
     });
 
     it('times only the first nonblank matching body chunk and logs only numbers and fixed labels', async () => {

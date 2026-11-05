@@ -27,3 +27,16 @@ describe('Worldbook authoring round trip', () => {
     expect(exported.extensions).not.toHaveProperty('squaretable');
   });
 });
+
+describe('Upstream numeric enum and depth contract', () => {
+  it.each([[0, 'AND_ANY'], [1, 'NOT_ALL'], [2, 'NOT_ANY'], [3, 'AND_ALL']] as const)(
+    'exports %s as the original upstream numeric value', (value, logic) => {
+      const exported = exportWorldbookEntry({ keyword: 'gate', content: 'lore', position: 0, isEnabled: true,
+        scanDepth: 0, settings: { selectiveLogic: logic } });
+      expect(exported.selectiveLogic).toBe(value);
+      expect(exported.scan_depth).toBe(0);
+      expect(prepareStandaloneWorldbook({ entries: [exported] }).entries[0]).toMatchObject({
+        scanDepth: 0, settings: { selectiveLogic: logic },
+      });
+    });
+});

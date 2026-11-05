@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import type { PromptTransportTrace } from '../../types/prompt-trace';
+import { assertStoryControlRequest } from './story-control-protocol';
 /**
  * LLM Service
  *
@@ -45,6 +48,7 @@ export interface CacheUsage {
 }
 
 export interface LlmCallOptions {
+  onDispatch?: (transport: PromptTransportTrace) => void;
   chatId?: string;
   signal?: AbortSignal;
   maxAttempts?: number;
@@ -209,6 +213,7 @@ export class LLMService {
    * 聊天补全
    */
   async chatCompletion(request: ChatCompletionRequest, options?: LlmCallOptions): Promise<ChatCompletionResponse> {
+    assertStoryControlRequest(request, options?.templatePrompt);
     options = this.requestOptions(options);
     await spendBreaker.assertAllowed();
 
@@ -299,6 +304,7 @@ export class LLMService {
     signal?: AbortSignal,
     options?: LlmCallOptions
   ): Promise<Response> {
+    assertStoryControlRequest(request, options?.templatePrompt);
     options = this.requestOptions({ ...options, signal: signal ?? options?.signal });
     signal = options.signal;
     await spendBreaker.assertAllowed();
@@ -342,10 +348,22 @@ export class LLMService {
 
     const native = anthropic ? buildAnthropicRequest(baseUrl, providerConfig.apiKey, upstreamRequest, true)
       : providerConfig.apiFormat === 'gemini' ? buildGeminiRequest(baseUrl, providerConfig.apiKey, upstreamRequest, true) : null;
+    const wireBody = native ? String(native.init.body ?? '') : JSON.stringify(modifiedRequest);
+    if (options?.onDispatch) {
+      try {
+        options.onDispatch({
+          outputTokens: limits.maxOutputTokens,
+          adapter: anthropic ? 'anthropic' : providerConfig.apiFormat === 'gemini' ? 'gemini'
+            : providerConfig.provider === 'ollama' && (!providerConfig.apiFormat || providerConfig.apiFormat === 'openai') ? 'ollama'
+            : legacyCompletion ? 'text_completion' : 'openai_chat',
+          bodyBytes: Buffer.byteLength(wireBody), bodySha256: createHash('sha256').update(wireBody).digest('hex'),
+        });
+      } catch { /* Diagnostics must not change model dispatch. */ }
+    }
     let response = native ? await fetch(native.url, { ...native.init, signal: signal ?? options?.signal }) : await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(modifiedRequest),
+      body: wireBody,
       signal: signal ?? options?.signal,
     });
 
@@ -382,6 +400,7 @@ export class LLMService {
    */
   async completion(request: CompletionRequest, options?: LlmCallOptions): Promise<CompletionResponse> {
     if (request.stream) throw new AppError('Use the streaming chat endpoint for HTTP streaming', 400, 'STREAMING_ENDPOINT_REQUIRED');
+    assertStoryControlRequest(request, options?.templatePrompt);
     options = this.requestOptions(options);
     await spendBreaker.assertAllowed();
 

@@ -55,6 +55,13 @@ export interface CreateEntryInput {
 }
 
 export interface ScanResult {
+  mode?: 'single_book_preview';
+  note?: string;
+  diagnostics?: {
+    constantBudgetOverflow?: boolean;
+    budgetUsed: number; budgetLimit: number; scanMessageCount: number; maxRecursionDepth: number;
+    decisions: Array<{ entryId: string; status: 'injected' | 'excluded'; reason: string; unsupported?: string[] }>;
+  };
   matches: Array<{
     id: string;
     keys: string[];

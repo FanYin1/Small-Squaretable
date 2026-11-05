@@ -514,16 +514,15 @@ describe('oauthService', () => {
         expect(mockInviteRecordUse).not.toHaveBeenCalled();
       }
 
-      it.each([undefined, '', '   '])('新用户缺码（%j）→ 400 INVITE_CODE_REQUIRED，不建号', async (inviteCode) => {
-        const err = await oauthService
-          .authenticateWithOAuth(makeProfile(), { ageConfirmed: true, inviteCode })
-          .catch((e) => e);
-
-        expect(err).toBeInstanceOf(InviteCodeError);
-        expect(err.statusCode).toBe(400);
-        expect(err.code).toBe('INVITE_CODE_REQUIRED');
-        expect(mockInviteWithTransaction).not.toHaveBeenCalled();
-        expectNothingCreated();
+      it.each([undefined, '', '   '])('新用户邀请码为空（%j）时允许注册且不消费邀请码', async (inviteCode) => {
+        const result = await oauthService.authenticateWithOAuth(makeProfile(), { ageConfirmed: true, inviteCode });
+        expect(result.isNewUser).toBe(true);
+        expect(mockInviteWithTransaction).toHaveBeenCalledOnce();
+        expect(mockInviteConsume).not.toHaveBeenCalled();
+        expect(mockInviteRecordUse).not.toHaveBeenCalled();
+        expect(mockTenantCreate).toHaveBeenCalledWith(expect.anything(), TX);
+        expect(mockUserCreate).toHaveBeenCalledWith(expect.anything(), TX);
+        expect(mockOAuthCreate).toHaveBeenCalledWith(expect.anything(), TX);
       });
 
       it('错码 / 过期 / 用尽 / 禁用 → 400 INVITE_CODE_INVALID，不建号', async () => {

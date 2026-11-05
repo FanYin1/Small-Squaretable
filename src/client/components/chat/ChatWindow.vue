@@ -37,14 +37,16 @@
       <StoryCorrections v-if="userStore.user" :key="`${userStore.user.id}:${currentChat.id}`" ref="correctionsPanel" hide-trigger :chat-id="currentChat.id" :owner-id="userStore.user.id" :messages="messages" @readings="storyReadings = $event" />
       <button type="button" ref="readingSettingsTrigger" class="reading-settings-trigger chat-header-icon" :aria-label="t('storyShell.readingSettings')" :title="t('storyShell.readingSettings')" aria-haspopup="dialog" :aria-expanded="readingOpen" @click="readingOpen = true"><el-icon><Setting /></el-icon><span class="chat-tool-label">{{ t('storyShell.readingSettings') }}</span></button>
       <el-dropdown trigger="click" @command="handleMenuCommand">
-        <el-button link class="story-management-trigger" :icon="More" :aria-label="t('storyShell.storyActions')" :title="t('storyShell.storyActions')" />
+        <el-button ref="managementTrigger" link class="story-management-trigger" :icon="More" :aria-label="t('storyShell.storyActions')" :title="t('storyShell.storyActions')" />
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item v-if="userStore.user" command="corrections">纠正与分支</el-dropdown-item>
+            <el-dropdown-item command="tools">故事工具</el-dropdown-item>
             <el-dropdown-item command="search">{{ t('chat.searchMessages') }}</el-dropdown-item>
             <el-dropdown-item command="export-json">{{ t('chat.exportJson') }}</el-dropdown-item>
             <el-dropdown-item command="export-md">{{ t('chat.exportMarkdown') }}</el-dropdown-item>
             <el-dropdown-item command="export-txt">{{ t('chat.exportText') }}</el-dropdown-item>
+            <el-dropdown-item command="snapshot">{{ t('share.createSnapshot') }}</el-dropdown-item>
             <el-dropdown-item command="rename" divided>{{ t('chat.renameTitle') }}</el-dropdown-item>
             <el-dropdown-item command="delete" divided>{{ t('chat.deleteTitle') }}</el-dropdown-item>
           </el-dropdown-menu>
@@ -71,56 +73,18 @@
       </span>
     </div>
 
-      <StoryWorkspaceDrawer v-model:open="readingOpen" :title="t('storyShell.readingSettings')">
+      <StoryWorkspaceDrawer v-model:open="readingOpen" :return-focus="readingSettingsTrigger" :title="t('storyShell.readingSettings')">
         <div class="reading-settings-body">
           <div class="reading-font-controls" role="group" :aria-label="t('storyShell.fontSize')">
             <button v-for="(font, index) in readingSizes" :key="font" type="button" :aria-pressed="readingSize === font" @click="setReadingSize(font)">{{ [15, 17, 19][index] }}px</button>
           </div>
           <p v-if="currentChat?.contentSnapshotVersion == null" class="reading-emotion">{{ emotionEmoji }} {{ intelligenceStore.emotionLabel }}</p>
-      <div class="chat-actions">
-        <!-- Token Counter -->
-        <ChatTokenCounter @show-context-viewer="showContextViewerDialog" />
-
-        <el-tooltip v-if="isGroupChat && currentChat?.contentSnapshotVersion == null" :content="t('groupChat.manageCharacters')" placement="bottom">
-          <el-button size="small" text @click="showManageDialog = true">{{ t('groupChat.manageCharacters') }}</el-button>
-        </el-tooltip>
-        <el-segmented
-          v-if="isGroupChat"
-          :model-value="groupStrategy"
-          :options="strategyOptions"
-          size="small"
-          @change="handleStrategyChange"
-        />
-        <el-dropdown trigger="click" @command="handleToolsDropdown">
-          <el-button text size="small" class="tools-btn" :aria-label="t('chat.tools')" :title="t('chat.tools')">{{ t('chat.tools') }}</el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="tuner">{{ t('chat.parameterTuning') }}</el-dropdown-item>
-              <el-dropdown-item command="memory">{{ t('chat.memory') }}</el-dropdown-item>
-              <el-dropdown-item v-if="currentChat?.contentSnapshotVersion == null" command="debug">
-                {{ t('chat.debug') }}
-                <el-badge v-if="intelligenceStore.debugEventCount > 0" :value="intelligenceStore.debugEventCount" :max="99" style="margin-left: 8px" />
-              </el-dropdown-item>
-              <el-dropdown-item v-if="currentChat?.characterId" command="growth">{{ t('character.growth') }}</el-dropdown-item>
-              <el-dropdown-item command="pinned">{{ t('chat.pinnedMessages') }}</el-dropdown-item>
-              <el-dropdown-item divided command="search">{{ t('chat.searchMessages', 'Search') }}</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-        <el-dropdown trigger="click" @command="handleExportDropdown">
-          <el-button text :aria-label="t('common.export')" :title="t('common.export')">
-            <el-icon><Download /></el-icon>
-            {{ t('common.export') }}
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="json">{{ t('chat.exportJson') }}</el-dropdown-item>
-              <el-dropdown-item command="txt">{{ t('chat.exportTxt') }}</el-dropdown-item>
-              <el-dropdown-item command="snapshot" divided>{{ t('share.createSnapshot') }}</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </div>
+        </div>
+      </StoryWorkspaceDrawer>
+      <StoryWorkspaceDrawer v-model:open="toolsOpen" :return-focus="managementTrigger?.$el" title="故事工具">
+        <StoryTools v-if="toolsOpen" :frozen="currentChat?.contentSnapshotVersion != null" :group="isGroupChat" :has-character="!!currentChat?.characterId" :busy="sending || isStreaming" @select="handleToolsDropdown">
+          <template #context-estimate><ChatTokenCounter @show-context-viewer="showContextViewerDialog" /></template>
+          <template #account>
       <section v-if="creditBalance?.billingMode === 'credits' || creditsFailed" class="reading-credit-summary">
         <h3>{{ t('credits.title') }}</h3>
       <section class="story-credits" :aria-label="t('credits.title')" :aria-busy="creditsLoading">
@@ -135,6 +99,8 @@
         <RouterLink :to="{ name: 'Subscription', query: { returnTo: `/chat/${currentChat?.id}` } }">{{ t('credits.viewBalance') }}</RouterLink>
       </section>
       </section>
+          </template>
+          <template #compatibility>
           <details class="saved-story-settings"><summary>绑定设定与兼容范围</summary>
           <p>{{ t(currentChat?.identitySnapshot ? 'personas.storyIdentityFixed' : 'personas.storyIdentityLegacy') }}</p>
           <p v-if="currentChat?.worldbookSnapshotVersion === 1">{{ t('chat.savedWorldbooks') }}</p>
@@ -154,7 +120,18 @@
           <p v-if="currentChat?.contentSnapshotVersion === 1 && !chatStore.currentCharacter?.diagnostics">此旧档未保存开局绑定诊断，不用当前资料补造当时的检查结果。</p>
           <p v-if="currentChat?.contentSnapshotVersion == null">历史故事保留原有正文与设定方式，不补造状态或地图。旧脚本桥接仅提供有限兼容，临时变量写入不会保存为故事状态；外部脚本资源与未实现的接口不可用。</p>
           </details>
-        </div>
+          </template>
+        </StoryTools>
+        <el-tooltip v-if="isGroupChat && currentChat?.contentSnapshotVersion == null" :content="t('groupChat.manageCharacters')" placement="bottom">
+          <el-button size="small" text @click="showManageDialog = true">{{ t('groupChat.manageCharacters') }}</el-button>
+        </el-tooltip>
+        <el-segmented
+          v-if="isGroupChat"
+          :model-value="groupStrategy"
+          :options="strategyOptions"
+          size="small"
+          @change="handleStrategyChange"
+        />
       </StoryWorkspaceDrawer>
 
     <div class="story-play-layout">
@@ -349,7 +326,7 @@
 
         <!-- Typing indicator -->
         <div v-if="sending && !isStreaming" class="typing-indicator" aria-live="assertive">
-          <span class="typing-text">{{ t('chat.typing', { name: typingCharacterName }) }}</span>
+          <span class="typing-text">{{ chatStore.awaitingGenerationFinish ? '回复已接收 · 正在结束本轮' : t('chat.typing', { name: typingCharacterName }) }}</span>
           <div class="typing-dot"></div>
           <div class="typing-dot"></div>
           <div class="typing-dot"></div>
@@ -506,12 +483,12 @@
       append-to-body
       destroy-on-close
     >
-      <GrowthPanel v-if="currentChat?.characterId" :character-id="currentChat.characterId" />
+      <GrowthPanel v-if="showGrowthPanel && currentChat?.contentSnapshotVersion == null && currentChat?.characterId" :character-id="currentChat.characterId" />
     </el-dialog>
 
     <!-- Character Tuner Drawer -->
     <CharacterTuner
-      v-if="currentChat"
+      v-if="currentChat && currentChat.contentSnapshotVersion == null && showTunerDrawer"
       v-model="showTunerDrawer"
       :chat-id="currentChat.id"
       :character-id="currentChat.characterId"
@@ -521,7 +498,7 @@
     <!-- Intelligence Drawer -->
     <StoryWorkspaceDrawer
       v-model:open="showIntelligenceDrawer"
-      :return-focus="readingSettingsTrigger"
+      :return-focus="managementTrigger?.$el"
       :title="t('chat.intelligence')"
       class="intelligence-drawer"
     >
@@ -539,7 +516,7 @@
       </el-tabs>
     </StoryWorkspaceDrawer>
     <!-- Pinned Messages Drawer -->
-    <el-drawer v-model="showPinnedDrawer" :title="t('chat.pinnedMessages')" size="360px">
+    <StoryWorkspaceDrawer v-model:open="showPinnedDrawer" :return-focus="managementTrigger?.$el" :title="t('chat.pinnedMessages')">
       <div v-if="chatStore.pinnedMessages.length === 0" class="empty-pinned">
         {{ t('chat.noPinnedMessages') }}
       </div>
@@ -549,7 +526,7 @@
           <div class="pinned-content">{{ msg.content?.substring(0, 200) }}</div>
         </div>
       </div>
-    </el-drawer>
+    </StoryWorkspaceDrawer>
     <!-- Snapshot Dialog -->
     <el-dialog v-model="showSnapshotDialog" :title="t('share.createSnapshot')" width="450px">
       <el-form label-position="top">
@@ -590,7 +567,10 @@
 
     <!-- Context Viewer Dialog -->
     <ContextViewer
-      v-if="currentChat"
+      v-if="currentChat && userStore.user"
+      :key="`context:${userStore.user.id}:${currentChat.id}`"
+      :owner-id="userStore.user.id"
+      :return-focus="managementTrigger?.$el"
       v-model="showContextViewer"
       :chat-id="currentChat.id"
     />
@@ -604,10 +584,11 @@ import { useI18n } from 'vue-i18n';
 import { workbenchNavigation } from '../layout/workbench';
 import WorkbenchNavigationToggle from '../layout/WorkbenchNavigationToggle.vue';
 import StoryWorkspaceDrawer from './StoryWorkspaceDrawer.vue';
+import StoryTools from './StoryTools.vue';
 import { Document, Setting } from '@element-plus/icons-vue';
 import { storyDisplayText } from '@client/utils/story-display';
 import { ElMessageBox, ElMessage } from 'element-plus';
-import { More, Loading, Search, Download } from '@element-plus/icons-vue';
+import { More, Loading, Search } from '@element-plus/icons-vue';
 import { useChatStore } from '@client/stores/chat';
 import { useUserStore } from '@client/stores/user';
 import { useCharacterIntelligenceStore } from '@client/stores/characterIntelligence';
@@ -671,6 +652,8 @@ const userStore = useUserStore();
 const messageInput = ref<InstanceType<typeof MessageInput> | null>(null);
 const inWorkbench = Boolean(inject(workbenchNavigation, undefined));
 const readingOpen = ref(false);
+const toolsOpen = ref(false);
+const managementTrigger = ref<{ $el: HTMLElement }>();
 const readingSettingsTrigger = ref<HTMLElement>();
 const dossierOpen = ref(false);
 const dossierTrigger = ref<HTMLButtonElement | null>(null);
@@ -1361,12 +1344,25 @@ async function openGreetingBranch() {
 }
 
 // Context Viewer
-function showContextViewerDialog() {
+function toolScope() {
+  return JSON.stringify([props.currentChat?.id, userStore.user?.id, userStore.user?.tenantId]);
+}
+async function closeToolMenu() {
+  const scope = toolScope();
   readingOpen.value = false;
-  showContextViewer.value = true;
+  toolsOpen.value = false;
+  // Release the previous modal before the next one acquires inert/scroll ownership.
+  await nextTick();
+  return scope === toolScope() && !!props.currentChat;
+}
+async function showContextViewerDialog() {
+  if (await closeToolMenu()) showContextViewer.value = true;
 }
 
 const handleMenuCommand = async (command: string) => {
+  if (command === 'tools') { readingOpen.value = false; toolsOpen.value = true; return; }
+  if (command === 'snapshot') { await handleExportDropdown('snapshot'); return; }
+  if (command === 'context') { showContextViewerDialog(); return; }
   if (command === 'corrections') { correctionsPanel.value?.openFor(); return; }
   if (!props.currentChat) return;
   if (command === 'search') {
@@ -1457,9 +1453,12 @@ const handleExportDropdown = async (command: string) => {
   }
 };
 
-const handleToolsDropdown = (command: string) => {
-  readingOpen.value = false;
+const handleToolsDropdown = async (command: string) => {
+  if (command === 'tuner' && (props.currentChat?.contentSnapshotVersion != null || sending.value || isStreaming.value)) return;
+  if (command === 'growth' && props.currentChat?.contentSnapshotVersion != null) return;
+  if (!await closeToolMenu()) return;
   switch (command) {
+    case 'context': showContextViewer.value = true; break;
     case 'tuner': showTunerDrawer.value = true; break;
     case 'memory': openIntelligenceTab('memory'); break;
     case 'debug': openIntelligenceTab('debug'); break;
@@ -1608,6 +1607,18 @@ const readingPosition = useStoryReadingPosition({ key: positionKey, loading, con
   hasMore: () => chatStore.hasMoreMessages, loadOlder: () => chatStore.fetchOlderMessages(), height: getMsgHeight,
   setTop: top => { currentScrollTop.value = top; }, setFollowing: following => { followingLatest.value = following; },
   latest: () => scrollToBottom(false),
+});
+
+watch([() => props.currentChat?.id, () => userStore.user?.id, () => userStore.user?.tenantId], () => {
+  toolsOpen.value = false;
+  readingOpen.value = false;
+  showContextViewer.value = false;
+  showTunerDrawer.value = false;
+  showIntelligenceDrawer.value = false;
+  showGrowthPanel.value = false;
+  showPinnedDrawer.value = false;
+  sourceVisible.value = false;
+  sourceText.value = '';
 });
 
 // Watch for chat changes to fetch intelligence data

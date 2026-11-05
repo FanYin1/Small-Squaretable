@@ -16,7 +16,7 @@ import { sendEmail } from '../../core/email';
 import { config } from '../../core/config';
 import { auditService } from './audit.service';
 import { ageConfirmationFields } from '../utils/age-confirmation';
-import { inviteCodeService, InviteCodeError, normalizeInviteCode } from './invite-code.service';
+import { inviteCodeService } from './invite-code.service';
 import type { RegisterInput, LoginInput, AuthTokens, AuthUser } from '../../types/auth';
 import type { User } from '../../db/schema/users';
 
@@ -40,11 +40,6 @@ export class AuthService {
     // 服务端复核一遍：前端勾选只是 UI，绕过前端直接打接口的情况必须挡住。
     if (input.ageConfirmed !== true) {
       throw new ValidationError('You must confirm you are at least 18 years old');
-    }
-
-    // 缺码先于任何查库和 bcrypt：不该为一个注定被拒的请求付出哈希成本。
-    if (!normalizeInviteCode(input.inviteCode)) {
-      throw new InviteCodeError('INVITE_CODE_REQUIRED');
     }
 
     // 邮箱查重放在消费邀请码之前：重复邮箱不该烧掉一个码。

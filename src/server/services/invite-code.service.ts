@@ -1,8 +1,8 @@
 /**
  * 邀请码服务
  *
- * 注册采用邀请码制（backlog P0-6）。两条建号路径（邮箱注册、OAuth 首次登录）
- * 都通过 createAccountWithInvite 建号，保证校验在 service 层、消费与建号同一事务。
+ * 邀请码作为可选注册来源。两条建号路径（邮箱注册、OAuth 首次登录）
+ * 都通过 createAccountWithInvite 建号；若提供邀请码，则消费与建号同一事务。
  */
 
 import crypto from 'crypto';
@@ -69,7 +69,7 @@ export interface AdminActor {
 
 export const inviteCodeService = {
   /**
-   * 在一个事务里：原子消费邀请码 → 建账号 → 记录使用。
+   * 在一个事务里：可选地原子消费邀请码 → 建账号 → 发放注册额度 → 可选记录使用。
    *
    * createAccount 收到事务对象，所有写库都必须用它，否则不在事务里。
    * 消费放在建号之前：无效码直接失败，不会先建出用户再回滚；
@@ -82,35 +82,29 @@ export const inviteCodeService = {
     createAccount: (tx: DbTransaction) => Promise<T>,
   ): Promise<T> {
     const code = normalizeInviteCode(rawCode);
-    if (!code) {
-      throw new InviteCodeError('INVITE_CODE_REQUIRED');
-    }
 
     const { account, codeId } = await inviteCodeRepository.withTransaction(async (tx) => {
-      const consumed = await inviteCodeRepository.consume(code, tx);
-      if (!consumed) {
-        throw new InviteCodeError('INVITE_CODE_INVALID');
+      let consumed: { id: string } | null = null;
+      if (code) {
+        consumed = await inviteCodeRepository.consume(code, tx);
+        if (!consumed) throw new InviteCodeError('INVITE_CODE_INVALID');
       }
 
       const created = await createAccount(tx);
       await grantRegistrationCredits(created, tx);
-      await inviteCodeRepository.recordUse({ codeId: consumed.id, userId: created.id }, tx);
-      return { account: created, codeId: consumed.id };
+      if (consumed) await inviteCodeRepository.recordUse({ codeId: consumed.id, userId: created.id }, tx);
+      return { account: created, codeId: consumed?.id };
     });
 
-    auditService.log({
-      tenantId: account.tenantId,
-      actorId: account.id,
-      actorIp: context.actorIp,
-      action: 'invite_code_use',
-      targetType: 'invite_code',
-      targetId: codeId,
-      metadata: {
-        code,
-        source: context.source,
-        ...(context.provider ? { provider: context.provider } : {}),
-      },
-    });
+    if (codeId) auditService.log({
+        tenantId: account.tenantId,
+        actorId: account.id,
+        actorIp: context.actorIp,
+        action: 'invite_code_use',
+        targetType: 'invite_code',
+        targetId: codeId,
+        metadata: { code, source: context.source, ...(context.provider ? { provider: context.provider } : {}) },
+      });
 
     return account;
   },

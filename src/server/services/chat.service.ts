@@ -4,6 +4,8 @@
  * 处理聊天的 CRUD 操作和消息管理
  */
 
+import { summarizePromptAssembly } from './prompt-trace';
+import type { PromptAssemblyTrace } from '../../types/prompt-trace';
 import { chatRepository } from '../../db/repositories/chat.repository';
 import { messageRepository } from '../../db/repositories/message.repository';
 import { userPersonaRepository } from '../../db/repositories/user-persona.repository';
@@ -13,7 +15,7 @@ import { logger } from './logger.service';
 import { llmService } from './llm.service';
 import { getDefaultModel } from '../config/llm.config';
 import { storyIdentitySnapshotSchema, type StoryIdentitySnapshot } from '../../types/story-identity';
-import { loadStoryWorldbookEntries } from './story-worldbooks.service';
+import { loadStoryWorldbookScan } from './story-worldbooks.service';
 import { verifiedStoryMemoryOrigins } from './story-knowledge.service';
 import { selectStoryMemoryContext } from './story-memory-selection';
 import type { StoryAudience } from '../../types/story-knowledge';
@@ -32,7 +34,7 @@ import { worldInfoEngine, type WorldInfoResult } from './worldinfo-engine.servic
 import { estimateTokens } from '../utils/tokens';
 import type { Character } from '../../db/schema/characters';
 import { applyMacros, createMacroContextWithVars, persistVarWrites, type MacroContext } from './macro.service';
-import { getPromptLayout, type PromptLayout } from './prompt-layout';
+import { getPromptLayout, DYNAMIC_BLOCK_DEPTH, type PromptLayout } from './prompt-layout';
 import {
   assemblePrompt,
   buildCardAtDepthEntries,
@@ -102,6 +104,7 @@ function pickStringOverrides(raw: unknown): Record<string, string> {
 }
 
 export interface EnhancedPromptParams {
+  onPromptTrace?: (trace: PromptAssemblyTrace) => void;
   character: Pick<Character, 'id' | 'name' | 'description' | 'cardData'>;
   characterId: string;
   userId: string;
@@ -423,20 +426,26 @@ export class ChatService {
 
     // Scan world book entries
     let worldInfo: WorldInfoResult | null = null;
+    let worldbookRevision: string | undefined;
     if (params.worldbookSnapshotVersion != null && params.worldbookSnapshotVersion !== 1) {
       throw new Error('Unsupported story worldbook snapshot version');
     }
     if (params.worldbookSnapshotVersion === 1 || (params.messages && params.messages.length > 0)) {
       try {
-        const entries = params.worldbookSnapshotVersion === 1
-          ? await loadStoryWorldbookEntries(chatId, userId, characterId) : undefined;
+        const savedScan = params.worldbookSnapshotVersion === 1
+          ? await loadStoryWorldbookScan(chatId, userId, characterId) : undefined;
+        worldbookRevision = savedScan?.revision;
         worldInfo = await worldInfoEngine.scan({
           chat: (params.messages?.length ? params.messages : [{ role: 'user', content: userMessage }]) as Message[],
-          entries,
+          entries: savedScan?.entries,
+          compatibilityVersion: savedScan?.scan?.version ?? 1,
+          legacyMaxContext: params.maxContext ?? 4096,
+          scanMessageCount: savedScan?.scan?.scanMessageCount,
+          maxRecursionDepth: savedScan?.scan?.maxRecursionDepth,
+          tokenBudget: savedScan?.scan?.tokenBudget,
           characterId,
           userId,
           chatId,
-          maxContext: params.maxContext ?? 4096,
           macroCtx,
         });
       } catch (error) {
@@ -563,6 +572,23 @@ export class ChatService {
       atDepthLeading,
       atDepthTrailing,
     });
+    if (params.onPromptTrace) {
+      try {
+        const trailingSources = [
+          ...(cardData.character_author_note ? ['author_note'] : []),
+          ...(cardData.post_history_instructions ? ['post_history_instructions'] : []),
+          ...((character.cardData as { extensions?: { depth_prompt?: { prompt?: string } } })?.extensions?.depth_prompt?.prompt ? ['card_depth_prompt'] : []),
+        ];
+        params.onPromptTrace(summarizePromptAssembly({
+          layout, sections, memoryIds: memories.map(memory => memory.id), worldInfo: worldInfo?.debugInfo, worldbookRevision,
+          depthEntries: [
+            ...atDepthLeading.map(entry => ({ ...entry, source: 'worldbook.atDepth' })),
+            ...(dynamicBlock ? [{ depth: DYNAMIC_BLOCK_DEPTH, role: 'system' as const, content: dynamicBlock, source: 'dynamic_context' }] : []),
+            ...atDepthTrailing.map((entry, index) => ({ ...entry, source: trailingSources[index] ?? 'card_depth_prompt' })),
+          ],
+        }));
+      } catch { /* Optional diagnostics must not change story generation. */ }
+    }
     // 变动块不在 systemPrompt 里，指标里要把它算进去，保持与 legacy 可比
     const promptForMetrics = dynamicBlock ? `${fullPrompt}\n${dynamicBlock}` : fullPrompt;
     const promptBuildLatency = Date.now() - promptStartTime;

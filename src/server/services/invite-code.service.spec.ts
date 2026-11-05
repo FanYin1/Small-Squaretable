@@ -74,18 +74,17 @@ describe('generateInviteCode', () => {
 describe('inviteCodeService.createAccountWithInvite', () => {
   const ctx = { source: 'register' as const, actorIp: '203.0.113.7' };
 
-  it.each([undefined, '', '   '])('缺码（%j）→ 400 INVITE_CODE_REQUIRED，不开事务、不建号', async (raw) => {
-    const create = vi.fn();
+  it.each([undefined, '', '   '])('邀请码为空（%j）时直接在事务中建号，不消费或记录邀请码', async (raw) => {
+    const create = vi.fn().mockResolvedValue(account);
 
-    const err = await inviteCodeService
-      .createAccountWithInvite(raw as any, ctx, create)
-      .catch((e) => e);
+    await expect(inviteCodeService.createAccountWithInvite(raw, ctx, create)).resolves.toBe(account);
 
-    expect(err).toBeInstanceOf(InviteCodeError);
-    expect(err.statusCode).toBe(400);
-    expect(err.code).toBe('INVITE_CODE_REQUIRED');
-    expect(mockWithTransaction).not.toHaveBeenCalled();
-    expect(create).not.toHaveBeenCalled();
+    expect(mockWithTransaction).toHaveBeenCalledOnce();
+    expect(mockConsume).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith(TX);
+    expect(grantRegistrationCredits).toHaveBeenCalledWith(account, TX);
+    expect(mockRecordUse).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
   });
 
   it('错码 / 过期 / 用尽 / 禁用（consume 无返回行）→ 400 INVITE_CODE_INVALID，不建号', async () => {

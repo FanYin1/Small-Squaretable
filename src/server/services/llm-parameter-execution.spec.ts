@@ -106,3 +106,44 @@ it.each(['ordinary', 'stream-body'] as const)('enforces the configured deadline 
   }
   expect(fetchMock).toHaveBeenCalledOnce();
 });
+
+it.each(['chat', 'stream', 'template'] as const)('rejects story closing-tag stops before I/O for %s', async mode => {
+  const { buildStoryControlSystemPrompt } = await import('./story-control-protocol');
+  const prompt = buildStoryControlSystemPrompt();
+  const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+  const service = new LLMService();
+  const story = { ...request, messages: [{ role: 'system' as const, content: prompt }], stop: '</story-intent>' };
+  const result = mode === 'chat' ? service.chatCompletion(story) : mode === 'stream' ? service.streamChatCompletion(story)
+    : service.streamChatCompletion({ ...request, stop: '</story-intent>' }, undefined, { templatePrompt: prompt });
+  await expect(result).rejects.toMatchObject({ code: 'STORY_OUTPUT_CONFIG_CONFLICT' });
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+it.each(['openai_chat', 'text_completion', 'anthropic', 'gemini', 'ollama'] as const)('traces the exact serialized %s request without secrets', async adapter => {
+  if (adapter === 'anthropic' || adapter === 'gemini') state.provider.apiFormat = adapter;
+  if (adapter === 'ollama') state.provider = { ...state.provider, provider: 'ollama', baseUrl: 'http://localhost:11434/v1' };
+  const onDispatch = vi.fn();
+  const fetchMock = vi.fn().mockImplementation(async (_url: string, _init: RequestInit) => {
+    expect(onDispatch).toHaveBeenCalledOnce();
+    return new Response('', { headers: { 'Content-Type': 'text/event-stream' } });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  await new LLMService().streamChatCompletion({ ...request, max_tokens: 1000 }, undefined,
+    { onDispatch, ...(adapter === 'text_completion' ? { templatePrompt: 'PRIVATE_TEMPLATE' } : {}) });
+  const body = String(fetchMock.mock.calls[0][1].body);
+  const { createHash } = await import('node:crypto');
+  expect(onDispatch.mock.calls[0][0]).toEqual({ adapter, outputTokens: 1000, bodyBytes: Buffer.byteLength(body), bodySha256: createHash('sha256').update(body).digest('hex') });
+  expect(JSON.stringify(onDispatch.mock.calls)).not.toMatch(/synthetic|PRIVATE_TEMPLATE|test.invalid/);
+});
+it('diagnostic failure cannot block the actual model request', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(''));
+  vi.stubGlobal('fetch', fetchMock);
+  await new LLMService().streamChatCompletion(request, undefined, { onDispatch: () => { throw new Error('diagnostic failure'); } });
+  expect(fetchMock).toHaveBeenCalledOnce();
+});
+it('does not record a dispatched request when capacity preflight fails', async () => {
+  state.meta = { ...state.meta, contextWindow: 1000, maxOutputTokens: 500, outputCapabilityTokens: 500 };
+  const onDispatch = vi.fn(); const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+  await expect(new LLMService().streamChatCompletion({ ...request, messages: [{ role: 'user', content: '字'.repeat(1000) }] }, undefined, { onDispatch })).rejects.toThrow();
+  expect(onDispatch).not.toHaveBeenCalled(); expect(fetchMock).not.toHaveBeenCalled();
+});

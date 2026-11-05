@@ -1,9 +1,10 @@
+import { duplicateJsonKeyOffset, withoutTrailingCommas } from './story-control-json';
 import { z } from 'zod';
 import { parseStoryRecommendationsLead, storyRecommendationsSchema } from './story-recommendations';
 
 const actionId = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/);
 const evidence = z.string().trim().min(1).max(1000);
-export const storyIntentSchema = z.object({
+export const storyIntentObjectSchema = z.object({
   version: z.literal(1),
   disposition: z.enum(['proposal', 'execution', 'clarification', 'expression']),
   question: z.string().max(500).optional(),
@@ -15,7 +16,9 @@ export const storyIntentSchema = z.object({
   facts: z.array(z.object({ kind: z.enum(['claim', 'intention', 'inference', 'observation', 'style']),
     content: evidence, evidence, speaker: z.enum(['player', 'character']) }).strict()).max(6),
   recommendations: storyRecommendationsSchema.optional(),
-}).strict().superRefine((value, context) => {
+}).strict();
+
+export const storyIntentSchema = storyIntentObjectSchema.superRefine((value, context) => {
   if (value.disposition === 'clarification' && (!value.question?.trim() || value.steps.some(step => step.kind === 'execute'))) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: 'Clarification cannot execute an action' });
   }
@@ -63,7 +66,7 @@ export type StoryValidationCode = 'protocol_incomplete' | 'protocol_too_large' |
   | 'rule_execution_rejected' | 'empty_narrative' | 'output_truncated' | 'stream_incomplete';
 export interface StoryJsonFailure {
   kind: 'trailing_comma' | 'invalid_escape' | 'unescaped_control' | 'unterminated_string' | 'unexpected_end'
-    | 'expected_property' | 'missing_separator' | 'unexpected_content' | 'syntax';
+    | 'expected_property' | 'missing_separator' | 'unexpected_content' | 'syntax' | 'duplicate_key';
   /** UTF-16 offset within the normalized control JSON, never the provider error text. */
   offset?: number;
   length: number;
@@ -80,7 +83,7 @@ export interface StoryTurnDiagnostics {
   code?: StoryValidationCode;
   jsonFailure?: StoryJsonFailure;
   protocolFailure?: StoryProtocolFailure;
-  warnings: Array<'format_normalized' | 'redundant_closer_removed' | 'redundant_quote_removed' | 'trailing_punctuation_removed' | 'recommendations_fallback' | 'guidance_fallback' | 'facts_filtered' | 'missing_protocol'>;
+  warnings: Array<'format_normalized' | 'trailing_commas_removed' | 'redundant_closer_removed' | 'redundant_quote_removed' | 'trailing_punctuation_removed' | 'recommendations_fallback' | 'guidance_fallback' | 'facts_filtered' | 'missing_protocol'>;
 }
 /** Fixed categories and lengths only; never persist the model's control text. */
 export interface StoryProtocolFailure {
@@ -157,8 +160,8 @@ function withoutRedundantObjectSuffix(encoded: string): { json: string; warning:
       if (stack.pop() !== (char === '}' ? '{' : '[')) return null;
       if (!stack.length) {
         const suffix = encoded.slice(i + 1).trim();
-        if (suffix !== '}' && suffix !== '"' && !PRESENTATION_SUFFIXES.has(suffix)) return null;
-        return { json: encoded.slice(0, i + 1), warning: suffix === '}' ? 'redundant_closer_removed'
+        if (suffix !== '}' && suffix !== ']' && suffix !== '"' && !PRESENTATION_SUFFIXES.has(suffix)) return null;
+        return { json: encoded.slice(0, i + 1), warning: suffix === '}' || suffix === ']' ? 'redundant_closer_removed'
           : suffix === '"' ? 'redundant_quote_removed' : 'trailing_punctuation_removed' };
       }
     }
@@ -168,11 +171,12 @@ function withoutRedundantObjectSuffix(encoded: string): { json: string; warning:
 
 export function parseStoryIntentOutput(raw: string, input: string, availableIds: string[]): ParsedStoryIntent {
   const position = raw.indexOf(OPEN);
-  const content = position < 0 ? raw : narrativeBeforeControl(raw.slice(0, position));
+  const firstControl = raw.indexOf('<story-intent');
+  const content = firstControl < 0 ? raw : narrativeBeforeControl(raw.slice(0, firstControl));
   const warnings: StoryTurnDiagnostics['warnings'] = [];
   const fail = (invalidReason: StoryValidationCode): ParsedStoryIntent => ({ content, intent: null, invalid: true, invalidReason, warnings });
-  if (position < 0) {
-    const partial = raw.indexOf('<story-intent');
+  if (position < 0 || firstControl !== position) {
+    const partial = firstControl;
     if (partial >= 0) return { ...fail('protocol_incomplete'), protocolFailure: {
       kind: 'partial_open', controlCharacters: raw.length - partial, trailingCharacters: 0,
     } };
@@ -196,12 +200,20 @@ export function parseStoryIntentOutput(raw: string, input: string, availableIds:
   if (fencedControl || innerFence || !raw.slice(0, position).endsWith('\n') || raw.includes('\r\n')) warnings.push('format_normalized');
   let decoded: unknown;
   try { decoded = JSON.parse(encoded); } catch (error) {
-    const normalized = withoutRedundantObjectSuffix(encoded);
+    // One normalization family per block: do not compound speculative repairs.
+    const suffix = withoutRedundantObjectSuffix(encoded);
+    const commas = suffix ? null : withoutTrailingCommas(encoded);
+    const normalized = suffix?.json ?? commas;
     if (!normalized) return { ...fail('invalid_json'), jsonFailure: describeJsonFailure(encoded, error) };
-    try { decoded = JSON.parse(normalized.json); }
+    try { decoded = JSON.parse(normalized); }
     catch { return { ...fail('invalid_json'), jsonFailure: describeJsonFailure(encoded, error) }; }
-    warnings.push(normalized.warning);
+    encoded = normalized;
+    warnings.push(suffix?.warning ?? 'trailing_commas_removed');
   }
+  const duplicateOffset = duplicateJsonKeyOffset(encoded);
+  if (duplicateOffset !== null) return { ...fail('invalid_json'), jsonFailure: {
+    kind: 'duplicate_key', offset: duplicateOffset, length: encoded.length, token: 'quote',
+  } };
   const record = decoded && typeof decoded === 'object' && !Array.isArray(decoded) ? decoded as Record<string, unknown> : null;
   const recommendations = storyRecommendationsSchema.safeParse(record?.recommendations);
   const recommendationLead = parseStoryRecommendationsLead(record?.recommendationLead, content);
@@ -224,7 +236,9 @@ export function parseStoryIntentOutput(raw: string, input: string, availableIds:
 }
 
 export function storyIntentVisiblePrefix(raw: string, complete = false): string {
-  const marker = raw.indexOf(OPEN);
+  // Even a malformed/unfinished opening tag must not expose control text as prose.
+  // Parsing still requires the exact tag and never repairs the envelope.
+  const marker = raw.indexOf('<story-intent');
   if (marker >= 0) return narrativeBeforeControl(raw.slice(0, marker));
   if (!complete) {
     for (let size = Math.min(raw.length, OPEN.length - 1); size > 0; size--) {

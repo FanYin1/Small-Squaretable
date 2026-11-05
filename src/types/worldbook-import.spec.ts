@@ -10,7 +10,7 @@ describe('Standalone world book normalization', () => {
     } });
     expect(result.description).toBe('Context');
     expect(result.entries[0]).toMatchObject({ keyword: 'early', position: 4, priority: 8, preventRecursion: true,
-      settings: { position: 'atDepth', depth: 8, role: 2, probability: 0, selectiveLogic: 'NOT_ALL' } });
+      settings: { position: 'atDepth', depth: 8, role: 2, probability: 0, selectiveLogic: 'AND_ALL' } });
     expect(result.entries[1]).toMatchObject({ keyword: 'late', position: 20, isEnabled: false, settings: { keysSecondary: [] } });
   });
 

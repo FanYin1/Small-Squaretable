@@ -174,7 +174,8 @@ async function readStoryTurn(chat: Chat, text: string, actionRequest: StoryActio
 }
 
 export async function commitStoryTurn(turn: PreparedStoryTurn, inputMessageId: number, requestId: string, text: string, interrupted: boolean, database: Database = db, characterId?: string, originalOutput?: string, generation?: Pick<StoryTurnDiagnostics, 'model' | 'finishReason' | 'streamIncomplete'>) {
-  interrupted ||= Boolean(generation?.streamIncomplete);
+  const nonSuccessFinish = generation?.finishReason !== undefined && generation.finishReason !== 'stop';
+  interrupted ||= Boolean(generation?.streamIncomplete || nonSuccessFinish);
   const raw = originalOutput ?? text;
   const parsed = turn.intentProtocol ? parseStoryIntentOutput(raw, turn.input ?? '',
     availableStoryActions(turn.rules, turn.values, turn.completedActions).map(action => action.id)) : null;
@@ -211,8 +212,8 @@ export async function commitStoryTurn(turn: PreparedStoryTurn, inputMessageId: n
   const diagnostic: StoryTurnDiagnostics | undefined = turn.intentProtocol ? {
     version: 1, ...generation, protocol: 'text-tag-v1',
     validation: interrupted ? 'interrupted' : unconfirmed ? 'failed' : 'passed',
-    ...(generation?.streamIncomplete ? { code: 'stream_incomplete' as const }
-      : generation?.finishReason === 'length' ? { code: 'output_truncated' as const }
+    ...(generation?.finishReason === 'length' ? { code: 'output_truncated' as const }
+      : generation?.streamIncomplete || nonSuccessFinish ? { code: 'stream_incomplete' as const }
       : validationCode ? { code: validationCode } : {}),
     warnings: parsed?.warnings ?? [],
     ...(parsed?.jsonFailure ? { jsonFailure: parsed.jsonFailure } : {}),

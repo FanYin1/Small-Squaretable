@@ -44,9 +44,9 @@ export async function repairCharacterImport(client: Sql, input: z.infer<typeof c
     for (const entry of embedded.entries) {
       const mapped = mapCharacterWorldbookEntry(entry);
       await transaction.unsafe(`INSERT INTO worldbook_entries
-        (worldbook_id, keyword, content, position, is_enabled, priority, prevent_recursion, settings, recursive)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::jsonb, $9)`,
-      [book.id, mapped.keyword, mapped.content, mapped.position, mapped.isEnabled, mapped.priority, mapped.preventRecursion, JSON.stringify(mapped.settings), mapped.recursive]);
+        (worldbook_id, keyword, content, position, is_enabled, priority, prevent_recursion, settings, recursive, scan_depth)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text::jsonb, $9, $10)`,
+      [book.id, mapped.keyword, mapped.content, mapped.position, mapped.isEnabled, mapped.priority, mapped.preventRecursion, JSON.stringify(mapped.settings), mapped.recursive, mapped.scanDepth]);
     }
     const [receipt] = await transaction.unsafe(`INSERT INTO character_import_repairs
       (character_id, tenant_id, owner_id, review_fingerprint, book_id, entry_count)

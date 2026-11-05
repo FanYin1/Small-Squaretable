@@ -6,6 +6,7 @@ import { chats } from '../../db/schema/chats';
 import { worldbooks, worldbookEntries } from '../../db/schema/worldbooks';
 import { storyWorldbooks } from '../../db/schema/story-worldbooks';
 import { AppError } from '../../core/errors';
+import { worldInfoScanDefaults } from '../config/worldinfo';
 import { storyWorldbookEntrySchema, storyWorldbooksSnapshotSchema, type StoryWorldbooksSnapshot } from '../../types/story-worldbooks';
 import type { DiagnosticBook } from '../../types/story-diagnostics';
 
@@ -37,12 +38,13 @@ export async function captureStoryWorldbooks(transaction: Transaction, character
       if (row.entry) book.entries.push(storyWorldbookEntrySchema.parse(row.entry));
     }
   }
-  return storyWorldbooksSnapshotSchema.parse({ protocol: 1, bindings,
-    revision: createHash('sha256').update(JSON.stringify(bindings)).digest('hex'), capturedAt: new Date().toISOString(),
+  const scan = worldInfoScanDefaults();
+  return storyWorldbooksSnapshotSchema.parse({ protocol: 1, bindings, scan,
+    revision: createHash('sha256').update(JSON.stringify({ bindings, scan })).digest('hex'), capturedAt: new Date().toISOString(),
   });
 }
 
-export async function loadStoryWorldbookEntries(chatId: string, userId: string, characterId: string, database: Database = db) {
+export async function loadStoryWorldbookScan(chatId: string, userId: string, characterId: string, database: Database = db) {
   const [row] = await database.select({ snapshot: storyWorldbooks.snapshot }).from(storyWorldbooks)
     .innerJoin(chats, eq(chats.id, storyWorldbooks.chatId))
     .where(and(eq(chats.id, chatId), eq(chats.userId, userId), eq(chats.worldbookSnapshotVersion, 1)));
@@ -50,5 +52,5 @@ export async function loadStoryWorldbookEntries(chatId: string, userId: string, 
   const snapshot = storyWorldbooksSnapshotSchema.parse(row.snapshot);
   const binding = snapshot.bindings.find(item => item.characterId === characterId);
   if (!binding) throw new AppError('This character has no starting worldbook binding', 409, 'STORY_WORLDBOOKS_UNBOUND');
-  return binding.books.flatMap(book => book.entries);
+  return { entries: binding.books.flatMap(book => book.entries), scan: snapshot.scan, revision: snapshot.revision };
 }

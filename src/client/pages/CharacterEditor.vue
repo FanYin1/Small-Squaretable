@@ -494,6 +494,11 @@ async function handleSaveAsTemplate() {
     </section>
     <p v-else-if="localDraft.failed.value" role="alert" class="draft-note">无法可靠保存标签页草稿（空间不足或存储被禁用）。当前编辑仍在内存中，请勿刷新；这不代表已保存到服务器。</p>
     <p v-else-if="localDraft.stored.value" role="status" class="draft-note">草稿仅保留在当前标签页，刷新可恢复；尚未提交到服务器。</p>
+    <details class="creator-scope">
+      <summary>编辑作品会影响哪些故事？</summary>
+      <p>这里编辑角色卡原作，用于之后创建的新故事。已经保存开局设定的故事继续使用原版本，不会被这次编辑覆盖；未冻结设定的旧式会话仍沿用原有加载方式。</p>
+      <p>玩家预览用于核对介绍与开场，不会调用模型，也不代表规则或世界书已在真实对话中执行。需要核对实际请求时，请在对应故事的“更多 → 故事工具 → 诊断与兼容”中查看本轮上下文诊断。</p>
+    </details>
     <div class="creator-toolbar">
       <div><button type="button" :aria-pressed="!advanced" @click="advanced = false">引导创作</button><button type="button" :aria-pressed="advanced" @click="advanced = true">高级编辑</button></div>
       <div class="mobile-preview-toggle"><button type="button" :aria-pressed="mobileView === 'edit'" @click="mobileView = 'edit'">编辑作品</button><button type="button" :aria-pressed="mobileView === 'preview'" @click="mobileView = 'preview'">玩家预览</button></div>
@@ -800,6 +805,8 @@ async function handleSaveAsTemplate() {
 .workbench-columns { display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:36px; align-items:start; }
 .workbench-edit { min-width:0; }
 .preview-col { border-left:1px solid var(--border-default); padding-left:24px; min-width:0; }
+.creator-scope { margin-block: 12px; color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
+.creator-scope summary { cursor: pointer; color: var(--text-primary); }
 .creator-toolbar { display:flex; justify-content:space-between; gap:12px; padding:16px 0; border-bottom:1px solid var(--border-default); }
 .creator-toolbar > div { display:flex; gap:8px; }
 .creator-toolbar button,.draft-recovery button { color:var(--text-secondary); background:transparent; border:1px solid var(--border-default); border-radius:6px; padding:10px 14px; min-height:44px; cursor:pointer; font:inherit; font-size:13px; }

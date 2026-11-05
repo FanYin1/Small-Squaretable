@@ -11,6 +11,10 @@ import { worldBookEntryRepository } from '../../db/repositories/worldbook-entry.
 import { logger } from './logger.service';
 import { applyMacros, type MacroContext } from './macro.service';
 import type { StoryWorldbookEntry } from '../../types/story-worldbooks';
+import { estimateContextTokens as countTokens } from './context-budget';
+import { AppError } from '../../core/errors';
+import { worldInfoScanDefaults } from '../config/worldinfo';
+import { legacyWorldInfoEngine } from './worldinfo-legacy.service';
 
 const wiLogger = logger.child({ module: 'worldinfo-engine' });
 
@@ -23,6 +27,12 @@ export interface WorldInfoDebugInfo {
   matches: Array<{ entryId: string; keyword: string }>;
   skippedByProbability: number;
   skippedByDelay: number;
+  decisions: Array<{ entryId: string; status: 'injected' | 'excluded'; reason: string; keyword?: string; recursionDepth?: number; tokens?: number; unsupported?: string[] }>;
+  scanMessageCount: number;
+  maxRecursionDepth: number;
+  budgetUnit: 'estimated_tokens' | 'characters';
+  scanEngineVersion: 1 | 2;
+  constantBudgetOverflow: boolean;
 }
 
 /** 非 atDepth 的 6 个位置，按位置合并后的文本 */
@@ -53,13 +63,15 @@ export interface WorldInfoScanParams {
   characterId: string;
   userId: string;
   chatId: string;
-  maxContext: number;
+  compatibilityVersion?: 1 | 2;
+  legacyMaxContext?: number;
+  scanMessageCount?: number;
+  maxRecursionDepth?: number;
+  tokenBudget?: number;
+  random?: () => number;
   macroCtx?: MacroContext;
   entries?: StoryWorldbookEntry[];
 }
-
-const DEFAULT_BUDGET = 2048;
-const DEFAULT_MAX_MESSAGES = 10;
 
 type EntrySettings = {
   keys?: string[];
@@ -76,6 +88,7 @@ type EntrySettings = {
   delay?: number;
   sticky?: number;
   cooldown?: number;
+  excludeRecursion?: boolean;
 };
 
 function keywordMatches(text: string, keyword: string, caseSensitive: boolean, wholeWords: boolean): boolean {
@@ -109,9 +122,9 @@ function escapeRegex(s: string): string {
 
 const NUMERIC_SELECTIVE_LOGIC: Record<number, string> = {
   0: 'AND_ANY',
-  1: 'AND_ALL',
+  1: 'NOT_ALL',
   2: 'NOT_ANY',
-  3: 'NOT_ALL',
+  3: 'AND_ALL',
 };
 
 function normalizeSelectiveLogic(value: unknown): string {
@@ -147,37 +160,37 @@ function checkSecondaryKeys(
   }
 }
 
-function evaluateSelectiveLogic(
-  logic: string,
-  primaryMatched: boolean,
-  secondaryMatched: boolean
-): boolean {
-  switch (logic) {
-    case 'AND_ANY':
-      return primaryMatched || secondaryMatched;
-    case 'AND_ALL':
-      return primaryMatched && secondaryMatched;
-    case 'NOT_ANY':
-      return !(primaryMatched || secondaryMatched);
-    case 'NOT_ALL':
-      return !(primaryMatched && secondaryMatched);
-    default:
-      return primaryMatched;
-  }
-}
-
 class WorldInfoEngine {
   async scan(params: WorldInfoScanParams): Promise<WorldInfoResult> {
+    if (params.compatibilityVersion === 1) {
+      const maxContext = params.legacyMaxContext ?? 4096;
+      const legacy = await legacyWorldInfoEngine.scan({ ...params, maxContext });
+      return { ...legacy, debugInfo: { ...legacy.debugInfo!, decisions: [], scanMessageCount: maxContext,
+        maxRecursionDepth: 3, budgetUnit: 'characters', scanEngineVersion: 1,
+        constantBudgetOverflow: (legacy.debugInfo?.budgetUsed ?? 0) > (legacy.debugInfo?.budgetLimit ?? 0),
+      } };
+    }
+    // A frozen story must not depend on later environment changes, even invalid ones.
+    const defaults = params.scanMessageCount !== undefined && params.maxRecursionDepth !== undefined && params.tokenBudget !== undefined
+      ? { scanMessageCount: params.scanMessageCount, maxRecursionDepth: params.maxRecursionDepth, tokenBudget: params.tokenBudget }
+      : worldInfoScanDefaults();
     const startTime = Date.now();
-    const { chat, characterId, userId, maxContext } = params;
-    const budget = DEFAULT_BUDGET;
+    const { chat, characterId, userId } = params;
+    const random = params.random ?? Math.random;
+    const scanMessageCount = params.scanMessageCount ?? defaults.scanMessageCount;
+    const maxRecursionDepth = params.maxRecursionDepth ?? defaults.maxRecursionDepth;
+    const budget = params.tokenBudget ?? defaults.tokenBudget;
+    if (![scanMessageCount, maxRecursionDepth, budget].every(value => Number.isSafeInteger(value) && value > 0)
+      || scanMessageCount > 1000 || maxRecursionDepth > 10 || budget > 100000) {
+      throw new AppError('Invalid world book scan configuration', 400, 'WORLD_INFO_CONFIG_INVALID');
+    }
     const debugMatches: Array<{ entryId: string; keyword: string }> = [];
+    const decisions = new Map<string, WorldInfoDebugInfo['decisions'][number]>();
     let skippedByProbability = 0;
     let skippedByDelay = 0;
 
     // 1. Build scan text from last N messages
-    const msgLimit = maxContext || DEFAULT_MAX_MESSAGES;
-    const recentMessages = chat.slice(-msgLimit);
+    const recentMessages = chat.slice(-scanMessageCount);
     const scanText = recentMessages.map((m) => m.content).join('\n');
 
     let entries = params.entries;
@@ -191,6 +204,11 @@ class WorldInfoEngine {
         .flat() as StoryWorldbookEntry[];
     }
     const allEntries = entries.filter(entry => entry.isEnabled);
+    for (const entry of entries) {
+      const unsupported = ['sticky', 'cooldown'].filter(key => Number((entry.settings as EntrySettings | null)?.[key as 'sticky' | 'cooldown'] ?? 0) > 0);
+      decisions.set(entry.id, { entryId: entry.id, status: 'excluded', reason: entry.isEnabled ? 'keyword_not_matched' : 'disabled',
+        ...(unsupported.length ? { unsupported } : {}) });
+    }
 
     // 4. Sort by insertion_order (position) ascending, then priority descending
     allEntries.sort((a, b) => {
@@ -200,43 +218,50 @@ class WorldInfoEngine {
       return b.priority - a.priority;
     });
 
-    // 5. Match keywords with recursive scanning
-    const activatedWithDepth = this.scanRecursive(
-      scanText,
-      allEntries,
-      characterId,
-      recentMessages,
-      3 // max depth
-    );
-
-    // 6. Apply budget limits and timing controls
+    // Apply probability, delay and budget before permitting recursive activation.
+    // A rejected entry must never activate downstream entries.
     let budgetUsed = 0;
-    const activated: Array<{ entry: typeof allEntries[0]; matchedKeyword: string }> = [];
-
-    for (const { entry, matchedKeyword, depth } of activatedWithDepth) {
+    const expanded = new Map<string, string>();
+    const accept = (entry: StoryWorldbookEntry, matchedKeyword: string, depth: number): boolean => {
       const settings = (entry.settings ?? {}) as EntrySettings;
-      const isConstant = settings.constant ?? false;
-
-      // Timing controls: probability and delay
+      const decision = { ...decisions.get(entry.id)!, keyword: matchedKeyword, recursionDepth: depth };
       const probability = settings.probability ?? 100;
-      if (probability < 100 && Math.random() * 100 > probability) {
+      if (probability <= 0 || (probability < 100 && random() * 100 >= probability)) {
         skippedByProbability++;
-        continue;
+        decisions.set(entry.id, { ...decision, reason: 'probability_check_failed' });
+        return false;
       }
-
       const delay = settings.delay ?? 0;
-      if (delay > 0 && recentMessages.length < delay) {
+      if (delay > 0 && chat.length < delay) {
         skippedByDelay++;
-        continue;
+        decisions.set(entry.id, { ...decision, reason: 'delay_not_reached' });
+        return false;
       }
-
-      // Budget check
-      const contentLen = entry.content.length;
-      if (budgetUsed + contentLen > budget && !isConstant) continue;
-      budgetUsed += contentLen;
-      activated.push({ entry, matchedKeyword });
+      // Expand on an isolated context: rejected entries must not write variables.
+      const macroCtx = params.macroCtx ? { ...params.macroCtx,
+        chatVars: { ...params.macroCtx.chatVars }, globalVars: { ...params.macroCtx.globalVars }, varWrites: [],
+      } : undefined;
+      const content = macroCtx ? applyMacros(entry.content, macroCtx) : entry.content;
+      expanded.set(entry.id, content);
+      const contentTokens = countTokens(content + '\n');
+      // Keep legacy always-on lore; the complete prompt still passes the model's
+      // hard capacity check. This is a soft selection budget, not model capacity.
+      if (budgetUsed + contentTokens > budget && !settings.constant) {
+        decisions.set(entry.id, { ...decision, reason: 'token_budget_exceeded', tokens: contentTokens });
+        return false;
+      }
+      if (macroCtx && params.macroCtx) {
+        params.macroCtx.chatVars = macroCtx.chatVars;
+        params.macroCtx.globalVars = macroCtx.globalVars;
+        params.macroCtx.varWrites?.push(...macroCtx.varWrites);
+      }
+      budgetUsed += contentTokens;
       debugMatches.push({ entryId: entry.id, keyword: matchedKeyword });
-    }
+      decisions.set(entry.id, { ...decision, status: 'injected', reason: 'included_in_prompt', tokens: contentTokens });
+      return true;
+    };
+    const activated = this.scanRecursive(scanText, allEntries, characterId, recentMessages,
+      maxRecursionDepth, accept, expanded, decisions);
 
     // 6. Group by position
     const result: WorldInfoResult = {};
@@ -247,7 +272,7 @@ class WorldInfoEngine {
     for (const { entry } of activated) {
       const settings = (entry.settings ?? {}) as EntrySettings;
       const pos = settings.position ?? 'before';
-      const content = params.macroCtx ? applyMacros(entry.content, params.macroCtx) : entry.content;
+      const content = expanded.get(entry.id)!;
 
       if (pos === 'atDepth') {
         if (!result.atDepth) result.atDepth = [];
@@ -287,6 +312,12 @@ class WorldInfoEngine {
       matches: debugMatches,
       skippedByProbability,
       skippedByDelay,
+      decisions: [...decisions.values()],
+      scanMessageCount,
+      maxRecursionDepth,
+      budgetUnit: 'estimated_tokens',
+      scanEngineVersion: 2,
+      constantBudgetOverflow: budgetUsed > budget,
     };
 
     wiLogger.info('world info scan complete', {
@@ -313,25 +344,32 @@ class WorldInfoEngine {
    */
   private scanRecursive(
     initialScanText: string,
-    allEntries: any[],
+    allEntries: StoryWorldbookEntry[],
     characterId: string,
-    recentMessages: any[],
-    maxDepth: number = 3
-  ): Array<{ entry: any; matchedKeyword: string; depth: number }> {
-    const activated = new Map<string, { entry: any; matchedKeyword: string; depth: number }>();
-    let currentScanText = initialScanText;
+    recentMessages: Pick<Message, 'content'>[],
+    maxDepth: number,
+    accept: (entry: StoryWorldbookEntry, keyword: string, depth: number) => boolean,
+    expanded: Map<string, string>,
+    decisions: Map<string, WorldInfoDebugInfo['decisions'][number]>,
+  ): Array<{ entry: StoryWorldbookEntry; matchedKeyword: string; depth: number }> {
+    const activated = new Map<string, { entry: StoryWorldbookEntry; matchedKeyword: string; depth: number }>();
+    let recursiveText = '';
+    const processed = new Set<string>();
     let recursionDepth = 0;
 
     while (recursionDepth < maxDepth) {
-      const newlyActivated: Array<{ entry: any; matchedKeyword: string }> = [];
+      const newlyActivated: Array<{ entry: StoryWorldbookEntry; matchedKeyword: string }> = [];
 
       for (const entry of allEntries) {
         // Skip if already activated
-        if (activated.has(entry.id)) continue;
+        if (processed.has(entry.id)) continue;
 
-        // Skip if preventRecursion is true and we're in recursive scan
-        const preventRecursion = (entry as any).preventRecursion ?? false;
-        if (preventRecursion && recursionDepth > 0) continue;
+        // Upstream exclude_recursion prevents activation via other lore entries.
+        const excludeRecursion = (entry.settings as EntrySettings)?.excludeRecursion ?? false;
+        if (excludeRecursion && recursionDepth > 0) {
+          decisions.set(entry.id, { ...decisions.get(entry.id)!, reason: 'recursion_disabled' });
+          continue;
+        }
 
         const settings = (entry.settings ?? {}) as EntrySettings;
         const caseSensitive = settings.caseSensitive ?? false;
@@ -339,21 +377,19 @@ class WorldInfoEngine {
         const isConstant = settings.constant ?? false;
 
         // Check character filter
-        const characterFilter = (entry as any).characterFilter as string[] | undefined;
+        const characterFilter = entry.characterFilter;
         if (characterFilter && characterFilter.length > 0) {
           if (!characterFilter.includes(characterId)) {
+            decisions.set(entry.id, { ...decisions.get(entry.id)!, reason: 'character_filter' });
             continue;
           }
         }
 
         // Check scan depth limit
-        const scanDepth = (entry as any).scanDepth as number | undefined;
-        let scanTextForEntry = currentScanText;
-        if (scanDepth && scanDepth > 0 && recursionDepth === 0) {
-          // Only apply scan depth limit on first iteration
-          const limitedMessages = recentMessages.slice(-scanDepth);
-          scanTextForEntry = limitedMessages.map((m: any) => m.content).join('\n');
-        }
+        const scanDepth = entry.scanDepth;
+        const scanTextForEntry = scanDepth === 0 ? '' : (scanDepth && scanDepth > 0
+          ? recentMessages.slice(-scanDepth).map(message => message.content).join('\n')
+          : initialScanText) + recursiveText;
 
         // Determine primary keys
         const primaryKeys: string[] = settings.keys && settings.keys.length > 0
@@ -395,6 +431,8 @@ class WorldInfoEngine {
         }
 
         if (matched) {
+          processed.add(entry.id);
+          if (!accept(entry, matchedKeyword, recursionDepth)) continue;
           newlyActivated.push({ entry, matchedKeyword });
           activated.set(entry.id, { entry, matchedKeyword, depth: recursionDepth });
         }
@@ -405,13 +443,13 @@ class WorldInfoEngine {
 
       // Add content of recursive entries to scan text for next iteration
       const recursiveEntries = newlyActivated.filter(({ entry }) => {
-        const recursive = (entry as any).recursive ?? true;
-        return recursive;
+        const recursive = entry.recursive ?? true;
+        return recursive && !entry.preventRecursion;
       });
 
       if (recursiveEntries.length > 0) {
-        const additionalText = recursiveEntries.map(({ entry }) => entry.content).join('\n');
-        currentScanText += '\n' + additionalText;
+        const additionalText = recursiveEntries.map(({ entry }) => expanded.get(entry.id) ?? entry.content).join('\n');
+        recursiveText += '\n' + additionalText;
       } else {
         // No recursive entries, stop
         break;
@@ -427,82 +465,11 @@ class WorldInfoEngine {
    * Scan text against entries for testing purposes
    * Returns matched entries with their matched keys and recursion depth
    */
-  scanText(
-    text: string,
-    entries: Array<{
-      id: string;
-      keys: string[];
-      secondaryKeys?: string[];
-      content: string;
-      comment?: string;
-      depth: number;
-      constant: boolean;
-      selectiveLogic?: string;
-      recursive?: boolean;
-      preventRecursion?: boolean;
-    }>
-  ): Array<{
-    entry: typeof entries[0];
-    matchedKeys: string[];
-    recursionDepth: number;
-  }> {
-    // Convert entries to the format expected by scanRecursive
-    const formattedEntries = entries.map(e => ({
-      id: e.id,
-      keyword: e.keys.join(','),
-      content: e.content,
-      position: 0,
-      isEnabled: true,
-      priority: 0,
-      recursive: e.recursive ?? true,
-      preventRecursion: e.preventRecursion ?? false,
-      settings: {
-        keys: e.keys,
-        keysSecondary: e.secondaryKeys,
-        selectiveLogic: e.selectiveLogic,
-        constant: e.constant,
-        caseSensitive: false,
-        matchWholeWords: false,
-      },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
-
-    // Use recursive scanning
-    const activatedWithDepth = this.scanRecursive(
-      text,
-      formattedEntries,
-      '', // No character filter in test mode
-      [], // No message history in test mode
-      3 // max depth
-    );
-
-    // Build result with matched keys and recursion depth
-    const matches: Array<{ entry: typeof entries[0]; matchedKeys: string[]; recursionDepth: number }> = [];
-
-    for (const { entry: formattedEntry, matchedKeyword, depth } of activatedWithDepth) {
-      // Find original entry
-      const originalEntry = entries.find(e => e.id === formattedEntry.id);
-      if (!originalEntry) continue;
-
-      // Determine matched keys
-      const matchedKeys: string[] = [];
-      if (matchedKeyword === '(constant)') {
-        matchedKeys.push('(constant)');
-      } else if (matchedKeyword === '(secondary)') {
-        matchedKeys.push('(secondary)');
-      } else {
-        matchedKeys.push(matchedKeyword);
-      }
-
-      matches.push({
-        entry: originalEntry,
-        matchedKeys,
-        recursionDepth: depth,
-      });
-    }
-
-    return matches;
+  scanText(text: string, entries: StoryWorldbookEntry[], options: Omit<WorldInfoScanParams, 'chat' | 'entries'> = { characterId: '', userId: '', chatId: '' }): Promise<WorldInfoResult> {
+    return this.scan({
+      chat: [{ role: 'user', content: text } as Message],
+      ...options, entries,
+    });
   }
 }
 

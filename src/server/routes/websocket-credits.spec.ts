@@ -1,3 +1,5 @@
+import { recordPromptTrace } from '../services/prompt-trace-store';
+vi.mock('../services/prompt-trace-store', () => ({ recordPromptTrace: vi.fn() }));
 /**
  * WebSocket 聊天链路的预付点数（credits）计费测试（P3-1）
  *
@@ -58,6 +60,7 @@ vi.mock('../services/websocket.service', () => ({
 }));
 
 vi.mock('../services/logger.service', () => ({
+  createLogger: () => ({ info: performanceLog, warn: vi.fn(), error: errorLog, debug: vi.fn() }),
   logger: {
     child: () => ({ info: performanceLog, warn: vi.fn(), error: errorLog, debug: vi.fn() }),
   },
@@ -405,6 +408,33 @@ describe('WebSocket chat - prepaid credits', () => {
   });
 
   describe('single character reply', () => {
+    it.each(['default', 'chatml'])('captures the dispatched %s request after history selection and effective credit reservation', async template => {
+      const { injectAtDepth } = await import('../services/prompt-assembly');
+      const { ContextManager } = await vi.importActual<typeof import('../services/context-manager.service')>('../services/context-manager.service');
+      const manager = new ContextManager();
+      vi.mocked(contextManager.buildContext).mockImplementation((...args) => manager.buildContext(...args));
+      vi.mocked(contextManager.injectAtDepth).mockImplementation((...args) => injectAtDepth(...args));
+      vi.mocked(resolveStoryCharacter).mockResolvedValue({ id: 'char', name: 'Fixture', cardData: { extensions: { promptTemplate: template } } } as never);
+      vi.mocked(chatService.buildEnhancedSystemPrompt).mockImplementation(async params => {
+        params.onPromptTrace?.({ layout: 'legacy', sections: [], memoryIds: [], memoryCount: 0, worldbook: null,
+          depthEntries: [{ source: 'author_note', depth: 0, role: 'system', characters: 12, estimatedTokens: 4 }] });
+        return { systemPrompt: 'PRIVATE_RULE', atDepthEntries: [{ role: 'system', depth: 0, content: 'PRIVATE_NOTE' }] };
+      });
+      vi.mocked(reserveForGeneration).mockResolvedValue({ ...HOLD, maxOutputTokens: 1200 } as never);
+      vi.mocked(llmService.streamChatCompletion).mockImplementationOnce(async (_request, _signal, options) => {
+        options?.onDispatch?.({ outputTokens: _request.max_tokens!, adapter: template === 'default' ? 'openai_chat' : 'text_completion', bodyBytes: 99, bodySha256: 'a'.repeat(64) });
+        return new Response('data: {"choices":[{"delta":{"content":"reply"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n');
+      });
+      await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, undefined, undefined, 'trace-turn');
+      expect(recordPromptTrace).toHaveBeenCalledOnce();
+      const [tenant, owner, story, trace] = vi.mocked(recordPromptTrace).mock.calls[0];
+      expect([tenant, owner, story]).toEqual([TENANT, USER, CHAT]);
+      expect(trace).toMatchObject({ requestId: 'trace-turn', userMessageId: 1, model: 'glm-4.5-air', template,
+        budget: { outputTokens: template === 'default' ? 1200 : 4096 }, history: { supplied: 1, retained: 1, omitted: 0 } });
+      expect(trace.messages.map(message => message.source)).toEqual(['assembled_system', 'history', 'author_note']);
+      expect(JSON.stringify(trace)).not.toContain('PRIVATE_');
+    });
+
     const frame = (content: string, finish?: string) => `data: ${JSON.stringify({ choices: [{ delta: { content }, ...(finish ? { finish_reason: finish } : {}) }] })}\n\n`;
 
     it.each(['', 'data: [DONE]\n\n', 'data: {broken}\n\n', 'data: {"error":{"message":"private provider detail"}}\n\n'])(
@@ -600,7 +630,7 @@ describe('WebSocket chat - prepaid credits', () => {
       vi.mocked(commitStoryTurn).mockResolvedValueOnce({ id: 12, content: '正文', extra: { stateStatus: 'confirmed' } } as never);
       await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, undefined, prepared, 'turn-1');
       expect(chatService.updateEmotionFromMessage).toHaveBeenNthCalledWith(1, 'char-1', USER, CHAT, 'Hello', 1);
-      expect(chatService.updateEmotionFromMessage).toHaveBeenNthCalledWith(2, 'char-1', USER, CHAT, '正文', 12);
+      await vi.waitFor(() => expect(chatService.updateEmotionFromMessage).toHaveBeenNthCalledWith(2, 'char-1', USER, CHAT, '正文', 12));
       const doneCall = vi.mocked(websocketService.broadcastToChat).mock.calls.findIndex(call => call[1].type === WSMessageType.ASSISTANT_MESSAGE_DONE);
       expect(vi.mocked(chatService.updateEmotionFromMessage).mock.invocationCallOrder[0]).toBeGreaterThan(
         vi.mocked(websocketService.broadcastToChat).mock.invocationCallOrder[doneCall]);
@@ -644,6 +674,78 @@ describe('WebSocket chat - prepaid credits', () => {
       vi.mocked(llmService.streamChatCompletion).mockResolvedValue(convertGeminiStream(native, 'test-gemini'));
       await expect(h.streamLlmResponse(CHAT, 'fragment', [{ role: 'user', content: 'hello' }])).resolves
         .toMatchObject({ content: '还没说完', outputTruncated: true });
+    });
+
+    it('releases a finished SSE response after bounded usage drain even without DONE or HTTP close', async () => {
+      const cancel = vi.fn();
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(new ReadableStream({ start(controller) {
+        controller.enqueue(new TextEncoder().encode(frame('正文完成。', 'stop')));
+        setTimeout(() => controller.enqueue(new TextEncoder().encode('data: {"choices":[],"usage":{"prompt_tokens":20,"completion_tokens":6,"total_tokens":26}}\n\n')), 25);
+      }, cancel })));
+      const started = performance.now();
+      const result = await h.streamLlmResponse(CHAT, 'finished-tail', []);
+      expect(result).toMatchObject({ content: '正文完成。', finishReason: 'stop', usage: { promptTokens: 20, completionTokens: 6 } });
+      expect(result.streamIncomplete).not.toBe(true); expect(cancel).toHaveBeenCalledOnce();
+      expect(performance.now() - started).toBeLessThan(2500);
+    });
+
+    it('aborts a source that never resolves its next read and preserves provisional text', async () => {
+      let source!: ReadableStreamDefaultController<Uint8Array>;
+      const cancel = vi.fn(), controller = new AbortController();
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(new ReadableStream({ start(value) { source = value; }, cancel })));
+      const result = h.streamLlmResponse(CHAT, 'abort-tail', [], undefined, undefined, undefined, controller.signal);
+      source.enqueue(new TextEncoder().encode(frame('收到的正文')));
+      await vi.waitFor(() => expect(websocketService.broadcastToChat).toHaveBeenCalled());
+      controller.abort();
+      expect(await result).toMatchObject({ content: '收到的正文' }); expect(cancel).toHaveBeenCalledOnce();
+    });
+
+    it.each(['content_filter', 'tool_calls', 'unknown'])('rejects non-success finish reason %s despite syntactically complete text', async reason => {
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(frame('正文', reason) + 'data: [DONE]\n\n'));
+      const result = await h.streamLlmResponse(CHAT, 'rejected-finish', []);
+      expect(result.streamIncomplete).toBe(true);
+    });
+
+    it('does not wait for HTTP close after a malformed frame', async () => {
+      const cancel = vi.fn();
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(new ReadableStream({ start(controller) {
+        controller.enqueue(new TextEncoder().encode(frame('正文') + 'data: {invalid}\n\n'));
+      }, cancel })));
+      expect(await h.streamLlmResponse(CHAT, 'bad-frame', [])).toMatchObject({ content: '正文', streamIncomplete: true });
+      expect(cancel).toHaveBeenCalledOnce();
+    });
+
+    it('does not allow late text after finish to become confirmed', async () => {
+      vi.mocked(llmService.streamChatCompletion).mockResolvedValue(new Response(frame('正文', 'stop') + frame('额外正文')));
+      expect(await h.streamLlmResponse(CHAT, 'late-text', [])).toMatchObject({ content: '正文', streamIncomplete: true });
+    });
+
+    it('does not let optional isolated-story sentiment keep the generation active', async () => {
+      vi.mocked(chatRepository.findById).mockResolvedValue({ id: CHAT, userId: USER, tenantId: TENANT, contentSnapshotVersion: 1 } as never);
+      vi.mocked(resolveStoryCharacter).mockResolvedValue({ id: 'char-1', name: 'Test', cardData: {} } as never);
+      vi.mocked(chatService.buildEnhancedSystemPrompt).mockResolvedValue({ systemPrompt: '', atDepthEntries: [] });
+      const prepared = { input: 'Hello', intentProtocol: true, directResponse: true, rules: null,
+        values: {}, nextValues: {}, completedActions: [], prompt: 'direct' } as unknown as PreparedStoryTurn;
+      vi.mocked(prepareStoryTurn).mockResolvedValue(prepared);
+      vi.mocked(commitStoryTurn).mockResolvedValueOnce({ id: 12, content: '正文', extra: { stateStatus: 'confirmed' } } as never);
+      vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content: '正文', usage: null, finishReason: 'stop' });
+      let finish!: () => void;
+      vi.mocked(chatService.updateEmotionFromMessage).mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+      expect(generationRequestRepository.finish).toHaveBeenCalledWith('generation-1', 'completed', undefined);
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({ type: WSMessageType.GENERATION_FINISHED }));
+      expect(settleGeneration).toHaveBeenCalledOnce();
+      finish(); await vi.waitFor(() => expect(chatService.updateEmotionFromMessage).toHaveBeenCalledTimes(2));
+    });
+
+    it('keeps a saved reply successful when only the unread-count update fails', async () => {
+      const { db } = await import('../../db');
+      vi.mocked((db as unknown as { where: ReturnType<typeof vi.fn> }).where).mockRejectedValueOnce(new Error('fixture unread failure'));
+      vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content: '正文', usage: null, finishReason: 'stop' });
+      vi.mocked(chatService.addMessage).mockResolvedValue({ id: 5, content: '正文' } as never);
+      await expect(h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT)).resolves.toBeUndefined();
+      expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({ type: WSMessageType.ASSISTANT_MESSAGE_DONE }));
+      expect(settleGeneration).toHaveBeenCalledOnce();
     });
 
     it('retains output truncation from an Ollama terminal frame', async () => {
@@ -755,6 +857,26 @@ describe('WebSocket chat - prepaid credits', () => {
       expect(contextManager.buildContext).toHaveBeenCalledWith('sys', expect.any(Array), 'glm-4.5-air', estimateContextMessages(entries), expect.objectContaining({ maxOutputTokens: 4096 }));
     });
 
+    it.each(['default', 'alpaca'])('keeps the story contract in the budgeted system message for %s', async template => {
+      const marker = '[Platform story output contract v1]';
+      vi.mocked(resolveStoryCharacter).mockResolvedValue({ id: 'char-1', cardData: { extensions: { promptTemplate: template } } } as never);
+      vi.mocked(chatService.buildEnhancedSystemPrompt).mockResolvedValue({ systemPrompt: 'CARD', atDepthEntries: [] });
+      vi.mocked(contextManager.buildContext).mockImplementationOnce(system => ({ messages: [
+        { role: 'system', content: system }, { role: 'user', content: 'Hello' },
+      ], totalTokens: 2000, truncated: false, truncatedCount: 0 }));
+      const chatStream = vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content: 'reply', usage: null });
+      const templateStream = vi.spyOn(h, 'streamTextCompletion').mockResolvedValue({ content: 'reply', usage: null });
+      const prepared = { intentProtocol: true, directResponse: true, prompt: 'CURRENT_TURN',
+        input: 'Hello', rules: null, values: {}, nextValues: {}, completedActions: [] } as unknown as PreparedStoryTurn;
+      await h.handleSingleCharacterResponse(CHAT, 'Hello', USER, 1, TENANT, undefined, prepared, 'turn-1');
+      expect(contextManager.buildContext).toHaveBeenCalledWith(expect.stringContaining(marker), expect.any(Array),
+        expect.any(String), expect.any(Number), expect.any(Object));
+      expect(contextManager.injectAtDepth).toHaveBeenCalledWith(expect.any(Array),
+        expect.arrayContaining([{ role: 'system', depth: 0, content: 'CURRENT_TURN' }]), expect.any(Function));
+      const sent = template === 'default' ? JSON.stringify(chatStream.mock.calls[0][2]) : String(templateStream.mock.calls[0][2]);
+      expect(sent.split(marker)).toHaveLength(2);
+    });
+
     it('propagates mandatory-context overflow without reserving credits', async () => {
       vi.mocked(contextManager.buildContext).mockImplementationOnce(() => {
         throw new ContextBudgetError({ reason: 'critical', requiredTokens: 900, availableTokens: 700, contextWindow: 1000, outputTokens: 200 });
@@ -806,7 +928,7 @@ describe('WebSocket chat - prepaid credits', () => {
       expect(chatVariableStore.setChatVar).not.toHaveBeenCalled();
       expect(chatVariableStore.deleteChatVar).not.toHaveBeenCalled();
       expect(chatService.checkAndExtractMemories).toHaveBeenCalledTimes(versioned || interrupted ? 0 : 1);
-      expect(chatService.updateEmotionFromMessage).toHaveBeenCalledTimes(interrupted ? (versioned ? 0 : 1) : 2);
+      await vi.waitFor(() => expect(chatService.updateEmotionFromMessage).toHaveBeenCalledTimes(interrupted ? (versioned ? 0 : 1) : 2));
       if (versioned) expect(commitStoryTurn).toHaveBeenCalledWith(prepared, 1, 'turn-1', expect.any(String), interrupted, expect.anything(), undefined, VARIABLE_OUTPUT, expect.objectContaining({ model: expect.any(String) }));
       else if (interrupted) expect(chatService.addMessage).toHaveBeenCalledWith(CHAT, expect.objectContaining({ extra: { stateStatus: 'interrupted' } }));
     });

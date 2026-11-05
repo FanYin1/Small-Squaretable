@@ -13,6 +13,8 @@ const entryOptions = z.object({
   prevent_recursion: z.boolean().optional(),
   exclude_recursion: z.boolean().optional(),
   recursive: z.boolean().optional(),
+  scan_depth: z.number().int().nonnegative().nullable().optional(),
+  scanDepth: z.number().int().nonnegative().nullable().optional(),
   role: z.number().int().min(0).max(2).nullable().optional(),
   selectiveLogic: z.union([z.number().int(), z.string()]).optional(),
   selective_logic: z.union([z.number().int(), z.string()]).optional(),
@@ -43,7 +45,7 @@ export function mapCharacterWorldbookEntry(entry: z.infer<typeof characterWorldb
     '4': 'atDepth', atDepth: 'atDepth', '5': 'EMTop', EMTop: 'EMTop', '6': 'EMBottom', EMBottom: 'EMBottom',
   };
   const logics: Record<string, string> = {
-    '0': 'AND_ANY', '1': 'AND_ALL', '2': 'NOT_ANY', '3': 'NOT_ALL',
+    '0': 'AND_ANY', '1': 'NOT_ALL', '2': 'NOT_ANY', '3': 'AND_ALL',
     AND_ANY: 'AND_ANY', AND_ALL: 'AND_ALL', NOT_ANY: 'NOT_ANY', NOT_ALL: 'NOT_ALL',
   };
   return {
@@ -73,5 +75,6 @@ export function mapCharacterWorldbookEntry(entry: z.infer<typeof characterWorldb
       role: options.role ?? undefined,
       ...(typeof cardRecord(options.squaretable).purpose === 'string' ? { squaretablePurpose: cardRecord(options.squaretable).purpose } : {}),
     },
+    scanDepth: options.scan_depth ?? options.scanDepth ?? null,
   };
 }

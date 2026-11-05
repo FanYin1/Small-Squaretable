@@ -154,6 +154,33 @@ describe('model handoff validation and persistence', () => {
       }
     });
 
+  it('normalizes trailing separators without changing action authority and commits once', async () => {
+    const f = databaseFixture(); const turn = (await prepareStoryTurn(f.chat, input, undefined, f.database))!;
+    const raw = output().replace('}</story-intent>', ',}</story-intent>');
+    const reply = await commitStoryTurn(turn, 2, 'trailing-comma', raw, false, f.database, undefined, raw, { finishReason: 'stop' });
+    expect(reply.extra).toMatchObject({ stateStatus: 'confirmed', storyDiagnostics: { warnings: ['trailing_commas_removed'] } });
+    expect(f.state().values.coins).toBe(80);
+    await commitStoryTurn(turn, 2, 'trailing-comma', raw, false, f.database);
+    expect(f.events).toHaveLength(1); expect(f.state().values.coins).toBe(80);
+  });
+
+  it('rejects duplicate action fields rather than using the last value', async () => {
+    const f = databaseFixture(); const turn = (await prepareStoryTurn(f.chat, input, undefined, f.database))!;
+    const raw = output().replace('"actionId":"pay"', '"actionId":"invented","actionId":"pay"');
+    const reply = await commitStoryTurn(turn, 2, 'duplicate-key', raw, false, f.database);
+    expect(reply.extra).toMatchObject({ stateStatus: 'interrupted', storyIntentInvalid: true, storyDiagnostics: { jsonFailure: { kind: 'duplicate_key' } } });
+    expect(f.state().values.coins).toBe(100); expect(reply.extra).not.toHaveProperty('storyRecommendations');
+  });
+
+  it.each(['length', 'content_filter', 'tool_calls', 'other'] as const)('refuses state changes on %s even if a caller forgot the interrupted flag', async finishReason => {
+    const f = databaseFixture(); const turn = (await prepareStoryTurn(f.chat, input, undefined, f.database))!;
+    const raw = output();
+    const reply = await commitStoryTurn(turn, 2, 'non-success', raw, false, f.database, undefined, raw, { finishReason });
+    expect(reply.extra).toMatchObject({ stateStatus: 'interrupted', storyDiagnostics: { validation: 'interrupted' } });
+    expect(f.state().values.coins).toBe(100); expect(f.events[0].changes).toEqual({});
+    for (const key of ['storyExecutedIntent', 'storyFacts', 'storyRecommendations']) expect(reply.extra).not.toHaveProperty(key);
+  });
+
   it('normalizes one extra object closer, persists its warning and executes a rule only once', async () => {
     const f = databaseFixture();
     const turn = (await prepareStoryTurn(f.chat, input, undefined, f.database))!;

@@ -28,13 +28,22 @@
       </div>
 
       <div class="scan-results">
+        <p v-if="diagnostics?.constantBudgetOverflow">常驻条目已超过世界书选择预算，仍保留；生成时会检查模型总容量。</p>
+        <p v-if="scanNote">{{ scanNote }}</p>
+        <p>sticky（持续生效）与 cooldown（冷却）目前仅保留配置，尚不执行跨轮计时。</p>
+        <ul v-if="diagnostics" aria-label="条目扫描诊断">
+          <li v-for="decision in diagnostics.decisions" :key="decision.entryId">
+            {{ decision.entryId }}：{{ reasonLabels[decision.reason] ?? decision.reason }}
+            <span v-if="decision.unsupported?.length">；暂不支持：{{ decision.unsupported.join('、') }}</span>
+          </li>
+        </ul>
         <div class="results-header">
           <h3>Scan Results</h3>
           <el-tag v-if="matchedEntries.length > 0" type="success">
             {{ matchedEntries.length }} entries matched
           </el-tag>
           <el-tag v-else type="info">No matches</el-tag>
-          <el-tag type="warning">{{ totalTokens }} tokens</el-tag>
+          <el-tag type="warning">{{ diagnostics?.budgetUsed ?? totalTokens }} / {{ diagnostics?.budgetLimit ?? "—" }} 估算 tokens</el-tag>
         </div>
 
         <el-empty v-if="matchedEntries.length === 0 && testText" description="No World Info entries matched" />
@@ -63,7 +72,7 @@
                 @click="toggleEntryExpand(entry.id)"
               >
                 <el-icon>
-                  <component :is="expandedEntries.has(entry.id) ? 'ArrowUp' : 'ArrowDown'" />
+                  <component :is="expandedEntries.has(entry.id) ? ArrowUp : ArrowDown" />
                 </el-icon>
               </el-button>
             </div>
@@ -128,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
   Search,
@@ -137,7 +146,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from '@element-plus/icons-vue';
-import { worldbookApi } from '@client/services/worldbook.api';
+import { worldbookApi, type ScanResult } from '@client/services/worldbook.api';
 
 interface WorldBookEntry {
   id: string;
@@ -165,6 +174,13 @@ const testText = ref('');
 const scanning = ref(false);
 const isFullscreen = ref(false);
 const matchedEntries = ref<MatchedEntry[]>([]);
+const diagnostics = ref<ScanResult['diagnostics']>();
+const scanNote = ref('');
+const reasonLabels: Record<string, string> = {
+  included_in_prompt: '本次预览注入', keyword_not_matched: '未满足关键词或扫描深度条件',
+  disabled: '已停用', probability_check_failed: '概率未通过', delay_not_reached: '未达到延迟消息数',
+  token_budget_exceeded: '超出世界书预算', character_filter: '角色筛选不匹配', recursion_disabled: '禁止递归触发',
+};
 const expandedEntries = ref<Set<string>>(new Set());
 
 const totalTokens = computed(() => {
@@ -172,6 +188,17 @@ const totalTokens = computed(() => {
 });
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let scanVersion = 0;
+function invalidateScan() {
+  scanVersion++;
+  if (debounceTimer) clearTimeout(debounceTimer);
+  scanning.value = false;
+  matchedEntries.value = [];
+  diagnostics.value = undefined;
+  scanNote.value = '';
+}
+watch([testText, () => props.worldBookId, visible], invalidateScan, { flush: 'sync' });
+onBeforeUnmount(invalidateScan);
 
 function debouncedScan() {
   if (debounceTimer) {
@@ -187,18 +214,28 @@ function debouncedScan() {
 async function scanEntries() {
   if (!testText.value.trim()) {
     matchedEntries.value = [];
+    diagnostics.value = undefined;
+    scanNote.value = '';
     return;
   }
 
+  const version = ++scanVersion;
   scanning.value = true;
   try {
     const response = await worldbookApi.scanEntries(props.worldBookId, testText.value);
+    if (version !== scanVersion) return;
     matchedEntries.value = response.matches;
+    diagnostics.value = response.diagnostics;
+    scanNote.value = response.note ?? '';
   } catch (error) {
-    ElMessage.error('Failed to scan entries');
+    if (version !== scanVersion) return;
+    matchedEntries.value = [];
+    diagnostics.value = undefined;
+    scanNote.value = '';
+    ElMessage.error(error instanceof Error ? error.message : '扫描失败');
     console.error(error);
   } finally {
-    scanning.value = false;
+    if (version === scanVersion) scanning.value = false;
   }
 }
 

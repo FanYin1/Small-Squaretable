@@ -263,7 +263,6 @@ describe('redundant control object closer', () => {
   });
 
   it.each([
-    ['extra array closer', JSON.stringify(value) + ']'],
     ['multiple closers', JSON.stringify(value) + '}}'],
     ['second object', JSON.stringify(value) + '{}'],
     ['prose', JSON.stringify(value) + 'private'],
@@ -295,8 +294,8 @@ describe('redundant control object closer', () => {
 
 describe('private JSON syntax diagnostics', () => {
   it.each([
-    ['{"version":1,}', 'object_close'],
-    ['{"version":1}]', 'array_close'],
+    ['{"version":1,,}', 'comma'],
+    ['{"version":1] }', 'array_close'],
     ['{"version":1 "private":2}', 'quote'],
     ['{"version":1}:', 'colon'],
     ['{"version":1},', 'comma'],
@@ -307,7 +306,7 @@ describe('private JSON syntax diagnostics', () => {
     expect(JSON.stringify(parsed.jsonFailure)).not.toContain('private');
   });
   it.each([
-    ['{"version":1,}', 'trailing_comma'],
+    ['{"version":1,"facts":[1,,]}', 'syntax'],
     ['{"facts":["private\nquote"]}', 'unescaped_control'],
     [String.raw`{"facts":["private\q"]}`, 'invalid_escape'],
     ['{"facts":["private', 'unterminated_string'],
@@ -373,7 +372,11 @@ describe('single redundant control quote', () => {
     const result = parseStoryIntentOutput(wrap(JSON.stringify(value) + '"'), '', []);
     expect(result).toMatchObject({ invalid: false, intent: value, warnings: expect.arrayContaining(['redundant_quote_removed']) });
   });
-  it.each(['""', '"private', '{}"', ',"', "''"])( 'rejects ambiguous suffix %s', suffix => {
+  it('accepts one redundant array closer after a complete valid root object', () => {
+    const result = parseStoryIntentOutput(wrap(JSON.stringify(value) + ']'), '', []);
+    expect(result).toMatchObject({ invalid: false, intent: value, warnings: expect.arrayContaining(['redundant_closer_removed']) });
+  });
+  it.each(['""', '"private', '{}"', ',"', "''", ']]'])( 'rejects ambiguous suffix %s', suffix => {
     expect(parseStoryIntentOutput(wrap(JSON.stringify(value) + suffix), '', []).invalidReason).toBe('invalid_json');
   });
   it.each(['{"version":1 "facts":[]}"', '{"facts":["unfinished}"', '[{}]"'])( 'never repairs incomplete or invalid JSON %s', encoded => {
@@ -401,7 +404,7 @@ describe('bounded presentation suffix normalization', () => {
     const result = parseStoryIntentOutput(wrap(JSON.stringify(intent) + ' \n' + suffix), input, []);
     expect(result).toMatchObject({ invalid: false, intent, warnings: expect.arrayContaining(['trailing_punctuation_removed']) });
   });
-  it.each(['x', '1', '。说明', '..', '```', ';{}', '{}', '[]', 'null', 'true', ',', ':', ']', '+', '/', '\\', '\u200b'])(
+  it.each(['x', '1', '。说明', '..', '```', ';{}', '{}', '[]', 'null', 'true', ',', ':', '+', '/', '\\', '\u200b'])(
     'rejects ambiguous or meaningful suffix %s', suffix => {
       expect(parseStoryIntentOutput(wrap(JSON.stringify(value) + suffix), '', [])).toMatchObject({ invalid: true, invalidReason: 'invalid_json', intent: null });
     });

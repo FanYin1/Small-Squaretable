@@ -30,6 +30,7 @@ export function prepareStandaloneWorldbook(input: unknown) {
     match_whole_words: entry.match_whole_words ?? entry.matchWholeWords,
     prevent_recursion: entry.prevent_recursion ?? entry.preventRecursion,
     exclude_recursion: entry.exclude_recursion ?? entry.excludeRecursion,
+    scan_depth: entry.scan_depth ?? entry.scanDepth,
   })) });
   return {
     name: source.name || source.originalData?.name || 'Imported World Book',
