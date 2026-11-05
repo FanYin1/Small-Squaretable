@@ -81,6 +81,7 @@ export interface StoryTurnDiagnostics {
   protocol: 'text-tag-v1';
   validation: 'passed' | 'failed' | 'interrupted';
   code?: StoryValidationCode;
+  schemaIssues?: Array<{ path: string; code: string }>;
   jsonFailure?: StoryJsonFailure;
   protocolFailure?: StoryProtocolFailure;
   warnings: Array<'format_normalized' | 'trailing_commas_removed' | 'redundant_closer_removed' | 'redundant_quote_removed' | 'trailing_punctuation_removed' | 'recommendations_fallback' | 'guidance_fallback' | 'facts_filtered' | 'missing_protocol'>;
@@ -96,6 +97,7 @@ export interface ParsedStoryIntent {
   intent: StoryIntent | null;
   invalid: boolean;
   invalidReason?: StoryValidationCode;
+  schemaIssues?: Array<{ path: string; code: string }>;
   jsonFailure?: StoryJsonFailure;
   protocolFailure?: StoryProtocolFailure;
   recommendations?: Array<{ label: string; input: string }>;
@@ -223,7 +225,15 @@ export function parseStoryIntentOutput(raw: string, input: string, availableIds:
   const authority = record ? { ...record } : null;
   if (authority) { delete authority.recommendations; delete authority.recommendationLead; }
   const result = storyIntentSchema.safeParse(authority ?? decoded);
-  if (!result.success) return fail('invalid_schema');
+  if (!result.success) {
+    // Zod messages and unrecognized keys may contain private model text. Keep only
+    // known schema paths and fixed issue codes; optional presentation still falls back.
+    const fields = new Set(['disposition', 'steps', 'facts', 'kind', 'actionId', 'evidence', 'speaker', 'text', 'summary', 'version', 'question', 'intent', 'description', 'content']);
+    return { ...fail('invalid_schema'), schemaIssues: result.error.issues.slice(0, 12).map(issue => ({
+      path: issue.path.map(part => typeof part === 'number' ? String(part) : fields.has(part) ? part : '?').join('.') || '$',
+      code: issue.code,
+    })) };
+  }
   const intent = result.data;
   if (intent.steps.some(step => !input.includes(step.evidence))) return fail('ungrounded_action');
   if (intent.steps.some(step => step.kind === 'execute' && !availableIds.includes(step.actionId))) return fail('unavailable_action');

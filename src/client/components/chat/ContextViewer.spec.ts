@@ -16,7 +16,7 @@ const trace: PromptTrace = {
 };
 const result = { traces: [trace], retentionHours: 24, limit: 10 };
 const mountViewer = (open = true) => mount(ContextViewer, { props: { modelValue: open, chatId: 'story-a', ownerId: 'owner' }, global: {
-  stubs: { StoryWorkspaceDrawer: { props: ['open'], template: '<section v-if="open"><slot/></section>' } },
+  stubs: { GenerationDiagnostics: true, StoryWorkspaceDrawer: { props: ['open'], template: '<section v-if="open"><slot/></section>' } },
 } });
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(promptTraceApi.list).mockResolvedValue(result); });
 describe('stored prompt diagnostics', () => {

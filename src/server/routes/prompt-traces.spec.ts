@@ -1,3 +1,5 @@
+import { readGenerationTraces } from '../services/generation-trace-store';
+vi.mock('../services/generation-trace-store', () => ({ readGenerationTraces: vi.fn() }));
 import { beforeEach, expect, it, vi } from 'vitest';
 import { Hono } from 'hono';
 import type { MiddlewareHandler } from 'hono';
@@ -34,4 +36,20 @@ it('returns only stored owner records with no-store', async () => {
 it('validates story identifiers', async () => {
   expect((await app.request('/chats/not-uuid/prompt-traces', { headers: { Authorization: 'fixture' } })).status).toBe(400);
   expect(chatRepository.findById).not.toHaveBeenCalled();
+});
+
+it('protects execution diagnostics by both owner and tenant, and disables caching', async () => {
+  vi.mocked(readGenerationTraces).mockResolvedValue({ traces: [], retentionHours: 168, limit: 30 });
+  const url = `/chats/${id}/generation-traces`;
+  expect((await app.request(url)).status).toBe(401);
+  for (const foreign of [{ userId: 'other', tenantId: 'tenant' }, { userId: 'owner', tenantId: 'other' }, null]) {
+    vi.mocked(chatRepository.findById).mockResolvedValue(foreign as never);
+    expect((await app.request(url, { headers: { Authorization: 'fixture' } })).status).toBe(404);
+  }
+  expect(readGenerationTraces).not.toHaveBeenCalled();
+  vi.mocked(chatRepository.findById).mockResolvedValue({ userId: 'owner', tenantId: 'tenant' } as never);
+  const response = await app.request(url, { headers: { Authorization: 'fixture' } });
+  expect(response.status).toBe(200);
+  expect(response.headers.get('Cache-Control')).toBe('no-store');
+  expect(readGenerationTraces).toHaveBeenCalledExactlyOnceWith('tenant', 'owner', id);
 });

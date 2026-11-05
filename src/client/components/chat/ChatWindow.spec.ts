@@ -65,6 +65,7 @@ describe('ChatWindow', () => {
     const wrapper = mount(ChatWindow, {
       props: { currentChat: { ...mockChat, personaId } },
       global: { plugins: [i18n], stubs: {
+        GenerationDiagnostics: true,
         StoryWorkspaceDrawer: { props: ['open'], template: '<div v-if="open"><slot /></div>' },
         RouterLink: true, CharacterTuner: true, GrowthPanel: true,
         MessageInput: true, MarkdownRenderer: !renderBody, MessageBubble: renderBody

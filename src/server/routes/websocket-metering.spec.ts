@@ -1,3 +1,4 @@
+vi.mock('../services/generation-trace-store', () => ({ recordGenerationTrace: vi.fn() }));
 /**
  * WebSocket 聊天链路的配额计量与拦截测试
  *

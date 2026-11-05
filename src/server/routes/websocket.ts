@@ -1,3 +1,5 @@
+import { GenerationTraceRecorder } from '../services/generation-trace';
+import { recordGenerationTrace } from '../services/generation-trace-store';
 import { storyAftercare } from '../services/story-aftercare';
 import { readStreamChunk, STREAM_DRAIN_TIMEOUT, STREAM_FINISH_DRAIN_MS } from '../services/stream-read';
 import { openingModeScope } from '../../types/story-opening-mode';
@@ -27,7 +29,6 @@ import { websocketService } from '../services/websocket.service';
 import { llmService } from '../services/llm.service';
 import { AnthropicApiError } from '../services/anthropic-api-error';
 import { getDefaultModel, getModelMeta } from '../config/llm.config';
-import { config } from '../../core/config';
 import { chatService, getChatModel } from '../services/chat.service';
 import { contextManager, type LLMMessage } from '../services/context-manager.service';
 import { ContextBudgetError, assertContextBudget, estimateContextMessages, estimateContextTokens } from '../services/context-budget';
@@ -286,7 +287,7 @@ export class WebSocketHandler {
 
     const { chatId, content, mentionedCharacterIds } = message.data;
     const clientMessageId = message.data.clientMessageId || message.data.messageId;
-    wsLogger.debug('Processing message', { chatId, contentPreview: content.substring(0, 50) });
+    wsLogger.debug('Processing message', { chatId, contentCharacters: content.length });
     const requestId = clientMessageId || nanoid();
     if (this.activeGenerations.has(chatId)) {
       websocketService.sendToClient(clientId, {
@@ -310,6 +311,7 @@ export class WebSocketHandler {
     let generationId: string | undefined;
     let errorCode: string | undefined;
     let duplicateRequest = false;
+    let diagnosticTrace: GenerationTraceRecorder | undefined;
 
     try {
       const chat = await chatRepository.findById(chatId);
@@ -353,6 +355,7 @@ export class WebSocketHandler {
         duplicateRequest = true;
         throw new AppError('This request was already accepted. Check the saved story and balance before continuing.', 409, 'GENERATION_ALREADY_ACCEPTED');
       }
+      diagnosticTrace = new GenerationTraceRecorder(requestId, selectedModel);
       const storyAction = message.data.storyAction == null ? undefined : storyActionRequestSchema.parse(message.data.storyAction);
       const audience = message.data.storyAudience === undefined ? undefined : storyAudienceSchema.parse(message.data.storyAudience).sort();
       if (audience) {
@@ -374,6 +377,7 @@ export class WebSocketHandler {
       const quota = await featureService.checkQuota(clientInfo.tenantId, 'messages');
       if (!quota.allowed) {
         status = 'failed';
+        errorCode = 'QUOTA_EXCEEDED';
         websocketService.sendToClient(clientId, {
           type: WSMessageType.ERROR,
           timestamp: new Date().toISOString(),
@@ -403,12 +407,15 @@ export class WebSocketHandler {
       }
       generationId = claim.request.id;
       if (turn.controller.signal.aborted) return;
+      if (diagnosticTrace) diagnosticTrace.data.generationId = generationId;
+      diagnosticTrace?.stage('input_save');
       const userMessage = await chatService.addMessage(chatId, {
         role: 'user',
         content,
         extra: { ...(clientMessageId ? { clientMessageId } : {}), ...storyAudienceExtra(audience) },
       });
 
+      if (diagnosticTrace) diagnosticTrace.data.userMessageId = userMessage.id;
       await generationRequestRepository.markRunning(generationId, userMessage.id);
 
       await meterUsage(clientInfo.tenantId, 'messages', 1, {
@@ -430,6 +437,7 @@ export class WebSocketHandler {
       });
       // Check if this is a group chat (multiple characters)
       const isGroup = await groupChatService.isGroupChat(chatId);
+      if (isGroup) diagnosticTrace = undefined;
       if (turn.controller.signal.aborted) return;
 
       if (isGroup) {
@@ -456,13 +464,15 @@ export class WebSocketHandler {
           turn.controller.signal,
           preparedStory,
           requestId,
-          selectedModel
+          selectedModel,
+          diagnosticTrace
         );
         if (result?.validationError) {
           status = 'failed'; errorCode = result.validationError; retryable = false;
         }
       }
     } catch (error) {
+      diagnosticTrace?.fail(error);
       if (turn.controller.signal.aborted && error instanceof Error && error.name === 'AbortError') {
         status = 'stopped';
         return;
@@ -494,11 +504,26 @@ export class WebSocketHandler {
     } finally {
       if (status === 'completed' && turn.controller.signal.aborted) status = 'stopped';
       if (generationId) {
+        diagnosticTrace?.stage('outcome');
         try {
           await generationRequestRepository.finish(generationId, status, errorCode);
+          if (diagnosticTrace) diagnosticTrace.data.outcomePersisted = true;
         } catch (error) {
-          wsLogger.error('Failed to persist generation outcome', { chatId, requestId, generationId, error: (error as Error).message });
+          diagnosticTrace?.fail(error);
+          wsLogger.error('Failed to persist generation outcome', undefined, { chatId, requestId, generationId, errorCode: 'OUTCOME_PERSIST_FAILED' });
         }
+      }
+      if (diagnosticTrace && authorized && !duplicateRequest) {
+        try {
+          const record = diagnosticTrace.finish(status, errorCode);
+          recordGenerationTrace(clientInfo.tenantId, clientInfo.userId, chatId, record);
+          wsLogger[status === 'failed' ? 'warn' : 'info']('Generation diagnostic summary', {
+            chatId, requestId, diagnosticId: record.id, generationId, status, stage: record.stage,
+            errorCode: record.errorCode, httpStatus: record.httpStatus, errorCategory: record.errorCategory,
+            userMessageId: record.userMessageId, assistantMessageId: record.assistantMessageId,
+            durationMs: record.durationMs, outcomePersisted: record.outcomePersisted,
+          });
+        } catch { wsLogger.warn('Generation diagnostic collection failed', { chatId }); }
       }
       if (this.activeGenerations.get(chatId) === turn) this.activeGenerations.delete(chatId);
       releaseOperation();
@@ -524,9 +549,11 @@ export class WebSocketHandler {
     signal?: AbortSignal,
     preparedStory?: PreparedStoryTurn | null,
     requestId?: string,
-    selectedModel?: string
+    selectedModel?: string,
+    diagnosticTrace?: GenerationTraceRecorder
   ): Promise<{ validationError?: string } | void> {
     if (signal?.aborted) return;
+    diagnosticTrace?.stage('prompt');
     const turnStartedAt = performance.now();
     const chat = await chatRepository.findById(chatId);
     if (!chat) throw new Error('Chat not found');
@@ -643,6 +670,7 @@ export class WebSocketHandler {
     // Use context manager to fit within token budget
     const promptTemplate = (character?.cardData as { extensions?: { promptTemplate?: string } } | null)?.extensions?.promptTemplate || 'default';
     const depthBudget = Math.max(reservedTokens, estimateContextMessages(atDepthEntries));
+    diagnosticTrace?.stage('context');
     const contextBuildStartedAt = performance.now();
     let contextResult = contextManager.buildContext(systemPrompt, chatMessages, model, depthBudget, generationLimits);
     if (chat.contentSnapshotVersion === 1 && character && promptTemplate === 'default' && contextResult.truncated) {
@@ -650,22 +678,6 @@ export class WebSocketHandler {
         await getStorySummaries(chatId, userId, chat.tenantId, character.id), generationLimits);
     }
     const contextBuildMs = Math.round(performance.now() - contextBuildStartedAt);
-
-    // Debug: Log what's actually being sent to LLM
-    if (config.nodeEnv !== 'production' && chatMessages.length <= 3) {
-      wsLogger.info('🔍 DEBUG: Messages sent to LLM', {
-        chatId,
-        systemPromptLength: systemPrompt.length,
-        systemPromptPreview: systemPrompt.substring(0, 200) + '...',
-        messageCount: contextResult.messages.length,
-        messages: contextResult.messages.map((m, i) => ({
-          index: i,
-          role: m.role,
-          contentLength: m.content.length,
-          contentPreview: m.content.substring(0, 150) + '...'
-        }))
-      });
-    }
 
     // Inject depth entries (depth_prompt, world book atDepth) into the message array
     const injectedTrace = new Map<object, { depth: number; source: string }>();
@@ -690,7 +702,7 @@ export class WebSocketHandler {
     const progress = newStreamProgress();
     const modelStartedAt = performance.now();
     const traceDispatch = (formattedPrompt?: string) => (transport: PromptTransportTrace): void => {
-      recordPromptTrace(chat.tenantId, userId, chatId, buildPromptTrace({
+      const trace = buildPromptTrace({
         requestId, userMessageId, model, template: promptTemplate, transport, assembly: assemblyTrace,
         history: chatMessages, context: contextResult, injected: injectedTrace,
         limits: { ...generationLimits, maxOutputTokens: transport.outputTokens },
@@ -698,8 +710,12 @@ export class WebSocketHandler {
         sourceProjectionApplied: preparedStory?.ruleScope === openingModeScope,
         snapshots: { content: chat.contentSnapshotVersion ?? null, worldbook: chat.worldbookSnapshotVersion ?? null,
           identityRevision: chat.identitySnapshot?.revision ?? null },
-      }));
+      });
+      recordPromptTrace(chat.tenantId, userId, chatId, trace);
+      if (diagnosticTrace && diagnosticTrace.data.promptTraceIds.length < 8) diagnosticTrace.data.promptTraceIds.push(trace.id);
+      diagnosticTrace?.stage('upstream');
     };
+    diagnosticTrace?.stage('reserve');
     try {
       if (promptTemplate !== 'default') {
         // Use text completion with formatted prompt for non-default templates
@@ -708,10 +724,12 @@ export class WebSocketHandler {
         // Build full message array with system prompt
         // Format messages using the template
         const formattedPrompt = formatMessagesWithTemplate(contextResult.messages, promptTemplate);
+        diagnosticTrace?.stage('context');
         assertContextBudget(estimateContextTokens(formattedPrompt), generationLimits, 'template', generationLimits.maxOutputTokens);
 
         // 模板路径实际发给 provider 的是格式化后的整段 prompt，按它估算输入
         estimatedPromptTokens = countTokens(formattedPrompt);
+        diagnosticTrace?.stage('reserve');
 
         // 模板和普通聊天共用已解析的模型额度，预扣与请求一致
         hold = await reserveForGeneration({
@@ -755,13 +773,19 @@ export class WebSocketHandler {
         );
       }
     } catch (error) {
+      diagnosticTrace?.response(progress);
+      diagnosticTrace?.fail(error);
       // 连接前失败 -> 释放；流中途失败 -> 结算已产生的部分。不留悬空预扣
       await closeFailedGeneration(hold, progress, estimatedPromptTokens, chatId);
       throw error;
     }
+    diagnosticTrace?.response(generated, {
+      firstTokenMs: progress.firstChunkAt == null ? undefined : progress.firstChunkAt - (progress.modelRequestedAt ?? modelStartedAt),
+      firstVisibleMs: progress.firstVisibleAt == null ? undefined : progress.firstVisibleAt - turnStartedAt,
+    });
     let fullContent = generated.content;
     wsLogger.info('WebSocket generation performance', {
-      chatId,
+      chatId, requestId, diagnosticId: diagnosticTrace?.data.id,
       historyReadMs,
       promptBuildMs,
       contextBuildMs,
@@ -783,6 +807,7 @@ export class WebSocketHandler {
       // llm_tokens 计「输入 + 输出」（P0-1）：provider 的真实 usage 优先，拿不到才估算。
       // 放在空内容判断之前：被中断的请求，provider 也已经为输入收了费。
       // 历史上这里只算输出，长上下文的真实成本几乎没被计到。
+      diagnosticTrace?.stage('usage');
       await meterLlmTokens(
         tenantId,
         { providerUsage: generated.usage, estimatedPromptTokens, outputText: fullContent },
@@ -806,6 +831,7 @@ export class WebSocketHandler {
 
       const activeTurn = this.activeGenerations.get(chatId);
       if (!interrupted && activeTurn) activeTurn.commitStarted = true;
+      diagnosticTrace?.stage('commit');
       assistantMessage = preparedStory && requestId
         ? await commitStoryTurn(preparedStory, userMessageId, requestId, fullContent, interrupted, db, undefined, generated.content, { model, finishReason: generated.finishReason,
           ...(generated.streamIncomplete ? { streamIncomplete: true } : {}) })
@@ -816,9 +842,14 @@ export class WebSocketHandler {
         content: fullContent,
         ...(interrupted ? { extra: { stateStatus: 'interrupted' } } : {}),
       });
+      diagnosticTrace?.saved(assistantMessage.id, assistantMessage.extra);
       savedMessageId = assistantMessage.id;
       fullContent = assistantMessage.content;
+    } catch (error) {
+      diagnosticTrace?.fail(error);
+      throw error;
     } finally {
+      diagnosticTrace?.stage('settlement');
       await settleGeneration(hold, {
         providerUsage: generated.usage,
         estimatedPromptTokens,
@@ -834,6 +865,7 @@ export class WebSocketHandler {
       chatId, requestId, messageId: assistantMessage.id, ...diagnostic,
     });
 
+    diagnosticTrace?.stage('aftercare');
     const hasVarChanges = chat.contentSnapshotVersion == null && !interrupted && applyLegacyVariables(fullContent, {}).changed;
 
     websocketService.broadcastToChat(chatId, {

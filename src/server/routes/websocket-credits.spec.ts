@@ -1,3 +1,5 @@
+import { recordGenerationTrace } from '../services/generation-trace-store';
+vi.mock('../services/generation-trace-store', () => ({ recordGenerationTrace: vi.fn() }));
 import { recordPromptTrace } from '../services/prompt-trace-store';
 vi.mock('../services/prompt-trace-store', () => ({ recordPromptTrace: vi.fn() }));
 /**
@@ -302,6 +304,7 @@ describe('WebSocket chat - prepaid credits', () => {
       'requires a new action confirmation after %s without charging or accepting the request', async code => {
         vi.mocked(prepareStoryTurn).mockRejectedValueOnce(new AppError('Review the latest state', 409, code));
         await h.handleUserMessage(CLIENT_ID, userMessage());
+        expect(recordGenerationTrace).toHaveBeenCalledWith(TENANT, USER, CHAT, expect.objectContaining({ stage: 'preflight', errorCode: code, status: 'failed', outcomePersisted: false }));
         expect(generationRequestRepository.claim).not.toHaveBeenCalled();
         expect(chatService.addMessage).not.toHaveBeenCalled();
         expect(reserveForGeneration).not.toHaveBeenCalled();
@@ -311,6 +314,22 @@ describe('WebSocket chat - prepaid credits', () => {
         }));
       }
     );
+    it('does not collect another owner or a replayed request', async () => {
+      vi.mocked(chatRepository.findById).mockResolvedValueOnce({ id: CHAT, userId: 'other', tenantId: TENANT } as never);
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+      expect(recordGenerationTrace).not.toHaveBeenCalled();
+      vi.mocked(generationRequestRepository.findByRequest).mockResolvedValueOnce({ payloadHash: 'different' } as never);
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+      expect(recordGenerationTrace).not.toHaveBeenCalled();
+    });
+    it('preserves saved reply evidence when settlement fails', async () => {
+      vi.spyOn(h, 'streamLlmResponse').mockResolvedValue({ content: 'PRIVATE narrative', usage: null, finishReason: 'stop' });
+      vi.mocked(chatService.addMessage).mockResolvedValueOnce({ id: 2 } as never).mockResolvedValueOnce({ id: 3, content: 'PRIVATE narrative', extra: { stateStatus: 'confirmed' } } as never);
+      vi.mocked(settleGeneration).mockRejectedValueOnce(new Error('PRIVATE SQL'));
+      await h.handleUserMessage(CLIENT_ID, userMessage());
+      expect(recordGenerationTrace).toHaveBeenCalledWith(TENANT, USER, CHAT, expect.objectContaining({ stage: 'settlement', status: 'failed', assistantMessageId: 3, stateStatus: 'confirmed', outcomePersisted: true }));
+      expect(JSON.stringify(vi.mocked(recordGenerationTrace).mock.calls)).not.toContain('PRIVATE');
+    });
     it('blocks generation while an HTTP model update holds the shared gate', async () => {
       const release = acquireChatOperation(CHAT)!;
       try { await h.handleUserMessage(CLIENT_ID, userMessage()); } finally { release(); }
@@ -329,7 +348,7 @@ describe('WebSocket chat - prepaid credits', () => {
         return null;
       });
       await h.handleUserMessage(CLIENT_ID, userMessage());
-      expect(single.mock.calls[0].at(-1)).toBe('first-model');
+      expect(single.mock.calls[0][8]).toBe('first-model');
       const release = acquireChatOperation(CHAT);
       expect(release).not.toBeNull(); release?.();
     });
@@ -345,6 +364,7 @@ describe('WebSocket chat - prepaid credits', () => {
       await h.handleUserMessage(CLIENT_ID, userMessage());
       expect(commitStoryTurn).toHaveBeenCalled();
       expect(generationRequestRepository.finish).toHaveBeenCalledWith('generation-1', 'failed', `STORY_${code.toUpperCase()}`);
+      expect(recordGenerationTrace).toHaveBeenCalledWith(TENANT, USER, CHAT, expect.objectContaining({ stage: 'commit', status: 'failed', outcomePersisted: true, assistantMessageId: expect.any(Number), validation: expect.objectContaining({ code }) }));
       expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({ type: WSMessageType.ASSISTANT_MESSAGE_DONE,
         data: expect.objectContaining({ storyDiagnostics: expect.objectContaining({ code, model: 'test-model' }) }) }));
       expect(websocketService.broadcastToChat).toHaveBeenCalledWith(CHAT, expect.objectContaining({ type: WSMessageType.GENERATION_FINISHED,

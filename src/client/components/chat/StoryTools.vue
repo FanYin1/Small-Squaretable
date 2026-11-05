@@ -19,7 +19,7 @@ const headingId = useId();
     <details>
       <summary>诊断与兼容</summary>
       <p>本轮上下文诊断只读取请求记录，不会继续剧情或重新调用模型。</p>
-      <button v-if="!group" type="button" @click="$emit('select', 'context')"><strong>本轮上下文诊断</strong><small>查看真实请求的来源、顺序和容量估算</small></button>
+      <button v-if="!group" type="button" @click="$emit('select', 'context')"><strong>本轮上下文诊断</strong><small>查看生成错误、阶段耗时、请求来源和容量估算</small></button>
       <slot name="context-estimate" />
       <slot name="compatibility" />
       <button v-if="!frozen" type="button" @click="$emit('select', 'debug')">{{ t('chat.debug') }}（旧式会话）</button>

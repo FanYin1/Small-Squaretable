@@ -1,6 +1,8 @@
 <template>
   <StoryWorkspaceDrawer :open="visible" :return-focus="returnFocus" title="本轮上下文诊断" @update:open="visible = $event">
     <div class="prompt-trace-view">
+      <GenerationDiagnostics v-if="visible" :chat-id="chatId" :owner-id="ownerId" />
+      <h3>实际请求上下文</h3>
       <p>查看实际生成时留下的记录，不会重新扫描世界书或调用模型。仅显示来源和用量，不展示设定正文、关键词或聊天内容。</p>
       <button type="button" :disabled="loading" @click="load">刷新记录</button>
       <p v-if="loading" role="status">正在读取诊断…</p>
@@ -15,6 +17,7 @@
         </label>
         <article v-if="selected">
           <dl>
+            <dt>提示词诊断编号</dt><dd>{{ selected.id }}</dd>
             <dt>请求 ID</dt><dd>{{ selected.requestId || '旧式请求未分配' }}</dd>
             <dt>模型 / 接口</dt><dd>{{ selected.model }} / {{ selected.transport.adapter }}</dd>
             <dt>布局 / 模板</dt><dd>{{ selected.assembly?.layout ?? '未记录' }} / {{ selected.template }}</dd>
@@ -70,6 +73,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import StoryWorkspaceDrawer from './StoryWorkspaceDrawer.vue';
+import GenerationDiagnostics from './GenerationDiagnostics.vue';
 import { promptTraceApi } from '../../services/prompt-trace.api';
 import type { PromptTrace } from '../../../types/prompt-trace';
 const props = defineProps<{ chatId: string; ownerId: string; returnFocus?: HTMLElement }>();

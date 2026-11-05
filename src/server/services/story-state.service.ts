@@ -216,6 +216,7 @@ export async function commitStoryTurn(turn: PreparedStoryTurn, inputMessageId: n
       : generation?.streamIncomplete || nonSuccessFinish ? { code: 'stream_incomplete' as const }
       : validationCode ? { code: validationCode } : {}),
     warnings: parsed?.warnings ?? [],
+    ...(parsed?.schemaIssues ? { schemaIssues: parsed.schemaIssues } : {}),
     ...(parsed?.jsonFailure ? { jsonFailure: parsed.jsonFailure } : {}),
     ...(parsed?.protocolFailure ? { protocolFailure: parsed.protocolFailure } : {}),
   } : undefined;
